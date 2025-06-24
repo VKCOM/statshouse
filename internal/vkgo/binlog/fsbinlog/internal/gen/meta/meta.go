@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,7 +14,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.1.13" }
+func SchemaGenerator() string { return "v1.2.2" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -27,14 +27,14 @@ type Object interface {
 
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
-	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
 }
 
 type Function interface {
@@ -199,7 +199,6 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]
 }

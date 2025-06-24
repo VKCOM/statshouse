@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -44,7 +44,6 @@ func (item *ExactlyOnceCommitRequest) Read(w []byte) (_ []byte, err error) {
 	return item.PersistentSlotUuid.Read(w)
 }
 
-// This method is general version of Write, use it instead!
 func (item *ExactlyOnceCommitRequest) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -62,7 +61,6 @@ func (item *ExactlyOnceCommitRequest) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *ExactlyOnceCommitRequest) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -239,7 +237,6 @@ func (item *ExactlyOncePersistentRequest) ReadBoxed(w []byte) (_ []byte, err err
 	}
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *ExactlyOncePersistentRequest) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -366,7 +363,6 @@ func (item *ExactlyOncePrepareRequest) Read(w []byte) (_ []byte, err error) {
 	return item.PersistentQueryUuid.Read(w)
 }
 
-// This method is general version of Write, use it instead!
 func (item *ExactlyOncePrepareRequest) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -383,7 +379,6 @@ func (item *ExactlyOncePrepareRequest) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *ExactlyOncePrepareRequest) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }

@@ -1,8 +1,7 @@
-// Definitions requried for RPC server
-// This file is used to generate "extra" code (cd pkg/vktl && make gen_rpc)
-// then this code is slightly edited and updated
+// Definitions requried for RPC server, which uses TL for rpc request/response wrapper
+// This file is used to generate parsing/serialisation code (cd pkg/vktl && make gen_rpc)
 
-// TODO - replace definitions in combined.tl with definitions here
+// Big TODO - replace definitions in combined.tl with definitions here
 
 vector#1cb5c415 {t:Type} # [t] = Vector t;
 tuple#9770768a {t:Type} {n:#} [t] = Tuple t n;
@@ -45,6 +44,26 @@ releaseSlotEvent#7f045ccc
   key:exactlyOnce.uuid
 = ReleaseSlotEvent;
 
+tracing.traceID#2f4ac855 lo:long hi:long = tracing.TraceID;
+
+tracing.traceContext#c463a95c
+    fields_mask: #
+    trace_id: %(tracing.TraceID)
+    parent_id: fields_mask.2?long
+    source_id: fields_mask.3?string
+
+    // 0 = drop, 1 = record, 2 = defer
+    reserved_status_0: fields_mask.0?true
+    reserved_status_1: fields_mask.1?true
+
+    reserved_level_0: fields_mask.4?true
+    reserved_level_1: fields_mask.5?true
+    reserved_level_2: fields_mask.6?true
+
+    debug_flag: fields_mask.7?true
+
+   = tracing.TraceContext;
+
 rpcInvokeReqExtra#f3ef81a9
   flags:#
 
@@ -68,6 +87,8 @@ rpcInvokeReqExtra#f3ef81a9
   random_delay:flags.26?double // starting query would be delayed by random number, not grater than given
   return_view_number:flags.27?%True // Barsic related parameter: return view number in response
   persistent_query:flags.28?exactlyOnce.PersistentRequest
+  trace_context:flags.29?%(tracing.TraceContext)
+  execution_context:flags.30?string // contains serialized execution context.
   = RpcInvokeReqExtra;
 
 rpcReqResultExtra#c5011709
@@ -100,6 +121,11 @@ rpcDestActor#7568aabd actor_id:long = RpcDestActor;
 rpcDestActorFlags#f0a5acf7 actor_id:long extra:%(RpcInvokeReqExtra) = RpcDestActorFlags;
 
 rpcInvokeReqHeader#2374df3d query_id:long = RpcInvokeReqHeader;
+
+// We wrap body of TL2 request with this marker.
+// Any response is parsed in the context of request, so we decided to not wrap response.
+// We will remove all wrapping later as part of rpcInvokeReq2 transition.
+rpcTL2Marker#29324c54 = RpcTL2Marker;
 
 // Experimental. Top-level packet magic. Client sends on request cancel, so server can free context associated with request.
 // No response from server is sent. Required for correctly cancelling long poll requests.
@@ -178,6 +204,13 @@ netUdpPacket.wait#6e321c96
   = netUdpPacket.Wait;
 
 ---functions---
+//@any @internal engine.rpcTest
+//    dummy:string // dummy string to test various request body sizes
+//    return_size:# // return string of this size to test various response body sizes.
+//    error_format:# // 0 - success, 1 - , 2 - , 3 -
+//    make_longpoll:long // if != 0, this request is added as a long poll request with ID
+//    release_longpoll:long // if there is outstanding long poll request with this ID, return it
+//      = String;
 
 @any @internal engine.sleep time_ms:int = Bool;
 @any @internal engine.asyncSleep time_ms:int = Bool;
@@ -189,3 +222,23 @@ netUdpPacket.wait#6e321c96
 @any @internal engine.setVerbosity verbosity:int = True;
 
 @readwrite go.pprof params:string = String;
+
+// definitions for invoke req 2
+// we keep identical extra definition to save complexity costs
+// it will contain unused 'flags' field in TL2 format, but this is not a big deal, maximum 1 byte wasted
+
+---types---
+
+// we decided to switch to rpcInokeReq2 later. For now, we use wrapped TL2 marker.
+
+// bodyFormatTL1#d44fa8d0 = BodyFormat;
+// bodyFormatTL2#c532c2a9 = BodyFormat;
+
+// invokeReqHeader2#02b5c109 query_id:long actor_id:long extra:rpcInvokeReqExtra method:string format:BodyFormat = InvokeReqHeader2;
+// request body follows after rpc2.invokeReqHeader
+// for TL1, method field is optional, body contains method magic
+// for TL2, correct method field is mandatory, body does not contain method identification information
+// diagonal and other wrapped requests are not yet supported, they will be supported later
+
+// reqResultHeader2#4d173f97 query_id:long extra:rpcReqResultExtra error_code:int error_text:string = ReqResultHeader2;
+// response body follows after reqResultHeader2 (usually ignored if error_code != 0, but can contain custom error data in the future)

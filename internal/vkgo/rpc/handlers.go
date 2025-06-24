@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"os"
@@ -129,6 +130,9 @@ func readCommandLine() string {
 }
 
 func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
+	if s.opts.DebugUdpRPC >= 1 && hctx.protocolID == protocolUDP {
+		log.Printf("udp ping recieved")
+	}
 	req := tlengine.Pid{}
 	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err

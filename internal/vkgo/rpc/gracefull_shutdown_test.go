@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -44,8 +44,8 @@ func testRPCGraceful(t *rapid.T) {
 	for i := 0; i != 10; i++ {
 		servers = append(servers, genServer(t))
 	}
-	clients := []*Client{genClient(t)} // rapid.SliceOf(rapid.Custom(genClient)).Draw(t, "clients")
-	numRequests := 10                  // rapid.IntRange(1, 10).Draw(t, "numRequests")
+	clients := []Client{genClient(t)} // rapid.SliceOf(rapid.Custom(genClient)).Draw(t, "clients")
+	numRequests := 10                 // rapid.IntRange(1, 10).Draw(t, "numRequests")
 
 	var smu sync.Mutex
 	var server *Server
@@ -94,7 +94,7 @@ func testRPCGraceful(t *rapid.T) {
 
 	for _, c := range clients {
 		wg.Add(1)
-		go func(c *Client) {
+		go func(c Client) {
 			defer wg.Done()
 
 			for j := 0; j < numRequests*2; j++ {

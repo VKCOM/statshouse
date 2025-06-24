@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,6 +22,8 @@ import (
 
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
+
+const MinCryptoKeyLen = 32
 
 // if we are performing many heavy handshakes (protocol 2 Diffie-Hellman),
 // we want to limit # of parallel handshakes so scheduler allows reads and writes
@@ -219,6 +221,13 @@ func prepareNonceClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, fo
 		Time:   uint32(time.Now().Unix()),
 	}
 
+	if len(cryptoKey) != 0 && len(cryptoKey) < MinCryptoKeyLen {
+		return nonceMsg{}, fmt.Errorf("crypto key is too short (%d bytes), must be at least %d bytes", len(cryptoKey), MinCryptoKeyLen)
+	}
+	if len(cryptoKey) != 0 && client.KeyID == [4]byte{} {
+		return nonceMsg{}, fmt.Errorf("crypto key must not start with 4 zero bytes")
+	}
+
 	_, err := cryptorand.Read(client.Nonce[:])
 	if err != nil {
 		return nonceMsg{}, err
@@ -269,7 +278,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 		}
 	}
 	server := nonceMsg{
-		KeyID:  client.KeyID, // just report back. Client should ignore this field.
+		KeyID:  client.KeyID, // just report back. ClientImpl should ignore this field.
 		Schema: (protocol << 8) | cryptoSchemaAES,
 		Time:   uint32(time.Now().Unix()),
 	}
@@ -282,21 +291,28 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	}
 
 	cryptoKey := "" // We disallow empty crypto keys as protection against misconfigurations, when key is empty because error reading key file is ignored
-	var emptyKeyID [4]byte
 	for _, key := range cryptoKeys {
 		// TODO - disallow short keys
 		keyID := KeyIDFromCryptoKey(key)
 		if key != "" && key != cryptoKey && keyID == client.KeyID { // skip empty, allow duplicate keys, disallow different keys with the same KeyID
-			if keyID == emptyKeyID {
+			if keyID == [4]byte{} {
 				return nonceMsg{}, "", &tagError{
 					tag: "zero_key_id",
-					err: fmt.Errorf("client key with prefix 0x%s must not be 4 zero bytes between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+					err: fmt.Errorf("client key must not start with 4 zero bytes between %v (local) and %v, client protocol %d schema %s", localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
 				}
 			}
 			if cryptoKey != "" {
 				return nonceMsg{}, "", &tagError{
 					tag: "key_id_collision",
-					err: fmt.Errorf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s", hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+					err: fmt.Errorf("client key with prefix 0x%s matches more than 1 of %d server keys IDs %s between %v (local) and %v, client protocol %d schema %s",
+						hex.EncodeToString(client.KeyID[:]), len(cryptoKeys), hex.EncodeToString(server.KeyID[:]), localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
+				}
+			}
+			if len(key) < MinCryptoKeyLen {
+				return nonceMsg{}, "", &tagError{
+					tag: "key_short",
+					err: fmt.Errorf("key with prefix 0x%s is too short (%d bytes), must be at least %d bytes between %v (local) and %v, client protocol %d schema %s",
+						hex.EncodeToString(client.KeyID[:]), len(cryptoKey), MinCryptoKeyLen, localAddr, remoteAddr, client.ProtocolVersion(), EncryptionToString(client.EncryptionSchema())),
 				}
 			}
 			cryptoKey = key

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,6 +33,7 @@ func (item *BarsicSnapshotDependency) Reset() {
 }
 
 func (item *BarsicSnapshotDependency) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.ClusterId = basictl.RandomString(rg)
 	item.ShardId = basictl.RandomString(rg)
 	item.PayloadOffset = basictl.RandomLong(rg)
@@ -51,7 +52,6 @@ func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.PayloadOffset)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotDependency) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -71,7 +71,6 @@ func (item *BarsicSnapshotDependency) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotDependency) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -209,6 +208,14 @@ func (item *BarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicSnapshotDependency) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotDependency) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotDependency")
+}
+
 type BarsicSnapshotDependencyBytes struct {
 	FieldsMask    uint32
 	ClusterId     []byte
@@ -227,6 +234,7 @@ func (item *BarsicSnapshotDependencyBytes) Reset() {
 }
 
 func (item *BarsicSnapshotDependencyBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.ClusterId = basictl.RandomStringBytes(rg)
 	item.ShardId = basictl.RandomStringBytes(rg)
 	item.PayloadOffset = basictl.RandomLong(rg)
@@ -245,7 +253,6 @@ func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) 
 	return basictl.LongRead(w, &item.PayloadOffset)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotDependencyBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -265,7 +272,6 @@ func (item *BarsicSnapshotDependencyBytes) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotDependencyBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -401,4 +407,12 @@ func (item *BarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicSnapshotDependencyBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotDependencyBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotDependency")
 }

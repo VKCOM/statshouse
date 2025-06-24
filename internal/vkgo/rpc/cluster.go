@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -46,9 +46,10 @@ func (err TargetError) Unwrap() error {
 }
 
 type ClusterClient struct {
-	client               *Client
-	bigCluster           bool // set if expected cluster size is greater than 500 shards
-	shardSelectKeyModulo bool // override default Maglev sharding with simple modulo
+	client               Client
+	clientImpl           *ClientImpl // we use both client and clientImpl in order to access private methods, they MUST point to the same ClientImpl
+	bigCluster           bool        // set if expected cluster size is greater than 500 shards
+	shardSelectKeyModulo bool        // override default Maglev sharding with simple modulo
 	onDo                 func(addr NetAddr, req *Request)
 
 	mu     sync.RWMutex
@@ -82,21 +83,27 @@ func ClusterClientWithOnDo(v func(addr NetAddr, req *Request)) ClusterClientOpti
 	}
 }
 
-func NewClusterClient(client *Client, opts ...ClusterClientOptionsFunc) *ClusterClient {
+func NewClusterClient(client Client, opts ...ClusterClientOptionsFunc) *ClusterClient {
 	options := &ClusterClientOptions{OnDo: func(addr NetAddr, req *Request) {}}
 	for _, opt := range opts {
 		opt(options)
 	}
 
+	ci, ok := UnwrapClient(client)
+	if !ok {
+		panic("NewClusterClient must accept *ClientImpl or it's wrapper (see ClientUnwrapper)")
+	}
+
 	return &ClusterClient{
 		client:               client,
+		clientImpl:           ci,
 		bigCluster:           options.BigCluster,
 		shardSelectKeyModulo: options.ShardSelectKeyModulo,
 		onDo:                 options.OnDo,
 	}
 }
 
-func (cc *ClusterClient) RPCClient() *Client {
+func (cc *ClusterClient) RPCClient() Client {
 	return cc.client
 }
 
@@ -168,7 +175,7 @@ func (cc *ClusterClient) UpdateCluster(shards []ClusterShard) error {
 func (cc *ClusterClient) DoKey(ctx context.Context, write bool, req *Request, key uint64) (*Response, error) {
 	netAddr := cc.SelectKey(write, key)
 	if netAddr.Address == "" {
-		cc.client.putRequest(req)
+		cc.clientImpl.putRequest(req)
 		return nil, errNoBackends
 	}
 
@@ -184,7 +191,7 @@ func (cc *ClusterClient) DoKey(ctx context.Context, write bool, req *Request, ke
 func (cc *ClusterClient) DoAny(ctx context.Context, write bool, req *Request) (*Response, error) {
 	netAddr := cc.SelectAny(write)
 	if netAddr.Address == "" {
-		cc.client.putRequest(req)
+		cc.clientImpl.putRequest(req)
 		return nil, errNoBackends
 	}
 
@@ -234,8 +241,8 @@ func (cc *ClusterClient) selectInShard(write bool, shard ClusterShard) NetAddr {
 		return nodes[0]
 	default:
 		i, j := cc.pick2(n)
-		li := cc.client.getLoad(nodes[i])
-		lj := cc.client.getLoad(nodes[j])
+		li := cc.clientImpl.getLoad(nodes[i])
+		lj := cc.clientImpl.getLoad(nodes[j])
 		if li <= lj {
 			return nodes[i]
 		}
@@ -285,8 +292,8 @@ func (cc *ClusterClient) SelectAny(write bool) NetAddr {
 		case aj.Address == "":
 			return ai
 		default:
-			li := cc.client.getLoad(ai)
-			lj := cc.client.getLoad(aj)
+			li := cc.clientImpl.getLoad(ai)
+			lj := cc.clientImpl.getLoad(aj)
 			if li <= lj {
 				return ai
 			}

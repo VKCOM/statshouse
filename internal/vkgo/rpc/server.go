@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"os"
 	"runtime"
@@ -49,7 +50,6 @@ import (
 const (
 	DefaultMaxWorkers             = 1024
 	DefaultMaxConns               = 131072 // note, this number of connections will require 10+ GB of memory
-	DefaultMaxInflightPackets     = 256
 	DefaultRequestMemoryLimit     = 256 * 1024 * 1024
 	DefaultResponseMemoryLimit    = 2048*1024*1024 - 1
 	DefaultServerConnReadBufSize  = maxGoAllocSizeClass
@@ -68,7 +68,6 @@ const (
 )
 
 var (
-	errServerClosed     = errors.New("rpc: server closed")
 	ErrNoHandler        = &Error{Code: TlErrorNoHandler, Description: "rpc: no handler"} // Never wrap this error
 	errHijackResponse   = errors.New("rpc: user of server is now responsible for sending the response")
 	errCancelHijack     = &Error{Code: TlErrorTimeout, Description: "rpc: longpoll cancelled"} // passed to response hook. Decided to add separate code later.
@@ -86,6 +85,7 @@ type (
 	ErrHandlerFunc       func(err error)
 	RequestHookFunc      func(hctx *HandlerContext)
 	ResponseHookFunc     func(hctx *HandlerContext, err error)
+	TracingExtractFunc   func(ctx context.Context, tc *TraceContext) context.Context
 )
 
 func ChainHandler(ff ...HandlerFunc) HandlerFunc {
@@ -124,7 +124,6 @@ func (s *Server) newServer(options ...ServerOptionsFunc) {
 		Logf:                   log.Printf,
 		MaxConns:               DefaultMaxConns,
 		MaxWorkers:             DefaultMaxWorkers,
-		MaxInflightPackets:     DefaultMaxInflightPackets,
 		RequestMemoryLimit:     DefaultRequestMemoryLimit,
 		ResponseMemoryLimit:    DefaultResponseMemoryLimit,
 		ConnReadBufSize:        DefaultServerConnReadBufSize,
@@ -146,6 +145,7 @@ func (s *Server) newServer(options ...ServerOptionsFunc) {
 
 	s.serverStatus = serverStatusInitial
 	s.conns = map[*serverConnTCP]struct{}{}
+	s.workersSem = semaphore.NewWeighted(math.MaxInt64)
 	s.reqMemSem = semaphore.NewWeighted(int64(s.opts.RequestMemoryLimit))
 	s.respMemSem = semaphore.NewWeighted(int64(s.opts.ResponseMemoryLimit))
 	s.connSem = semaphore.NewWeighted(int64(s.opts.MaxConns))
@@ -171,8 +171,8 @@ func (s *Server) newServer(options ...ServerOptionsFunc) {
 
 	s.closeCtx, s.cancelCloseCtx = context.WithCancel(context.Background())
 
-	s.workersGroup.Add(1)
-	go s.rpsCalcLoop(&s.workersGroup)
+	s.workersSem.ForceAcquire(1)
+	go s.rpsCalcLoop(s.workersSem)
 }
 
 const (
@@ -218,8 +218,8 @@ type Server struct {
 
 	transportsUDP []*udp.Transport // many transportsUDP, one per listen address
 
-	workerPool   *workerPool
-	workersGroup sync.WaitGroup
+	workerPool *workerPool
+	workersSem *semaphore.Weighted // we do not use wait group to reduce # of primitives to implement in custom scheduler
 
 	closeCtx       context.Context
 	cancelCloseCtx context.CancelFunc
@@ -235,7 +235,6 @@ type Server struct {
 	rareLogMu            sync.Mutex
 	lastReqMemWaitLog    time.Time
 	lastRespMemWaitLog   time.Time
-	lastHctxWaitLog      time.Time
 	lastWorkerWaitLog    time.Time
 	lastHijackWarningLog time.Time
 	lastPacketTypeLog    time.Time
@@ -273,7 +272,18 @@ func (s *Server) RegisterStatsHandlerFunc(h StatsHandlerFunc) {
 	if s.serverStatus >= serverStatusStarted {
 		panic("cannot register stats handler after first Serve() or Shutdown() call")
 	}
-	s.opts.StatsHandler = h
+	if h == nil {
+		panic("stats handler is nil")
+	}
+	if s.opts.StatsHandler == nil {
+		s.opts.StatsHandler = h
+	} else {
+		oldHandler := s.opts.StatsHandler
+		s.opts.StatsHandler = func(m map[string]string) {
+			oldHandler(m)
+			h(m)
+		}
+	}
 }
 
 // some users want to delay registering handler after server is created
@@ -360,11 +370,9 @@ func (s *Server) Close() error {
 	// after that Put will return false and worker will quit
 	s.workerPool.Close()
 
-	// we can acquire whole semaphore only if all connections finished
-	_ = s.connSem.Acquire(context.Background(), int64(s.opts.MaxConns))
-	s.connSem.Release(int64(s.opts.MaxConns)) // we support multiple calls to Close/CloseWait
+	_ = s.connSem.WaitEmpty(context.Background())
 
-	s.workersGroup.Wait()
+	_ = s.workersSem.WaitEmpty(context.Background())
 
 	if len(s.conns) != 0 {
 		s.opts.Logf("rpc: tracking of connection invariant violated after close wait - %d connections", len(s.conns))
@@ -634,15 +642,12 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr) {
 			cancelCloseCtx:    cancelCloseCtx,
 			longpollResponses: map[int64]hijackedResponse{},
 		},
-		listenAddr:  lnAddr,
-		maxInflight: s.opts.MaxInflightPackets,
-		conn:        conn,
-		writeQ:      make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc()),
-		errHandler:  s.opts.ConnErrHandler,
+		listenAddr: lnAddr,
+		conn:       conn,
+		errHandler: s.opts.ConnErrHandler,
 	}
 	sc.releaseFun = sc.releaseHandlerCtx
 	sc.pushUnlockFun = sc.pushUnlock
-	sc.inflightCond.L = &sc.mu
 	sc.writeQCond.L = &sc.mu
 	sc.closeWaitCond.L = &sc.mu
 
@@ -686,7 +691,7 @@ func (s *Server) rareLog(last *time.Time, format string, args ...any) {
 }
 
 func (s *Server) acquireWorker() *worker {
-	v, ok := s.workerPool.Get(&s.workersGroup)
+	v, ok := s.workerPool.Get(s.workersSem)
 	if !ok { // closed, must be never. TODO - add panic and test
 		return nil
 	}
@@ -699,7 +704,7 @@ func (s *Server) acquireWorker() *worker {
 		ch:         make(chan workerWork, 1),
 	}
 
-	go w.run(&s.workersGroup)
+	go w.run(s.workersSem)
 
 	return w
 }
@@ -749,10 +754,7 @@ func (s *Server) receiveLoopImpl(sc *serverConnTCP) (*HandlerContext, error) {
 		// TODO - read packet body for tl.RpcCancelReq without waiting on semaphores
 		requestTime := time.Now()
 
-		hctx, ok := sc.acquireHandlerCtx()
-		if !ok {
-			return nil, errServerClosed
-		}
+		hctx := sc.acquireHandlerCtx()
 
 		hctx.RequestTime = requestTime
 
@@ -784,9 +786,9 @@ func (s *Server) receiveLoopImpl(sc *serverConnTCP) (*HandlerContext, error) {
 			sc.SetReadFIN()
 			// We handle it normally as noResult request below, to simplify hctx accounting
 		}
-		w := s.handleRequest(header.tip, &sc.serverConnCommon, hctx)
+		w, ctx := s.handleRequest(header.tip, &sc.serverConnCommon, hctx)
 		if w != nil {
-			w.ch <- workerWork{sc: &sc.serverConnCommon, hctx: hctx}
+			w.ch <- workerWork{sc: &sc.serverConnCommon, hctx: hctx, ctx: ctx}
 		}
 	}
 }
@@ -803,7 +805,7 @@ func (s *Server) sendLoop(sc *serverConnTCP) error {
 }
 
 func (s *Server) sendLoopImpl(sc *serverConnTCP) ([]*HandlerContext, error) { // returns contexts to release
-	writeQ := make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc())
+	var writeQ []*HandlerContext
 	sent := false // true if there is data to flush
 
 	sc.mu.Lock()
@@ -880,51 +882,59 @@ func (s *Server) sendLoopImpl(sc *serverConnTCP) ([]*HandlerContext, error) { //
 	}
 }
 
-func (s *Server) handleRequest(reqHeaderTip uint32, sc *serverConnCommon, hctx *HandlerContext) *worker {
-	err := s.doSyncHandler(reqHeaderTip, sc, hctx)
-	if err == errHijackResponse {
-		// We must not touch hctx.UserData here because it can be released already in SendHijackResponse
-		// User is now responsible for calling hctx.SendHijackedResponse
-		return nil
+func (s *Server) handleRequest(reqHeaderTip uint32, sc *serverConnCommon, hctx *HandlerContext) (*worker, context.Context) {
+	ctx, err := s.doSyncHandler(reqHeaderTip, sc, hctx)
+	// if an error "errHijackResponse" was returned by force from the client, that means handler for hijacked request
+	// was found successfully and client suppose that current request must be processed like a hijacked request.
+	// Could be caused by hctx.HijackResponse call
+	if errors.Is(err, errHijackResponse) {
+		// we must not touch hctx.UserData here because it can be released already in SendHijackResponse
+		// user is now responsible for calling hctx.SendHijackedResponse
+		return nil, nil
 	}
-	if err != ErrNoHandler {
+	// if error is "errNoHandler", that means handler for hijacked request was not found and current request was not
+	// actually supposed to be processed like a hijacked request. Could be caused by absent "s.opts.SyncHandler" argument.
+	// Request will go through common RPC-request handler's logic with acquiring RPC-worker. Otherwise, just return
+	// current error (that is not "errNoHandler") to the client. If err == nil, then hctx.noResult is set.
+	if !errors.Is(err, ErrNoHandler) {
 		sc.pushResponse(hctx, err, false)
-		return nil
+		return nil, nil
 	}
 	// in many projects maxWorkers is cmd argument, and ppl want to disable worker pool with this argument
 	if s.opts.MaxWorkers > 0 {
 		w := s.acquireWorker()
 		if w != nil {
-			return w
+			return w, ctx
 		}
 		// otherwise pool is closed and we call synchronously, TODO - check this is impossible
 	}
-	err = sc.server.callHandler(sc.closeCtx, hctx)
+	err = sc.server.callHandler(ctx, hctx)
 	sc.pushResponse(hctx, err, false)
-	return nil
+	return nil, ctx
 }
 
-func (s *Server) doSyncHandler(reqHeaderTip uint32, sc *serverConnCommon, hctx *HandlerContext) error {
+func (s *Server) doSyncHandler(reqHeaderTip uint32, sc *serverConnCommon, hctx *HandlerContext) (context.Context, error) {
+	ctx := sc.closeCtx
 	switch reqHeaderTip {
 	case tl.RpcCancelReq{}.TLTag():
 		cancelReq := tl.RpcCancelReq{}
 		if _, err := cancelReq.Read(hctx.Request); err != nil {
-			return err
+			return ctx, err
 		}
 		if s.opts.DebugRPC {
 			s.opts.Logf("rpc: %s Cancel queryID=%d\n", sc.debugName, cancelReq.QueryId)
 		}
 		hctx.noResult = true
 		sc.cancelLongpollResponse(cancelReq.QueryId)
-		return nil
+		return ctx, nil
 	case tl.RpcClientWantsFin{}.TLTag():
 		// also processed in reader code
 		hctx.noResult = true
-		return nil
+		return ctx, nil
 	case tl.RpcInvokeReqHeader{}.TLTag():
 		err := hctx.ParseInvokeReq(&s.opts)
 		if err != nil {
-			return err
+			return ctx, err
 		}
 		if s.opts.DebugRPC {
 			s.opts.Logf("rpc: %s SyncHandler packet tag=#%08x queryID=%d extra=%s body=%x\n", sc.debugName, reqHeaderTip, hctx.queryID, hctx.RequestExtra.String(), hctx.Request)
@@ -932,15 +942,18 @@ func (s *Server) doSyncHandler(reqHeaderTip uint32, sc *serverConnCommon, hctx *
 		if s.opts.RequestHook != nil {
 			s.opts.RequestHook(hctx)
 		}
+		if s.opts.TracingExtract != nil && hctx.RequestExtra.IsSetTraceContext() {
+			ctx = s.opts.TracingExtract(sc.closeCtx, &hctx.RequestExtra.TraceContext)
+		}
 		if s.opts.SyncHandler == nil {
-			return ErrNoHandler
+			return ctx, ErrNoHandler
 		}
 		// No deadline on sync handler context, too costly
-		return s.opts.SyncHandler(sc.closeCtx, hctx)
+		return ctx, s.opts.SyncHandler(ctx, hctx)
 	}
 	hctx.noResult = true
 	s.rareLog(&s.lastPacketTypeLog, "rpc server: unknown packet type 0x%x", reqHeaderTip)
-	return nil
+	return ctx, nil
 }
 
 func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err error) {
@@ -1085,8 +1098,8 @@ func IsHijackedResponse(err error) bool {
 }
 
 // Also helps garbage collect workers
-func (s *Server) rpsCalcLoop(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (s *Server) rpsCalcLoop(wg *semaphore.Weighted) {
+	defer wg.Release(1)
 	tick := time.NewTicker(rpsCalcSeconds * time.Second)
 	defer tick.Stop()
 	var prev [2]int64

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,7 +39,7 @@ func (item *RpcReqResultExtra) ClearBinlogPos() {
 	item.BinlogPos = 0
 	item.Flags &^= 1 << 0
 }
-func (item RpcReqResultExtra) IsSetBinlogPos() bool { return item.Flags&(1<<0) != 0 }
+func (item *RpcReqResultExtra) IsSetBinlogPos() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *RpcReqResultExtra) SetBinlogTime(v int64) {
 	item.BinlogTime = v
@@ -49,7 +49,7 @@ func (item *RpcReqResultExtra) ClearBinlogTime() {
 	item.BinlogTime = 0
 	item.Flags &^= 1 << 1
 }
-func (item RpcReqResultExtra) IsSetBinlogTime() bool { return item.Flags&(1<<1) != 0 }
+func (item *RpcReqResultExtra) IsSetBinlogTime() bool { return item.Flags&(1<<1) != 0 }
 
 func (item *RpcReqResultExtra) SetEnginePid(v NetPid) {
 	item.EnginePid = v
@@ -59,7 +59,7 @@ func (item *RpcReqResultExtra) ClearEnginePid() {
 	item.EnginePid.Reset()
 	item.Flags &^= 1 << 2
 }
-func (item RpcReqResultExtra) IsSetEnginePid() bool { return item.Flags&(1<<2) != 0 }
+func (item *RpcReqResultExtra) IsSetEnginePid() bool { return item.Flags&(1<<2) != 0 }
 
 func (item *RpcReqResultExtra) SetRequestSize(v int32) {
 	item.RequestSize = v
@@ -69,7 +69,7 @@ func (item *RpcReqResultExtra) ClearRequestSize() {
 	item.RequestSize = 0
 	item.Flags &^= 1 << 3
 }
-func (item RpcReqResultExtra) IsSetRequestSize() bool { return item.Flags&(1<<3) != 0 }
+func (item *RpcReqResultExtra) IsSetRequestSize() bool { return item.Flags&(1<<3) != 0 }
 
 func (item *RpcReqResultExtra) SetResponseSize(v int32) {
 	item.ResponseSize = v
@@ -79,7 +79,7 @@ func (item *RpcReqResultExtra) ClearResponseSize() {
 	item.ResponseSize = 0
 	item.Flags &^= 1 << 3
 }
-func (item RpcReqResultExtra) IsSetResponseSize() bool { return item.Flags&(1<<3) != 0 }
+func (item *RpcReqResultExtra) IsSetResponseSize() bool { return item.Flags&(1<<3) != 0 }
 
 func (item *RpcReqResultExtra) SetFailedSubqueries(v int32) {
 	item.FailedSubqueries = v
@@ -89,7 +89,7 @@ func (item *RpcReqResultExtra) ClearFailedSubqueries() {
 	item.FailedSubqueries = 0
 	item.Flags &^= 1 << 4
 }
-func (item RpcReqResultExtra) IsSetFailedSubqueries() bool { return item.Flags&(1<<4) != 0 }
+func (item *RpcReqResultExtra) IsSetFailedSubqueries() bool { return item.Flags&(1<<4) != 0 }
 
 func (item *RpcReqResultExtra) SetCompressionVersion(v int32) {
 	item.CompressionVersion = v
@@ -99,7 +99,7 @@ func (item *RpcReqResultExtra) ClearCompressionVersion() {
 	item.CompressionVersion = 0
 	item.Flags &^= 1 << 5
 }
-func (item RpcReqResultExtra) IsSetCompressionVersion() bool { return item.Flags&(1<<5) != 0 }
+func (item *RpcReqResultExtra) IsSetCompressionVersion() bool { return item.Flags&(1<<5) != 0 }
 
 func (item *RpcReqResultExtra) SetStats(v map[string]string) {
 	item.Stats = v
@@ -109,7 +109,7 @@ func (item *RpcReqResultExtra) ClearStats() {
 	BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	item.Flags &^= 1 << 6
 }
-func (item RpcReqResultExtra) IsSetStats() bool { return item.Flags&(1<<6) != 0 }
+func (item *RpcReqResultExtra) IsSetStats() bool { return item.Flags&(1<<6) != 0 }
 
 func (item *RpcReqResultExtra) SetShardsBinlogPos(v map[string]int64) {
 	item.ShardsBinlogPos = v
@@ -119,7 +119,7 @@ func (item *RpcReqResultExtra) ClearShardsBinlogPos() {
 	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
 	item.Flags &^= 1 << 14
 }
-func (item RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
+func (item *RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *RpcReqResultExtra) SetEpochNumber(v int64) {
 	item.EpochNumber = v
@@ -129,7 +129,7 @@ func (item *RpcReqResultExtra) ClearEpochNumber() {
 	item.EpochNumber = 0
 	item.Flags &^= 1 << 27
 }
-func (item RpcReqResultExtra) IsSetEpochNumber() bool { return item.Flags&(1<<27) != 0 }
+func (item *RpcReqResultExtra) IsSetEpochNumber() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *RpcReqResultExtra) SetViewNumber(v int64) {
 	item.ViewNumber = v
@@ -139,7 +139,7 @@ func (item *RpcReqResultExtra) ClearViewNumber() {
 	item.ViewNumber = 0
 	item.Flags &^= 1 << 27
 }
-func (item RpcReqResultExtra) IsSetViewNumber() bool { return item.Flags&(1<<27) != 0 }
+func (item *RpcReqResultExtra) IsSetViewNumber() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *RpcReqResultExtra) Reset() {
 	item.Flags = 0
@@ -328,7 +328,6 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *RpcReqResultExtra) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -378,7 +377,6 @@ func (item *RpcReqResultExtra) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *RpcReqResultExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }

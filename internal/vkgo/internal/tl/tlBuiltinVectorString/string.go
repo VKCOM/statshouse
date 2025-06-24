@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -51,6 +51,70 @@ func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 		w = basictl.StringWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorStringCalculateLayout(sizes []int, vec *[]string) []int {
+	currentSize := 0
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+	}
+	for i := 0; i < len(*vec); i++ {
+		elem := (*vec)[i]
+
+		currentSize += len(elem)
+		currentSize += basictl.TL2CalculateSize(len(elem))
+	}
+	sizes[sizePosition] = currentSize
+	return sizes
+}
+
+func BuiltinVectorStringInternalWriteTL2(w []byte, sizes []int, vec *[]string) ([]byte, []int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+
+	w = basictl.TL2WriteSize(w, currentSize)
+	if len(*vec) != 0 {
+		w = basictl.TL2WriteSize(w, len(*vec))
+	}
+
+	for i := 0; i < len(*vec); i++ {
+		elem := (*vec)[i]
+		w = basictl.StringWriteTL2(w, elem)
+	}
+	return w, sizes
+}
+
+func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([]string, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = basictl.StringReadTL2(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
@@ -129,6 +193,70 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorStringBytesCalculateLayout(sizes []int, vec *[][]byte) []int {
+	currentSize := 0
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+	}
+	for i := 0; i < len(*vec); i++ {
+		elem := (*vec)[i]
+
+		currentSize += len(elem)
+		currentSize += basictl.TL2CalculateSize(len(elem))
+	}
+	sizes[sizePosition] = currentSize
+	return sizes
+}
+
+func BuiltinVectorStringBytesInternalWriteTL2(w []byte, sizes []int, vec *[][]byte) ([]byte, []int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+
+	w = basictl.TL2WriteSize(w, currentSize)
+	if len(*vec) != 0 {
+		w = basictl.TL2WriteSize(w, len(*vec))
+	}
+
+	for i := 0; i < len(*vec); i++ {
+		elem := (*vec)[i]
+		w = basictl.StringBytesWriteTL2(w, elem)
+	}
+	return w, sizes
+}
+
+func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([][]byte, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = basictl.StringReadBytesTL2(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -45,7 +45,7 @@ func (s *shutdownTestServer) sendSomeResponses() {
 }
 
 func (s *shutdownTestServer) testShutdownHandler(_ context.Context, hctx *HandlerContext) (err error) {
-	if hctx.Request, err = basictl.NatReadExactTag(hctx.Request, requestType); err != nil {
+	if hctx.Request, err = basictl.NatReadExactTag(hctx.Request, testRequestType); err != nil {
 		return err
 	}
 	var n int32
@@ -90,7 +90,6 @@ func testShutdownClient(t *rapid.T) {
 		ServerWithCryptoKeys(testCryptoKeys),
 		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
-		ServerWithMaxInflightPackets(numRequests+1), // some requests will long poll, so ping/cancel packet must fit
 		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
 		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
 		ServerWithRequestBufSize(rapid.IntRange(512, 1024).Draw(t, "requestBufSize")),
@@ -108,7 +107,7 @@ func testShutdownClient(t *rapid.T) {
 
 	for _, c := range clients {
 		wg.Add(1)
-		go func(c *Client) {
+		go func(c Client) {
 			defer wg.Done()
 
 			var cwg sync.WaitGroup
@@ -119,7 +118,7 @@ func testShutdownClient(t *rapid.T) {
 
 					n := rand.New().Int31()
 					req := c.GetRequest()
-					req.Body = basictl.NatWrite(req.Body, requestType)
+					req.Body = basictl.NatWrite(req.Body, testRequestType)
 					req.Body = basictl.IntWrite(req.Body, n)
 
 					resp, _ := c.Do(context.Background(), "tcp4", ln.Addr().String(), req)

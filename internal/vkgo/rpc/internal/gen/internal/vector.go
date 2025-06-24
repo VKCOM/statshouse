@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,7 +33,6 @@ func (item *Vector) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *Vector) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -50,7 +49,6 @@ func (item *Vector) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *Vector) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -63,7 +61,6 @@ func (item *Vector) WriteBoxed(w []byte) []byte {
 func (item Vector) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *Vector) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]uint32)(item)
 	if err := BuiltinVectorReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -117,7 +114,6 @@ func (item *VectorDictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDictionaryFieldLong) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -134,7 +130,6 @@ func (item *VectorDictionaryFieldLong) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDictionaryFieldLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -147,7 +142,6 @@ func (item *VectorDictionaryFieldLong) WriteBoxed(w []byte) []byte {
 func (item VectorDictionaryFieldLong) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]int64)(item)
 	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -201,7 +195,6 @@ func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDictionaryFieldString) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -218,7 +211,6 @@ func (item *VectorDictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDictionaryFieldString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -231,7 +223,6 @@ func (item *VectorDictionaryFieldString) WriteBoxed(w []byte) []byte {
 func (item VectorDictionaryFieldString) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
 	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -285,7 +276,6 @@ func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorLongRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorLong) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -302,7 +292,6 @@ func (item *VectorLong) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -315,7 +304,6 @@ func (item *VectorLong) WriteBoxed(w []byte) []byte {
 func (item VectorLong) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]int64)(item)
 	if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -369,7 +357,6 @@ func (item *VectorNetUdpPacketResendRange) Read(w []byte) (_ []byte, err error) 
 	return BuiltinVectorNetUdpPacketResendRangeRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorNetUdpPacketResendRange) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -386,7 +373,6 @@ func (item *VectorNetUdpPacketResendRange) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorNetUdpPacketResendRange) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -399,7 +385,6 @@ func (item *VectorNetUdpPacketResendRange) WriteBoxed(w []byte) []byte {
 func (item VectorNetUdpPacketResendRange) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorNetUdpPacketResendRange) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]NetUdpPacketResendRange)(item)
 	if err := BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -453,7 +438,6 @@ func (item *VectorString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorString) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -470,7 +454,6 @@ func (item *VectorString) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -483,7 +466,6 @@ func (item *VectorString) WriteBoxed(w []byte) []byte {
 func (item VectorString) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]string)(item)
 	if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, ptr); err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,38 +12,38 @@ import (
 )
 
 type (
-	AllocSlotEvent                = internal.AllocSlotEvent
-	DictionaryFieldLong           = internal.DictionaryFieldLong
-	DictionaryFieldString         = internal.DictionaryFieldString
-	DictionaryLong                = internal.DictionaryLong
-	DictionaryString              = internal.DictionaryString
-	ReleaseSlotEvent              = internal.ReleaseSlotEvent
-	ReqError                      = internal.ReqError
-	ReqResultHeader               = internal.ReqResultHeader
-	RpcCancelReq                  = internal.RpcCancelReq
-	RpcClientWantsFin             = internal.RpcClientWantsFin
-	RpcDestActor                  = internal.RpcDestActor
-	RpcDestActorFlags             = internal.RpcDestActorFlags
-	RpcDestFlags                  = internal.RpcDestFlags
-	RpcInvokeReqExtra             = internal.RpcInvokeReqExtra
-	RpcInvokeReqHeader            = internal.RpcInvokeReqHeader
-	RpcPing                       = internal.RpcPing
-	RpcPong                       = internal.RpcPong
-	RpcReqResultError             = internal.RpcReqResultError
-	RpcReqResultErrorWrapped      = internal.RpcReqResultErrorWrapped
-	RpcReqResultExtra             = internal.RpcReqResultExtra
-	RpcReqResultHeader            = internal.RpcReqResultHeader
-	RpcServerWantsFin             = internal.RpcServerWantsFin
-	Stat                          = internal.Stat
-	String                        = internal.String
-	True                          = internal.True
-	Tuple8                        = internal.Tuple8
-	Vector                        = internal.Vector
-	VectorDictionaryFieldLong     = internal.VectorDictionaryFieldLong
-	VectorDictionaryFieldString   = internal.VectorDictionaryFieldString
-	VectorLong                    = internal.VectorLong
-	VectorNetUdpPacketResendRange = internal.VectorNetUdpPacketResendRange
-	VectorString                  = internal.VectorString
+	AllocSlotEvent              = internal.AllocSlotEvent
+	DictionaryFieldLong         = internal.DictionaryFieldLong
+	DictionaryFieldString       = internal.DictionaryFieldString
+	DictionaryLong              = internal.DictionaryLong
+	DictionaryString            = internal.DictionaryString
+	ReleaseSlotEvent            = internal.ReleaseSlotEvent
+	ReqError                    = internal.ReqError
+	ReqResultHeader             = internal.ReqResultHeader
+	RpcCancelReq                = internal.RpcCancelReq
+	RpcClientWantsFin           = internal.RpcClientWantsFin
+	RpcDestActor                = internal.RpcDestActor
+	RpcDestActorFlags           = internal.RpcDestActorFlags
+	RpcDestFlags                = internal.RpcDestFlags
+	RpcInvokeReqExtra           = internal.RpcInvokeReqExtra
+	RpcInvokeReqHeader          = internal.RpcInvokeReqHeader
+	RpcPing                     = internal.RpcPing
+	RpcPong                     = internal.RpcPong
+	RpcReqResultError           = internal.RpcReqResultError
+	RpcReqResultErrorWrapped    = internal.RpcReqResultErrorWrapped
+	RpcReqResultExtra           = internal.RpcReqResultExtra
+	RpcReqResultHeader          = internal.RpcReqResultHeader
+	RpcServerWantsFin           = internal.RpcServerWantsFin
+	RpcTL2Marker                = internal.RpcTL2Marker
+	Stat                        = internal.Stat
+	String                      = internal.String
+	True                        = internal.True
+	Tuple8                      = internal.Tuple8
+	Vector                      = internal.Vector
+	VectorDictionaryFieldLong   = internal.VectorDictionaryFieldLong
+	VectorDictionaryFieldString = internal.VectorDictionaryFieldString
+	VectorLong                  = internal.VectorLong
+	VectorString                = internal.VectorString
 )
 
 func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {

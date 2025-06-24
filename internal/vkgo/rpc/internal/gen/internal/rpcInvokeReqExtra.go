@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,7 +33,9 @@ type RpcInvokeReqExtra struct {
 	SupportedCompressionVersion int32            // Conditional: item.Flags.25
 	RandomDelay                 float64          // Conditional: item.Flags.26
 	// ReturnViewNumber (TrueType) // Conditional: item.Flags.27
-	PersistentQuery ExactlyOncePersistentRequest // Conditional: item.Flags.28
+	PersistentQuery  ExactlyOncePersistentRequest // Conditional: item.Flags.28
+	TraceContext     TracingTraceContext          // Conditional: item.Flags.29
+	ExecutionContext string                       // Conditional: item.Flags.30
 }
 
 func (RpcInvokeReqExtra) TLName() string { return "rpcInvokeReqExtra" }
@@ -46,7 +48,7 @@ func (item *RpcInvokeReqExtra) SetReturnBinlogPos(v bool) {
 		item.Flags &^= 1 << 0
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnBinlogPos() bool { return item.Flags&(1<<0) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnBinlogPos() bool { return item.Flags&(1<<0) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnBinlogTime(v bool) {
 	if v {
@@ -55,7 +57,7 @@ func (item *RpcInvokeReqExtra) SetReturnBinlogTime(v bool) {
 		item.Flags &^= 1 << 1
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnBinlogTime() bool { return item.Flags&(1<<1) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnBinlogTime() bool { return item.Flags&(1<<1) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnPid(v bool) {
 	if v {
@@ -64,7 +66,7 @@ func (item *RpcInvokeReqExtra) SetReturnPid(v bool) {
 		item.Flags &^= 1 << 2
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnPid() bool { return item.Flags&(1<<2) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnPid() bool { return item.Flags&(1<<2) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnRequestSizes(v bool) {
 	if v {
@@ -73,7 +75,7 @@ func (item *RpcInvokeReqExtra) SetReturnRequestSizes(v bool) {
 		item.Flags &^= 1 << 3
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnRequestSizes() bool { return item.Flags&(1<<3) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnRequestSizes() bool { return item.Flags&(1<<3) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnFailedSubqueries(v bool) {
 	if v {
@@ -82,7 +84,7 @@ func (item *RpcInvokeReqExtra) SetReturnFailedSubqueries(v bool) {
 		item.Flags &^= 1 << 4
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnFailedSubqueries() bool { return item.Flags&(1<<4) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnFailedSubqueries() bool { return item.Flags&(1<<4) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnQueryStats(v bool) {
 	if v {
@@ -91,7 +93,7 @@ func (item *RpcInvokeReqExtra) SetReturnQueryStats(v bool) {
 		item.Flags &^= 1 << 6
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnQueryStats() bool { return item.Flags&(1<<6) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnQueryStats() bool { return item.Flags&(1<<6) != 0 }
 
 func (item *RpcInvokeReqExtra) SetNoResult(v bool) {
 	if v {
@@ -100,7 +102,7 @@ func (item *RpcInvokeReqExtra) SetNoResult(v bool) {
 		item.Flags &^= 1 << 7
 	}
 }
-func (item RpcInvokeReqExtra) IsSetNoResult() bool { return item.Flags&(1<<7) != 0 }
+func (item *RpcInvokeReqExtra) IsSetNoResult() bool { return item.Flags&(1<<7) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnShardsBinlogPos(v bool) {
 	if v {
@@ -109,7 +111,7 @@ func (item *RpcInvokeReqExtra) SetReturnShardsBinlogPos(v bool) {
 		item.Flags &^= 1 << 14
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnShardsBinlogPos() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *RpcInvokeReqExtra) SetWaitShardsBinlogPos(v map[string]int64) {
 	item.WaitShardsBinlogPos = v
@@ -119,7 +121,7 @@ func (item *RpcInvokeReqExtra) ClearWaitShardsBinlogPos() {
 	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
 	item.Flags &^= 1 << 15
 }
-func (item RpcInvokeReqExtra) IsSetWaitShardsBinlogPos() bool { return item.Flags&(1<<15) != 0 }
+func (item *RpcInvokeReqExtra) IsSetWaitShardsBinlogPos() bool { return item.Flags&(1<<15) != 0 }
 
 func (item *RpcInvokeReqExtra) SetWaitBinlogPos(v int64) {
 	item.WaitBinlogPos = v
@@ -129,7 +131,7 @@ func (item *RpcInvokeReqExtra) ClearWaitBinlogPos() {
 	item.WaitBinlogPos = 0
 	item.Flags &^= 1 << 16
 }
-func (item RpcInvokeReqExtra) IsSetWaitBinlogPos() bool { return item.Flags&(1<<16) != 0 }
+func (item *RpcInvokeReqExtra) IsSetWaitBinlogPos() bool { return item.Flags&(1<<16) != 0 }
 
 func (item *RpcInvokeReqExtra) SetStringForwardKeys(v []string) {
 	item.StringForwardKeys = v
@@ -139,7 +141,7 @@ func (item *RpcInvokeReqExtra) ClearStringForwardKeys() {
 	item.StringForwardKeys = item.StringForwardKeys[:0]
 	item.Flags &^= 1 << 18
 }
-func (item RpcInvokeReqExtra) IsSetStringForwardKeys() bool { return item.Flags&(1<<18) != 0 }
+func (item *RpcInvokeReqExtra) IsSetStringForwardKeys() bool { return item.Flags&(1<<18) != 0 }
 
 func (item *RpcInvokeReqExtra) SetIntForwardKeys(v []int64) {
 	item.IntForwardKeys = v
@@ -149,7 +151,7 @@ func (item *RpcInvokeReqExtra) ClearIntForwardKeys() {
 	item.IntForwardKeys = item.IntForwardKeys[:0]
 	item.Flags &^= 1 << 19
 }
-func (item RpcInvokeReqExtra) IsSetIntForwardKeys() bool { return item.Flags&(1<<19) != 0 }
+func (item *RpcInvokeReqExtra) IsSetIntForwardKeys() bool { return item.Flags&(1<<19) != 0 }
 
 func (item *RpcInvokeReqExtra) SetStringForward(v string) {
 	item.StringForward = v
@@ -159,7 +161,7 @@ func (item *RpcInvokeReqExtra) ClearStringForward() {
 	item.StringForward = ""
 	item.Flags &^= 1 << 20
 }
-func (item RpcInvokeReqExtra) IsSetStringForward() bool { return item.Flags&(1<<20) != 0 }
+func (item *RpcInvokeReqExtra) IsSetStringForward() bool { return item.Flags&(1<<20) != 0 }
 
 func (item *RpcInvokeReqExtra) SetIntForward(v int64) {
 	item.IntForward = v
@@ -169,7 +171,7 @@ func (item *RpcInvokeReqExtra) ClearIntForward() {
 	item.IntForward = 0
 	item.Flags &^= 1 << 21
 }
-func (item RpcInvokeReqExtra) IsSetIntForward() bool { return item.Flags&(1<<21) != 0 }
+func (item *RpcInvokeReqExtra) IsSetIntForward() bool { return item.Flags&(1<<21) != 0 }
 
 func (item *RpcInvokeReqExtra) SetCustomTimeoutMs(v int32) {
 	item.CustomTimeoutMs = v
@@ -179,7 +181,7 @@ func (item *RpcInvokeReqExtra) ClearCustomTimeoutMs() {
 	item.CustomTimeoutMs = 0
 	item.Flags &^= 1 << 23
 }
-func (item RpcInvokeReqExtra) IsSetCustomTimeoutMs() bool { return item.Flags&(1<<23) != 0 }
+func (item *RpcInvokeReqExtra) IsSetCustomTimeoutMs() bool { return item.Flags&(1<<23) != 0 }
 
 func (item *RpcInvokeReqExtra) SetSupportedCompressionVersion(v int32) {
 	item.SupportedCompressionVersion = v
@@ -189,7 +191,9 @@ func (item *RpcInvokeReqExtra) ClearSupportedCompressionVersion() {
 	item.SupportedCompressionVersion = 0
 	item.Flags &^= 1 << 25
 }
-func (item RpcInvokeReqExtra) IsSetSupportedCompressionVersion() bool { return item.Flags&(1<<25) != 0 }
+func (item *RpcInvokeReqExtra) IsSetSupportedCompressionVersion() bool {
+	return item.Flags&(1<<25) != 0
+}
 
 func (item *RpcInvokeReqExtra) SetRandomDelay(v float64) {
 	item.RandomDelay = v
@@ -199,7 +203,7 @@ func (item *RpcInvokeReqExtra) ClearRandomDelay() {
 	item.RandomDelay = 0
 	item.Flags &^= 1 << 26
 }
-func (item RpcInvokeReqExtra) IsSetRandomDelay() bool { return item.Flags&(1<<26) != 0 }
+func (item *RpcInvokeReqExtra) IsSetRandomDelay() bool { return item.Flags&(1<<26) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnViewNumber(v bool) {
 	if v {
@@ -208,7 +212,7 @@ func (item *RpcInvokeReqExtra) SetReturnViewNumber(v bool) {
 		item.Flags &^= 1 << 27
 	}
 }
-func (item RpcInvokeReqExtra) IsSetReturnViewNumber() bool { return item.Flags&(1<<27) != 0 }
+func (item *RpcInvokeReqExtra) IsSetReturnViewNumber() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *RpcInvokeReqExtra) SetPersistentQuery(v ExactlyOncePersistentRequest) {
 	item.PersistentQuery = v
@@ -218,7 +222,27 @@ func (item *RpcInvokeReqExtra) ClearPersistentQuery() {
 	item.PersistentQuery.Reset()
 	item.Flags &^= 1 << 28
 }
-func (item RpcInvokeReqExtra) IsSetPersistentQuery() bool { return item.Flags&(1<<28) != 0 }
+func (item *RpcInvokeReqExtra) IsSetPersistentQuery() bool { return item.Flags&(1<<28) != 0 }
+
+func (item *RpcInvokeReqExtra) SetTraceContext(v TracingTraceContext) {
+	item.TraceContext = v
+	item.Flags |= 1 << 29
+}
+func (item *RpcInvokeReqExtra) ClearTraceContext() {
+	item.TraceContext.Reset()
+	item.Flags &^= 1 << 29
+}
+func (item *RpcInvokeReqExtra) IsSetTraceContext() bool { return item.Flags&(1<<29) != 0 }
+
+func (item *RpcInvokeReqExtra) SetExecutionContext(v string) {
+	item.ExecutionContext = v
+	item.Flags |= 1 << 30
+}
+func (item *RpcInvokeReqExtra) ClearExecutionContext() {
+	item.ExecutionContext = ""
+	item.Flags &^= 1 << 30
+}
+func (item *RpcInvokeReqExtra) IsSetExecutionContext() bool { return item.Flags&(1<<30) != 0 }
 
 func (item *RpcInvokeReqExtra) Reset() {
 	item.Flags = 0
@@ -232,6 +256,8 @@ func (item *RpcInvokeReqExtra) Reset() {
 	item.SupportedCompressionVersion = 0
 	item.RandomDelay = 0
 	item.PersistentQuery.Reset()
+	item.TraceContext.Reset()
+	item.ExecutionContext = ""
 }
 
 func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
@@ -295,6 +321,12 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 	if maskFlags&(1<<18) != 0 {
 		item.Flags |= (1 << 28)
 	}
+	if maskFlags&(1<<19) != 0 {
+		item.Flags |= (1 << 29)
+	}
+	if maskFlags&(1<<20) != 0 {
+		item.Flags |= (1 << 30)
+	}
 	if item.Flags&(1<<15) != 0 {
 		BuiltinVectorDictionaryFieldLongFillRandom(rg, &item.WaitShardsBinlogPos)
 	} else {
@@ -344,6 +376,16 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 		item.PersistentQuery.FillRandom(rg)
 	} else {
 		item.PersistentQuery.Reset()
+	}
+	if item.Flags&(1<<29) != 0 {
+		item.TraceContext.FillRandom(rg)
+	} else {
+		item.TraceContext.Reset()
+	}
+	if item.Flags&(1<<30) != 0 {
+		item.ExecutionContext = basictl.RandomString(rg)
+	} else {
+		item.ExecutionContext = ""
 	}
 }
 
@@ -421,10 +463,23 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.PersistentQuery.Reset()
 	}
+	if item.Flags&(1<<29) != 0 {
+		if w, err = item.TraceContext.Read(w); err != nil {
+			return w, err
+		}
+	} else {
+		item.TraceContext.Reset()
+	}
+	if item.Flags&(1<<30) != 0 {
+		if w, err = basictl.StringRead(w, &item.ExecutionContext); err != nil {
+			return w, err
+		}
+	} else {
+		item.ExecutionContext = ""
+	}
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *RpcInvokeReqExtra) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -461,6 +516,12 @@ func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
 	if item.Flags&(1<<28) != 0 {
 		w = item.PersistentQuery.WriteBoxed(w)
 	}
+	if item.Flags&(1<<29) != 0 {
+		w = item.TraceContext.Write(w)
+	}
+	if item.Flags&(1<<30) != 0 {
+		w = basictl.StringWrite(w, item.ExecutionContext)
+	}
 	return w
 }
 
@@ -471,7 +532,6 @@ func (item *RpcInvokeReqExtra) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *RpcInvokeReqExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -515,6 +575,8 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	var trueTypeReturnViewNumberPresented bool
 	var trueTypeReturnViewNumberValue bool
 	var propPersistentQueryPresented bool
+	var propTraceContextPresented bool
+	var propExecutionContextPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -685,6 +747,22 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 					return err
 				}
 				propPersistentQueryPresented = true
+			case "trace_context":
+				if propTraceContextPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqExtra", "trace_context")
+				}
+				if err := item.TraceContext.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propTraceContextPresented = true
+			case "execution_context":
+				if propExecutionContextPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqExtra", "execution_context")
+				}
+				if err := Json2ReadString(in, &item.ExecutionContext); err != nil {
+					return err
+				}
+				propExecutionContextPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("rpcInvokeReqExtra", key)
 			}
@@ -727,6 +805,12 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	}
 	if !propPersistentQueryPresented {
 		item.PersistentQuery.Reset()
+	}
+	if !propTraceContextPresented {
+		item.TraceContext.Reset()
+	}
+	if !propExecutionContextPresented {
+		item.ExecutionContext = ""
 	}
 	if trueTypeReturnBinlogPosPresented {
 		if trueTypeReturnBinlogPosValue {
@@ -802,6 +886,12 @@ func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 	}
 	if propPersistentQueryPresented {
 		item.Flags |= 1 << 28
+	}
+	if propTraceContextPresented {
+		item.Flags |= 1 << 29
+	}
+	if propExecutionContextPresented {
+		item.Flags |= 1 << 30
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReturnBinlogPosPresented && !trueTypeReturnBinlogPosValue && (item.Flags&(1<<0) != 0) {
@@ -944,6 +1034,16 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"persistent_query":`...)
 		w = item.PersistentQuery.WriteJSONOpt(newTypeNames, short, w)
+	}
+	if item.Flags&(1<<29) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"trace_context":`...)
+		w = item.TraceContext.WriteJSONOpt(newTypeNames, short, w)
+	}
+	if item.Flags&(1<<30) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"execution_context":`...)
+		w = basictl.JSONWriteString(w, item.ExecutionContext)
 	}
 	return append(w, '}')
 }

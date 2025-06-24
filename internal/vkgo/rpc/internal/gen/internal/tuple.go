@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,7 +33,6 @@ func (item *Tuple8) Read(w []byte) (_ []byte, err error) {
 	return BuiltinTuple8Read(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *Tuple8) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -50,7 +49,6 @@ func (item *Tuple8) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *Tuple8) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -63,7 +61,6 @@ func (item *Tuple8) WriteBoxed(w []byte) []byte {
 func (item Tuple8) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[8]uint32)(item)
 	if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, ptr); err != nil {

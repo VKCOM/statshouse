@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -32,7 +32,7 @@ func (item *BarsicReindex) SetFast(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicReindex) IsSetFast() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicReindex) IsSetFast() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicReindex) SetDiff(v bool) {
 	if v {
@@ -41,7 +41,7 @@ func (item *BarsicReindex) SetDiff(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicReindex) IsSetDiff() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicReindex) IsSetDiff() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicReindex) Reset() {
 	item.FieldsMask = 0
@@ -66,7 +66,6 @@ func (item *BarsicReindex) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicReindex) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -83,7 +82,6 @@ func (item *BarsicReindex) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicReindex) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -261,4 +259,12 @@ func (item *BarsicReindex) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.reindex", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicReindex) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicReindex) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.reindex")
 }

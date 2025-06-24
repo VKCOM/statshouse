@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,7 +7,6 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"net"
@@ -24,24 +23,33 @@ import (
 )
 
 const (
-	requestType = uint32(0x12345678)
+	testRequestType   = uint32(0x12345678)
+	testRequestMethod = "test.request"
 )
 
-var testCryptoKeys = []string{"test", "2", "1test"}
+var testCryptoKeys = []string{"test-crypto-key-crypto-key-crypto-key", "2-crypto-key-crypto-key-crypto-key", "1test-crypto-key-crypto-key-crypto-key"}
 
 func handler(_ context.Context, hctx *HandlerContext) (err error) {
-	hctx.Request, err = basictl.NatReadExactTag(hctx.Request, requestType)
+	bodyCopy := string(hctx.Request)
+	hctx.Request, err = basictl.NatReadExactTag(hctx.Request, testRequestType)
 	if err != nil {
 		return err
 	}
 
-	n, b := binary.Varint(hctx.Request)
-	if b <= 0 {
+	var n uint32
+	if hctx.bodyFormatTL2 { // pretend we have variation in format
+		var sz int
+		hctx.Request, err = basictl.TL2ReadSize(hctx.Request, &sz)
+		n = uint32(sz)
+	} else {
+		hctx.Request, err = basictl.NatRead(hctx.Request, &n)
+	}
+	if err != nil {
 		return err
 	}
 
 	if n%7 == 0 {
-		hctx.ResponseExtra.SetBinlogPos(n * 100)
+		hctx.ResponseExtra.SetBinlogPos(int64(n) * 100)
 	}
 
 	if n%2 != 0 {
@@ -51,7 +59,14 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 		}
 		switch (n / 2) % 3 {
 		case 0:
-			return rpcErr // will serialize as tl.ReqError
+			if n/6%2 == 0 {
+				return rpcErr // will serialize by default
+			}
+			// serialize manually to check parsing correctness
+			hctx.Response = basictl.NatWrite(hctx.Response, tl.ReqError{}.TLTag())
+			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
+			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
+			return nil
 		case 1:
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultErrorWrapped{}.TLTag())
@@ -61,49 +76,62 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 		default:
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultError{}.TLTag())
-			hctx.Response = basictl.LongWrite(hctx.Response, n) // unused
+			hctx.Response = basictl.LongWrite(hctx.Response, 0) // unused
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
 			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
 			return nil
 		}
 	}
-
-	buf := make([]byte, binary.MaxVarintLen64)
-	buf = buf[:binary.PutVarint(buf, n)]
-	hctx.Response = append(hctx.Response, bytes.Repeat(buf, 4)...)
+	hctx.Response = append(hctx.Response, bodyCopy...)
 	return nil
 }
 
-func dorequest(t *rapid.T, c *Client, addr string) {
-	j := rand.Int()
-	req := c.GetRequest()
-	req.ActorID = int64(j % 2)
-	if j%3 == 0 {
-		req.Extra.SetIntForward(int64(j))
+func prepareTestRequest(req *Request) string {
+	req.FunctionName = testRequestMethod
+	j := rand.Int63()
+	if j%2 == 0 {
+		req.ActorID = j
 	}
+	if (j/2)%2 == 0 {
+		req.Extra.SetIntForward(j)
+	}
+	n := uint32(req.QueryID())
 
-	buf := make([]byte, binary.MaxVarintLen64)
-	n := rand.Int31()
-	buf = buf[:binary.PutVarint(buf, int64(n))]
-	buf = append(make([]byte, 4), bytes.Repeat(buf, 4)...) // 4 bytes zero request type + hacky way to make sure request size is divisible by 4
-	binary.LittleEndian.PutUint32(buf, requestType)
-	req.Body = append(req.Body, buf...)
+	if (j/4)%2 == 0 {
+		req.BodyFormatTL2 = true
+	}
+	req.Body = binary.LittleEndian.AppendUint32(req.Body, testRequestType)
+	if req.BodyFormatTL2 { // pretend we have variation in format
+		req.Body = basictl.TL2WriteSize(req.Body, int(n))
+	} else {
+		req.Body = binary.LittleEndian.AppendUint32(req.Body, n)
+	}
+	req.Body = append(req.Body, "body"...)
+	return string(req.Body)
+}
 
-	resp, err := c.Do(context.Background(), "tcp4", addr, req)
-	defer c.PutResponse(resp)
-
+func checkTestResponse(t *rapid.T, resp *Response, err error, bodyCopy string) {
+	n := uint32(resp.QueryID())
 	if n%2 != 0 {
 		refErr := &Error{
-			Code:        n,
+			Code:        int32(n),
 			Description: strconv.Itoa(int(n)),
 		}
 
 		if !reflect.DeepEqual(err, refErr) {
 			t.Errorf("got error %q instead of %q", err, refErr)
 		}
-	} else if resp == nil || !bytes.Equal(buf[4:], resp.Body) {
-		t.Errorf("sent %q, got back %v (%v)", buf, resp, err)
+	} else if resp == nil || bodyCopy != string(resp.Body) {
+		t.Errorf("sent %q, got back %v (%v)", bodyCopy, resp, err)
 	}
+}
+
+func dorequest(t *rapid.T, c Client, addr string) {
+	req := c.GetRequest()
+	bodyCopy := prepareTestRequest(req)
+	resp, err := c.Do(context.Background(), "tcp4", addr, req)
+	defer c.PutResponse(resp)
+	checkTestResponse(t, resp, err, bodyCopy)
 }
 
 func TestRPCRoundtrip(t *testing.T) {
@@ -114,8 +142,9 @@ func TestRPCRoundtrip(t *testing.T) {
 	rapid.Check(t, testRPCRoundtrip)
 }
 
-func genClient(t *rapid.T) *Client {
+func genClient(t *rapid.T) Client {
 	return NewClient(
+		ClientWithProtocolVersion(LatestProtocolVersion),
 		ClientWithForceEncryption(rapid.Bool().Draw(t, "forceEncryption")),
 		ClientWithCryptoKey(testCryptoKeys[rapid.IntRange(0, 2).Draw(t, "cryptoKeyIndex")]),
 		ClientWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
@@ -129,7 +158,6 @@ func genServer(t *rapid.T) *Server {
 		ServerWithCryptoKeys(testCryptoKeys),
 		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
-		ServerWithMaxInflightPackets(rapid.IntRange(0, 3).Draw(t, "maxInflight")),
 		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
 		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
 		ServerWithRequestBufSize(rapid.IntRange(512, 1024).Draw(t, "requestBufSize")),
@@ -156,7 +184,7 @@ func testRPCRoundtrip(t *rapid.T) {
 
 	for _, c := range clients {
 		wg.Add(1)
-		go func(c *Client) {
+		go func(c Client) {
 			defer wg.Done()
 
 			var cwg sync.WaitGroup

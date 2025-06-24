@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -43,7 +43,7 @@ func (item *BarsicSnapshotHeader) ClearControlMeta() {
 	item.ControlMeta = ""
 	item.FieldsMask &^= 1 << 0
 }
-func (item BarsicSnapshotHeader) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicSnapshotHeader) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicSnapshotHeader) SetExternalFiles(v []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) {
 	item.ExternalFiles = v
@@ -53,7 +53,7 @@ func (item *BarsicSnapshotHeader) ClearExternalFiles() {
 	item.ExternalFiles = item.ExternalFiles[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item BarsicSnapshotHeader) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicSnapshotHeader) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicSnapshotHeader) Reset() {
 	item.FieldsMask = 0
@@ -139,7 +139,6 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotHeader) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -169,7 +168,6 @@ func (item *BarsicSnapshotHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -423,6 +421,14 @@ func (item *BarsicSnapshotHeader) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicSnapshotHeader) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotHeader) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotHeader")
+}
+
 type BarsicSnapshotHeaderBytes struct {
 	FieldsMask       uint32
 	ClusterId        []byte
@@ -447,7 +453,7 @@ func (item *BarsicSnapshotHeaderBytes) ClearControlMeta() {
 	item.ControlMeta = item.ControlMeta[:0]
 	item.FieldsMask &^= 1 << 0
 }
-func (item BarsicSnapshotHeaderBytes) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicSnapshotHeaderBytes) IsSetControlMeta() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicSnapshotHeaderBytes) SetExternalFiles(v []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) {
 	item.ExternalFiles = v
@@ -457,7 +463,7 @@ func (item *BarsicSnapshotHeaderBytes) ClearExternalFiles() {
 	item.ExternalFiles = item.ExternalFiles[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item BarsicSnapshotHeaderBytes) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicSnapshotHeaderBytes) IsSetExternalFiles() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicSnapshotHeaderBytes) Reset() {
 	item.FieldsMask = 0
@@ -543,7 +549,6 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSnapshotHeaderBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -573,7 +578,6 @@ func (item *BarsicSnapshotHeaderBytes) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSnapshotHeaderBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -825,4 +829,12 @@ func (item *BarsicSnapshotHeaderBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicSnapshotHeaderBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSnapshotHeaderBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotHeader")
 }

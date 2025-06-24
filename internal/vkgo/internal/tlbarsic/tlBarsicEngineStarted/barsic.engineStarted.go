@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,7 @@ func (item *BarsicEngineStarted) SetLegacyStart(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicEngineStarted) IsSetLegacyStart() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicEngineStarted) IsSetLegacyStart() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicEngineStarted) SetEngineUpgrade(v bool) {
 	if v {
@@ -45,7 +45,7 @@ func (item *BarsicEngineStarted) SetEngineUpgrade(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicEngineStarted) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicEngineStarted) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicEngineStarted) SetProtocolVersion(v uint32) {
 	item.ProtocolVersion = v
@@ -55,7 +55,7 @@ func (item *BarsicEngineStarted) ClearProtocolVersion() {
 	item.ProtocolVersion = 0
 	item.FieldsMask &^= 1 << 2
 }
-func (item BarsicEngineStarted) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *BarsicEngineStarted) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *BarsicEngineStarted) Reset() {
 	item.FieldsMask = 0
@@ -82,6 +82,7 @@ func (item *BarsicEngineStarted) FillRandom(rg *basictl.RandGenerator) {
 	item.SnapshotMeta = basictl.RandomString(rg)
 	item.ControlMeta = basictl.RandomString(rg)
 	if item.FieldsMask&(1<<2) != 0 {
+		item.ProtocolVersion = basictl.RandomUint(rg)
 	} else {
 		item.ProtocolVersion = 0
 	}
@@ -110,7 +111,6 @@ func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicEngineStarted) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -133,7 +133,6 @@ func (item *BarsicEngineStarted) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicEngineStarted) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -390,6 +389,14 @@ func (item *BarsicEngineStarted) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicEngineStarted) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicEngineStarted) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.engineStarted")
+}
+
 type BarsicEngineStartedBytes struct {
 	FieldsMask uint32
 	// LegacyStart (TrueType) // Conditional: item.FieldsMask.0
@@ -410,7 +417,7 @@ func (item *BarsicEngineStartedBytes) SetLegacyStart(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item BarsicEngineStartedBytes) IsSetLegacyStart() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *BarsicEngineStartedBytes) IsSetLegacyStart() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *BarsicEngineStartedBytes) SetEngineUpgrade(v bool) {
 	if v {
@@ -419,7 +426,7 @@ func (item *BarsicEngineStartedBytes) SetEngineUpgrade(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item BarsicEngineStartedBytes) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *BarsicEngineStartedBytes) IsSetEngineUpgrade() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *BarsicEngineStartedBytes) SetProtocolVersion(v uint32) {
 	item.ProtocolVersion = v
@@ -429,7 +436,7 @@ func (item *BarsicEngineStartedBytes) ClearProtocolVersion() {
 	item.ProtocolVersion = 0
 	item.FieldsMask &^= 1 << 2
 }
-func (item BarsicEngineStartedBytes) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *BarsicEngineStartedBytes) IsSetProtocolVersion() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *BarsicEngineStartedBytes) Reset() {
 	item.FieldsMask = 0
@@ -456,6 +463,7 @@ func (item *BarsicEngineStartedBytes) FillRandom(rg *basictl.RandGenerator) {
 	item.SnapshotMeta = basictl.RandomStringBytes(rg)
 	item.ControlMeta = basictl.RandomStringBytes(rg)
 	if item.FieldsMask&(1<<2) != 0 {
+		item.ProtocolVersion = basictl.RandomUint(rg)
 	} else {
 		item.ProtocolVersion = 0
 	}
@@ -484,7 +492,6 @@ func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicEngineStartedBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -507,7 +514,6 @@ func (item *BarsicEngineStartedBytes) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicEngineStartedBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -762,4 +768,12 @@ func (item *BarsicEngineStartedBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicEngineStartedBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicEngineStartedBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.engineStarted")
 }

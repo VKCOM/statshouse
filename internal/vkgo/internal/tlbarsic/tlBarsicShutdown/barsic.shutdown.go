@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -27,13 +27,14 @@ func (item *BarsicShutdown) Reset() {
 	item.FieldsMask = 0
 }
 
-func (item *BarsicShutdown) FillRandom(rg *basictl.RandGenerator) {}
+func (item *BarsicShutdown) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+}
 
 func (item *BarsicShutdown) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicShutdown) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -50,7 +51,6 @@ func (item *BarsicShutdown) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicShutdown) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -182,4 +182,12 @@ func (item *BarsicShutdown) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.shutdown", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicShutdown) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicShutdown) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.shutdown")
 }

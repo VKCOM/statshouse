@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,6 +9,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/netip"
 	"strconv"
@@ -20,7 +21,7 @@ import (
 )
 
 type udpClient struct {
-	client *Client
+	client *ClientImpl
 
 	transport *udp.Transport
 
@@ -29,7 +30,11 @@ type udpClient struct {
 	conns  map[NetAddr]*udpClientConn
 }
 
-func newUdpClient(client *Client) *udpClient {
+func newUdpClient(client *ClientImpl) *udpClient {
+	if len(client.opts.CryptoKey) < MinCryptoKeyLen {
+		log.Panicf("crypto key is too short (%d bytes), must be at least %d bytes", len(client.opts.CryptoKey), MinCryptoKeyLen)
+	}
+
 	udpAddr, err := net.ResolveUDPAddr("udp", client.opts.localUDPAddress)
 	if err != nil {
 		panic(err)
@@ -54,6 +59,7 @@ func newUdpClient(client *Client) *udpClient {
 		c.allocateMessage,
 		c.deallocateMessage,
 		client.opts.PacketTimeout/10,
+		client.opts.DebugUdp,
 	)
 	if err != nil {
 		panic(err)

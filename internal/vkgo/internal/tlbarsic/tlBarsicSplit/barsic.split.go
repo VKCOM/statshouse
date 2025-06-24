@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -38,6 +38,7 @@ func (item *BarsicSplit) Reset() {
 }
 
 func (item *BarsicSplit) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.Offset = basictl.RandomLong(rg)
 	item.ShardId = basictl.RandomString(rg)
 	item.EpochNumber = basictl.RandomLong(rg)
@@ -64,7 +65,6 @@ func (item *BarsicSplit) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.SnapshotMeta)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSplit) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -86,7 +86,6 @@ func (item *BarsicSplit) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSplit) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -315,6 +314,14 @@ func (item *BarsicSplit) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *BarsicSplit) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSplit) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.split")
+}
+
 type BarsicSplitBytes struct {
 	FieldsMask   uint32
 	Offset       int64
@@ -337,6 +344,7 @@ func (item *BarsicSplitBytes) Reset() {
 }
 
 func (item *BarsicSplitBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.Offset = basictl.RandomLong(rg)
 	item.ShardId = basictl.RandomStringBytes(rg)
 	item.EpochNumber = basictl.RandomLong(rg)
@@ -363,7 +371,6 @@ func (item *BarsicSplitBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringReadBytes(w, &item.SnapshotMeta)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicSplitBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -385,7 +392,6 @@ func (item *BarsicSplitBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicSplitBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -612,4 +618,12 @@ func (item *BarsicSplitBytes) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.split", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicSplitBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicSplitBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.split")
 }

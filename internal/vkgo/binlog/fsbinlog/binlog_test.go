@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -261,8 +261,8 @@ func WriteLevsToBinlog(t *testing.T, bl binlog.Binlog, eng TestEngine, levs []st
 }
 
 func TestBinlogSetGet(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{"hello world", "hello world 2", genStr(50)}
 
@@ -308,8 +308,8 @@ func TestBinlogSetGet(t *testing.T) {
 }
 
 func TestUnknownMagic(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{"hello world", "hello world 2"}
 
@@ -363,8 +363,8 @@ func TestUnknownMagic(t *testing.T) {
 }
 
 func TestBinlogReadFromPosition(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 	testLevs := []string{"hello world", "hello world 2", "hello world3", "hello world4"}
 
 	options := Options{
@@ -416,8 +416,8 @@ func TestBinlogReadFromPosition(t *testing.T) {
 }
 
 func TestBinlogReadFromPositionRotateFile(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 	testLevs := []string{genStr(1024), genStr(700), genStr(512), genStr(256), genStr(512)}
 
 	options := Options{
@@ -470,8 +470,8 @@ func TestBinlogReadFromPositionRotateFile(t *testing.T) {
 }
 
 func TestBinlogWriteWithSeveralFiles(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{genStr(1024), genStr(512), genStr(512), genStr(512), genStr(512), genStr(512)}
 
@@ -535,8 +535,8 @@ func TestBinlogWriteWithSeveralFiles(t *testing.T) {
 }
 
 func TestBinlogSimulateMasterChangeWithPartialEvent(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{genStr(1024), genStr(1024), genStr(1024), genStr(1024)}
 
@@ -608,8 +608,8 @@ func TestBinlogSimulateMasterChangeWithPartialEvent(t *testing.T) {
 }
 
 func TestBinlogBigSetGetRandom(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	seed := time.Now().UnixNano()
 	genStrCount = 0
@@ -707,8 +707,8 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 }
 
 func TestBigLev(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{genStr(1024 * 1024)}
 
@@ -754,8 +754,8 @@ func TestBigLev(t *testing.T) {
 }
 
 func TestSnapshotMeta(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{"hello world", "hello world 2", genStr(50)}
 
@@ -806,8 +806,8 @@ func TestSnapshotMeta(t *testing.T) {
 }
 
 func TestSnapshotMetaCommitInDifferentFile(t *testing.T) {
-	fs := gofs.OsFs()
-	dir := t.TempDir()
+	fs := gofs.NewThreadSafeMemoryFs()
+	dir := fs.TempDir()
 
 	testLevs := []string{genStr(256), genStr(256), genStr(500), genStr(500), genStr(500), genStr(500)}
 

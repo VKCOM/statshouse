@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -28,13 +28,13 @@ type ServerOptions struct {
 	ConnErrHandler         ErrHandlerFunc
 	RequestHook            RequestHookFunc
 	ResponseHook           ResponseHookFunc
+	TracingExtract         TracingExtractFunc
 	TrustedSubnetGroupsSt  string // for stats
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
 	cryptoKeys             []string
 	MaxConns               int           // defaults to DefaultMaxConns
 	MaxWorkers             int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
-	MaxInflightPackets     int           // defaults to DefaultMaxInflightPackets
 	RequestMemoryLimit     int           // defaults to DefaultRequestMemoryLimit
 	ResponseMemoryLimit    int           // defaults to DefaultResponseMemoryLimit
 	ConnReadBufSize        int           // defaults to DefaultServerConnReadBufSize
@@ -47,6 +47,7 @@ type ServerOptions struct {
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
 	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
+	DebugUdpRPC            int  // 0 - nothing; 1 - prints key udp events; 2 - prints all udp activities (<0 equals to 0; >2 equals to 2)
 }
 
 func (opts *ServerOptions) AddCryptoKey(key string) {
@@ -70,6 +71,12 @@ func ServerWithHandler(handler HandlerFunc) ServerOptionsFunc {
 func ServerWithDebugRPC(debugRpc bool) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.DebugRPC = debugRpc
+	}
+}
+
+func ServerWithDebugUdpRPC(debugUdpRpc int) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.DebugUdpRPC = debugUdpRpc
 	}
 }
 
@@ -167,18 +174,17 @@ func ServerWithMaxConns(maxConns int) ServerOptionsFunc {
 
 func ServerWithMaxWorkers(maxWorkers int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		opts.MaxWorkers = maxWorkers
+		if maxWorkers >= 0 {
+			opts.MaxWorkers = maxWorkers
+		} else {
+			opts.MaxWorkers = DefaultMaxWorkers
+		}
 	}
 }
 
 func ServerWithMaxInflightPackets(maxInflightPackets int) ServerOptionsFunc {
-	return func(opts *ServerOptions) {
-		if maxInflightPackets > 0 {
-			opts.MaxInflightPackets = maxInflightPackets
-		} else {
-			opts.MaxInflightPackets = DefaultMaxInflightPackets
-		}
-	}
+	// Experimentally removed. If everything is working, remove this function and modify everyone using it
+	return func(opts *ServerOptions) {}
 }
 
 func ServerWithRequestMemoryLimit(limit int) ServerOptionsFunc {
@@ -320,9 +326,8 @@ func ServerWithResponseHook(fn ResponseHookFunc) ServerOptionsFunc {
 	}
 }
 
-func (opts *ServerOptions) maxInflightPacketsPreAlloc() int {
-	if opts.MaxInflightPackets < DefaultMaxInflightPackets {
-		return opts.MaxInflightPackets
+func ServerWithTracingExtract(extract TracingExtractFunc) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.TracingExtract = extract
 	}
-	return DefaultMaxInflightPackets
 }

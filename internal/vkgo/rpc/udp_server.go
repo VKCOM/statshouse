@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,6 +9,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -81,6 +82,12 @@ func (s *Server) serveUDP(conn *net.UDPConn) (*udp.Transport, error) {
 	if s.serverStatus > serverStatusStarted {
 		return nil, nil
 	}
+	for _, cryptoKey := range s.opts.cryptoKeys {
+		if len(cryptoKey) < MinCryptoKeyLen {
+			return nil, fmt.Errorf("crypto key is too short (%d bytes), must be at least %d bytes", len(cryptoKey), MinCryptoKeyLen)
+		}
+	}
+
 	transport, err := udp.NewTransport(
 		int64(s.opts.RequestMemoryLimit),
 		s.opts.cryptoKeys,
@@ -91,6 +98,7 @@ func (s *Server) serveUDP(conn *net.UDPConn) (*udp.Transport, error) {
 		s.allocateRequestBufUDP,
 		s.deAllocateRequestBufUDP, // we copy response to slice we get using allocateRequestBufUDP
 		s.opts.ResponseTimeoutAdjust/10,
+		s.opts.DebugUdpRPC,
 	)
 	if err != nil {
 		return nil, err
@@ -117,6 +125,9 @@ func (s *Server) deAllocateRequestBufUDP(buf *[]byte) {
 
 func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection) {
 	return func(conn *udp.Connection) {
+		if s.opts.DebugUdpRPC >= 1 {
+			log.Printf("new udp connection accept listenAddr:%s connAddr:%s", listenAddr.String(), conn.LocalAddr())
+		}
 		closeCtx, cancelCloseCtx := context.WithCancelCause(context.Background())
 		sc := &UdpServerConn{
 			serverConnCommon: serverConnCommon{
@@ -132,6 +143,9 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 
 		conn.StreamLikeIncoming = false
 		conn.MessageHandle = func(message *[]byte, canSave bool) {
+			if s.opts.DebugUdpRPC >= 2 {
+				log.Printf("udp message handle")
+			}
 			requestTime := time.Now()
 			hctx := s.acquireHandlerCtx(protocolUDP)
 			hctx.commonConn = sc
@@ -149,6 +163,8 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 			hctx.response = s.respBufPool.Get().(*[]byte)
 			hctx.Response = (*hctx.response)[:0]
 
+			s.protocolStats[protocolUDP].requestsTotal.Add(1)
+
 			var reqHeaderTip uint32
 			var err error
 			reqHeaderTip, hctx.Request, err = basictl.NatReadTag(hctx.Request)
@@ -157,7 +173,7 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 				return
 			}
 
-			w := s.handleRequest(reqHeaderTip, &sc.serverConnCommon, hctx)
+			w, ctx := s.handleRequest(reqHeaderTip, &sc.serverConnCommon, hctx)
 			if w != nil {
 				if !canSave {
 					// if we call Handler in worker and don't own the message, then we must copy it
@@ -165,16 +181,26 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 					hctx.request, hctx.Request = s.acquireRequestBuf(len(hctx.Request))
 					copy(hctx.Request, parsedReq)
 				}
-				w.ch <- workerWork{sc: &sc.serverConnCommon, hctx: hctx}
+				w.ch <- workerWork{sc: &sc.serverConnCommon, hctx: hctx, ctx: ctx}
 			}
 		}
+		conn.UserData = sc
 
 		s.protocolStats[protocolUDP].connectionsTotal.Add(1)
 		s.protocolStats[protocolUDP].connectionsCurrent.Add(1)
 	}
 }
 
-func (s *Server) closeHandlerUDP(*udp.Connection) {
+func (s *Server) closeHandlerUDP(conn *udp.Connection) {
+	if s.opts.DebugUdpRPC >= 1 {
+		log.Printf("udp connection close")
+	}
+
 	s.protocolStats[protocolUDP].connectionsCurrent.Add(-1)
+	if conn.UserData != nil {
+		if sc, ok := conn.UserData.(*UdpServerConn); ok {
+			sc.cancelAllLongpollResponses(false)
+		}
+	}
 	// TODO - will all sending hctx be released?
 }

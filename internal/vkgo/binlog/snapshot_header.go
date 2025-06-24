@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,7 +30,7 @@ var ErrInvalidName = fmt.Errorf("invalid name format")
 
 const (
 	SnapshotExt     = ".snap"
-	DiffSnapshotExt = ".diff"
+	DiffSnapshotExt = SnapshotExt + ".diff"
 	TimeLayout      = "2006-01-02T15-04-05"
 )
 
@@ -112,7 +112,7 @@ func CanonicalSnapshotName(clusterId string, shardId string, payloadOffset int64
 }
 
 func CanonicalSnapshotNameNoExt(clusterId string, shardId string, payloadOffset int64, t time.Time) string {
-	return fmt.Sprintf("%s_%s.%015d.%s", clusterId, shardId, payloadOffset, t.Format(TimeLayout))
+	return fmt.Sprintf("%s_%s.%015d.%s", clusterId, shardId, payloadOffset, t.UTC().Format(TimeLayout))
 }
 
 func ExtractDataFromName(name string) (prefix string, payloadOffset int64, t time.Time, ext string, err error) {

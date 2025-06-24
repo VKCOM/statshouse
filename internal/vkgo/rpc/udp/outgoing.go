@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -53,6 +53,9 @@ type OutgoingConnection struct {
 	nonTimeoutedSeqNum uint32
 	notSendedSeqNum    uint32
 	chunkToSendSeqNum  uint32 // points to some chunk in un-acked suffix
+
+	UnreliableMessages algo.CircularSlice[*[]byte]
+	prevWasReliable    bool
 
 	MaxWindowSize          int
 	WindowControlSeqNum    int64
@@ -206,20 +209,32 @@ func (o *OutgoingConnection) ResetFlowControl() {
 	o.WindowControlSeqNum = -1
 }
 
-func (o *OutgoingConnection) haveChunksToSendNow() bool {
+func (o *OutgoingConnection) haveReliableChunksToSendNow() bool {
 	index := int(o.chunkToSendSeqNum - o.AckSeqNoPrefix)
 	return o.resendIndex < len(o.resendRanges.Ranges) ||
 		(index < o.Window.Len() || o.MessageQueue.Len() != 0) && index < o.MaxWindowSize
+}
+
+func (o *OutgoingConnection) haveChunksToSendNow() bool {
+	return o.haveReliableChunksToSendNow() || o.UnreliableMessages.Len() > 0
 }
 
 /*
 GetChunksToSend
 TODO draw data stream with acked/un-acked, timeout-ed, resended, ... chunks to explain algorithm how to choose chunks to send
 */
-func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, firstSeqNum uint32, singleMessage bool) {
+func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgToDealloc *[]byte, firstSeqNum uint32, singleMessage bool) {
 	if o.MaxPayloadSize < MaxChunkSize {
 		panic("maximal payload size is less than maximal chunk size")
 	}
+
+	if o.UnreliableMessages.Len() > 0 && (o.prevWasReliable || !o.haveReliableChunksToSendNow()) {
+		messagePtr := o.UnreliableMessages.PopFront()
+		chunks = append(chunks, *messagePtr)
+		o.prevWasReliable = false
+		return chunks, messagePtr, ^uint32(0), true
+	}
+	o.prevWasReliable = true
 
 	payloadSize := 0
 	firstSeqNum = 0
@@ -262,7 +277,7 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, first
 			} else {
 				// we don't allow several chunks of one message in a datagram
 				// prevMessage == chunk.message
-				return chunks, firstSeqNum, singleMessage
+				return chunks, nil, firstSeqNum, singleMessage
 			}
 			prevMessage = chunk.message
 
@@ -272,7 +287,7 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, first
 		}
 
 		if prevMessage != nil {
-			return chunks, firstSeqNum, singleMessage
+			return chunks, nil, firstSeqNum, singleMessage
 		}
 
 		o.resendIndex++
@@ -325,7 +340,7 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, first
 		break
 	}
 
-	return chunks, firstSeqNum, singleMessage
+	return chunks, nil, firstSeqNum, singleMessage
 }
 
 func (o *OutgoingConnection) OnResendTimeout() {

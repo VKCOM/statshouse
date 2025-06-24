@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,8 +7,11 @@
 package rpc
 
 import (
+	"context"
 	"sync"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
 const workerGCDuration = time.Second * 60
@@ -16,6 +19,7 @@ const workerGCDuration = time.Second * 60
 type workerWork struct {
 	sc   *serverConnCommon
 	hctx *HandlerContext
+	ctx  context.Context
 }
 
 type worker struct {
@@ -24,10 +28,10 @@ type worker struct {
 	gcTime     time.Time
 }
 
-func (w *worker) run(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (w *worker) run(wg *semaphore.Weighted) {
+	defer wg.Release(1)
 	for work := range w.ch {
-		work.sc.handle(work.hctx)
+		work.sc.handle(work.ctx, work.hctx)
 		w.workerPool.Put(w)
 	}
 }
@@ -76,7 +80,7 @@ func (t *workerPool) Created() (current int, total int) {
 	return t.created, t.create
 }
 
-func (t *workerPool) Get(wg *sync.WaitGroup) (*worker, bool) {
+func (t *workerPool) Get(wg *semaphore.Weighted) (*worker, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -98,7 +102,7 @@ func (t *workerPool) Get(wg *sync.WaitGroup) (*worker, bool) {
 	}
 
 	t.created++
-	wg.Add(1) // Must be here to avoid race in Close
+	wg.ForceAcquire(1) // Must be here to avoid race in Close
 
 	return nil, true
 }

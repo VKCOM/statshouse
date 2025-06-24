@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
 const (
@@ -44,17 +46,18 @@ type Request struct {
 	ActorID            int64
 	Extra              RequestExtra
 	FailIfNoConnection bool
+	BodyFormatTL2      bool // body is in TL2 format
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
-	FunctionName string // Experimental. Generated calls fill this during request serialization.
+	FunctionName string // Generated calls fill this during request serialization.
 	ReadOnly     bool   // no side effects, can be retried by client
 
 	queryID   int64       // unique per client, assigned by client
 	hookState ClientHooks // can be nil
 }
 
-// QueryID is always non-zero (guaranteed by [Client.GetRequest]).
+// QueryID is always non-zero (guaranteed by [ClientImpl.GetRequest]).
 func (req *Request) QueryID() int64 {
 	return req.queryID
 }
@@ -72,6 +75,7 @@ type Response struct {
 	queryID            int64
 	failIfNoConnection bool // set in setupCall call and never changes. Allows to quickly try multiple servers without waiting timeout
 	readonly           bool // set in setupCall call and never changes. TODO - implement logic
+	bodyFormatTL2      bool
 
 	sent  bool // Request was sent.
 	stale bool // Request was cancelled before sending. Instead of removing from the write queue which is O(N), we set the flag  and check before sending
@@ -87,8 +91,9 @@ type Response struct {
 	hookState ClientHooks // can be nil
 }
 
-func (resp *Response) QueryID() int64 { return resp.queryID }
-func (resp *Response) UserData() any  { return resp.userData }
+func (resp *Response) QueryID() int64      { return resp.queryID }
+func (resp *Response) UserData() any       { return resp.userData }
+func (resp *Response) BodyFormatTL2() bool { return resp.bodyFormatTL2 }
 
 // lifecycle of connections:
 // when connection is first needed, it is added to conns, and connect goroutine is started
@@ -105,7 +110,45 @@ func (resp *Response) UserData() any  { return resp.userData }
 // Then client will receive responses as usual. If all responses are received, goReader will also exit, and normal
 // reconnect will happen.
 
-type Client struct {
+type Client interface {
+	GetRequest() *Request
+	PutResponse(cctx *Response)
+	ResetReconnectDelay(address NetAddr)
+	Do(ctx context.Context, network string, address string, req *Request) (*Response, error)
+	DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error)
+	Logf(format string, args ...any)
+	Close() error
+
+	Multi(n int) *Multi
+	DoMulti(
+		ctx context.Context,
+		addresses []NetAddr,
+		prepareRequest func(addr NetAddr, req *Request) error,
+		processResponse func(addr NetAddr, resp *Response, err error) error,
+	) error
+}
+
+// Client wrappers need to implement both Client and ClientUnwrapper interfaces to
+// allow rpc code that depends on implementation details (ClusterClient) access ClientImpl
+type ClientUnwrapper interface {
+	Unwrap() Client
+}
+
+func UnwrapClient(c Client) (*ClientImpl, bool) {
+	for c != nil {
+		if impl, ok := c.(*ClientImpl); ok {
+			return impl, true
+		}
+		uw, ok := c.(ClientUnwrapper)
+		if !ok {
+			break
+		}
+		c = uw.Unwrap()
+	}
+	return nil, false
+}
+
+type ClientImpl struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	// use an atomic counter instead of pure random to guarantee no ID reuse
 	// queryID should be per connection, but in our API user fills Request before connection is established/known, so we use per client
@@ -121,12 +164,12 @@ type Client struct {
 	responseDataPool sync.Pool
 	responsePool     sync.Pool
 
-	wg sync.WaitGroup
+	wg *semaphore.Weighted // we do not use wait group to reduce # of primitives to implement in custom scheduler
 
 	u *udpClient
 }
 
-func NewClient(options ...ClientOptionsFunc) *Client {
+func NewClient(options ...ClientOptionsFunc) Client {
 	opts := ClientOptions{
 		Logf:              log.Printf,
 		ConnReadBufSize:   DefaultClientConnReadBufSize,
@@ -144,10 +187,11 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		opts.Logf("rpc: failed to parse client trusted subnet %q, ignoring", err)
 	}
 
-	c := &Client{
+	c := &ClientImpl{
 		opts:  opts,
 		conns: map[NetAddr]*clientConn{},
 	}
+	c.wg = semaphore.NewWeighted(math.MaxInt64)
 	c.lastQueryID.Store(rand.Uint64())
 
 	if opts.localUDPAddress != "" {
@@ -164,10 +208,12 @@ type ClientHooks interface {
 	NeedToDropRequest(ctx context.Context, address NetAddr, req *Request) bool
 }
 
-// Client is used by other components of your app.
+type TracingInjectFunc func(ctx context.Context, tc *TraceContext)
+
+// ClientImpl is used by other components of your app.
 // So, you must first CloseWait() all other components, then Close() client.
-// Client will have 0 outstanding requests if everything is done correctly, so can simply close all sackets
-func (c *Client) Close() error {
+// ClientImpl will have 0 outstanding requests if everything is done correctly, so can simply close all sackets
+func (c *ClientImpl) Close() error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -181,7 +227,7 @@ func (c *Client) Close() error {
 		delete(c.conns, na)
 	}
 
-	c.wg.Wait()
+	_ = c.wg.WaitEmpty(context.Background())
 
 	if c.u != nil {
 		_ = c.u.Close()
@@ -189,11 +235,11 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) Logf(format string, args ...any) {
+func (c *ClientImpl) Logf(format string, args ...any) {
 	c.opts.Logf(format, args...)
 }
 
-func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
+func (c *ClientImpl) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
 	if c.u != nil && strings.HasPrefix(network, "udp") {
 		return c.u.Do(ctx, network, address, req)
 	}
@@ -211,7 +257,7 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 }
 
 // Experimental API, can change any moment. For high-performance clients, like ingress proxy
-type ClientCallback func(client *Client, resp *Response, err error)
+type ClientCallback func(client Client, resp *Response, err error)
 
 type CallbackContext struct {
 	pc      *clientConn
@@ -222,7 +268,7 @@ func (cc CallbackContext) QueryID() int64 { return cc.queryID } // so client wil
 
 // Either error is returned immediately, or ClientCallback will be called in the future.
 // We add explicit userData, because for many users it will avoid allocation of lambda during capture of userData in cb
-func (c *Client) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error) {
+func (c *ClientImpl) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error) {
 	queryID := req.QueryID() // must not access cctx or req after setupCall, because callback can be already called and cctx reused
 	pc, _, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, cb, userData)
 	return CallbackContext{
@@ -233,16 +279,16 @@ func (c *Client) DoCallback(ctx context.Context, network string, address string,
 
 // Callback will never be called twice, but you should be ready for callback even after you call Cancel.
 // This is because callback could be in the process of calling.
-// The best idea is to remember queryID (which is unique per Client) of call in your per call data structure and compare in callback.
+// The best idea is to remember queryID (which is unique per ClientImpl) of call in your per call data structure and compare in callback.
 // if cancelled == true, call was cancelled before callback scheduled for calling/called
 // if cancelled == false, call result was already being delivered/delivered
-func (c *Client) CancelDoCallback(cc CallbackContext) (cancelled bool) {
+func (c *ClientImpl) CancelDoCallback(cc CallbackContext) (cancelled bool) {
 	return cc.pc.cancelCall(cc.queryID, nil)
 }
 
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, *Response, error) {
+func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, *Response, error) {
 	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
 		return nil, nil, ErrClientDropRequest
 	}
@@ -251,7 +297,23 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 		// We consider it antipattern. TODO - implement)
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
 	}
+	hctx := GetHandlerContext(ctx)
+	if hctx != nil {
+		if !req.Extra.IsSetExecutionContext() && hctx.RequestExtra.ExecutionContext != "" {
+			req.Extra.SetExecutionContext(hctx.RequestExtra.ExecutionContext)
+		}
+	}
 
+	if c.opts.TracingInject != nil {
+		c.opts.TracingInject(ctx, &req.Extra.TraceContext)
+		if req.Extra.TraceContext.TraceId.Hi != 0 || req.Extra.TraceContext.TraceId.Lo != 0 {
+			req.Extra.Flags |= 1 << 29
+		}
+	} else if hctx != nil {
+		if !req.Extra.IsSetTraceContext() && hctx.RequestExtra.IsSetTraceContext() {
+			req.Extra.SetTraceContext(hctx.RequestExtra.TraceContext)
+		}
+	}
 	deadline, err := c.fillRequestTimeout(ctx, req)
 	if err != nil {
 		return nil, nil, err
@@ -313,7 +375,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 		if debugPrint {
 			fmt.Printf("%v goConnect for client %p pc %p\n", time.Now(), c, pc)
 		}
-		c.wg.Add(1)
+		c.wg.ForceAcquire(1)
 		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
@@ -323,7 +385,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	return pc, cctx, err
 }
 
-func (c *Client) fillRequestTimeout(ctx context.Context, req *Request) (time.Time, error) {
+func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request) (time.Time, error) {
 	UpdateExtraTimeout(&req.Extra, c.opts.DefaultTimeout)
 	if !req.Extra.IsSetCustomTimeoutMs() && req.Extra.CustomTimeoutMs != 0 { // protect against programmer's mistake
 		return time.Time{}, fmt.Errorf("rpc: custom timeout should be set with extra.SetCustomTimeoutMs function, otherwise custom timeout is ignored")
@@ -353,7 +415,7 @@ func (c *Client) fillRequestTimeout(ctx context.Context, req *Request) (time.Tim
 // ResetReconnectDelay resets timer before the next reconnect attempt.
 // If connect goroutine is already waiting - ResetReconnectDelay forces it to wait again with minimal delay
 // TODO - remove?
-func (c *Client) ResetReconnectDelay(address NetAddr) {
+func (c *ClientImpl) ResetReconnectDelay(address NetAddr) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -368,7 +430,7 @@ func (c *Client) ResetReconnectDelay(address NetAddr) {
 	}
 }
 
-func (c *Client) removeConnection(pc *clientConn) bool {
+func (c *ClientImpl) removeConnection(pc *clientConn) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
@@ -386,7 +448,7 @@ func (c *Client) removeConnection(pc *clientConn) bool {
 	return false
 }
 
-func (c *Client) getLoad(address NetAddr) int {
+func (c *ClientImpl) getLoad(address NetAddr) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -401,7 +463,7 @@ func (c *Client) getLoad(address NetAddr) int {
 	return len(pc.calls)
 }
 
-func (c *Client) GetRequest() *Request {
+func (c *ClientImpl) GetRequest() *Request {
 	req := c.getRequest()
 	for {
 		req.queryID = int64(c.lastQueryID.Add(1) & math.MaxInt64)
@@ -413,7 +475,7 @@ func (c *Client) GetRequest() *Request {
 	return req
 }
 
-func (c *Client) getRequest() *Request {
+func (c *ClientImpl) getRequest() *Request {
 	v := c.requestPool.Get()
 	if v != nil {
 		return v.(*Request)
@@ -421,7 +483,7 @@ func (c *Client) getRequest() *Request {
 	return &Request{hookState: c.opts.Hooks()}
 }
 
-func (c *Client) putRequest(req *Request) {
+func (c *ClientImpl) putRequest(req *Request) {
 	if req.hookState != nil {
 		req.hookState.Reset()
 	}
@@ -430,7 +492,7 @@ func (c *Client) putRequest(req *Request) {
 	c.requestPool.Put(req)
 }
 
-func (c *Client) getResponseData() *[]byte {
+func (c *ClientImpl) getResponseData() *[]byte {
 	v := c.responseDataPool.Get()
 	if v != nil {
 		resp := v.(*[]byte)
@@ -440,13 +502,13 @@ func (c *Client) getResponseData() *[]byte {
 	return &result
 }
 
-func (c *Client) putResponseData(resp *[]byte) {
+func (c *ClientImpl) putResponseData(resp *[]byte) {
 	if resp != nil {
 		c.responseDataPool.Put(resp)
 	}
 }
 
-func (c *Client) getResponse() *Response {
+func (c *ClientImpl) getResponse() *Response {
 	v := c.responsePool.Get()
 	if v != nil {
 		return v.(*Response)
@@ -459,7 +521,7 @@ func (c *Client) getResponse() *Response {
 	return cctx
 }
 
-func (c *Client) PutResponse(cctx *Response) {
+func (c *ClientImpl) PutResponse(cctx *Response) {
 	if cctx == nil {
 		// We sometimes return both error and response, so user can inspect Extra, if parsed successfully
 		return

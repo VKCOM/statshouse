@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -47,7 +47,7 @@ func (item *NetUdpPacketEncHeader) ClearTime() {
 	item.Time = 0
 	item.Flags &^= 1 << 9
 }
-func (item NetUdpPacketEncHeader) IsSetTime() bool { return item.Flags&(1<<9) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetTime() bool { return item.Flags&(1<<9) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetVersion(v int32) {
 	item.Version = v
@@ -57,7 +57,7 @@ func (item *NetUdpPacketEncHeader) ClearVersion() {
 	item.Version = 0
 	item.Flags &^= 1 << 10
 }
-func (item NetUdpPacketEncHeader) IsSetVersion() bool { return item.Flags&(1<<10) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetVersion() bool { return item.Flags&(1<<10) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketAckPrefix(v uint32) {
 	item.PacketAckPrefix = v
@@ -67,7 +67,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckPrefix() {
 	item.PacketAckPrefix = 0
 	item.Flags &^= 1 << 13
 }
-func (item NetUdpPacketEncHeader) IsSetPacketAckPrefix() bool { return item.Flags&(1<<13) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketAckPrefix() bool { return item.Flags&(1<<13) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketAckFrom(v uint32) {
 	item.PacketAckFrom = v
@@ -77,7 +77,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckFrom() {
 	item.PacketAckFrom = 0
 	item.Flags &^= 1 << 14
 }
-func (item NetUdpPacketEncHeader) IsSetPacketAckFrom() bool { return item.Flags&(1<<14) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketAckFrom() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketAckTo(v uint32) {
 	item.PacketAckTo = v
@@ -87,7 +87,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckTo() {
 	item.PacketAckTo = 0
 	item.Flags &^= 1 << 14
 }
-func (item NetUdpPacketEncHeader) IsSetPacketAckTo() bool { return item.Flags&(1<<14) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketAckTo() bool { return item.Flags&(1<<14) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketAckSet(v []uint32) {
 	item.PacketAckSet = v
@@ -97,7 +97,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketAckSet() {
 	item.PacketAckSet = item.PacketAckSet[:0]
 	item.Flags &^= 1 << 15
 }
-func (item NetUdpPacketEncHeader) IsSetPacketAckSet() bool { return item.Flags&(1<<15) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketAckSet() bool { return item.Flags&(1<<15) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketNum(v uint32) {
 	item.PacketNum = v
@@ -107,7 +107,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketNum() {
 	item.PacketNum = 0
 	item.Flags &^= 1 << 20
 }
-func (item NetUdpPacketEncHeader) IsSetPacketNum() bool { return item.Flags&(1<<20) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketNum() bool { return item.Flags&(1<<20) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketsFrom(v uint32) {
 	item.PacketsFrom = v
@@ -117,7 +117,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketsFrom() {
 	item.PacketsFrom = 0
 	item.Flags &^= 1 << 21
 }
-func (item NetUdpPacketEncHeader) IsSetPacketsFrom() bool { return item.Flags&(1<<21) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketsFrom() bool { return item.Flags&(1<<21) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketsCount(v uint32) {
 	item.PacketsCount = v
@@ -127,7 +127,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketsCount() {
 	item.PacketsCount = 0
 	item.Flags &^= 1 << 21
 }
-func (item NetUdpPacketEncHeader) IsSetPacketsCount() bool { return item.Flags&(1<<21) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketsCount() bool { return item.Flags&(1<<21) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPrevParts(v uint32) {
 	item.PrevParts = v
@@ -137,7 +137,7 @@ func (item *NetUdpPacketEncHeader) ClearPrevParts() {
 	item.PrevParts = 0
 	item.Flags &^= 1 << 22
 }
-func (item NetUdpPacketEncHeader) IsSetPrevParts() bool { return item.Flags&(1<<22) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPrevParts() bool { return item.Flags&(1<<22) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetNextParts(v uint32) {
 	item.NextParts = v
@@ -147,7 +147,7 @@ func (item *NetUdpPacketEncHeader) ClearNextParts() {
 	item.NextParts = 0
 	item.Flags &^= 1 << 23
 }
-func (item NetUdpPacketEncHeader) IsSetNextParts() bool { return item.Flags&(1<<23) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetNextParts() bool { return item.Flags&(1<<23) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPrevLength(v uint32) {
 	item.PrevLength = v
@@ -157,7 +157,7 @@ func (item *NetUdpPacketEncHeader) ClearPrevLength() {
 	item.PrevLength = 0
 	item.Flags &^= 1 << 24
 }
-func (item NetUdpPacketEncHeader) IsSetPrevLength() bool { return item.Flags&(1<<24) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPrevLength() bool { return item.Flags&(1<<24) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetNextLength(v uint32) {
 	item.NextLength = v
@@ -167,7 +167,7 @@ func (item *NetUdpPacketEncHeader) ClearNextLength() {
 	item.NextLength = 0
 	item.Flags &^= 1 << 25
 }
-func (item NetUdpPacketEncHeader) IsSetNextLength() bool { return item.Flags&(1<<25) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetNextLength() bool { return item.Flags&(1<<25) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetSingleRpcMsg(v bool) {
 	if v {
@@ -176,7 +176,7 @@ func (item *NetUdpPacketEncHeader) SetSingleRpcMsg(v bool) {
 		item.Flags &^= 1 << 26
 	}
 }
-func (item NetUdpPacketEncHeader) IsSetSingleRpcMsg() bool { return item.Flags&(1<<26) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetSingleRpcMsg() bool { return item.Flags&(1<<26) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetMultipleRpcMsgs(v bool) {
 	if v {
@@ -185,7 +185,7 @@ func (item *NetUdpPacketEncHeader) SetMultipleRpcMsgs(v bool) {
 		item.Flags &^= 1 << 27
 	}
 }
-func (item NetUdpPacketEncHeader) IsSetMultipleRpcMsgs() bool { return item.Flags&(1<<27) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetMultipleRpcMsgs() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetZeroPadding4Bytes(v bool) {
 	if v {
@@ -194,7 +194,7 @@ func (item *NetUdpPacketEncHeader) SetZeroPadding4Bytes(v bool) {
 		item.Flags &^= 1 << 28
 	}
 }
-func (item NetUdpPacketEncHeader) IsSetZeroPadding4Bytes() bool { return item.Flags&(1<<28) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetZeroPadding4Bytes() bool { return item.Flags&(1<<28) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetZeroPadding8Bytes(v bool) {
 	if v {
@@ -203,7 +203,7 @@ func (item *NetUdpPacketEncHeader) SetZeroPadding8Bytes(v bool) {
 		item.Flags &^= 1 << 29
 	}
 }
-func (item NetUdpPacketEncHeader) IsSetZeroPadding8Bytes() bool { return item.Flags&(1<<29) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetZeroPadding8Bytes() bool { return item.Flags&(1<<29) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetPacketOffset(v int64) {
 	item.PacketOffset = v
@@ -213,7 +213,7 @@ func (item *NetUdpPacketEncHeader) ClearPacketOffset() {
 	item.PacketOffset = 0
 	item.Flags &^= 1 << 30
 }
-func (item NetUdpPacketEncHeader) IsSetPacketOffset() bool { return item.Flags&(1<<30) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetPacketOffset() bool { return item.Flags&(1<<30) != 0 }
 
 func (item *NetUdpPacketEncHeader) SetWindowControl(v uint32) {
 	item.WindowControl = v
@@ -223,7 +223,7 @@ func (item *NetUdpPacketEncHeader) ClearWindowControl() {
 	item.WindowControl = 0
 	item.Flags &^= 1 << 31
 }
-func (item NetUdpPacketEncHeader) IsSetWindowControl() bool { return item.Flags&(1<<31) != 0 }
+func (item *NetUdpPacketEncHeader) IsSetWindowControl() bool { return item.Flags&(1<<31) != 0 }
 
 func (item *NetUdpPacketEncHeader) Reset() {
 	item.Flags = 0
@@ -310,14 +310,17 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.Version = 0
 	}
 	if item.Flags&(1<<13) != 0 {
+		item.PacketAckPrefix = basictl.RandomUint(rg)
 	} else {
 		item.PacketAckPrefix = 0
 	}
 	if item.Flags&(1<<14) != 0 {
+		item.PacketAckFrom = basictl.RandomUint(rg)
 	} else {
 		item.PacketAckFrom = 0
 	}
 	if item.Flags&(1<<14) != 0 {
+		item.PacketAckTo = basictl.RandomUint(rg)
 	} else {
 		item.PacketAckTo = 0
 	}
@@ -327,30 +330,37 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.PacketAckSet = item.PacketAckSet[:0]
 	}
 	if item.Flags&(1<<20) != 0 {
+		item.PacketNum = basictl.RandomUint(rg)
 	} else {
 		item.PacketNum = 0
 	}
 	if item.Flags&(1<<21) != 0 {
+		item.PacketsFrom = basictl.RandomUint(rg)
 	} else {
 		item.PacketsFrom = 0
 	}
 	if item.Flags&(1<<21) != 0 {
+		item.PacketsCount = basictl.RandomUint(rg)
 	} else {
 		item.PacketsCount = 0
 	}
 	if item.Flags&(1<<22) != 0 {
+		item.PrevParts = basictl.RandomUint(rg)
 	} else {
 		item.PrevParts = 0
 	}
 	if item.Flags&(1<<23) != 0 {
+		item.NextParts = basictl.RandomUint(rg)
 	} else {
 		item.NextParts = 0
 	}
 	if item.Flags&(1<<24) != 0 {
+		item.PrevLength = basictl.RandomUint(rg)
 	} else {
 		item.PrevLength = 0
 	}
 	if item.Flags&(1<<25) != 0 {
+		item.NextLength = basictl.RandomUint(rg)
 	} else {
 		item.NextLength = 0
 	}
@@ -360,6 +370,7 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.PacketOffset = 0
 	}
 	if item.Flags&(1<<31) != 0 {
+		item.WindowControl = basictl.RandomUint(rg)
 	} else {
 		item.WindowControl = 0
 	}
@@ -477,7 +488,6 @@ func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *NetUdpPacketEncHeader) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -539,7 +549,6 @@ func (item *NetUdpPacketEncHeader) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *NetUdpPacketEncHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -77,6 +77,10 @@ func ErrorInvalidJSON(typeName string, msg string) error {
 
 func ErrorInvalidJSONWithDuplicatingKeys(typeName string, field string) error {
 	return fmt.Errorf("invalid json for type %q: %q repeats several times", typeName, field)
+}
+
+func ErrorTL2SerializersNotGenerated(typeName string) error {
+	return fmt.Errorf("serializers for TL2 were not generated for type %q", typeName)
 }
 
 func ErrorInvalidJSONExcessElement(typeName string, key string) error {

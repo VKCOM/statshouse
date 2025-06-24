@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -31,7 +31,7 @@ type callState struct {
 }
 
 type Multi struct {
-	c           *Client
+	c           *ClientImpl
 	sem         *semaphore.Weighted
 	mu          sync.Mutex
 	multiResult chan *Response
@@ -42,7 +42,7 @@ type Multi struct {
 }
 
 // Multi must be followed with a call to Multi.Close to release request state resources
-func (c *Client) Multi(n int) *Multi {
+func (c *ClientImpl) Multi(n int) *Multi {
 	return &Multi{
 		c:           c,
 		sem:         semaphore.NewWeighted(int64(n)),
@@ -73,7 +73,7 @@ func (m *Multi) Close() {
 	// no receivers will block because there is enough space in channel for all responses
 }
 
-func (m *Multi) Client() *Client {
+func (m *Multi) Client() Client {
 	return m.c
 }
 
@@ -185,7 +185,7 @@ func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
 }
 
 // DoMulti is a convenient way of doing multiple RPCs at once. If you need more control, consider using Multi directly.
-func (c *Client) DoMulti(
+func (c *ClientImpl) DoMulti(
 	ctx context.Context,
 	addresses []NetAddr,
 	prepareRequest func(addr NetAddr, req *Request) error,

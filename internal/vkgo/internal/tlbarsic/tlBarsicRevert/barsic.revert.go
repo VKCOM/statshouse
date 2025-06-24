@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,6 +30,7 @@ func (item *BarsicRevert) Reset() {
 }
 
 func (item *BarsicRevert) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
 	item.Offset = basictl.RandomLong(rg)
 }
 
@@ -40,7 +41,6 @@ func (item *BarsicRevert) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.Offset)
 }
 
-// This method is general version of Write, use it instead!
 func (item *BarsicRevert) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -58,7 +58,6 @@ func (item *BarsicRevert) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *BarsicRevert) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -209,4 +208,12 @@ func (item *BarsicRevert) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON("barsic.revert", err.Error())
 	}
 	return nil
+}
+
+func (item *BarsicRevert) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *BarsicRevert) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, internal.ErrorTL2SerializersNotGenerated("barsic.revert")
 }

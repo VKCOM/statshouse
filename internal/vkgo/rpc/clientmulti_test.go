@@ -1,4 +1,4 @@
-// Copyright 2024 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,12 +7,8 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"net"
-	"reflect"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -41,7 +37,6 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 		ServerWithCryptoKeys(testCryptoKeys),
 		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
-		ServerWithMaxInflightPackets(rapid.IntRange(0, 3).Draw(t, "maxInflight")),
 		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
 		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
 		ServerWithRequestBufSize(rapid.IntRange(512, 1024).Draw(t, "requestBufSize")),
@@ -55,28 +50,19 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 	var wg sync.WaitGroup
 	for _, c := range clients {
 		wg.Add(1)
-		go func(c *Client) {
+		go func(c Client) {
 			defer wg.Done()
 
 			m := c.Multi(numRequests)
 			defer m.Close()
 
 			queryIDs := map[int64]struct{}{}
-			queryIDToRequestBuf := map[int64][]byte{}
+			queryIDToBodyCopy := map[int64]string{}
 
 			for j := 0; j < numRequests; j++ {
 				req := c.GetRequest()
-				req.ActorID = int64(j % 2)
-				if j%3 == 0 {
-					req.Extra.SetIntForward(int64(j))
-				}
-
-				buf := make([]byte, binary.MaxVarintLen64)
 				queryID := req.QueryID()
-				buf = buf[:binary.PutVarint(buf, queryID)]
-				buf = append(make([]byte, 4), bytes.Repeat(buf, 4)...) // 4 bytes zero request type + hacky way to make sure request size is divisible by 4
-				binary.LittleEndian.PutUint32(buf, requestType)
-				req.Body = append(req.Body, buf...)
+				bodyCopy := prepareTestRequest(req)
 
 				err := m.Start(context.Background(), "tcp4", ln.Addr().String(), req)
 				if err != nil {
@@ -84,7 +70,7 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 				}
 
 				queryIDs[queryID] = struct{}{}
-				queryIDToRequestBuf[queryID] = buf
+				queryIDToBodyCopy[queryID] = bodyCopy
 			}
 
 			for k := 0; k < numRequests; k++ {
@@ -101,23 +87,10 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 					queryID, resp, err = m.WaitAny(context.Background())
 				}
 
-				buf := queryIDToRequestBuf[queryID]
-				delete(queryIDToRequestBuf, queryID)
+				bodyCopy := queryIDToBodyCopy[queryID]
+				delete(queryIDToBodyCopy, queryID)
 				delete(queryIDs, queryID)
-
-				if queryID%2 != 0 {
-					refErr := &Error{
-						Code:        int32(queryID),
-						Description: strconv.Itoa(int(queryID)),
-					}
-
-					if !reflect.DeepEqual(err, refErr) {
-						t.Errorf("got error %q instead of %q", err, refErr)
-					}
-				} else if resp == nil || !bytes.Equal(buf[4:], resp.Body) {
-					t.Errorf("sent %q, got back %v (%v)", buf, resp, err)
-				}
-
+				checkTestResponse(t, resp, err, bodyCopy)
 				c.PutResponse(resp)
 			}
 
