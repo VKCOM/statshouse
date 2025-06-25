@@ -25,6 +25,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
@@ -39,11 +40,12 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:   r.version,
-			Mode:      data_model.InstantQuery,
-			Compat:    true,
-			TimeNow:   time.Now().Unix(),
-			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+			Version:       r.version,
+			Version3Start: r.Version3Start.Load(),
+			Mode:          data_model.InstantQuery,
+			Compat:        true,
+			TimeNow:       time.Now().Unix(),
+			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	w := r.Response()
@@ -75,9 +77,10 @@ func HandleRangeQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:   r.version,
-			Compat:    true,
-			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
+			Version:       r.version,
+			Version3Start: r.Version3Start.Load(),
+			Compat:        true,
+			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	var err error
