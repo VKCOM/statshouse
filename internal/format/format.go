@@ -26,6 +26,7 @@ import (
 
 const (
 	MaxTags      = 48
+	MaxTagsV2    = 16 // for backward compatibility we should not query tags from v2 table that are >= MaxTagsV2
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 

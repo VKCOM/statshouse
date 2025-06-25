@@ -19,13 +19,14 @@ import (
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"golang.org/x/sync/errgroup"
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"golang.org/x/sync/errgroup"
-	"pgregory.net/rand"
 )
 
 const (
@@ -1110,7 +1111,6 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			for i := 0; i < format.MaxTags; i++ {
 				groupBy = append(groupBy, i)
 			}
-			groupBy = append(groupBy, format.StringTopTagIndex)
 		}
 	} else if sel.GroupWithout {
 		skip := make(map[int]bool)
