@@ -26,6 +26,7 @@ import (
 
 const (
 	MaxTags      = 48
+	MaxTagsV2    = 15
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
@@ -41,7 +42,7 @@ const (
 	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
 	StringTopTagID            = "_s"
-	StringTopTagIDV3          = "47" // for backward compatibility with v2 we write "_s" into "47"
+	StringTopTagIDV3          = "47"          // for backward compatibility with v2 we write "_s" into "47"
 	HostTagID                 = "_h"
 	ShardTagID                = "_shard_num"
 	EnvTagID                  = "0"
