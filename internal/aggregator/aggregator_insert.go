@@ -21,6 +21,7 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
@@ -723,11 +724,11 @@ func appendArgMinMaxTag(res []byte, tag data_model.TagUnionBytes, value float32)
 	if tag.I != 0 {
 		res = append(res, 0)
 		res = binary.LittleEndian.AppendUint32(res, uint32(tag.I))
-		res = rowbinary.AppendArgMinMaxBytesFloat32(res[:wasLen], res[wasLen+4:], value)
+		res = chutil.AppendArgMinMaxBytesFloat32(res[:wasLen], res[wasLen+4:], value)
 		return res
 	}
 	res = append(res, 1)
 	res = append(res, tag.S...)
-	res = rowbinary.AppendArgMinMaxBytesFloat32(res[:wasLen], res[wasLen+4:], value)
+	res = chutil.AppendArgMinMaxBytesFloat32(res[:wasLen], res[wasLen+4:], value)
 	return res
 }
