@@ -258,7 +258,7 @@ func (q *seriesQuery) writeSelectTagsV2(sb *strings.Builder, lod *data_model.LOD
 			comma.maybeWrite(sb)
 			q.writeSelectStr(sb, x, lod)
 		default:
-			if x <= format.MaxTagsV2 {
+			if x < format.MaxTagsV2 {
 				comma.maybeWrite(sb)
 				q.writeSelectInt(sb, x, lod)
 			}
@@ -272,7 +272,7 @@ func (q *seriesQuery) writeSelectTagsV1(sb *strings.Builder, lod *data_model.LOD
 		case 0, format.StringTopTagIndex, format.StringTopTagIndexV3, format.ShardTagIndex:
 			// pass
 		default:
-			if x <= format.MaxTagsV2 {
+			if x < format.MaxTagsV2 {
 				comma.maybeWrite(sb)
 				q.writeSelectInt(sb, x, lod)
 			}
@@ -593,7 +593,7 @@ func (q *queryBuilder) writeByTagsV2(sb *strings.Builder, lod *data_model.LOD) {
 			sb.WriteString(",")
 			sb.WriteString("skey")
 		default:
-			if x <= format.MaxTagsV2 {
+			if x < format.MaxTagsV2 {
 				sb.WriteString(",")
 				sb.WriteString(q.colIntV2(x, lod))
 			}
