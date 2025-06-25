@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ type forwardPacketMachine struct {
 
 func newForwardPacketMachine(t *rapid.T) (_ forwardPacketMachine, _ func(), err error) {
 	startTime := uint32(time.Now().Unix())
-	cryptoKey := "crypto_key"
+	cryptoKey := "crypto_key" + strings.Repeat("_", 32) // crypto_key must be longer then 32 bytes
 	handshakeServer := func(conn net.Conn, forceEncryption bool) (*PacketConn, error) {
 		res := NewPacketConn(conn, DefaultServerRequestBufSize, DefaultServerResponseBufSize)
 		_, _, err := res.HandshakeServer([]string{cryptoKey}, nil, forceEncryption, startTime, 0)
