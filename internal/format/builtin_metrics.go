@@ -171,7 +171,7 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		BuiltinKind: BuiltinKindMetric,
 	}},
 	PreKeyTagID:   "4",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
+	ShardStrategy: ShardBuiltin, // sharded the same way as metric it describes
 	MetricTagID:   4,
 }
 
