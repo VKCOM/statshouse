@@ -100,6 +100,8 @@ func (es *endpointStat) setMetricMeta(metricMeta *format.MetricMetaValue) {
 
 func (es *endpointStat) report(code int, metric string) {
 	v := time.Since(es.timestamp).Seconds()
+	es.laneMutex.Lock()
+	defer es.laneMutex.Unlock()
 	t := statshouse.Tags{
 		1:  es.endpoint,
 		2:  strconv.Itoa(es.protocol),
