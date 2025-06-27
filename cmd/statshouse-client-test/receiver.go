@@ -16,7 +16,7 @@ import (
 
 type series map[tags]map[uint32]*value
 type tag [2]string // name, value
-type tags [17]tag  // metric name + 16 tags
+type tags [49]tag  // metric name + tags
 
 type value struct {
 	counter float64
