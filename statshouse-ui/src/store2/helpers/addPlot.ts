@@ -36,7 +36,8 @@ export function addPlot(
       });
     }
   });
-  groupKey ??= plot.group ?? params.orderGroup.slice(-1)[0] ?? '0';
+  const activeGroupKey = params.plots[params.tabNum]?.group;
+  groupKey ??= plot.group ?? activeGroupKey ?? params.orderGroup.slice(-1)[0] ?? '0';
   const size = params.groups[groupKey]?.size ?? '2';
   const nextPlot = {
     ...plot,
