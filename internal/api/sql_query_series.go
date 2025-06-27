@@ -17,7 +17,7 @@ const operatorNotIn = " NOT IN "
 type filterOperator [2]string // operator at [0], separator at [1]
 var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
-var escapeReplacer = strings.NewReplacer(`'`, `\'`)
+var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD) (*seriesQuery, error) {
 	q := &seriesQuery{
