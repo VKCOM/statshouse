@@ -11,7 +11,7 @@ func (*java) libMain() string {
 }
 
 func (*java) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-java.git"
+	return "https://github.com/VKCOM/statshouse-java.git"
 }
 
 func (*java) testMain() string {

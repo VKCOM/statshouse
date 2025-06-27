@@ -9,7 +9,7 @@ func (*golang) libMain() string {
 }
 
 func (*golang) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-go.git"
+	return "https://github.com/VKCOM/statshouse-go.git"
 }
 
 func (*golang) testMain() string {
