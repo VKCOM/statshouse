@@ -4,9 +4,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import type { GroupKey, PlotParams, QueryParams } from '@/url2';
+import {
+  getNewMetricLayout,
+  type GroupKey,
+  type PlotParams,
+  type QueryParams,
+  type VariableKey,
+  type VariableParamsLink,
+} from '@/url2';
 import { produce } from 'immer';
-import { getNextPlotKey, updateQueryParamsPlotStruct } from '../urlStore/updateParamsPlotStruct';
+import { getNextPlotKey } from '../urlStore/updateParamsPlotStruct';
+import { findGroupPositionLayout } from '@/store2/urlStore';
+import { filterVariableByPlot } from '@/store2/helpers/filterVariableByPlot';
 
 export function addPlot(
   plot: PlotParams,
@@ -14,19 +23,34 @@ export function addPlot(
   groupKey?: GroupKey,
   activeInsert: boolean = true
 ): QueryParams {
-  const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
   const nextId = getNextPlotKey(params);
-  return produce<QueryParams>(
-    { ...params, tabNum: activeInsert ? nextId : params.tabNum },
-    updateQueryParamsPlotStruct((plotStruct) => {
-      groupKey ??= plotStruct.mapPlotToGroup[tabNum] ?? '0';
-      const groupIndex = plotStruct.mapGroupIndex[groupKey]!;
-      if (plotStruct.groups[groupIndex]) {
-        plotStruct.groups[groupIndex].plots.push({
-          plotInfo: { ...plot, id: nextId },
-          variableLinks: [],
-        });
-      }
-    })
-  );
+  const plotFilter = filterVariableByPlot(plot);
+  const variableLinks: { id: VariableKey; link: VariableParamsLink[] }[] = [];
+  params.orderVariables.forEach((vK) => {
+    if (plotFilter(params.variables[vK])) {
+      variableLinks.push({
+        id: params.variables[vK]?.id,
+        link: params.variables[vK]?.link
+          .filter(([plotKey]) => plotKey === plot.id)
+          .map(([_, tagKey]) => [nextId, tagKey]),
+      });
+    }
+  });
+  groupKey ??= plot.group ?? params.orderGroup.slice(-1)[0] ?? '0';
+  const size = params.groups[groupKey]?.size ?? '2';
+  const nextPlot = {
+    ...plot,
+    id: nextId,
+    group: groupKey,
+    layout: findGroupPositionLayout(params, plot.layout ?? getNewMetricLayout(plot.type, size), groupKey),
+  };
+  return produce<QueryParams>(params, (p) => {
+    p.plots[nextId] = nextPlot;
+    if (activeInsert) {
+      p.tabNum = nextId;
+    }
+    variableLinks.forEach(({ id, link }) => {
+      p.variables[id]?.link.push(...link);
+    });
+  });
 }

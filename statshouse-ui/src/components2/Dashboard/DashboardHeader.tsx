@@ -41,7 +41,7 @@ export const DashboardHeader = memo(function DashboardHeader() {
         <div className="ms-3 mb-2">
           <PlotControlGlobalTimeShifts />
         </div>
-        <div className="ms-3 mb-2">
+        <div className="ms-3 mb-2 mobile-hidden">
           <ToggleButton
             className="btn btn-outline-primary btn-sm"
             checked={dashboardLayoutEdit}

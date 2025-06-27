@@ -10,6 +10,9 @@ import { resetDefaultParams } from './resetDefaultParams';
 import { loadDashboard } from './loadDashboard';
 import type { Location } from 'history';
 import { ExtendedError } from '@/api/api';
+import { produce } from 'immer';
+import { migrate3to4 } from '@/common/migrate/migrate3to4';
+import { dequal } from 'dequal/lite';
 
 export async function getUrlState(
   location: Location
@@ -19,11 +22,15 @@ export async function getUrlState(
   const urlTree = toTreeObj(urlObject);
   const { params: saveParams, error } = await loadDashboard(urlTree, getDefaultParams());
   const params = urlDecode(urlTree, saveParams);
-  const resetParams = resetDefaultParams(params);
+  const paramsV4 = produce(params, migrate3to4());
+
+  const resetV = !dequal(paramsV4, params);
+  const resetParams = resetDefaultParams(paramsV4);
+
   return {
-    params: resetParams ?? params,
+    params: resetParams ?? paramsV4,
     saveParams,
-    reset: !!resetParams,
+    reset: !!resetParams || resetV,
     error,
   };
 }

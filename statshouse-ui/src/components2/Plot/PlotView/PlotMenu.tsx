@@ -21,7 +21,7 @@ import { DropdownContext } from '@/contexts/DropdownContext';
 import { PlotMoveGroupDialog } from '@/components2/Plot/PlotView/PlotMoveGroupDialog';
 import { GroupKey } from '@/url2';
 
-const selectorCanRemove = ({ params: { orderPlot } }: StatsHouseStore) => orderPlot.length > 1;
+const selectorCanRemove = ({ params: { plots } }: StatsHouseStore) => Object.keys(plots).length > 1;
 
 export type PlotMenuProps = {
   className?: string;

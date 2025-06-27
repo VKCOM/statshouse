@@ -4,10 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { getNewGroup, getNewMetric, type PlotKey, type QueryParams, urlEncode } from '@/url2';
+import {
+  getNewGroup,
+  getNewMetric,
+  type PlotKey,
+  type QueryParams,
+  urlEncode,
+  VariableKey,
+  VariableParams,
+} from '@/url2';
 import { produce } from 'immer';
 import { clonePlot } from '@/url2/clonePlot';
 import { fixMessageTrouble } from '@/url/fixMessageTrouble';
+import { isPromQL } from '@/store2/helpers/isPromQL';
+import { filterVariableByPlot } from '@/store2/helpers/filterVariableByPlot';
 
 let localParams: QueryParams;
 let localSaveParams: QueryParams;
@@ -107,18 +117,31 @@ export function getPlotSingleLink(plotKey: PlotKey, params: QueryParams): string
           p.plots = {
             [plot.id]: plot,
           };
-          p.orderPlot = [plot.id];
+          p.orderPlot = [];
           plotEvents.forEach((pE) => {
             p.plots[pE.id] = pE;
-            p.orderPlot.push(pE.id);
           });
-          p.variables = {};
-          p.orderVariables = [];
+          if (isPromQL(plot)) {
+            const variableKeysFilter = filterVariableByPlot(plot);
+            const variableKeys = p.orderVariables.filter((vK) => variableKeysFilter(p.variables[vK]));
+            p.variables = variableKeys.reduce(
+              (res, variableKey) => {
+                if (p.variables[variableKey]) {
+                  res[variableKey] = { ...p.variables[variableKey], link: [] };
+                }
+                return res;
+              },
+              {} as Partial<Record<VariableKey, VariableParams>>
+            );
+            p.orderVariables = [...variableKeys];
+          } else {
+            p.variables = {};
+            p.orderVariables = [];
+          }
           p.groups = {
             '0': {
               ...getNewGroup(),
               id: '0',
-              count: 1 + plotEvents.length,
             },
           };
           p.orderGroup = ['0'];

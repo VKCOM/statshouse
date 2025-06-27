@@ -218,8 +218,6 @@ describe('@/urlStore urlEncode', () => {
     ).toEqual([
       ['g0.t', 'n'],
       ['g0.d', 'd'],
-      ['g0.n', '4'],
-      ['g0.s', '4'],
       ['g0.v', '0'],
     ]);
     expect(urlEncodeGroup({ ...dParam, show: true }, { ...dParam, show: false })).toEqual([['g0.v', '1']]);

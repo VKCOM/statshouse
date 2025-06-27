@@ -24,11 +24,12 @@ import {
 import { TagKey } from '@/api/enum';
 import { Button, ToggleButton } from '@/components/UI';
 import { ProduceUpdate } from '@/store2/helpers';
-import { useStatsHouseShallow } from '@/store2';
+import { useStatsHouse } from '@/store2';
 import { VariableSource } from './VariableSource';
 import { isNil, isNotNil } from '@/common/helpers';
 import { getNextVariableSourceKey } from '@/store2/urlStore/updateParamsPlotStruct';
 import { isValidVariableName } from '@/view/utils2';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 export type VariableCardProps = {
   variableKey: VariableKey;
@@ -38,11 +39,8 @@ export type VariableCardProps = {
 export function VariableCard({ variableKey, variable, setVariable }: VariableCardProps) {
   const [open, setOpen] = useState(false);
   const [valid, setValid] = useState(true);
-
-  const { orderPlot, admin } = useStatsHouseShallow(({ params: { orderPlot }, user: { admin } }) => ({
-    orderPlot,
-    admin,
-  }));
+  const orderPlot = useStatsHouse(selectorOrderPlot);
+  const admin = useStatsHouse(({ user: { admin } }) => admin);
   const orderPlotLength = orderPlot.length;
 
   useEffect(() => {

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { memo, useCallback, useMemo } from 'react';
-import { useStatsHouseShallow } from '@/store2';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
 import { DashboardName } from './DashboardName';
 import { DashboardHeader } from './DashboardHeader';
 import { Button, Tooltip } from '@/components/UI';
@@ -13,7 +13,6 @@ import { DashboardVariablesControl } from './DashboardVariablesControl';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
-import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from './DashboardSettings';
 import { useLinkPlot } from '@/hooks/useLinkPlot';
 import { useGlobalLoader } from '@/store2/plotQueryStore';
@@ -21,6 +20,8 @@ import { useTvModeStore } from '@/store2/tvModeStore';
 import { ErrorMessages } from '@/components/ErrorMessages';
 import { produce } from 'immer';
 import { HistoryList } from '../HistoryList';
+import { DashboardGridLayoutHOC } from '@/components2/Dashboard/DashboardGridLayout';
+import { selectorOrderPlot } from '@/store2/selectors';
 
 const PATH_VERSION_PARAM = '&dv';
 
@@ -30,12 +31,12 @@ export type DashboardProps = {
 
 export const Dashboard = memo(function Dashboard({ className }: DashboardProps) {
   const globalLoader = useGlobalLoader();
+  const plotsLength = useStatsHouse((state) => selectorOrderPlot(state).length);
   const tvModeEnable = useTvModeStore(({ enable }) => enable);
   const {
     tabNum,
     isEmbed,
     dashboardName,
-    plotsLength,
     variablesLength,
     dashboardLayoutEdit,
     setDashboardLayoutEdit,
@@ -47,7 +48,7 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
   } = useStatsHouseShallow(
     useCallback(
       ({
-        params: { tabNum, dashboardName, orderPlot, orderVariables, dashboardId, dashboardVersion },
+        params: { tabNum, dashboardName, orderVariables, dashboardId, dashboardVersion },
         isEmbed,
         dashboardLayoutEdit,
         setDashboardLayoutEdit,
@@ -57,7 +58,6 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
         tabNum,
         isEmbed,
         dashboardName,
-        plotsLength: orderPlot.length,
         variablesLength: orderVariables.length,
         dashboardLayoutEdit,
         setDashboardLayoutEdit,
@@ -148,7 +148,7 @@ export const Dashboard = memo(function Dashboard({ className }: DashboardProps) 
       {variablesLength > 0 && tabNum === '-1' && !tvModeEnable && (
         <DashboardVariablesControl className="col-12 container-xl mb-3 z-100 position-relative" />
       )}
-      <DashboardLayout className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
+      <DashboardGridLayoutHOC className={cn('z-10', tabNum === '-1' ? 'position-relative' : 'hidden-dashboard')} />
       {tabNum === '-2' && <DashboardSettings />}
       {tabNum === '-3' && dashboardId && (
         <HistoryList

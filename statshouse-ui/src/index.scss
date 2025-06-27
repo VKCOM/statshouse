@@ -323,3 +323,9 @@ code {
 .modal{
   overflow: hidden;
 }
+
+@media screen and (max-width: 879.98px) {
+  .mobile-hidden{
+    display: none;
+  }
+}

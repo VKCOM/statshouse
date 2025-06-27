@@ -43,7 +43,7 @@ describe('@/urlStore widgetsParamsEncode', () => {
       )
     ).toEqual([
       ['t0', removeValueChar],
-      ['op', '1'],
+      // ['op', '1'],
     ]);
   });
 });

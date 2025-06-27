@@ -59,6 +59,7 @@ export const GET_PARAMS = {
   dashboardName: 'dn',
   dashboardDescription: 'dd',
   dashboardVersion: 'dv',
+  dashboardSchemeVersion: 'ver',
   metricsGroupID: 'id',
   metricsNamespacesID: 'id',
   metricsListAndDisabled: 'sd',
@@ -449,20 +450,3 @@ export const TIME_RANGE_ABBREV_DESCRIPTION: Record<TimeRangeAbbrev, string> = {
   [TIME_RANGE_ABBREV.last1y]: 'Last year',
   [TIME_RANGE_ABBREV.last2y]: 'Last 2 years',
 };
-
-export const LAYOUT_WIDGET_SIZE = Object.freeze({
-  [PLOT_TYPE.Metric]: {
-    minW: 2,
-    minH: 2,
-    maxW: 12,
-    maxH: 10,
-  },
-  [PLOT_TYPE.Event]: {
-    minW: 2,
-    minH: 2,
-    maxW: 12,
-    maxH: 10,
-  },
-} as const);
-
-export const LAYOUT_COLUMNS = 12;
