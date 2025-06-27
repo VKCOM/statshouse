@@ -14,7 +14,7 @@ func (*python) libMain() string {
 }
 
 func (*python) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-py.git"
+	return "https://github.com/VKCOM/statshouse-py.git"
 }
 
 func (*python) testMain() string {

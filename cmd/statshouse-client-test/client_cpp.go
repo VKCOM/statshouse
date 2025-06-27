@@ -13,7 +13,7 @@ func (*cpp) testMain() string {
 }
 
 func (*cpp) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-cpp.git"
+	return "https://github.com/VKCOM/statshouse-cpp.git"
 }
 
 func (client *cpp) make() error {

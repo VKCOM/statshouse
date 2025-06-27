@@ -9,7 +9,7 @@ func (*php) libMain() string {
 }
 
 func (*php) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-php.git"
+	return "https://github.com/VKCOM/statshouse-php.git"
 }
 
 func (*php) testMain() string {

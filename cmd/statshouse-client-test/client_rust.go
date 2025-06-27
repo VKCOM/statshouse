@@ -17,7 +17,7 @@ func (*rust) testMain() string {
 }
 
 func (*rust) gitURL() string {
-	return "git@github.com:VKCOM/statshouse-rs.git"
+	return "https://github.com/VKCOM/statshouse-rs.git"
 }
 
 func (client *rust) make() error {
