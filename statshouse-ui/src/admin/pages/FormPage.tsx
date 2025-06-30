@@ -29,6 +29,8 @@ import { queryClient } from '@/common/queryClient';
 import { API_HISTORY } from '@/api/history';
 import { HistoryList } from '@/components2/HistoryList';
 import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
+import { ConfirmButton } from '@/components/UI/ConfirmButton';
+import { useStateBoolean } from '@/hooks';
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
 const PATH_VERSION_PARAM = '?mv';
@@ -179,6 +181,26 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
     }
     return false;
   }, [values.resolution]);
+
+  const [confirmRaw, setConfirmRaw] = useStateBoolean(false);
+
+  const confirm = useMemo(() => {
+    if (confirmRaw) {
+      return (
+        <div>
+          <div>Enabling the Raw option for a tag can make your previous data for this tag uninterpretable.</div>
+          <div>Please ensure that you have not sent data for this tag before.</div>
+        </div>
+      );
+    }
+    return undefined;
+  }, [confirmRaw]);
+
+  useEffect(() => {
+    if (success) {
+      setConfirmRaw.off();
+    }
+  }, [setConfirmRaw, setConfirmRaw.off, success]);
 
   return (
     <form key={values.version}>
@@ -374,7 +396,12 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
               key={ind}
               tagNumber={ind}
               value={tag}
-              onChange={(v) => dispatch({ type: 'alias', pos: ind, tag: v })}
+              onChange={(v) => {
+                dispatch({ type: 'alias', pos: ind, tag: v });
+                if (v.isRaw != null || v.raw_kind != null) {
+                  setConfirmRaw.on();
+                }
+              }}
               onChangeCustomMapping={(pos, from, to) => dispatch({ type: 'customMapping', tag: ind, pos, from, to })}
               disabled={isReadonly}
             />
@@ -648,9 +675,19 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
       </div>
 
       <div>
-        <button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>
+        {/*<button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>*/}
+        {/*  Save*/}
+        {/*</button>*/}
+        <ConfirmButton
+          type="button"
+          disabled={isRunning || isReadonly}
+          className="btn btn-primary me-3"
+          confirmHeader={<div className="fw-bold">Warning!</div>}
+          confirm={confirm}
+          onClick={onSubmit}
+        >
           Save
-        </button>
+        </ConfirmButton>
         {isRunning ? (
           <div className="spinner-border spinner-border-sm" role="status">
             <span className="visually-hidden">Loading...</span>
