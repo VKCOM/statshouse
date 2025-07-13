@@ -11,8 +11,8 @@ import (
 type handlerMock struct {
 }
 
-func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
-	return data_model.MappedMetricHeader{}, true
+func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
+	return data_model.MappedMetricHeader{}
 }
 func (*handlerMock) HandleParseError([]byte, error) {}
 
