@@ -269,7 +269,7 @@ func (s *TCP) receiveLoop(h Handler, sc *serverConn) error {
 			if 4+offset+int(bodyLen) > size { // careful with overflow!
 				break
 			}
-			if err := s.parse(h, nil, nil, nil, data[4+offset:4+offset+int(bodyLen)], &batch, &scratch); err != nil {
+			if err := s.parse(h, nil, data[4+offset:4+offset+int(bodyLen)], &batch, &scratch); err != nil {
 				return fmt.Errorf("parsing error: %w", err) // do not allow format violation in TCP, as next data will be garbage
 			}
 			offset += 4 + int(bodyLen)

@@ -28,9 +28,9 @@ type handler struct {
 	sink func(*tlstatshouse.MetricBytes)
 }
 
-func (h handler) HandleMetrics(args data_model.HandlerArgs) (data_model.MappedMetricHeader, bool) {
+func (h handler) HandleMetrics(args data_model.HandlerArgs) data_model.MappedMetricHeader {
 	h.sink(args.MetricBytes)
-	return data_model.MappedMetricHeader{}, false
+	return data_model.MappedMetricHeader{}
 }
 
 func (handler) HandleParseError(pkt []byte, err error) {

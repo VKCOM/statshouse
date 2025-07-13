@@ -48,9 +48,9 @@ func mainBenchmarks() int {
 type packetPrinter struct {
 }
 
-func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
+func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
 	log.Printf("Parsed metric: %s\n", args.MetricBytes.String())
-	return h, true
+	return h
 }
 
 func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
@@ -144,6 +144,8 @@ func simpleFSync(f *os.File) {
 }
 
 func FakeBenchmarkMetricsPerSecond(listenAddr string) {
+	// Not sure if this function still works and gives some useful data.
+	// When you need it next time, please fix.
 	const almostReceiveOnly = false // do not spend time on mapping
 	const testFastPath = true       // or slow path
 	const keyPrefix = "__benchmark"
@@ -208,22 +210,23 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 			mapError.Store(0)
 		}
 	}()
-
-	handleMappedMetric := func(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
-		if h.IngestionStatus != 0 {
-			mapError.Inc()
-			return
+	/*
+		handleMappedMetric := func(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
+			if h.IngestionStatus != 0 {
+				mapError.Inc()
+				return
+			}
+			if h.Key.Metric != 1 {
+				wrongID.Inc()
+				return
+			}
+			if testFastPath && h.Key.Tags[1] != 1 {
+				wrongTag1.Inc()
+				return
+			}
+			goodMetric.Inc()
 		}
-		if h.Key.Metric != 1 {
-			wrongID.Inc()
-			return
-		}
-		if testFastPath && h.Key.Tags[1] != 1 {
-			wrongTag1.Inc()
-			return
-		}
-		goodMetric.Inc()
-	}
+	*/
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil, []metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	journal.Start(nil, nil, dolphinLoader)
@@ -286,15 +289,12 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	// go writeFunc()
 	serveFunc := func(u *receiver.UDP, rm *atomic.Int64) error {
 		return u.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
 				r := rm.Inc()
 				if almostReceiveOnly && r%1024 != 0 {
-					return h, true
+					return h
 				}
-				if done {
-					handleMappedMetric(*m, h)
-				}
-				return h, done
+				return h
 			},
 			ParseError: func(pkt []byte, err error) {
 				parseErrors.Inc()
@@ -335,7 +335,7 @@ func mainTLClient() int {
 	}
 	var ret tl.True
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5) // TODO - option to set timeout
+	ctx, cancel := context.WithTimeout(context.Background(), argv.tlclientTimeout)
 	defer cancel()
 	if err := tlclient.AddMetricsBatchBytes(ctx, batch, &extra, &ret); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "addMetricsBatch failed - %v", err)
