@@ -19,7 +19,6 @@ type HandlerArgs struct {
 	MetricBytes    *tlstatshouse.MetricBytes
 	Description    string
 	ScrapeInterval int
-	MapCallback    MapCallbackFunc
 	Scratch        *[]byte
 }
 

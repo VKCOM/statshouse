@@ -320,7 +320,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		timer := time.AfterFunc(recvTimeout, func() { _ = recv.Close() })
 		defer timer.Stop()
 		serveErr <- recv.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
 				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:
@@ -336,7 +336,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 				if recvErr != nil || counterMetrics.size()+valueMetrics.size()+uniqueMetrics.size()+stopMetrics.size() >= total {
 					_ = recv.Close()
 				}
-				return h, true
+				return h
 			},
 			ParseError: func(pkt []byte, err error) {
 				if recvErr == nil {

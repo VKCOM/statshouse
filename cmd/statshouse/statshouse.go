@@ -70,8 +70,9 @@ var argv struct {
 	mapString string
 
 	// tlclient mode
-	statshouseAddr string
-	statshouseNet  string
+	statshouseAddr  string
+	statshouseNet   string
+	tlclientTimeout time.Duration
 
 	// tag_mapping mode
 	metric          string
@@ -352,7 +353,7 @@ func run() int {
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
-		rpc.ServerWithHandler(handlerRPC.Handle),
+		rpc.ServerWithSyncHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.agent, journal: journalFast}.handleStats),
 		metrics.ServerWithMetrics,
 	}
@@ -678,6 +679,7 @@ func parseCommandLine() (entrypoint func() int, _ error) {
 		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 		flag.StringVar(&argv.statshouseAddr, "statshouse-addr", "127.0.0.1:13337", "statshouse address for tlclient")
 		flag.StringVar(&argv.statshouseNet, "statshouse-net", "tcp4", "statshouse network for tlclient")
+		flag.DurationVar(&argv.tlclientTimeout, "timeout", 2*time.Second, "timeout of RPC call to agent")
 		build.FlagParseShowVersionHelp()
 		return mainTLClient, nil
 	case "tlclient.api":

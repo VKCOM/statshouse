@@ -41,7 +41,7 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, ac
 	return w
 }
 
-func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
+func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
@@ -72,7 +72,7 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	}
 	w.sh2.TimingsMapping.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
 	w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached, args.Scratch)
-	return h, done
+	return h
 }
 
 func (w *worker) fillTime(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) {

@@ -15,9 +15,7 @@ import (
 	"net/http"
 
 	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/mapping"
 )
 
 const StatshouseHTTPV1Endpoint = "/api/statshousev1"
@@ -46,21 +44,9 @@ func (s *HTTP) httpFunction(h Handler, r *http.Request) error {
 		return fmt.Errorf("error reading HTTP body: %w", err)
 	}
 	var firstError error
-	notDoneCount := 0
-	// TODO - store both channel and callback in UserData to prevent 2 allocations
-	ch := make(chan error, 1024) // TODO - use semaphore instead
-	cb := func(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
-		ch <- mapping.MapErrorFromHeader(m, h)
-	}
 	var batch tlstatshouse.AddMetricsBatchBytes
-	if err := s.parse(h, cb, &notDoneCount, &firstError, body, &batch, nil); err != nil {
+	if err := s.parse(h, &firstError, body, &batch, nil); err != nil {
 		return fmt.Errorf("error parsing HTTP body: %w", err)
-	}
-	for i := 0; i < notDoneCount; i++ {
-		err := <-ch
-		if firstError == nil {
-			firstError = err
-		}
 	}
 	return firstError
 }
