@@ -573,7 +573,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 

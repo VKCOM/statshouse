@@ -30,7 +30,7 @@ import (
 	"github.com/vkcom/statshouse/internal/config"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -206,7 +206,7 @@ func run() int {
 	c := rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	defer func() { _ = c.Close() }()
 
-	dc, err := pcache.OpenDiskCache(argv.diskCache, diskCacheTxDuration)
+	dc, err := sqlitecache.OpenSqliteDiskCache(argv.diskCache, diskCacheTxDuration)
 	if err != nil {
 		log.Printf("failed to open disk cache: %v", err)
 		return 1

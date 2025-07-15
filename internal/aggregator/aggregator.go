@@ -145,7 +145,7 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 // aggregator is also run in this method
-func MakeAggregator(dc *pcache.DiskCache, fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
+func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
 	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	if len(localAddresses) != 1 {
@@ -413,7 +413,7 @@ func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
 	}
 }
 
-func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
+func loadBoostrap(dc pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
 	args := tlmetadata.GetTagMappingBootstrap{}

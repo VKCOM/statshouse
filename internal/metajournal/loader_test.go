@@ -19,6 +19,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
@@ -43,7 +44,7 @@ func TestPMCCache(t *testing.T) {
 	c := rpc.NewClient(rpc.ClientWithLogf(t.Logf))
 	defer func() { _ = c.Close() }()
 
-	dc, err := pcache.OpenDiskCache(filepath.Join(t.TempDir(), cacheFilename), diskTxDuration)
+	dc, err := sqlitecache.OpenSqliteDiskCache(filepath.Join(t.TempDir(), cacheFilename), diskTxDuration)
 	require.NoError(t, err)
 	defer func() { _ = dc.Close() }()
 

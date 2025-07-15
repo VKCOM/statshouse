@@ -38,7 +38,7 @@ type TagsMapper struct {
 	tagValue *pcache.Cache
 }
 
-func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, dc *pcache.DiskCache, loader *metajournal.MetricMetaLoader, suffix string) *TagsMapper {
+func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, dc pcache.DiskCache, loader *metajournal.MetricMetaLoader, suffix string) *TagsMapper {
 	ms := &TagsMapper{agg: agg, sh2: sh2, metricStorage: metricStorage, clientList: map[*rpc.HandlerContext]*bool{}}
 	ms.tagValue = mapping.NewTagsCache(func(ctx context.Context, askedKey string, extra2 interface{}) (pcache.Value, time.Duration, error) {
 		extra, _ := extra2.(format.CreateMappingExtra)

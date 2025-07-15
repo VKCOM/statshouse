@@ -60,7 +60,7 @@ type LoaderFunc func(ctx context.Context, key string, extra interface{}) (Value,
 
 type Cache struct {
 	Loader                  LoaderFunc
-	DiskCache               *DiskCache // we do not cache errors on disk
+	DiskCache               DiskCache // we do not cache errors on disk
 	DiskCacheNamespace      string
 	MaxMemCacheSize         int
 	MaxDiskCacheSize        int // <= 0 means no limit

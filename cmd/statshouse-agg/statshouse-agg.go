@@ -28,6 +28,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -107,7 +108,7 @@ func mainAggregator() int {
 		return 1
 	}
 	_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
-	dc, err := pcache.OpenDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), pcache.DefaultTxDuration)
+	dc, err := sqlitecache.OpenSqliteDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), sqlitecache.DefaultTxDuration)
 	if err != nil {
 		log.Printf("failed to open disk cache: %v", err)
 		return 1

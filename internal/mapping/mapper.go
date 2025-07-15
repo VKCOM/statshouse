@@ -11,7 +11,7 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 )
 
-func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache) *pcache.Cache {
+func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc pcache.DiskCache) *pcache.Cache {
 	result := &pcache.Cache{
 		Loader:                  loader,
 		DiskCache:               dc,

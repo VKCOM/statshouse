@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package pcache
+package sqlitecache
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse/internal/pcache"
 
 	"go.uber.org/atomic"
 )
@@ -36,27 +37,27 @@ func TestCacheIdentityMapping(t *testing.T) {
 	var loadTryCount atomic.Int32
 	var loadOKCount atomic.Int32
 
-	loader := func(_ context.Context, key string, _ interface{}) (Value, time.Duration, error) {
+	loader := func(_ context.Context, key string, _ interface{}) (pcache.Value, time.Duration, error) {
 		if loadTryCount.Inc() <= getErrCount {
 			return nil, 0, fmt.Errorf("sorry, try later")
 		}
 		loadOKCount.Inc()
-		return StringToValue(key), time.Second * 100, nil
+		return pcache.StringToValue(key), time.Second * 100, nil
 	}
 
-	dc, err := OpenDiskCache(filepath.Join(t.TempDir(), cacheFilename), diskTxDuration)
+	dc, err := OpenSqliteDiskCache(filepath.Join(t.TempDir(), cacheFilename), diskTxDuration)
 	require.NoError(t, err)
 	defer func() { _ = dc.Close() }()
 
-	c := &Cache{
+	c := &pcache.Cache{
 		Loader:                  loader,
 		DiskCache:               dc,
 		DiskCacheNamespace:      diskCacheNamespace,
 		MaxMemCacheSize:         maxMemCacheSize,
 		DefaultCacheTTL:         cacheTTL,
 		DefaultNegativeCacheTTL: negativeCacheTTL,
-		Empty: func() Value {
-			var empty StringValue
+		Empty: func() pcache.Value {
+			var empty pcache.StringValue
 			return &empty
 		},
 	}
@@ -69,7 +70,7 @@ func TestCacheIdentityMapping(t *testing.T) {
 			in := strconv.Itoa(i % getErrCount)
 			out := c.GetOrLoad(time.Now(), in, nil)
 			if out.Err == nil {
-				assert.Equal(t, in, ValueToString(out.Value))
+				assert.Equal(t, in, pcache.ValueToString(out.Value))
 			}
 		}(i)
 	}
@@ -82,11 +83,11 @@ func TestCacheIdentityMapping(t *testing.T) {
 			in := strconv.Itoa(i % keyCount)
 			out1 := c.GetOrLoad(time.Now(), in, nil)
 			assert.NoError(t, out1.Err)
-			assert.Equal(t, in, ValueToString(out1.Value))
+			assert.Equal(t, in, pcache.ValueToString(out1.Value))
 			out2 := c.GetCachedString(time.Now(), in)
 			assert.NoError(t, out2.Err)
 			if out2.Found() { // can already be evicted by another goroutine
-				assert.Equal(t, ValueToString(out1.Value), ValueToString(out2.Value))
+				assert.Equal(t, pcache.ValueToString(out1.Value), pcache.ValueToString(out2.Value))
 			}
 		}(i)
 	}
