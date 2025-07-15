@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package pcache
+package sqlitecache
 
 import (
 	"path/filepath"
@@ -23,7 +23,7 @@ func BenchmarkDiskCacheSetGet(b *testing.B) {
 		ttl           = 239 * time.Nanosecond
 	)
 
-	dc, err := OpenDiskCache(filepath.Join(b.TempDir(), cacheFilename), txDuration)
+	dc, err := OpenSqliteDiskCache(filepath.Join(b.TempDir(), cacheFilename), txDuration)
 	require.NoError(b, err)
 	defer func() { _ = dc.Close() }()
 

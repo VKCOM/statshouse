@@ -47,7 +47,7 @@ type ApplyEvent func(newEntries []tlmetadata.Event)
 
 type Journal struct {
 	mu         sync.RWMutex
-	dc         *pcache.DiskCache
+	dc         pcache.DiskCache
 	metaLoader MetricsStorageLoader
 	namespace  string
 	applyEvent []ApplyEvent
@@ -78,7 +78,7 @@ type Journal struct {
 	BuiltinJournalUpdateError data_model.ItemValue
 }
 
-func MakeJournal(namespaceSuffix string, journalRequestDelay time.Duration, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
+func MakeJournal(namespaceSuffix string, journalRequestDelay time.Duration, dc pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
 	return &Journal{
 		dc:                     dc,
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
