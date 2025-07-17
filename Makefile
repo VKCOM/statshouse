@@ -29,7 +29,7 @@ build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp build-agg
 # to build tools for running on adm512, disable cgo
 # CGO_ENABLED=0 go build ...
 build-sh:
-	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
+	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 
 build-sh-api:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
