@@ -25,6 +25,7 @@ import (
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 	"github.com/vkcom/statshouse-go"
+
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/config"
@@ -327,6 +328,7 @@ func run() int {
 	a.Path("/" + api.EndpointKnownTags).Methods("GET").HandlerFunc(api.HandleGetKnownTags)
 	a.Path("/" + api.EndpointStatistics).Methods("POST").HandlerFunc(api.HandleFrontendStat)
 	a.Path("/" + api.EndpointHistory).Methods("GET").HandlerFunc(api.HandleGetHistory)
+	a.Path("/" + api.EndpointHealthcheck).Methods("GET").HandlerFunc(api.HandleGetHealthcheck)
 	m.Path("/prom/api/v1/query").Methods("GET").HandlerFunc(api.HandleInstantQuery)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(api.HandleInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("GET").HandlerFunc(api.HandleRangeQuery)
