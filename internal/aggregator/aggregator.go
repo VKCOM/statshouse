@@ -355,6 +355,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
+	go a.goMigrate(a.cancelInsertsCtx)
 	go a.goInternalLog()
 
 	go func() { // before sh2.Run because agent will also connect to local aggregator
@@ -944,6 +945,29 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			delete(aggBucket.contributorsSimulatedErrors, hctx)
 		}
 		aggBucket.mu.Unlock()
+	}
+}
+
+func (a *Aggregator) goMigrate(cancelCtx context.Context) {
+	for {
+		// TODO: implement, rough plan below
+		// border ts is timestamp after which all data is migrated
+		// single ts can be too big, so we need to migrate in chunks in order to do it we store additional offset
+		// 1. check remote config flag for migration
+		// 2. check current load and decide if we need to migrate or just wait
+		// 3. look for migration state if there is no state, create it
+		// 4. if we need to migrate more data, select data from V2 (limit amount of data)
+		// 5. insert into V3
+		// 6. if success, save new border of migration and offset on current border - local TL file or full history in sqlite
+		log.Println("migrate")
+		time.Sleep(time.Second * 10)
+
+		// exit if context is done
+		select {
+		case <-cancelCtx.Done():
+			return
+		default:
+		}
 	}
 }
 
