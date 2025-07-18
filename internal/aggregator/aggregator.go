@@ -953,12 +953,21 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		// TODO: implement, rough plan below
 		// border ts is timestamp after which all data is migrated
 		// single ts can be too big, so we need to migrate in chunks in order to do it we store additional offset
-		// 1. check remote config flag for migration
-		// 2. check current load and decide if we need to migrate or just wait
-		// 3. look for migration state if there is no state, create it
-		// 4. if we need to migrate more data, select data from V2 (limit amount of data)
-		// 5. insert into V3
-		// 6. if success, save new border of migration and offset on current border - local TL file or full history in sqlite
+		// 1. [x] check remote config flag for migration
+		// 2. [ ] check current load and decide if we need to migrate or just wait
+		// 3. [ ] look for migration state if there is no state, create it
+		// 4. [ ] if we need to migrate more data, select data from V2 (limit amount of data)
+		// 5. [ ] insert into V3
+		// 6. [ ] if success, save new border of migration and offset on current border - local TL file or full history in sqlite
+
+		a.configMu.RLock()
+		enableMigration := a.configR.EnableMigration
+		a.configMu.RUnlock()
+		if !enableMigration {
+			time.Sleep(time.Second * 10)
+			continue
+		}
+
 		log.Println("migrate")
 		time.Sleep(time.Second * 10)
 
