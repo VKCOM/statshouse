@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
