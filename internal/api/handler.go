@@ -156,6 +156,9 @@ const (
 
 	descriptionFieldName = "__description"
 	journalUpdateTimeout = 2 * time.Second
+
+	// healthcheck should query any lightweight metric, this one was chosen randomly
+	healthcheckQuery = `{@name="__agg_bucket_receive_delay_sec",@what="avg"}`
 )
 
 type (
@@ -1430,6 +1433,24 @@ func HandleGetHistory(r *httpRequestHandler) {
 		})
 	}
 	respondJSON(r, resp, defaultCacheTTL, 0, err)
+}
+
+func HandleGetHealthcheck(r *httpRequestHandler) {
+	now := time.Now()
+	req := seriesRequest{
+		version: r.version,
+		from:    now.Add(-time.Hour),
+		to:      now,
+		promQL:  healthcheckQuery,
+	}
+	_, cancel, err := r.handleSeriesRequestS(r.Context(), req, make([]seriesResponse, 2))
+	if err != nil {
+		log.Printf("[error] healtcheck failed: %v", err)
+		respondJSON(r, nil, 0, 0, httpErr(500, err))
+		return
+	}
+	defer cancel()
+	respondJSON(r, nil, 0, 0, nil)
 }
 
 func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr string, versionStr string) (*MetricInfo, time.Duration, error) {

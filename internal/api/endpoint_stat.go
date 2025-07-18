@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+
 	"github.com/vkcom/statshouse/internal/chutil"
 
 	"github.com/vkcom/statshouse-go"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -44,6 +46,7 @@ const (
 	EndpointStatistics          = "stat"
 	endpointChunk               = "chunk"
 	EndpointHistory             = "history"
+	EndpointHealthcheck         = "healthcheck"
 
 	userTokenName = "user"
 )
