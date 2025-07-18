@@ -24,6 +24,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	_ "net/http/pprof"
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
