@@ -45,6 +45,9 @@ const (
 	rpcServerWantsFinTLTag  = 0xa8ddbc46
 	rpcClientWantsFinTLTag  = 0x0b73429e
 	rpcPingTLTag            = 0xa677ee41
+	// packetConn buffers - 24KB per connection
+	ingressRequestBufSize  = 16384 // 16 KB
+	ingressResponseBufSize = 8192  // 8 KB
 )
 
 type ConfigIngressProxy struct {
@@ -405,7 +408,7 @@ func (p *proxyServer) newProxyConn(c net.Conn) *proxyConn {
 			clientAddr[i] = binary.BigEndian.Uint32(addr.IP[j:])
 		}
 	}
-	clientConn := rpc.NewPacketConn(c, rpc.DefaultServerRequestBufSize, rpc.DefaultServerResponseBufSize)
+	clientConn := rpc.NewPacketConn(c, ingressRequestBufSize, ingressResponseBufSize)
 	p.group.Add(1)
 	return &proxyConn{
 		proxyServer: p,
@@ -460,7 +463,7 @@ func (p *proxyConn) run() {
 		return
 	}
 	defer upstreamConn.Close()
-	p.upstreamConn = rpc.NewPacketConn(upstreamConn, rpc.DefaultClientConnReadBufSize, rpc.DefaultClientConnWriteBufSize)
+	p.upstreamConn = rpc.NewPacketConn(upstreamConn, ingressResponseBufSize, ingressRequestBufSize)
 	err = p.upstreamConn.HandshakeClient(p.clientOpts.CryptoKey, p.clientOpts.TrustedSubnetGroups, false, p.uniqueStartTime.Dec(), 0, rpc.DefaultPacketTimeout, rpc.LatestProtocolVersion)
 	if err != nil {
 		p.logUpstreamError("handshake", err, rpc.PacketHeaderCircularBuffer{})
