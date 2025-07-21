@@ -959,11 +959,11 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		// border ts is timestamp after which all data is migrated
 		// single ts can be too big, so we need to migrate in chunks in order to do it we store additional offset
 		// 1. [x] check remote config flag for migration
-		// 2. [ ] check current load and decide if we need to migrate or just wait
-		// 3. [ ] look for migration state if there is no state, create it
-		// 4. [ ] if we need to migrate more data, select data from V2 (limit amount of data)
+		// 2. [ ] check current load and decide if we need to migrate or just wait (look at insert timings and errors)
+		// 3. [ ] look for migration state if there is no state, create it (some table in ClickHouse)
+		// 4. [ ] if we need to migrate more data, select data from V2 - data is capped by 2GB per shard per hour, so no need to break hour into chunks
 		// 5. [ ] insert into V3
-		// 6. [ ] if success, save new border of migration and offset on current border - local TL file or full history in sqlite
+		// 6. [ ] if success, save new border of migration and offset on current border in ClickHouse migration state table
 
 		a.configMu.RLock()
 		enableMigration := a.configR.EnableMigration
