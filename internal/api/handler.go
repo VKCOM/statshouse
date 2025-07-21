@@ -158,7 +158,8 @@ const (
 	journalUpdateTimeout = 2 * time.Second
 
 	// healthcheck should query any lightweight metric, this one was chosen randomly
-	healthcheckQuery = `{@name="__agg_bucket_receive_delay_sec",@what="avg"}`
+	healthcheckMetric = "__agg_bucket_receive_delay_sec"
+	healthcheckQuery  = `{@name="` + healthcheckMetric + `",@what="avg"}`
 )
 
 type (
@@ -3322,6 +3323,19 @@ func pprofAccessAllowed(h *httpRequestHandler) bool {
 	return true
 }
 
+func defaultAccessInfo(h *requestHandler) (accessInfo, bool) {
+	switch h.endpointStat.endpoint {
+	// healthcheck endpoint is used by nginx checks directly without token
+	case EndpointHealthcheck:
+		return accessInfo{
+			user:          "@healthcheck",
+			bitViewMetric: map[string]bool{healthcheckMetric: true},
+		}, true
+	default:
+		return accessInfo{}, false
+	}
+}
+
 func (h *requestHandler) init(accessToken, version string) (err error) {
 	switch version {
 	case Version1, Version3:
@@ -3336,7 +3350,11 @@ func (h *requestHandler) init(accessToken, version string) (err error) {
 		return fmt.Errorf("invalid version: %q", version)
 	}
 	if h.accessInfo, err = parseAccessToken(h.jwtHelper, accessToken, h.protectedMetricPrefixes, h.LocalMode, h.insecureMode); err != nil {
-		return err
+		if ai, ok := defaultAccessInfo(h); !ok {
+			return err
+		} else {
+			h.accessInfo = ai
+		}
 	}
 	h.endpointStat.setAccessInfo(h.accessInfo)
 	return nil
