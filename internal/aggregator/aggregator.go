@@ -949,6 +949,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 }
 
 func (a *Aggregator) goMigrate(cancelCtx context.Context) {
+	// only single replica can migrate
+	if a.replicaKey != 1 {
+		return
+	}
+	log.Println("Starting background migration routine")
 	for {
 		// TODO: implement, rough plan below
 		// border ts is timestamp after which all data is migrated
