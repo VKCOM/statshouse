@@ -124,6 +124,10 @@ type (
 
 		scrape     *scrapeServer
 		autoCreate *autoCreate
+
+		// migration stats
+		lastErrorTs    uint32
+		insertTimeEWMA float64 // exponential weighted moving average in seconds
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -791,6 +795,17 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			settings = v3InsertSettings
 		}
 		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(writeToV3First), bodyStorage, settings)
+
+		if sendErr != nil {
+			a.lastErrorTs = nowUnix
+		}
+		// EWMA update: alpha=0.2
+		alpha := 0.2
+		if a.insertTimeEWMA == 0 {
+			a.insertTimeEWMA = dur.Seconds()
+		} else {
+			a.insertTimeEWMA = alpha*dur.Seconds() + (1-alpha)*a.insertTimeEWMA
+		}
 		// if we are mirriring that will happen after second ch write
 		if !mirrorChWrite {
 			cancelSendToCh()
@@ -945,43 +960,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			delete(aggBucket.contributorsSimulatedErrors, hctx)
 		}
 		aggBucket.mu.Unlock()
-	}
-}
-
-func (a *Aggregator) goMigrate(cancelCtx context.Context) {
-	// only single replica can migrate
-	if a.replicaKey != 1 {
-		return
-	}
-	log.Println("Starting background migration routine")
-	for {
-		// TODO: implement, rough plan below
-		// border ts is timestamp after which all data is migrated
-		// single ts can be too big, so we need to migrate in chunks in order to do it we store additional offset
-		// 1. [x] check remote config flag for migration
-		// 2. [ ] check current load and decide if we need to migrate or just wait (look at insert timings and errors)
-		// 3. [ ] look for migration state if there is no state, create it (some table in ClickHouse)
-		// 4. [ ] if we need to migrate more data, select data from V2 - data is capped by 2GB per shard per hour, so no need to break hour into chunks
-		// 5. [ ] insert into V3
-		// 6. [ ] if success, save new border of migration and offset on current border in ClickHouse migration state table
-
-		a.configMu.RLock()
-		enableMigration := a.configR.EnableMigration
-		a.configMu.RUnlock()
-		if !enableMigration {
-			time.Sleep(time.Second * 10)
-			continue
-		}
-
-		log.Println("migrate")
-		time.Sleep(time.Second * 10)
-
-		// exit if context is done
-		select {
-		case <-cancelCtx.Done():
-			return
-		default:
-		}
 	}
 }
 
