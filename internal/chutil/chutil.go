@@ -22,7 +22,7 @@ import (
 	_ "github.com/ClickHouse/clickhouse-go/v2" // to access clickhouse.bind
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/util/queue"
 )

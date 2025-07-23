@@ -3,7 +3,7 @@ package util
 import (
 	"time"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"

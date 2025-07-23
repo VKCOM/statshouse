@@ -38,7 +38,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"

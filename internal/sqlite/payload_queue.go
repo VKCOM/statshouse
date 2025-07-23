@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 )
 
 type applyQueue struct {

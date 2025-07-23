@@ -5,6 +5,7 @@ go 1.22.9
 require (
 	github.com/ClickHouse/ch-go v0.63.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.4.2
+	github.com/VKCOM/statshouse-go v0.5.14
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/dchest/siphash v1.2.3
 	github.com/dgryski/go-maglev v0.0.0-20200611225407-8961b9b1b8e6
@@ -32,7 +33,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/tinylib/msgp v1.1.6
-	github.com/vkcom/statshouse-go v0.5.13
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/atomic v1.11.0

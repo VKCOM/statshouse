@@ -9,7 +9,7 @@ package metricshandler
 import (
 	"time"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
 	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
