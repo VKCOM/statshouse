@@ -15,7 +15,7 @@ import (
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/format"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 )
 
 func RunClientLoad() {

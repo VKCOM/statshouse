@@ -9,7 +9,7 @@ package metadata
 import (
 	"time"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )

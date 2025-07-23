@@ -16,7 +16,7 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"

@@ -3,7 +3,7 @@ package sqlite
 import (
 	"time"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 )
 
 type StatsOptions struct {

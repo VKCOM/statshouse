@@ -12,7 +12,7 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 )
 
 const metricPrefixG = "loadgen_"

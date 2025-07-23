@@ -21,7 +21,7 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"

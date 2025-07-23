@@ -9,7 +9,7 @@ package commonmetrics
 import (
 	"sync"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 )
 

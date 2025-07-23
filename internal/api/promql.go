@@ -24,7 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/data_model"

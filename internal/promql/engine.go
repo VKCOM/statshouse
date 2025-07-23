@@ -18,7 +18,7 @@ import (
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 	"golang.org/x/sync/errgroup"
 	"pgregory.net/rand"
 

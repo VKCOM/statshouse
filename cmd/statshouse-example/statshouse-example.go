@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse-go"
+	"github.com/VKCOM/statshouse-go"
 )
 
 const (
@@ -166,7 +166,7 @@ const (
   <h1>StatsHouse Client Example</h1>
   <p>
     This page is served by an example Go web server instrumented with
-    <a href="https://pkg.go.dev/github.com/vkcom/statshouse-go" target="_blank">Go client library</a>.
+    <a href="https://pkg.go.dev/github.com/VKCOM/statshouse-go" target="_blank">Go client library</a>.
   </p>
   <p>
     Every second, <code>{{ .RuntimeMemoryMetric }}</code> metric is recorded,
