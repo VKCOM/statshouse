@@ -32,6 +32,7 @@ import (
 
 	"go.uber.org/atomic"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/vkcom/statshouse/internal/chutil"
 
@@ -1436,6 +1437,8 @@ func HandleGetHistory(r *httpRequestHandler) {
 	respondJSON(r, resp, defaultCacheTTL, 0, err)
 }
 
+var group singleflight.Group
+
 func HandleGetHealthcheck(r *httpRequestHandler) {
 	now := time.Now()
 	req := seriesRequest{
@@ -1444,13 +1447,16 @@ func HandleGetHealthcheck(r *httpRequestHandler) {
 		to:      now,
 		promQL:  healthcheckQuery,
 	}
-	_, cancel, err := r.handleSeriesRequestS(r.Context(), req, make([]seriesResponse, 2))
+	_, err, _ := group.Do("healthcheck", func() (interface{}, error) {
+		_, cancel, err := r.handleSeriesRequestS(r.Context(), req, make([]seriesResponse, 2))
+		cancel()
+		return nil, err
+	})
 	if err != nil {
 		log.Printf("[error] healtcheck failed: %v", err)
 		respondJSON(r, nil, 0, 0, httpErr(500, err))
 		return
 	}
-	defer cancel()
 	respondJSON(r, nil, 0, 0, nil)
 }
 
