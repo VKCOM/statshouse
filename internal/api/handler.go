@@ -1447,7 +1447,7 @@ func HandleGetHealthcheck(r *httpRequestHandler) {
 		to:      now,
 		promQL:  healthcheckQuery,
 	}
-	_, err, shared := group.Do("healthcheck", func() (interface{}, error) {
+	_, err, _ := group.Do("healthcheck", func() (interface{}, error) {
 		_, cancel, err := r.handleSeriesRequestS(r.Context(), req, make([]seriesResponse, 2))
 		cancel()
 		return nil, err
@@ -1457,7 +1457,6 @@ func HandleGetHealthcheck(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, httpErr(500, err))
 		return
 	}
-	log.Printf("[debug] healtcheck success, shared: %v", shared)
 	respondJSON(r, nil, 0, 0, nil)
 }
 
