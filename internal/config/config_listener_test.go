@@ -4,9 +4,9 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 type config struct {

@@ -8,7 +8,7 @@
 package tlsqlite
 
 import (
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/internal"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/internal"
 )
 
 type (

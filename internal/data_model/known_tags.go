@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type KnownTags map[int32][]SelectorTags // by namespace ID

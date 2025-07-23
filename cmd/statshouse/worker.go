@@ -13,12 +13,12 @@ import (
 
 	"go4.org/mem"
 
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
-	"github.com/vkcom/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/mapping"
+	"github.com/VKCOM/statshouse/internal/metajournal"
 )
 
 type worker struct {

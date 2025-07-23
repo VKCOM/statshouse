@@ -13,15 +13,15 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
 	klog "github.com/go-kit/log"
 	prometheus "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/discovery"
 	"github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/metajournal"
 )
 
 type scrapeDiscovery struct {

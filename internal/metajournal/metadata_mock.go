@@ -10,8 +10,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 type MetadataMock struct {

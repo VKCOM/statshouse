@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/promql/parser"
+	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/util"
 )
 
 // region AggregateExpr

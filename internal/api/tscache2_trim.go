@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
 type cache2Trim struct {

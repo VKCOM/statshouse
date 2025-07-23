@@ -10,8 +10,8 @@ package meta
 import (
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
 func SchemaGenerator() string { return "v1.1.13" }

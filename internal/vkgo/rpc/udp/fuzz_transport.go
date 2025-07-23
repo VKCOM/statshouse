@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
 /*

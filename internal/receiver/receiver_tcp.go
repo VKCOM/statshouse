@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
 const TCPPrefix = "statshousev1"

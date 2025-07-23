@@ -7,9 +7,9 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
 )

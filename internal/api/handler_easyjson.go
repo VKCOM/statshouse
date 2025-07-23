@@ -4,11 +4,12 @@ package api
 
 import (
 	json "encoding/json"
+
+	format "github.com/VKCOM/statshouse/internal/format"
+	promql "github.com/VKCOM/statshouse/internal/promql"
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	format "github.com/vkcom/statshouse/internal/format"
-	promql "github.com/vkcom/statshouse/internal/promql"
 )
 
 // suppress unused package warning

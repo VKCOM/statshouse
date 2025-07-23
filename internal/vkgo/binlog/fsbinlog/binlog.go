@@ -21,10 +21,10 @@ import (
 	"github.com/myxo/gofs"
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
-	"github.com/vkcom/statshouse/internal/vkgo/tlbarsic"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/tlbarsic"
 )
 
 const (

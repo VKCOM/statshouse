@@ -34,7 +34,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/vkcom/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/chutil"
 
 	"github.com/prometheus/prometheus/model/labels"
 
@@ -45,18 +45,18 @@ import (
 	"github.com/mailru/easyjson"
 	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
 
-	"github.com/vkcom/statshouse/internal/aggregator"
-	"github.com/vkcom/statshouse/internal/config"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/metajournal"
-	"github.com/vkcom/statshouse/internal/pcache"
-	"github.com/vkcom/statshouse/internal/promql"
-	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
+	"github.com/VKCOM/statshouse/internal/aggregator"
+	"github.com/VKCOM/statshouse/internal/config"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/promql"
+	"github.com/VKCOM/statshouse/internal/promql/parser"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
 
 	"pgregory.net/rand"
 )

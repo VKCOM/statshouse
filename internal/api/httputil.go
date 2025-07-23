@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/mailru/easyjson/jwriter"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 const (

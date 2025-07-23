@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/pkg/errors"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/sqlite"
 )
 
 func resolveNamespace(c sqlite.Conn, name string, typ int32) (namespaceIDResolved int64, err error) {

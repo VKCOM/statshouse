@@ -12,8 +12,8 @@ package receiver
 import (
 	"github.com/tinylib/msgp/msgp"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
 func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) ([]byte, error) {

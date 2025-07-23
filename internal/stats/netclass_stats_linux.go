@@ -8,7 +8,7 @@ import (
 
 	"github.com/prometheus/procfs/sysfs"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type NetClass struct {

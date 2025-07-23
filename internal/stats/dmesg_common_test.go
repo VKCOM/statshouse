@@ -3,8 +3,8 @@ package stats
 import (
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 func TestDmesgStats_handleMsgsCC(t *testing.T) {

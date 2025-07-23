@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/procfs"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal/env"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/internal/env"
 )
 
 var (

@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/mailru/easyjson/jlexer"
 	"github.com/mailru/easyjson/jwriter"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 const (

@@ -10,9 +10,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 func Benchmark_LoadAndJSON(b *testing.B) {

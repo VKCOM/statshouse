@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
 )
 
 type (

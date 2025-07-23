@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
 var (

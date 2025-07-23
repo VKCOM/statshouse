@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/procfs/blockdevice"
 	"golang.org/x/sys/unix"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type (

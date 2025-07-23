@@ -20,7 +20,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
 const MinCryptoKeyLen = 32

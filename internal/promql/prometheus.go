@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/vkcom/statshouse/internal/promql/parser"
+	"github.com/VKCOM/statshouse/internal/promql/parser"
 )
 
 // region promql/functions.go

@@ -13,8 +13,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 )
 
 func ListenUDP(network, address string) (*net.UDPConn, error) {

@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/zeebo/xxh3"
 )
 

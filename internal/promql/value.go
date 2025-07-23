@@ -15,11 +15,11 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/prometheus/prometheus/model/labels"
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/chutil"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql/parser"
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql/parser"
+	"github.com/prometheus/prometheus/model/labels"
 )
 
 type TimeSeries struct {

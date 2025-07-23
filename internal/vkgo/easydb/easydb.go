@@ -17,7 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // SQLite driver for database/sql
 
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
 const (

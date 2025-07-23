@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type Config interface {

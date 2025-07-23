@@ -9,7 +9,7 @@ package data_model
 import (
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 	"pgregory.net/rand"
 )
 

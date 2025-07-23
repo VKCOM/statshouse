@@ -8,8 +8,8 @@
 package factory_bytes
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/meta"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/meta"
 )
 
 func CreateFunctionBytes(tag uint32) meta.Function {

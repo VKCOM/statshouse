@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"go.uber.org/atomic"
 )
 

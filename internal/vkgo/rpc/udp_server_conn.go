@@ -9,10 +9,10 @@ package rpc
 import (
 	"log"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 )
 
 type UdpServerConn struct {

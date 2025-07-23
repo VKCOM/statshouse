@@ -14,15 +14,15 @@ import (
 	"slices"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/compress"
+	"github.com/VKCOM/statshouse/internal/compress"
 	"go4.org/mem"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 func bool2int(b bool) int { // freaking golang clowns

@@ -22,7 +22,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 
-	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model"
 )
 
 // Node is a generic interface for all nodes in an AST.

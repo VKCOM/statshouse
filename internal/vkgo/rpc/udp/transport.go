@@ -24,10 +24,10 @@ import (
 
 	"github.com/gotd/ige"
 
-	"github.com/vkcom/statshouse/internal/vkgo/algo"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
+	"github.com/VKCOM/statshouse/internal/vkgo/algo"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
 var castagnoliTable = crc32.MakeTable(crc32.Castagnoli)

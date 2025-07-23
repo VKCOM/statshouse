@@ -11,7 +11,7 @@ import (
 
 	"go.uber.org/multierr"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	"github.com/VKCOM/statshouse/internal/sqlite/sqlite0"
 )
 
 func SetLogf(fn func(code int, msg string)) {

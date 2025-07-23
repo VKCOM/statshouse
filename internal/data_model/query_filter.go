@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 type QueryFilter struct {

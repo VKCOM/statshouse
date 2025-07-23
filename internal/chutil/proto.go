@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model"
 )
 
 type ColUnique []data_model.ChUnique

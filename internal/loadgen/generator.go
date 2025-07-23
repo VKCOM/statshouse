@@ -7,8 +7,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/format"
 
 	"pgregory.net/rand"
 

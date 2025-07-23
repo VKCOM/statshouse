@@ -7,7 +7,7 @@ import (
 
 	"github.com/mailru/easyjson"
 
-	"github.com/vkcom/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/api"
 )
 
 //go:embed dashboard.json

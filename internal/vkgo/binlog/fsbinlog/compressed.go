@@ -15,7 +15,7 @@ import (
 
 	"github.com/xi2/xz"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 )
 
 type (

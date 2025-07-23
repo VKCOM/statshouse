@@ -16,7 +16,7 @@ import (
 
 	"pgregory.net/rapid"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 
 	"golang.org/x/crypto/curve25519"
 )

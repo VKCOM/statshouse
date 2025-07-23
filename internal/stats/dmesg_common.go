@@ -3,7 +3,7 @@ package stats
 import (
 	"time"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const (

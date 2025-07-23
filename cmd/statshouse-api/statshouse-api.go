@@ -22,21 +22,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VKCOM/statshouse-go"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
-	"github.com/VKCOM/statshouse-go"
 
-	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/chutil"
-	"github.com/vkcom/statshouse/internal/config"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
-	"github.com/vkcom/statshouse/internal/util"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
+	"github.com/VKCOM/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/config"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
+	"github.com/VKCOM/statshouse/internal/util"
+	"github.com/VKCOM/statshouse/internal/vkgo/build"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
 )
 
 const (

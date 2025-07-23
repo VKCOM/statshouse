@@ -18,8 +18,8 @@ import (
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 const (

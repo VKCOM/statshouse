@@ -18,8 +18,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/receiver/pb"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/receiver/pb"
 )
 
 func TestProtobuf(t *testing.T) {

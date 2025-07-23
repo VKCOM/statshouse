@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics"
 )
 
 func ParseHTTPStatusCode(code int) (status, statusCode string) {

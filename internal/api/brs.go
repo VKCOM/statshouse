@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
 )
 
 func NewBigResponseStorage(maxInMemoryChunksCount int, flushInterval time.Duration) *BigResponseStorage {

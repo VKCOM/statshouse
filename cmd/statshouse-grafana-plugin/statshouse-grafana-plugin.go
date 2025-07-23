@@ -12,7 +12,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 
-	"github.com/vkcom/statshouse/internal/plugin"
+	"github.com/VKCOM/statshouse/internal/plugin"
 )
 
 func main() {

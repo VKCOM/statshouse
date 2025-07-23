@@ -8,8 +8,8 @@
 package factory
 
 import (
-	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/meta"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/internal"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/meta"
 )
 
 func CreateFunction(tag uint32) meta.Function {

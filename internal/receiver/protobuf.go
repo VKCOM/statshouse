@@ -15,8 +15,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/protowire"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
 var errorTsOverflow = fmt.Errorf("ts field overflow, must have range [0..2^32)")

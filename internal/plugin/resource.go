@@ -11,11 +11,11 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/VKCOM/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/resource/httpadapter"
 	"github.com/mailru/easyjson"
-	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 //go:generate easyjson -no_std_marshalers resource.go

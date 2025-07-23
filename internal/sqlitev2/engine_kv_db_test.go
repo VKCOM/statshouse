@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"go.uber.org/multierr"
 )
 

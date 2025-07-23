@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/sqlite"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/sqlite"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 
 	"context"
 )

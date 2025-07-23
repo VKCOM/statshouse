@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/internal/env"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/internal/env"
 )
 
 var (

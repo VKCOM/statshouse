@@ -11,7 +11,7 @@ import (
 	"go4.org/mem"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	"github.com/VKCOM/statshouse/internal/sqlite/sqlite0"
 )
 
 type sqliteConn struct {

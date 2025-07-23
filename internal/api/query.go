@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const (

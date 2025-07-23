@@ -14,8 +14,8 @@ import (
 
 	"go.uber.org/multierr"
 
-	"github.com/vkcom/statshouse/internal/pcache"
-	"github.com/vkcom/statshouse/internal/vkgo/easydb"
+	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/vkgo/easydb"
 )
 
 // TODO: faster channel-free implementation once easydb exposes more explicit tx control

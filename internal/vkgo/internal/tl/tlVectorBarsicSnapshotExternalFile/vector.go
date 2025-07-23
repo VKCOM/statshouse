@@ -8,10 +8,10 @@
 package tlVectorBarsicSnapshotExternalFile
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/internal/tl/tlBuiltinVectorBarsicSnapshotExternalFile"
-	"github.com/vkcom/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotExternalFile"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal/tl/tlBuiltinVectorBarsicSnapshotExternalFile"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal/tlbarsic/tlBarsicSnapshotExternalFile"
 )
 
 var _ = basictl.NatWrite

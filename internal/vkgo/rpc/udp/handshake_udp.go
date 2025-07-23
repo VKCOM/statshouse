@@ -14,8 +14,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
 )
 
 type CryptoKeysUdp struct {

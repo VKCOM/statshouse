@@ -21,13 +21,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
 )
 
 func (s *Server) collectStats(localAddr net.Addr) map[string]string {

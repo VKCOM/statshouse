@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/assert"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 const utcOffset = 3600 * 3 // GMT+3

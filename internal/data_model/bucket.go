@@ -17,7 +17,7 @@ import (
 	"github.com/hrissan/tdigest"
 	"github.com/zeebo/xxh3"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const DefaultStringTopCapacity = 100 // if capacity is 0, this one will be used instead

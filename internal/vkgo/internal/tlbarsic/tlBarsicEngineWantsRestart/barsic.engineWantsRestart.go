@@ -8,9 +8,9 @@
 package tlBarsicEngineWantsRestart
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/internal/tl/tlTrue"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal/tl/tlTrue"
 )
 
 var _ = basictl.NatWrite

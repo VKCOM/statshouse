@@ -7,13 +7,13 @@ REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VER
 TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
-COMMON_BUILD_VARS := -X 'github.com/vkcom/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.machine=$(BUILD_MACHINE)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.commit=$(BUILD_COMMIT)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.version=$(BUILD_VERSION)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.number=$(BUILD_ID)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.commitTimestamp=$(BUILD_COMMIT_TS)' \
-	-X 'github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=$(BUILD_TRUSTED_SUBNET_GROUPS)'
+COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.machine=$(BUILD_MACHINE)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.commit=$(BUILD_COMMIT)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.version=$(BUILD_VERSION)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.number=$(BUILD_ID)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.commitTimestamp=$(BUILD_COMMIT_TS)' \
+	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.trustedSubnetGroups=$(BUILD_TRUSTED_SUBNET_GROUPS)'
 
 COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 
@@ -64,11 +64,11 @@ build-deb:
 gen: gen-tl gen-sqlite gen-easyjson
 
 gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/data_model/gen2 -v \
+	go run github.com/VKCOM/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
-		--pkgPath=github.com/vkcom/statshouse/internal/data_model/gen2/tl \
- 		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
- 		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
+		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
+ 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+ 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
  		--generateByteVersions=$(TL_BYTE_VERSIONS) \
  		--copyrightPath=./copyright \
 		./internal/data_model/api.tl \
@@ -81,11 +81,11 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 	@go build ./internal/data_model/gen2/...
 
 gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+	go run github.com/VKCOM/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
 		--generateRPCCode=true \
-		--pkgPath=github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
- 		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
- 		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
+		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+ 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+ 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
  		--generateByteVersions=sqlite. \
  		--copyrightPath=./copyright \
 		./internal/data_model/common.tl \

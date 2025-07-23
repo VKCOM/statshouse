@@ -7,8 +7,8 @@ import (
 
 	"pgregory.net/rand"
 
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 )
 
 const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"

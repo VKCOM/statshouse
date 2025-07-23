@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 )
 
 type binlogMock struct {

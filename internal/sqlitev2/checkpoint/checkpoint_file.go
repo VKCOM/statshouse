@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tlsqlite"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tlsqlite"
 	"github.com/zeebo/xxh3"
 	"go.uber.org/multierr"
 )

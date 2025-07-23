@@ -13,8 +13,8 @@ import (
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 // we start sending at the end of the minute, plus we need to spread metric around the next 60 seconds

@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/tlbarsic"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/tlbarsic"
 )
 
 type StartCmd = tlbarsic.Start

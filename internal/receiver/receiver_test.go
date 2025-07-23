@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
 func TestValidateMetric(t *testing.T) {

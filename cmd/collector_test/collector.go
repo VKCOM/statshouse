@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/env"
-	"github.com/vkcom/statshouse/internal/stats"
+	"github.com/VKCOM/statshouse/internal/env"
+	"github.com/VKCOM/statshouse/internal/stats"
 )
 
 func main() {

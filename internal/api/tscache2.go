@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
 const timeDay = 24 * time.Hour

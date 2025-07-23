@@ -17,8 +17,8 @@ import (
 
 	"github.com/zeebo/xxh3"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/tlbarsic"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/tlbarsic"
 )
 
 type SnapshotHeader = tlbarsic.SnapshotHeader

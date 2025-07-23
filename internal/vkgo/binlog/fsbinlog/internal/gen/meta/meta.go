@@ -10,8 +10,8 @@ package meta
 import (
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
 )
 
 func SchemaGenerator() string { return "v1.2.2" }
