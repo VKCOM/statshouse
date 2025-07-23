@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
 )
 
 func TestErrorTag(t *testing.T) {

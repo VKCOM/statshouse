@@ -10,8 +10,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 func TillStartOfNextSecond(now time.Time) time.Duration { // helper, TODO - move somewhere

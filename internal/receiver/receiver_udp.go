@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
 type UDP struct {

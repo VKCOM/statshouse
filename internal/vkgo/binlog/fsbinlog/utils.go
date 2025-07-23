@@ -19,8 +19,8 @@ import (
 	"github.com/myxo/gofs"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
 
 func chooseFilenameForChunk(fs gofs.FS, pos int64, prefixPath string) string {

@@ -10,9 +10,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/chutil"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const (

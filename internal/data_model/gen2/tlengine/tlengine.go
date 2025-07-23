@@ -11,9 +11,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 type (

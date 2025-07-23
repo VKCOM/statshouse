@@ -1,8 +1,8 @@
 package sharding
 
 import (
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 // legacyKeyHash will be 0 for all new sharding strategies

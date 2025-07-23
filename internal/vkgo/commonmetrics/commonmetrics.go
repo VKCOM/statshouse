@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/VKCOM/statshouse/internal/vkgo/build"
 )
 
 const (

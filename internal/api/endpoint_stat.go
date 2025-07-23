@@ -14,13 +14,13 @@ import (
 
 	"github.com/ClickHouse/ch-go/proto"
 
-	"github.com/vkcom/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/chutil"
 
 	"github.com/VKCOM/statshouse-go"
 
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
 const (

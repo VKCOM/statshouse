@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/waitpool"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/waitpool"
 	"go.uber.org/multierr"
 )
 

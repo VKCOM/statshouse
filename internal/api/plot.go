@@ -22,7 +22,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const (

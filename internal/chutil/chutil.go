@@ -23,8 +23,8 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/util/queue"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/util/queue"
 )
 
 type connPool struct {

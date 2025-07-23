@@ -8,11 +8,11 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/env"
+	"github.com/VKCOM/statshouse/internal/env"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
 type Collector interface {

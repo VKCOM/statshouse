@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"pgregory.net/rand"
 )
 

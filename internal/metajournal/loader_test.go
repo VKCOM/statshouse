@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/pcache"
-	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 func TestPMCCache(t *testing.T) {

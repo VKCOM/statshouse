@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/metajournal"
-	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
 type statsHandler struct {

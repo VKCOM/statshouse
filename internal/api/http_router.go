@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/gorilla/mux"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 type httpRouter struct {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/sqlite0"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/sqlite0"
 )
 
 const (

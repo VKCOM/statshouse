@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/env"
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics/metricshandler"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/env"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/metricshandler"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 type RPCServerMetrics struct {

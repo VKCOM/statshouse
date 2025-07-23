@@ -17,7 +17,7 @@ import (
 	"github.com/dgryski/go-maglev"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/vkgo/mem"
+	"github.com/VKCOM/statshouse/internal/vkgo/mem"
 )
 
 // TODO: weighted balancing

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/data_model"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
 )

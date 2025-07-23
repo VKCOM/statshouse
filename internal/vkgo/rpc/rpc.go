@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
 const (

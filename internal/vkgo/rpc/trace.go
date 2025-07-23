@@ -11,7 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
 )
 
 type (

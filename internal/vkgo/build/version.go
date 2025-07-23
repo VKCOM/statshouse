@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 var (

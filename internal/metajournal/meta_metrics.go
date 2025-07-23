@@ -13,10 +13,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/mailru/easyjson"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 type GroupWithMetricsList struct {

@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/vkgo/algo"
-	"github.com/vkcom/statshouse/internal/vkgo/etchosts"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
+	"github.com/VKCOM/statshouse/internal/vkgo/algo"
+	"github.com/VKCOM/statshouse/internal/vkgo/etchosts"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 )
 
 type udpClient struct {

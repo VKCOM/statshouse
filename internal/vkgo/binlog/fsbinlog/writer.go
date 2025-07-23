@@ -13,7 +13,7 @@ import (
 
 	"github.com/myxo/gofs"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 )
 
 type binlogWriter struct {

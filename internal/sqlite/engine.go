@@ -18,9 +18,9 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	"github.com/VKCOM/statshouse/internal/sqlite/sqlite0"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"

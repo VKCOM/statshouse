@@ -24,11 +24,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/udp"
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
+	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
 // TODO: explain safety rules: no ctx/buffer use outside of the handler

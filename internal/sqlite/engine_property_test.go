@@ -12,10 +12,10 @@ import (
 	"go.uber.org/atomic"
 	"pgregory.net/rapid"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 
-	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/sqlite/sqlite0"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 )
 
 const pathDB = "test.db"

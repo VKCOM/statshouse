@@ -7,8 +7,8 @@
 package mapping
 
 import (
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/pcache"
 )
 
 func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc pcache.DiskCache) *pcache.Cache {

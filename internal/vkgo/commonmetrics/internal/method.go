@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/vkgo/commonmetrics"
+	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics"
 )
 
 func ParseStringAsMethod(magic uint32, fullName string) commonmetrics.Method {

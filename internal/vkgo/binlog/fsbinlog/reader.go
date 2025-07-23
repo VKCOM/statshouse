@@ -18,9 +18,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/myxo/gofs"
 
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
 
 type seekInfo = tlfsbinlog.SnapshotMeta

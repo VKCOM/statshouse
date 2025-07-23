@@ -16,11 +16,11 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/pcache"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 var sideEffect uint64

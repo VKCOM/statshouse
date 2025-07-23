@@ -11,7 +11,7 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 const (

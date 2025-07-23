@@ -8,8 +8,8 @@
 package tlBuiltinVectorString
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/internal"
 )
 
 var _ = basictl.NatWrite

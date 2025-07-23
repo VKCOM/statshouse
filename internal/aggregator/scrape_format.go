@@ -10,10 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/model/relabel"
-	"github.com/vkcom/statshouse/internal/format"
 )
 
 type ScrapeConfig struct {

@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/pcache"
 
 	"go.uber.org/atomic"
 )

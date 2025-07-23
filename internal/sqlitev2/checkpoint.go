@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
+	restart2 "github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint"
 )
 
 type checkpointer struct {

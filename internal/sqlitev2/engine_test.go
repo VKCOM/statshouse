@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"pgregory.net/rand"
 
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 
 	"github.com/stretchr/testify/require"
 )

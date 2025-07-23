@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 // to copy fuzz files into local unit test corpus, use
-// cp ~/.cache/go-build/fuzz/github.com/vkcom/statshouse/internal/metajournal/FuzzCompactJournal/* testdata/fuzz/FuzzCompactJournal/
+// cp ~/.cache/go-build/fuzz/github.com/VKCOM/statshouse/internal/metajournal/FuzzCompactJournal/* testdata/fuzz/FuzzCompactJournal/
 
 func FuzzCompactJournal(f *testing.F) {
 	//testcases := []string{"Hello, world", " ", "!12345"}

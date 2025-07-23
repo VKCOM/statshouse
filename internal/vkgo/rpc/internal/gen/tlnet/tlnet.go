@@ -8,7 +8,7 @@
 package tlnet
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
 type (

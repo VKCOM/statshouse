@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/procfs"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type CPUStats struct {

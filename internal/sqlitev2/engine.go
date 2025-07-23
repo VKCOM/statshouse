@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/checkpoint"
-	"github.com/vkcom/statshouse/internal/sqlitev2/waitpool"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	restart2 "github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint"
+	"github.com/VKCOM/statshouse/internal/sqlitev2/waitpool"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
 )

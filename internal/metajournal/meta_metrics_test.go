@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
-	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 func newMetricStorage(loader MetricsStorageLoader) (*MetricsStorage, *JournalFast) {

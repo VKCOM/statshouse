@@ -8,7 +8,7 @@
 package tlfsbinlog
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
 )
 
 type (

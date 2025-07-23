@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type VMStatStats struct {

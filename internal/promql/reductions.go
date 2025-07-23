@@ -6,7 +6,7 @@
 
 package promql
 
-import "github.com/vkcom/statshouse/internal/promql/parser"
+import "github.com/VKCOM/statshouse/internal/promql/parser"
 
 type reduction struct {
 	rule         int

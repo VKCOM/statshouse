@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
 )
 
 type accessInfo struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vkcom/statshouse/internal/loadgen"
+	"github.com/VKCOM/statshouse/internal/loadgen"
 )
 
 func usage() {

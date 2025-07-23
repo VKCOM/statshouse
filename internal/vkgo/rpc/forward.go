@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 var errNonZeroPadding = fmt.Errorf("non-zero padding")

@@ -3,7 +3,7 @@ package metadata
 import (
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model"
 )
 
 const maxReqSize = 1024 * 1024

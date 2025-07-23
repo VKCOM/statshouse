@@ -10,8 +10,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/pierrec/lz4"
-	"github.com/vkcom/statshouse/internal/data_model"
 )
 
 // We concatenate original size and compressed data in this function to efficiently store on disk

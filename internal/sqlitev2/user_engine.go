@@ -1,6 +1,6 @@
 package sqlitev2
 
-import "github.com/vkcom/statshouse/internal/vkgo/binlog"
+import "github.com/VKCOM/statshouse/internal/vkgo/binlog"
 
 // Все колбэки вызываются в барсик горутине, не стоит в них выполнять долгие операции
 type UserEngine interface {

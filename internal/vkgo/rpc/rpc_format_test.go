@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 func testRPCRequestRoundTrip(t *testing.T, req *Request, mustBeBody string) {

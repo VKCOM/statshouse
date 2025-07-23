@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/metajournal"
-	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/pcache"
 )
 
 type unknownTag struct { // fits well into cache line

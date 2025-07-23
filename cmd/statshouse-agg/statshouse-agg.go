@@ -21,17 +21,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/agent"
+	"github.com/VKCOM/statshouse/internal/aggregator"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
+	"github.com/VKCOM/statshouse/internal/vkgo/build"
+	"github.com/VKCOM/statshouse/internal/vkgo/platform"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
-	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/aggregator"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/pcache"
-	"github.com/vkcom/statshouse/internal/pcache/sqlitecache"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/platform"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 const defaultPathToPwd = `/etc/engine/pass`

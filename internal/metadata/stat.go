@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 func rpcDurationStat(host, method string, duration time.Duration, err error, queryType string) {

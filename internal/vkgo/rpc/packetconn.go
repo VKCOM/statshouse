@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
 const (

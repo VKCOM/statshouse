@@ -11,7 +11,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 type serverConnTCP struct {

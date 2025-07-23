@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/mailru/easyjson"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 func (r *httpRequestHandler) parseSeriesRequest() (seriesRequest, error) {

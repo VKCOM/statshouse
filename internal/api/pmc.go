@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 
-	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/pcache"
 )
 
 type tagValueInverseLoader struct {

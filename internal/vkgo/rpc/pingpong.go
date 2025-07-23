@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
 func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked(timeout time.Duration) error {

@@ -3,8 +3,8 @@ package checkpoint
 import (
 	"testing"
 
+	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tlsqlite"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/sqlitev2/checkpoint/gen2/tlsqlite"
 	"pgregory.net/rapid"
 )
 

@@ -20,8 +20,8 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/mailru/easyjson"
 
-	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 //go:generate easyjson -no_std_marshalers datasource.go

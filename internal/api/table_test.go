@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/stretchr/testify/assert"
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 // TODO add general CH mock

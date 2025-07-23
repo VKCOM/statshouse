@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/promql"
+	"github.com/VKCOM/statshouse/internal/promql"
 )
 
 type openGraphInfo struct {

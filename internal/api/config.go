@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/chutil"
-	"github.com/vkcom/statshouse/internal/config"
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/config"
 )
 
 type Config struct {

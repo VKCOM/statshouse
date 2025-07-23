@@ -8,8 +8,8 @@
 package factory
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/meta"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/meta"
 )
 
 func CreateFunction(tag uint32) meta.Function {

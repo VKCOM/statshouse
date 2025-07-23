@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 func TestParseApiQuery(t *testing.T) {

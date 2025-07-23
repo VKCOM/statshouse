@@ -124,7 +124,7 @@ unique:  fields_mask.2?(vector long)
 syntax = "proto3";
 package statshouse;
 
-option go_package = "github.com/vkcom/statshouse/internal/receiver/pb";
+option go_package = "github.com/VKCOM/statshouse/internal/receiver/pb";
 
 message Metric {
     string              name    = 1;
@@ -142,11 +142,11 @@ message MetricBatch {
 // to compile
 // sudo apt-get install libprotobuf-dev
 // go install google.golang.org/protobuf/cmd/protoc-gen-go
-// ~/go/src/github.com/vkcom/statshouse$ protoc -I=internal/receiver --go_out=../../../../.. statshouse.proto
+// ~/go/src/github.com/VKCOM/statshouse$ protoc -I=internal/receiver --go_out=../../../../.. statshouse.proto
 
 // to compile if proto3 format not supported, for example by protocute
 
-// 1. comment out line: option go_package = "github.com/vkcom/statshouse/internal/receiver/pb";
+// 1. comment out line: option go_package = "github.com/VKCOM/statshouse/internal/receiver/pb";
 // 2. add
 // message MapFieldEntry {
 //   optional string key = 1;
@@ -161,7 +161,7 @@ message MetricBatch {
 // repeated double     value   = 5;
 // repeated int64      unique  = 6;
 // }
-// 4. ./protocute --cpp_out=. ~/go/src/github.com/vkcom/statshouse/internal/receiver/statshouse.proto
+// 4. ./protocute --cpp_out=. ~/go/src/github.com/VKCOM/statshouse/internal/receiver/statshouse.proto
 ```
 
 </TabItem>
