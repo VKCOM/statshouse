@@ -459,11 +459,6 @@ func (ch *ChUnique) Marshall(dst io.Writer) error {
 	return nil
 }
 
-type ProtoReader interface {
-	ReadByte() (byte, error)
-	ReadFull(buf []byte) error
-}
-
 func (u *ChUnique) ReadFromProto(r ProtoReader) error {
 	u.hasZeroItem = false
 	sd, err := r.ReadByte()

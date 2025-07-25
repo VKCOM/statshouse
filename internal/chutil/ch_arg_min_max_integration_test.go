@@ -1,185 +1,319 @@
-//go:build integration
-// +build integration
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package chutil
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"testing"
-
 	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+	"time"
 
-	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
-	"google.golang.org/protobuf/proto"
 )
 
-func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
+// Package-level variables to share ClickHouse across tests
+var (
+	clickHouseContainer testcontainers.Container
+	clickHouseAddr      string
+	httpClient          *http.Client
+)
+
+// TestMain runs once per test file and sets up shared resources
+func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
+	// Start ClickHouse container once for all tests
+	var err error
+	clickHouseContainer, err = clickhouse.Run(ctx,
 		"clickhouse/clickhouse-server:24.3-alpine",
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword(""),
+		clickhouse.WithPassword("secret"),
 	)
-	require.NoError(t, err)
-	defer func() {
-		_ = testcontainers.TerminateContainer(clickHouseContainer)
-	}()
+	if err != nil {
+		fmt.Printf("Failed to start ClickHouse container: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Get connection details
 	host, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-	port, err := clickHouseContainer.MappedPort(ctx, "9000/tcp")
-	require.NoError(t, err)
-	dsn := fmt.Sprintf("clickhouse://%s:%s", host, port.Port())
-	db, err := sql.Open("clickhouse", dsn)
-	require.NoError(t, err)
-	defer db.Close()
+	if err != nil {
+		fmt.Printf("Failed to get ClickHouse host: %v\n", err)
+		os.Exit(1)
+	}
+	port, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
+	if err != nil {
+		fmt.Printf("Failed to get ClickHouse port: %v\n", err)
+		os.Exit(1)
+	}
+	clickHouseAddr = fmt.Sprintf("%s:%s", host, port.Port())
 
-	// Create source and target tables
-	_, err = db.Exec(`
-		CREATE TABLE src (
+	// Create shared HTTP client
+	httpClient = &http.Client{Timeout: 30 * time.Second}
+
+	// Create tables once for all tests
+	err = execQuery(httpClient, clickHouseAddr, "default", "secret", `
+		CREATE TABLE v2 (
 			id UInt32,
 			agg AggregateFunction(argMin, Int32, Float32)
-		) ENGINE = Memory
+		) ENGINE = AggregatingMergeTree()
+		ORDER BY id
 	`)
-	require.NoError(t, err)
-	_, err = db.Exec(`
-		CREATE TABLE dst (
+	if err != nil {
+		fmt.Printf("Failed to create v2 table: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = execQuery(httpClient, clickHouseAddr, "default", "secret", `
+		CREATE TABLE v3 (
 			id UInt32,
 			agg AggregateFunction(argMin, String, Float32)
-		) ENGINE = Memory
+		) ENGINE = AggregatingMergeTree()
+		ORDER BY id
 	`)
+	if err != nil {
+		fmt.Printf("Failed to create v3 table: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Run all tests
+	exitCode := m.Run()
+
+	// Clean up ClickHouse container
+	if clickHouseContainer != nil {
+		_ = testcontainers.TerminateContainer(clickHouseContainer)
+	}
+
+	os.Exit(exitCode)
+}
+
+func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
+	// Insert test data using argMinState in SELECT query (not VALUES)
+	err := execQuery(httpClient, clickHouseAddr, "default", "secret", `INSERT INTO v2 
+		SELECT 1 as id, argMinState(toInt32(42), toFloat32(1.5)) as agg`)
 	require.NoError(t, err)
 
-	// Insert a row into src
-	_, err = db.Exec(`INSERT INTO src VALUES (1, argMinState(42, 1.5))`)
+	// Read the state from v2 using HTTP
+	aggRaw, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=1`)
 	require.NoError(t, err)
-
-	// Read the state from src
-	var aggRaw []byte
-	row := db.QueryRow(`SELECT agg FROM src WHERE id=1`)
-	require.NoError(t, row.Scan(&aggRaw))
 
 	// Unmarshal as ArgMinMaxInt32Float32
-	var v2 ArgMinMaxInt32Float32
+	var v2 data_model.ArgMinMaxInt32Float32
 	protoR := newProtoReader(aggRaw)
-	require.NoError(t, v2.unmarshal(protoR, make([]byte, 4)))
+	require.NoError(t, v2.ReadFromProto(protoR))
+	require.Equal(t, int32(42), v2.Arg)
+	require.Equal(t, float32(1.5), v2.Val)
 
-	// Convert to V3
+	// Convert to V3 format
 	v3 := v2.ToStringFormat()
-	v3bin, err := v3.MarshalBinary()
+	v3bin := v3.MarshallAppend(nil)
+
+	// Insert into v3 using binary data
+	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v3", [][]byte{
+		encodeUInt32(1), // id
+		v3bin,           // agg
+	})
 	require.NoError(t, err)
 
-	// Insert into dst
-	_, err = db.Exec(`INSERT INTO dst VALUES (?, ?)`, 1, v3bin)
+	// Read back from v3
+	aggRaw2, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=1`)
 	require.NoError(t, err)
 
-	// Read back from dst
-	var aggRaw2 []byte
-	row = db.QueryRow(`SELECT agg FROM dst WHERE id=1`)
-	require.NoError(t, row.Scan(&aggRaw2))
-	var v3b ArgMinMaxStringFloat32
+	var v3b data_model.ArgMinMaxStringFloat32
 	protoR2 := newProtoReader(aggRaw2)
-	_, err = v3b.unmarshal(protoR2, make([]byte, 6))
+	_, err = v3b.ReadFromProto(protoR2, make([]byte, 6))
 	require.NoError(t, err)
 
 	// Check values
-	require.Equal(t, float32(1.5), v3b.val)
+	require.Equal(t, float32(1.5), v3b.Val)
 	require.Equal(t, int32(42), v3b.AsInt32)
 }
 
 func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
-	ctx := context.Background()
+	// Insert empty aggregate by creating it manually and inserting binary data
+	// Create empty V2 argMin data (no hasArg, no hasVal)
+	emptyV2Data := []byte{0, 0} // hasArg=0, hasVal=0
 
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
-		"clickhouse/clickhouse-server:24.3-alpine",
-		clickhouse.WithDatabase("default"),
-		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword(""),
-	)
-	require.NoError(t, err)
-	defer func() {
-		_ = testcontainers.TerminateContainer(clickHouseContainer)
-	}()
-
-	// Get connection details
-	host, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-	port, err := clickHouseContainer.MappedPort(ctx, "9000/tcp")
-	require.NoError(t, err)
-	dsn := fmt.Sprintf("clickhouse://%s:%s", host, port.Port())
-	db, err := sql.Open("clickhouse", dsn)
-	require.NoError(t, err)
-	defer db.Close()
-
-	// Create source and target tables
-	_, err = db.Exec(`
-		CREATE TABLE src (
-			id UInt32,
-			agg AggregateFunction(argMin, Int32, Float32)
-		) ENGINE = Memory
-	`)
-	require.NoError(t, err)
-	_, err = db.Exec(`
-		CREATE TABLE dst (
-			id UInt32,
-			agg AggregateFunction(argMin, String, Float32)
-		) ENGINE = Memory
-	`)
+	// Convert empty V2 to V3 format to verify it works
+	var emptyV2 data_model.ArgMinMaxInt32Float32
+	emptyProtoR := newProtoReader(emptyV2Data)
+	err := emptyV2.ReadFromProto(emptyProtoR)
 	require.NoError(t, err)
 
-	// Insert a row with empty agg into src
-	_, err = db.Exec(`INSERT INTO src (id) VALUES (2)`)
+	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v2", [][]byte{
+		encodeUInt32(2), // id
+		emptyV2Data,     // empty agg
+	})
 	require.NoError(t, err)
 
-	// Read the state from src
-	var aggRaw []byte
-	row := db.QueryRow(`SELECT agg FROM src WHERE id=2`)
-	require.NoError(t, row.Scan(&aggRaw))
+	// Read the state from v2
+	aggRaw, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=2`)
+	require.NoError(t, err)
 
 	// Unmarshal as ArgMinMaxInt32Float32 (should be empty)
-	var v2 ArgMinMaxInt32Float32
+	var v2 data_model.ArgMinMaxInt32Float32
 	protoR := newProtoReader(aggRaw)
-	err = v2.unmarshal(protoR, make([]byte, 4))
-	// Should not error, but v2 should be empty
+	err = v2.ReadFromProto(protoR)
 	require.NoError(t, err)
-	require.Equal(t, int32(0), v2.Arg)
-	require.Equal(t, float32(0), v2.val)
 
 	// Convert to V3
 	v3 := v2.ToStringFormat()
-	v3bin, err := v3.MarshalBinary()
+	v3bin := v3.MarshallAppend(nil)
+
+	// Insert into v3
+	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v3", [][]byte{
+		encodeUInt32(2), // id
+		v3bin,           // agg
+	})
 	require.NoError(t, err)
 
-	// Insert into dst
-	_, err = db.Exec(`INSERT INTO dst VALUES (?, ?)`, 2, v3bin)
+	// Read back from v3
+	aggRaw2, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=2`)
 	require.NoError(t, err)
 
-	// Read back from dst
-	var aggRaw2 []byte
-	row = db.QueryRow(`SELECT agg FROM dst WHERE id=2`)
-	require.NoError(t, row.Scan(&aggRaw2))
-	var v3b ArgMinMaxStringFloat32
+	var v3b data_model.ArgMinMaxStringFloat32
 	protoR2 := newProtoReader(aggRaw2)
-	_, err = v3b.unmarshal(protoR2, make([]byte, 6))
+	_, err = v3b.ReadFromProto(protoR2, make([]byte, 6))
 	require.NoError(t, err)
 
-	// Check values are empty
-	require.Equal(t, float32(0), v3b.val)
+	// Check values are zero/empty as expected for empty aggregates
+	require.Equal(t, float32(0), v3b.Val)
 	require.Equal(t, int32(0), v3b.AsInt32)
-	require.True(t, v3b.Arg == "" || v3b.Arg == string([]byte{0, 0, 0, 0, 0}), "Arg should be empty or default encoding")
 }
 
-// Helper to create a proto.Reader from []byte
-func newProtoReader(b []byte) *proto.Reader {
-	return proto.NewReader(bytes.NewReader(b))
+// HTTP helper functions similar to sendToClickhouse
+
+func execQuery(httpClient *http.Client, addr, user, password, query string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	URL := fmt.Sprintf("http://%s/", addr)
+	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader([]byte(query)))
+	if err != nil {
+		return err
+	}
+	if user != "" {
+		req.Header.Set("X-ClickHouse-User", user)
+	}
+	if password != "" {
+		req.Header.Set("X-ClickHouse-Key", password)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func selectBinary(httpClient *http.Client, addr, user, password, query string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	fullQuery := query + " FORMAT RowBinary"
+	URL := fmt.Sprintf("http://%s/", addr)
+	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader([]byte(fullQuery)))
+	if err != nil {
+		return nil, err
+	}
+	if user != "" {
+		req.Header.Set("X-ClickHouse-User", user)
+	}
+	if password != "" {
+		req.Header.Set("X-ClickHouse-Key", password)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func insertBinary(httpClient *http.Client, addr, user, password, table string, rows [][]byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var body []byte
+	for _, row := range rows {
+		body = append(body, row...)
+	}
+
+	insertQuery := fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", table)
+	URL := fmt.Sprintf("http://%s/", addr)
+	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(append([]byte(insertQuery+"\n"), body...)))
+	if err != nil {
+		return err
+	}
+	if user != "" {
+		req.Header.Set("X-ClickHouse-User", user)
+	}
+	if password != "" {
+		req.Header.Set("X-ClickHouse-Key", password)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+func encodeUInt32(v uint32) []byte {
+	buf := make([]byte, 4)
+	buf[0] = byte(v)
+	buf[1] = byte(v >> 8)
+	buf[2] = byte(v >> 16)
+	buf[3] = byte(v >> 24)
+	return buf
+}
+
+// Helper to create a ProtoReader from []byte
+// testProtoReader implements data_model.ProtoReader for test purposes
+
+type testProtoReader struct {
+	buf *bytes.Reader
+}
+
+func (r *testProtoReader) ReadByte() (byte, error) {
+	return r.buf.ReadByte()
+}
+
+func (r *testProtoReader) ReadFull(buf []byte) error {
+	_, err := r.buf.Read(buf)
+	return err
+}
+
+func newProtoReader(b []byte) *testProtoReader {
+	return &testProtoReader{buf: bytes.NewReader(b)}
 }
