@@ -1,5 +1,8 @@
-//go:build integration
-// +build integration
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package chutil
 
@@ -12,10 +15,10 @@ import (
 	"bytes"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
@@ -69,14 +72,13 @@ func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
 	require.NoError(t, row.Scan(&aggRaw))
 
 	// Unmarshal as ArgMinMaxInt32Float32
-	var v2 ArgMinMaxInt32Float32
+	var v2 data_model.ArgMinMaxInt32Float32
 	protoR := newProtoReader(aggRaw)
-	require.NoError(t, v2.unmarshal(protoR, make([]byte, 4)))
+	require.NoError(t, v2.ReadFromProto(protoR))
 
 	// Convert to V3
 	v3 := v2.ToStringFormat()
-	v3bin, err := v3.MarshalBinary()
-	require.NoError(t, err)
+	v3bin := v3.MarshallAppend(nil)
 
 	// Insert into dst
 	_, err = db.Exec(`INSERT INTO dst VALUES (?, ?)`, 1, v3bin)
@@ -86,13 +88,13 @@ func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
 	var aggRaw2 []byte
 	row = db.QueryRow(`SELECT agg FROM dst WHERE id=1`)
 	require.NoError(t, row.Scan(&aggRaw2))
-	var v3b ArgMinMaxStringFloat32
+	var v3b data_model.ArgMinMaxStringFloat32
 	protoR2 := newProtoReader(aggRaw2)
-	_, err = v3b.unmarshal(protoR2, make([]byte, 6))
+	_, err = v3b.ReadFromProto(protoR2, make([]byte, 6))
 	require.NoError(t, err)
 
 	// Check values
-	require.Equal(t, float32(1.5), v3b.val)
+	require.Equal(t, float32(1.5), v3b.Val)
 	require.Equal(t, int32(42), v3b.AsInt32)
 }
 
@@ -147,18 +149,17 @@ func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
 	require.NoError(t, row.Scan(&aggRaw))
 
 	// Unmarshal as ArgMinMaxInt32Float32 (should be empty)
-	var v2 ArgMinMaxInt32Float32
+	var v2 data_model.ArgMinMaxInt32Float32
 	protoR := newProtoReader(aggRaw)
-	err = v2.unmarshal(protoR, make([]byte, 4))
+	err = v2.ReadFromProto(protoR)
 	// Should not error, but v2 should be empty
 	require.NoError(t, err)
 	require.Equal(t, int32(0), v2.Arg)
-	require.Equal(t, float32(0), v2.val)
+	require.Equal(t, float32(0), v2.Val)
 
 	// Convert to V3
 	v3 := v2.ToStringFormat()
-	v3bin, err := v3.MarshalBinary()
-	require.NoError(t, err)
+	v3bin := v3.MarshallAppend(nil)
 
 	// Insert into dst
 	_, err = db.Exec(`INSERT INTO dst VALUES (?, ?)`, 2, v3bin)
@@ -168,18 +169,34 @@ func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
 	var aggRaw2 []byte
 	row = db.QueryRow(`SELECT agg FROM dst WHERE id=2`)
 	require.NoError(t, row.Scan(&aggRaw2))
-	var v3b ArgMinMaxStringFloat32
+	var v3b data_model.ArgMinMaxStringFloat32
 	protoR2 := newProtoReader(aggRaw2)
-	_, err = v3b.unmarshal(protoR2, make([]byte, 6))
+	_, err = v3b.ReadFromProto(protoR2, make([]byte, 6))
 	require.NoError(t, err)
 
 	// Check values are empty
-	require.Equal(t, float32(0), v3b.val)
+	require.Equal(t, float32(0), v3b.Val)
 	require.Equal(t, int32(0), v3b.AsInt32)
-	require.True(t, v3b.Arg == "" || v3b.Arg == string([]byte{0, 0, 0, 0, 0}), "Arg should be empty or default encoding")
+	require.True(t, v3b.AsString == "" || v3b.AsString == string([]byte{0, 0, 0, 0, 0}), "Arg should be empty or default encoding")
 }
 
-// Helper to create a proto.Reader from []byte
-func newProtoReader(b []byte) *proto.Reader {
-	return proto.NewReader(bytes.NewReader(b))
+// Helper to create a ProtoReader from []byte
+// testProtoReader implements data_model.ProtoReader for test purposes
+// Copied from internal/data_model/ch_arg_minmax_test.go
+
+type testProtoReader struct {
+	buf *bytes.Reader
+}
+
+func (r *testProtoReader) ReadByte() (byte, error) {
+	return r.buf.ReadByte()
+}
+
+func (r *testProtoReader) ReadFull(buf []byte) error {
+	_, err := r.buf.Read(buf)
+	return err
+}
+
+func newProtoReader(b []byte) *testProtoReader {
+	return &testProtoReader{buf: bytes.NewReader(b)}
 }
