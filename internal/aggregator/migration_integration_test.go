@@ -80,7 +80,7 @@ func TestMigrationIntegration(t *testing.T) {
 
 	// Verify migration results
 	var v3Count int
-	err = db.QueryRow("SELECT COUNT(*) FROM statshouse_v3_incoming").Scan(&v3Count)
+	err = db.QueryRow("SELECT COUNT(*) FROM statshouse_v3_1h").Scan(&v3Count)
 	require.NoError(t, err)
 	require.Greater(t, v3Count, 0, "V3 data should be created")
 
@@ -89,7 +89,7 @@ func TestMigrationIntegration(t *testing.T) {
 	err = db.QueryRow("SELECT SUM(sum) FROM statshouse_value_1h WHERE time = ?", time.Unix(int64(testTimestamp), 0)).Scan(&v2Sum)
 	require.NoError(t, err)
 
-	err = db.QueryRow("SELECT SUM(sum) FROM statshouse_v3_incoming WHERE time = ?", time.Unix(int64(testTimestamp), 0)).Scan(&v3Sum)
+	err = db.QueryRow("SELECT SUM(sum) FROM statshouse_v3_1h WHERE time = ?", time.Unix(int64(testTimestamp), 0)).Scan(&v3Sum)
 	require.NoError(t, err)
 
 	require.Equal(t, v2Sum, v3Sum, "Sum values should match between V2 and V3")
@@ -189,7 +189,7 @@ func setupTables(httpAddr string) error {
 		`CREATE TABLE IF NOT EXISTS statshouse_value_1h_dist AS statshouse_value_1h ENGINE = Distributed('default', 'default', 'statshouse_value_1h')`,
 
 		// V3 table
-		`CREATE TABLE IF NOT EXISTS statshouse_v3_incoming (
+		`CREATE TABLE IF NOT EXISTS statshouse_v3_1h (
 			index_type UInt8,
 			metric Int32,
 			pre_tag UInt32,
