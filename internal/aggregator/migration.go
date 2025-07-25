@@ -17,6 +17,10 @@ import (
 	"net/url"
 	"time"
 
+	"bytes"
+
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/vkcom/statshouse/internal/chutil"
 	"github.com/vkcom/statshouse/internal/vkgo/rowbinary"
 )
 
@@ -577,10 +581,28 @@ func convertRowV2ToV3(buf []byte, v2 *v2Row) []byte {
 	buf = rowbinary.AppendFloat64(buf, v2.sum)
 	buf = rowbinary.AppendFloat64(buf, v2.sumsquare)
 
-	// String-based argMin/argMax - temporarily use empty to avoid corruption
-	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // min_host (temporarily empty)
-	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // max_host (temporarily empty)
-	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // max_count_host (temporarily empty)
+	// String-based argMin/argMax - convert from V2 Int32 format to V3 String format
+	// min_host
+	{
+		v2ch := unmarshalArgMinMaxInt32Float32(v2.min_host)
+		v3 := v2ch.ToStringFormat()
+		v3bin, _ := v3.MarshalBinary()
+		buf = append(buf, v3bin...)
+	}
+	// max_host
+	{
+		v2ch := unmarshalArgMinMaxInt32Float32(v2.max_host)
+		v3 := v2ch.ToStringFormat()
+		v3bin, _ := v3.MarshalBinary()
+		buf = append(buf, v3bin...)
+	}
+	// max_count_host (same as max_host in V2)
+	{
+		v2ch := unmarshalArgMinMaxInt32Float32(v2.max_host)
+		v3 := v2ch.ToStringFormat()
+		v3bin, _ := v3.MarshalBinary()
+		buf = append(buf, v3bin...)
+	}
 
 	// Legacy argMin/argMax (Int32 format) - temporarily use empty to avoid corruption
 	buf = rowbinary.AppendArgMinMaxInt32Float32Empty(buf) // min_host_legacy (temporarily empty)
@@ -651,4 +673,14 @@ func convertArgMinMaxToString(buf []byte, argMinMaxData []byte) []byte {
 
 	// Use AppendArgMinMaxStringFloat64 (note: Float64, not Float32)
 	return rowbinary.AppendArgMinMaxStringFloat64(buf, string(argString), float64(valueFloat32))
+}
+
+// Helper to unmarshal V2 argMin/argMax binary
+func unmarshalArgMinMaxInt32Float32(data []byte) chutil.ArgMinMaxInt32Float32 {
+	var v chutil.ArgMinMaxInt32Float32
+	if len(data) > 0 {
+		protoR := proto.NewReader(bytes.NewReader(data))
+		_ = chutil.UnmarshalArgMinMaxInt32Float32(protoR, &v)
+	}
+	return v
 }
