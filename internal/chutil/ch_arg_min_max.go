@@ -286,3 +286,60 @@ func AppendArgMinMaxBytesFloat32(buf []byte, arg []byte, v float32) []byte {
 	buf = append(buf, 0, 1) // string terminator, bool
 	return append(buf, tmp2[:]...)
 }
+
+// MarshalBinary serializes ArgMinMaxInt32Float32 to ClickHouse rowbinary format
+func (a *ArgMinMaxInt32Float32) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 0, 10)
+	if a.Arg != 0 {
+		buf = append(buf, 1)
+		var tmp [4]byte
+		binary.LittleEndian.PutUint32(tmp[:], uint32(a.Arg))
+		buf = append(buf, tmp[:]...)
+	} else {
+		buf = append(buf, 0)
+	}
+	if a.val != 0 {
+		buf = append(buf, 1)
+		var tmp [4]byte
+		binary.LittleEndian.PutUint32(tmp[:], math.Float32bits(a.val))
+		buf = append(buf, tmp[:]...)
+	} else {
+		buf = append(buf, 0)
+	}
+	return buf, nil
+}
+
+// MarshalBinary serializes ArgMinMaxStringFloat32 to ClickHouse rowbinary format
+func (a *ArgMinMaxStringFloat32) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 0, 32)
+	arg := []byte(a.Arg)
+	if a.Arg == "" && a.AsInt32 != 0 {
+		arg = make([]byte, 5)
+		arg[0] = 0
+		binary.LittleEndian.PutUint32(arg[1:], uint32(a.AsInt32))
+	}
+	buf = AppendArgMinMaxBytesFloat32(buf, arg, a.val)
+	return buf, nil
+}
+
+// ToStringFormat converts ArgMinMaxInt32Float32 to ArgMinMaxStringFloat32 (for V3)
+func (a *ArgMinMaxInt32Float32) ToStringFormat() ArgMinMaxStringFloat32 {
+	return ArgMinMaxStringFloat32{
+		Arg:     string([]byte{0, byte(a.Arg), byte(a.Arg >> 8), byte(a.Arg >> 16), byte(a.Arg >> 24)}),
+		AsInt32: a.Arg,
+		val:     a.val,
+	}
+}
+
+// MarshalBinary for ArgMinStringFloat32/ArgMaxStringFloat32
+func (a *ArgMinStringFloat32) MarshalBinary() ([]byte, error) {
+	return a.ArgMinMaxStringFloat32.MarshalBinary()
+}
+func (a *ArgMaxStringFloat32) MarshalBinary() ([]byte, error) {
+	return a.ArgMinMaxStringFloat32.MarshalBinary()
+}
+
+// UnmarshalArgMinMaxInt32Float32 unmarshals from proto.Reader into ArgMinMaxInt32Float32
+func UnmarshalArgMinMaxInt32Float32(r *proto.Reader, v *ArgMinMaxInt32Float32) error {
+	return v.unmarshal(r, make([]byte, 4))
+}
