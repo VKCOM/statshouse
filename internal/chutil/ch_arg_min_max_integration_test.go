@@ -9,8 +9,8 @@ package chutil
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -100,12 +100,21 @@ func TestMain(m *testing.M) {
 
 func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
 	// Insert test data using argMinState in SELECT query (not VALUES)
-	err := execQuery(httpClient, clickHouseAddr, "default", "secret", `INSERT INTO v2 
-		SELECT 1 as id, argMinState(toInt32(42), toFloat32(1.5)) as agg`)
+	// err := execQuery(httpClient, clickHouseAddr, "default", "secret", `INSERT INTO v2
+	// 	SELECT 1 as id, argMinState(toInt32(42), toFloat32(1.5)) as agg`)
+	agg := &data_model.ArgMinMaxInt32Float32{
+		Arg: 42,
+		Val: 1.5,
+	}
+	aggBin := agg.MarshalAppend(nil)
+	err := insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v2(id, agg)", [][]byte{
+		encodeUInt32(1), // id
+		aggBin,          // agg
+	})
 	require.NoError(t, err)
 
 	// Read the state from v2 using HTTP
-	aggRaw, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=1`)
+	aggRaw, err := selectRawBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=1`)
 	require.NoError(t, err)
 
 	// Unmarshal as ArgMinMaxInt32Float32
@@ -120,14 +129,14 @@ func TestArgMinInt32ToStringMigrationIntegration(t *testing.T) {
 	v3bin := v3.MarshallAppend(nil)
 
 	// Insert into v3 using binary data
-	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v3", [][]byte{
+	err = insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v3(id, agg)", [][]byte{
 		encodeUInt32(1), // id
 		v3bin,           // agg
 	})
 	require.NoError(t, err)
 
 	// Read back from v3
-	aggRaw2, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=1`)
+	aggRaw2, err := selectRawBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=1`)
 	require.NoError(t, err)
 
 	var v3b data_model.ArgMinMaxStringFloat32
@@ -151,14 +160,14 @@ func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
 	err := emptyV2.ReadFromProto(emptyProtoR)
 	require.NoError(t, err)
 
-	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v2", [][]byte{
+	err = insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v2", [][]byte{
 		encodeUInt32(2), // id
 		emptyV2Data,     // empty agg
 	})
 	require.NoError(t, err)
 
 	// Read the state from v2
-	aggRaw, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=2`)
+	aggRaw, err := selectRawBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v2 WHERE id=2`)
 	require.NoError(t, err)
 
 	// Unmarshal as ArgMinMaxInt32Float32 (should be empty)
@@ -172,14 +181,14 @@ func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
 	v3bin := v3.MarshallAppend(nil)
 
 	// Insert into v3
-	err = insertBinary(httpClient, clickHouseAddr, "default", "secret", "v3", [][]byte{
+	err = insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v3", [][]byte{
 		encodeUInt32(2), // id
 		v3bin,           // agg
 	})
 	require.NoError(t, err)
 
 	// Read back from v3
-	aggRaw2, err := selectBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=2`)
+	aggRaw2, err := selectRawBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=2`)
 	require.NoError(t, err)
 
 	var v3b data_model.ArgMinMaxStringFloat32
@@ -192,109 +201,52 @@ func TestArgMinInt32ToStringMigrationIntegration_Empty(t *testing.T) {
 	require.Equal(t, int32(0), v3b.AsInt32)
 }
 
-// HTTP helper functions similar to sendToClickhouse
-
 func execQuery(httpClient *http.Client, addr, user, password, query string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	URL := fmt.Sprintf("http://%s/", addr)
-	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader([]byte(query)))
-	if err != nil {
-		return err
+	req := &ClickHouseHttpRequest{
+		httpClient: httpClient,
+		addr:       addr,
+		user:       user,
+		password:   password,
+		query:      query,
 	}
-	if user != "" {
-		req.Header.Set("X-ClickHouse-User", user)
-	}
-	if password != "" {
-		req.Header.Set("X-ClickHouse-Key", password)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
-	}
-	return nil
+	_, err := req.Execute()
+	return err
 }
 
-func selectBinary(httpClient *http.Client, addr, user, password, query string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	fullQuery := query + " FORMAT RowBinary"
-	URL := fmt.Sprintf("http://%s/", addr)
-	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader([]byte(fullQuery)))
-	if err != nil {
-		return nil, err
+func selectRawBinary(httpClient *http.Client, addr, user, password, query string) ([]byte, error) {
+	req := &ClickHouseHttpRequest{
+		httpClient: httpClient,
+		addr:       addr,
+		user:       user,
+		password:   password,
+		query:      query,
+		format:     "RowBinary",
 	}
-	if user != "" {
-		req.Header.Set("X-ClickHouse-User", user)
-	}
-	if password != "" {
-		req.Header.Set("X-ClickHouse-Key", password)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return io.ReadAll(resp.Body)
+	return req.Execute()
 }
 
-func insertBinary(httpClient *http.Client, addr, user, password, table string, rows [][]byte) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
+func insertRawBinary(httpClient *http.Client, addr, user, password, tableDesc string, rows [][]byte) error {
 	var body []byte
 	for _, row := range rows {
 		body = append(body, row...)
 	}
 
-	insertQuery := fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", table)
-	URL := fmt.Sprintf("http://%s/", addr)
-	req, err := http.NewRequestWithContext(ctx, "POST", URL, bytes.NewReader(append([]byte(insertQuery+"\n"), body...)))
-	if err != nil {
-		return err
+	req := &ClickHouseHttpRequest{
+		httpClient: httpClient,
+		addr:       addr,
+		user:       user,
+		password:   password,
+		query:      fmt.Sprintf("INSERT INTO %s FORMAT RowBinary", tableDesc),
+		body:       body,
+		urlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
 	}
-	if user != "" {
-		req.Header.Set("X-ClickHouse-User", user)
-	}
-	if password != "" {
-		req.Header.Set("X-ClickHouse-Key", password)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
-	}
-	return nil
+	_, err := req.Execute()
+	return err
 }
 
 func encodeUInt32(v uint32) []byte {
 	buf := make([]byte, 4)
-	buf[0] = byte(v)
-	buf[1] = byte(v >> 8)
-	buf[2] = byte(v >> 16)
-	buf[3] = byte(v >> 24)
+	binary.LittleEndian.PutUint32(buf, v)
 	return buf
 }
 
