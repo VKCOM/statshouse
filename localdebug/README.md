@@ -1,5 +1,12 @@
 # Run StatsHouse locally for debug
 
+## Single command run in tmux
+
+```
+./run-in-tmux.sh
+```
+If you don't have tmux or want more control use separate commands below.
+
 ## Run clickhouse locally in docker
 
 We run cluster containing 1 clickhouse server plus 1 zookeeper instance.
@@ -21,7 +28,7 @@ clickhouse-cluster/cleanup.sh
 
 ## Run daemons locally without containers
 
-Quickly rebuild you daemons if you are working on them (but not UI)
+Quickly rebuild you daemons if you are working on them (UI will only build if it is not present)
 ```
 ./build.sh
 ```
@@ -76,20 +83,10 @@ You must stop all daemons before cleaning up.
 ```
 ./cleanup.sh
 ```
+NB this also stops ClickHouse and drops data volumes.
 
 If you only need to clean caches of daemons, but not medata use
 ```
 rm -rf cache
 ```
 
-
-## For testing v3 pipeline
-
-Create remote_config metrics with correct flags
-```
-go run ./cmd/loadgen new-pipeline
-```
-Run load generator
-```
-go run ./cmd/loadgen client
-```
