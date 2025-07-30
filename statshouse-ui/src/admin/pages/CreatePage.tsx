@@ -5,11 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { IMetric } from '../models/metric';
 import { saveMetric } from '../api/saveMetric';
-import { maxTagsSize } from '../../common/settings';
+import { maxTagsSize } from '@/common/settings';
 import { getDefaultTag } from '../storages/MetricFormValues/reducer';
+import { useMetricMeta } from '@/hooks/useMetricMeta';
 
 export function CreatePage(props: { yAxisSize: number }) {
   const { yAxisSize } = props;
@@ -64,7 +65,9 @@ export function EditFormCreate() {
             <span className="visually-hidden">Loading...</span>
           </div>
         ) : error ? (
-          <span className="text-danger">{error}</span>
+          <span className="text-danger">
+            {error} <MetricInfo metricName={name} />
+          </span>
         ) : success ? (
           <span className="text-success">{success}</span>
         ) : null}
@@ -121,4 +124,19 @@ function useSubmitCreate(name: string) {
     error,
     success,
   };
+}
+
+type MetricInfoProps = { metricName: string };
+
+function MetricInfo({ metricName }: MetricInfoProps) {
+  const meta = useMetricMeta(metricName, true);
+  if (!meta) {
+    return null;
+  }
+  return (
+    <span>
+      {meta.disable && <span>and disabled. </span>}
+      <Link to={`/admin/edit/${metricName}`}>Edit</Link> <Link to={`/view?s=${metricName}`}>View</Link>
+    </span>
+  );
 }
