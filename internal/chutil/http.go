@@ -18,14 +18,14 @@ import (
 
 // ClickHouseHttpRequest represents a request to ClickHouse HTTP interface
 type ClickHouseHttpRequest struct {
-	httpClient *http.Client
-	addr       string
-	user       string
-	password   string
-	query      string
-	format     string // "RowBinary" or empty
-	body       []byte // for INSERT operations
-	urlParams  map[string]string
+	HttpClient *http.Client
+	Addr       string
+	User       string
+	Password   string
+	Query      string
+	Format     string // "RowBinary" or empty
+	Body       []byte // for INSERT operations
+	UrlParams  map[string]string
 }
 
 // Execute performs the HTTP request to ClickHouse
@@ -34,15 +34,15 @@ func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
 	defer cancel()
 
 	// Build query
-	query := r.query
-	if r.format != "" {
-		query += " FORMAT " + r.format
+	query := r.Query
+	if r.Format != "" {
+		query += " FORMAT " + r.Format
 	}
 
 	// Build URL
-	baseURL := fmt.Sprintf("http://%s/", r.addr)
+	baseURL := fmt.Sprintf("http://%s/", r.Addr)
 	var URL string
-	if len(r.urlParams) > 0 {
+	if len(r.UrlParams) > 0 {
 		// For INSERT operations with URL parameters
 		queryPrefix := url.PathEscape(query)
 		URL = fmt.Sprintf("%s?input_format_values_interpret_expressions=0&query=%s", baseURL, queryPrefix)
@@ -52,8 +52,8 @@ func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
 
 	// Prepare request body
 	var body io.Reader
-	if r.body != nil {
-		body = bytes.NewReader(r.body)
+	if r.Body != nil {
+		body = bytes.NewReader(r.Body)
 	} else {
 		body = bytes.NewReader([]byte(query))
 	}
@@ -62,14 +62,14 @@ func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.user != "" {
-		req.Header.Set("X-ClickHouse-User", r.user)
+	if r.User != "" {
+		req.Header.Set("X-ClickHouse-User", r.User)
 	}
-	if r.password != "" {
-		req.Header.Set("X-ClickHouse-Key", r.password)
+	if r.Password != "" {
+		req.Header.Set("X-ClickHouse-Key", r.Password)
 	}
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
 	}
 
 	// Read response body if needed
-	if r.format == "RowBinary" {
+	if r.Format == "RowBinary" {
 		return io.ReadAll(resp.Body)
 	}
 	return nil, nil
