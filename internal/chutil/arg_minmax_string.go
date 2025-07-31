@@ -26,7 +26,7 @@ func (col *ColArgMinStringFloat32) DecodeColumn(r *proto.Reader, rows int) (err 
 	}
 	buf := make([]byte, 6)
 	for i := 0; i < len(res); i++ {
-		if buf, err = res[i].ReadFromProto(r, buf); err != nil {
+		if buf, err = res[i].ReadFrom(r, buf); err != nil {
 			return err
 		}
 	}
@@ -43,7 +43,7 @@ func (col *ColArgMaxStringFloat32) DecodeColumn(r *proto.Reader, rows int) (err 
 	}
 	buf := make([]byte, 6)
 	for i := 0; i < len(res); i++ {
-		if buf, err = res[i].ReadFromProto(r, buf); err != nil {
+		if buf, err = res[i].ReadFrom(r, buf); err != nil {
 			return err
 		}
 	}

@@ -14,19 +14,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-type testProtoReader struct {
-	buf *bytes.Reader
-}
-
-func (r *testProtoReader) ReadByte() (byte, error) {
-	return r.buf.ReadByte()
-}
-
-func (r *testProtoReader) ReadFull(buf []byte) error {
-	_, err := r.buf.Read(buf)
-	return err
-}
-
 func TestArgMinMaxInt32Float32_Roundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		arg := ArgMinMaxInt32Float32{
@@ -34,15 +21,16 @@ func TestArgMinMaxInt32Float32_Roundtrip(t *testing.T) {
 			Val: rapid.Float32().Draw(t, "val"),
 		}
 		buf := arg.MarshalAppend(nil)
-		r := &testProtoReader{buf: bytes.NewReader(buf)}
+		r := bytes.NewReader(buf)
 		var out ArgMinMaxInt32Float32
-		require.NoError(t, out.ReadFromProto(r))
+		require.NoError(t, out.ReadFrom(r))
 		require.Equal(t, arg.Arg, out.Arg)
 		require.Equal(t, arg.Val, out.Val)
 	})
 }
 
-func TestArgMinMaxStringFloat32_Roundtrip(t *testing.T) {
+func TestArgMinMaxStringFloat32_StringArg_Roundtrip(t *testing.T) {
+	scratch := make([]byte, 32)
 	rapid.Check(t, func(t *rapid.T) {
 		asString := rapid.String().Draw(t, "asString")
 		val := rapid.Float32().Draw(t, "val")
@@ -51,11 +39,32 @@ func TestArgMinMaxStringFloat32_Roundtrip(t *testing.T) {
 			Val:      val,
 		}
 		buf := arg.MarshallAppend(nil)
-		r := &testProtoReader{buf: bytes.NewReader(buf)}
+		r := bytes.NewReader(buf)
 		var out ArgMinMaxStringFloat32
-		_, err := out.ReadFromProto(r, make([]byte, 0, 16))
+		var err error
+		scratch, err = out.ReadFrom(r, scratch[:0])
 		require.NoError(t, err)
 		require.Equal(t, arg.AsString, out.AsString)
 		require.Equal(t, arg.Val, out.Val)
+	})
+}
+
+func TestArgMinMaxStringFloat32_IntArg_Roundtrip(t *testing.T) {
+	scratch := make([]byte, 32)
+	rapid.Check(t, func(t *rapid.T) {
+		asInt := rapid.Int32().Draw(t, "arg")
+		val := rapid.Float32().Draw(t, "val")
+		arg := ArgMinMaxStringFloat32{
+			AsInt32: asInt,
+			Val:     val,
+		}
+		buf := arg.MarshallAppend(nil)
+		r := bytes.NewReader(buf)
+		var out ArgMinMaxStringFloat32
+		var err error
+		scratch, err = out.ReadFrom(r, scratch[:0])
+		require.NoError(t, err)
+		require.Equal(t, arg.Val, out.Val)
+		require.Equal(t, arg.AsInt32, out.AsInt32)
 	})
 }

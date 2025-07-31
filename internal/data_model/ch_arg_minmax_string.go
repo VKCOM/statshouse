@@ -7,13 +7,15 @@
 package data_model
 
 import (
+	"bufio"
 	"encoding/binary"
+	"io"
 	"math"
 	"slices"
 )
 
 type ArgMinMaxStringFloat32 struct {
-	AsString string // TODO: maybe []byte?
+	AsString string
 	AsInt32  int32
 	Val      float32
 }
@@ -26,34 +28,39 @@ type ArgMaxStringFloat32 struct {
 	ArgMinMaxStringFloat32
 }
 
-func (res *ArgMinMaxStringFloat32) ReadFromProto(r ProtoReader, buf []byte) ([]byte, error) {
+func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.Reader, buf []byte) ([]byte, error) {
+	br := bufio.NewReaderSize(r, 16)
 	buf = slices.Grow(buf, 6)[:6]
 	// read string
-	if err := r.ReadFull(buf[:4]); err != nil {
+	if _, err := io.ReadFull(br, buf[:4]); err != nil {
 		return buf, err
 	}
 	if n := int32(binary.LittleEndian.Uint32(buf)); n > 0 {
 		buf = slices.Grow(buf, int(n))[:n]
-		if err := r.ReadFull(buf); err != nil {
+		if _, err := io.ReadFull(br, buf); err != nil {
 			return buf, err
 		}
-		if n == 6 && buf[0] == 0 {
-			res.AsInt32 = int32(binary.LittleEndian.Uint32(buf[1:]))
+		if buf[0] == 0 { // 1 string/int flag + 4 int bytes
+			if n != 5 {
+				return buf, io.ErrUnexpectedEOF
+			}
+			arg.AsInt32 = int32(binary.LittleEndian.Uint32(buf[1:]))
+
 		} else if n > 1 {
-			res.AsString = string(buf[:n-1]) // exclude trailing 0 byte (string terminator)
+			arg.AsString = string(buf[1 : n-1])
 		}
 	}
 	// read value
-	hasValue, err := r.ReadByte()
+	hasValue, err := br.ReadByte()
 	if err != nil {
 		return buf, err
 	}
 	if hasValue != 0 {
 		buf = buf[:4]
-		if err := r.ReadFull(buf); err != nil {
+		if _, err := io.ReadFull(br, buf); err != nil {
 			return buf, err
 		}
-		res.Val = math.Float32frombits(binary.LittleEndian.Uint32(buf))
+		arg.Val = math.Float32frombits(binary.LittleEndian.Uint32(buf))
 	}
 	return buf, nil
 }
@@ -96,23 +103,19 @@ func (arg *ArgMinMaxStringFloat32) Empty() bool {
 }
 
 func (arg *ArgMinMaxStringFloat32) MarshallAppend(buf []byte) []byte {
-	buf = AppendArgMinMaxBytesFloat32(buf, []byte(arg.AsString), arg.Val)
+	if arg.AsString != "" {
+		dataLen := uint32(len(arg.AsString) + 2)
+		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
+		buf = append(buf, 1) // string marker
+		buf = append(buf, []byte(arg.AsString)...)
+		buf = append(buf, 0) // for some reason ClickHouse likes to add string terminator
+	} else {
+		dataLen := uint32(5) // sizeof(int32) + 1
+		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
+		buf = append(buf, 0) // int marker
+		buf = binary.LittleEndian.AppendUint32(buf, uint32(arg.AsInt32))
+	}
+	buf = append(buf, 1) // has value flag
+	buf = binary.LittleEndian.AppendUint32(buf, math.Float32bits(arg.Val))
 	return buf
-}
-
-// TODO: remove if unused
-func AppendArgMinMaxStringFloat32(buf []byte, arg string, v float32) []byte {
-	return AppendArgMinMaxBytesFloat32(buf, []byte(arg), v)
-}
-
-// TODO: inline in MarshallAppend if possible
-func AppendArgMinMaxBytesFloat32(buf []byte, arg []byte, v float32) []byte {
-	var tmp1 [4]byte
-	var tmp2 [4]byte
-	binary.LittleEndian.PutUint32(tmp1[:], uint32(len(arg)+1)) // string size + 1, or -1 if aggregate is empty
-	binary.LittleEndian.PutUint32(tmp2[:], math.Float32bits(v))
-	buf = append(buf, tmp1[:]...)
-	buf = append(buf, arg...)
-	buf = append(buf, 0, 1) // string terminator, bool
-	return append(buf, tmp2[:]...)
 }

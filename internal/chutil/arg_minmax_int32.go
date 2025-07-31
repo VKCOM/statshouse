@@ -22,7 +22,7 @@ func (col *ColArgMinInt32Float32) DecodeColumn(r *proto.Reader, rows int) error 
 		res = (*col)[:rows]
 	}
 	for i := 0; i < len(res); i++ {
-		res[i].ReadFromProto(r)
+		res[i].ReadFrom(r)
 	}
 	*col = res
 	return nil
@@ -36,7 +36,7 @@ func (col *ColArgMaxInt32Float32) DecodeColumn(r *proto.Reader, rows int) error 
 		res = (*col)[:rows]
 	}
 	for i := 0; i < len(res); i++ {
-		res[i].ReadFromProto(r)
+		res[i].ReadFrom(r)
 	}
 	*col = res
 	return nil
