@@ -95,7 +95,7 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	// we order by metric to get predictable order of rows, same as in the test data
 	selectQuery := fmt.Sprintf(`
 	SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-		count, min, max, sum, sumsquare, min_host, max_host, uniq_state
+		count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
 	FROM statshouse_value_1h_dist
 	WHERE time = toDateTime(%d) ORDER BY metric`,
 		testData[0].time)
@@ -153,8 +153,14 @@ func TestV2DataParsingIntegration(t *testing.T) {
 		require.Equal(t, expected.min_host.Val, actual.min_host.Val, "min_host.Val mismatch at row %d", i)
 		require.Equal(t, expected.max_host.Arg, actual.max_host.Arg, "max_host.Arg mismatch at row %d", i)
 		require.Equal(t, expected.max_host.Val, actual.max_host.Val, "max_host.Val mismatch at row %d", i)
-		// require.Equal(t, expected.percentiles, actual.percentiles, "percentiles mismatch at row %d", i)
-		// require.Equal(t, expected.uniq_state, actual.uniq_state, "uniq_state mismatch at row %d", i)
+		// compare two float64s with 1e-6 precision
+		if expected.perc.Digest != nil && actual.perc.Digest != nil {
+			require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6, "percentile 0.5 mismatch at row %d", i)
+			require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6, "percentile 0.99 mismatch at row %d", i)
+		} else {
+			require.Nil(t, actual.perc.Digest, "percentiles should be nil at row %d", i)
+		}
+		require.Equal(t, expected.uniq.ItemsCount(), actual.uniq.ItemsCount(), "uniq_state mismatch at row %d", i)
 	}
 
 	t.Logf("Step 5 SUCCESS: Validated %d rows with complete parseV2Row function", len(parsedRows))
@@ -192,7 +198,7 @@ func createTestData() []*v2Row {
 			max:       5.0,
 			sum:       30.0,
 			sumsquare: 100.0,
-			perc:      perc,
+			perc:      &data_model.ChDigest{Digest: perc},
 			uniq:      uniq,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
@@ -207,7 +213,7 @@ func createTestData() []*v2Row {
 			max:       8.0,
 			sum:       45.0,
 			sumsquare: 200.0,
-			perc:      perc2,
+			perc:      &data_model.ChDigest{Digest: perc2},
 			uniq:      uniq2,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
@@ -222,7 +228,7 @@ func createTestData() []*v2Row {
 			max:       10.0,
 			sum:       60.0,
 			sumsquare: 300.0,
-			perc:      perc3,
+			perc:      &data_model.ChDigest{Digest: perc3},
 			uniq:      uniq3,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},

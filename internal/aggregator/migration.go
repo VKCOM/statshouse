@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/hrissan/tdigest"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -287,12 +286,10 @@ type v2Row struct {
 	max       float64
 	sum       float64
 	sumsquare float64
-	// perc_state []byte
-	perc *tdigest.TDigest
-	// uniq_state []byte
-	uniq     *data_model.ChUnique
-	min_host data_model.ArgMinInt32Float32
-	max_host data_model.ArgMaxInt32Float32
+	perc      *data_model.ChDigest
+	uniq      *data_model.ChUnique
+	min_host  data_model.ArgMinInt32Float32
+	max_host  data_model.ArgMaxInt32Float32
 }
 
 // parseV2Row parses a single V2 row from rowbinary data using io.Reader
@@ -367,38 +364,15 @@ func parseV2Row(input io.Reader) (*v2Row, error) {
 		return nil, err
 	}
 
-	// Parse complex aggregates (original aggregate state data)
-	// percentiles
-	// percentilesLen, err := binary.ReadUvarint(byteReader)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to parse percentiles length: %w", err)
-	// }
-	// if percentilesLen > maxAggregateSize {
-	// 	return nil, fmt.Errorf("invalid percentiles length: %d", percentilesLen)
-	// }
-	// row.perc = make([]byte, percentilesLen)
-	// if _, err := io.ReadFull(input, row.perc_state); err != nil {
-	// 	return nil, err
-	// }
-
-	// uniq_state
-	// uniqLen, err := binary.ReadUvarint(byteReader)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to parse uniq_state length: %w", err)
-	// }
-	// if uniqLen > maxAggregateSize {
-	// 	return nil, fmt.Errorf("invalid uniq_state length: %d", uniqLen)
-	// }
-	// row.uniq_state = make([]byte, uniqLen)
-	// if _, err := io.ReadFull(input, row.uniq_state); err != nil {
-	// 	return nil, err
-	// }
-
 	// min_host
 	row.min_host.ReadFrom(input)
 
 	// max_host
 	row.max_host.ReadFrom(input)
+
+	// percentiles
+	row.perc = &data_model.ChDigest{}
+	row.perc.ReadFrom(input)
 
 	// uniq_state
 	row.uniq = &data_model.ChUnique{}
