@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 // ClickHouseHttpRequest represents a request to ClickHouse HTTP interface
@@ -29,10 +28,7 @@ type ClickHouseHttpRequest struct {
 }
 
 // Execute performs the HTTP request to ClickHouse
-func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
+func (r *ClickHouseHttpRequest) Execute(ctx context.Context) (io.ReadCloser, error) {
 	// Build query
 	query := r.Query
 	if r.Format != "" {
@@ -73,16 +69,13 @@ func (r *ClickHouseHttpRequest) Execute() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		return nil, fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Read response body if needed
-	if r.Format == "RowBinary" {
-		return io.ReadAll(resp.Body)
-	}
-	return nil, nil
+	// Return the response body directly
+	return resp.Body, nil
 }

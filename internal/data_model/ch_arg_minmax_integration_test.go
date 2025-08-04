@@ -11,12 +11,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/VKCOM/statshouse/internal/chutil"
-	"github.com/VKCOM/statshouse/internal/data_model"
+	"io"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -206,8 +208,12 @@ func execQuery(httpClient *http.Client, addr, user, password, query string) erro
 		Password:   password,
 		Query:      query,
 	}
-	_, err := req.Execute()
-	return err
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+	return nil
 }
 
 func selectRawBinary(httpClient *http.Client, addr, user, password, query string) ([]byte, error) {
@@ -219,7 +225,12 @@ func selectRawBinary(httpClient *http.Client, addr, user, password, query string
 		Query:      query,
 		Format:     "RowBinary",
 	}
-	return req.Execute()
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Close()
+	return io.ReadAll(resp)
 }
 
 func insertRawBinary(httpClient *http.Client, addr, user, password, tableDesc string, rows [][]byte) error {
@@ -237,8 +248,12 @@ func insertRawBinary(httpClient *http.Client, addr, user, password, tableDesc st
 		Body:       body,
 		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
 	}
-	_, err := req.Execute()
-	return err
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+	return nil
 }
 
 func encodeUInt32(v uint32) []byte {
