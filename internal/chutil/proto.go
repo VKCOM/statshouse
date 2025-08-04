@@ -6,6 +6,7 @@ import (
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/hrissan/tdigest"
 )
 
 type ColUnique []data_model.ChUnique
@@ -38,7 +39,7 @@ func (col *ColUnique) Rows() int {
 	return len(*col)
 }
 
-type ColTDigest []*data_model.TDigest
+type ColTDigest []*tdigest.TDigest
 
 func (col *ColTDigest) Type() proto.ColumnType {
 	return "AggregateFunction(quantilesTDigest(0.5), Float32)"
@@ -66,7 +67,7 @@ func (col *ColTDigest) DecodeColumn(r *proto.Reader, rows int) error {
 			return err
 		}
 		if res[i] == nil {
-			res[i] = data_model.NewWithCompression(256) // clickhouse has compression of 256 by default
+			res[i] = tdigest.NewWithCompression(256) // clickhouse has compression of 256 by default
 		} else {
 			res[i].Reset()
 		}
@@ -74,12 +75,12 @@ func (col *ColTDigest) DecodeColumn(r *proto.Reader, rows int) error {
 			if err = r.ReadFull(bs[:]); err != nil {
 				return err
 			}
-			res[i].AddCentroid(data_model.Centroid{
+			res[i].AddCentroid(tdigest.Centroid{
 				Mean:   float64(math.Float32frombits(binary.LittleEndian.Uint32(bs[:4]))),
 				Weight: float64(math.Float32frombits(binary.LittleEndian.Uint32(bs[4:]))),
 			})
 		}
-		res[i].MakeSafeForParallelReading()
+		res[i].Normalize()
 	}
 	(*col) = res
 	return nil

@@ -10,6 +10,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/hrissan/tdigest"
+
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -44,7 +46,7 @@ type tsValues struct {
 	count       float64
 	sumsquare   float64
 	unique      data_model.ChUnique
-	percentile  *data_model.TDigest
+	percentile  *tdigest.TDigest
 	mergeCount  int
 	cardinality float64
 
@@ -88,7 +90,7 @@ func (v *tsValues) merge(rhs tsValues) {
 		u.Merge(rhs.unique)
 		v.unique = u
 		if v.percentile != nil || rhs.percentile != nil {
-			p := data_model.New()
+			p := tdigest.New()
 			if v.percentile != nil {
 				p.Merge(v.percentile)
 			}
