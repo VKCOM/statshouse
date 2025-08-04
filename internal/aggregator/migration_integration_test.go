@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/hrissan/tdigest"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/VKCOM/statshouse/internal/chutil"
@@ -160,19 +161,19 @@ func TestV2DataParsingIntegration(t *testing.T) {
 }
 
 func createTestData() []*v2Row {
-	perc := data_model.New()
+	perc := tdigest.New()
 	perc.Add(0.5, 2.5)
 	uniq := &data_model.ChUnique{}
 	uniq.Insert(100)
 
-	perc2 := data_model.New()
+	perc2 := tdigest.New()
 	perc2.Add(0.25, 1.75)
 	perc2.Add(0.75, 3.25)
 	uniq2 := &data_model.ChUnique{}
 	uniq2.Insert(200)
 	uniq2.Insert(300)
 
-	perc3 := data_model.New()
+	perc3 := tdigest.New()
 	perc3.Add(0.1, 0.5)
 	perc3.Add(0.9, 4.5)
 	uniq3 := &data_model.ChUnique{}
