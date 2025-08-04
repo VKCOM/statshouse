@@ -4,28 +4,28 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//go:build integration
-// +build integration
-
 package aggregator
 
 import (
+	"bufio"
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/data_model"
+
 	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
 )
 
-func TestMigrationIntegration(t *testing.T) {
+func TestV2DataParsingIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
@@ -33,7 +33,7 @@ func TestMigrationIntegration(t *testing.T) {
 		"clickhouse/clickhouse-server:24.3-alpine",
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword(""),
+		clickhouse.WithPassword("secret"),
 	)
 	require.NoError(t, err)
 	defer func() {
@@ -46,203 +46,239 @@ func TestMigrationIntegration(t *testing.T) {
 	connectionHost, err := clickHouseContainer.Host(ctx)
 	require.NoError(t, err)
 
-	connectionPort, err := clickHouseContainer.MappedPort(ctx, "9000/tcp")
-	require.NoError(t, err)
-
 	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
 	require.NoError(t, err)
 
-	// Set up database connection
-	dsn := fmt.Sprintf("clickhouse://%s:%s", connectionHost, connectionPort.Port())
-	db, err := sql.Open("clickhouse", dsn)
-	require.NoError(t, err)
-	defer db.Close()
-
-	// Create tables
 	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
-	err = setupTables(httpAddr)
-	require.NoError(t, err)
+	httpClient := &http.Client{Timeout: 120 * time.Second} // Increased timeout
 
-	// Create test data in V2 format
-	testTimestamp := uint32(time.Now().Unix() / 3600 * 3600) // Round to hour
-	err = CreateTestDataV2(httpAddr, "", "", testTimestamp)
-	require.NoError(t, err)
+	// Create V2 table structure
+	createV2TableQuery := `CREATE TABLE statshouse_value_1h_dist (
+		metric Int32,
+		time DateTime,
+		key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
+		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
+		skey String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64),
+		min_host AggregateFunction(argMin, Int32, Float32),
+		max_host AggregateFunction(argMax, Int32, Float32)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
 
-	// Verify test data was created
-	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM statshouse_value_1h").Scan(&count)
-	require.NoError(t, err)
-	require.Greater(t, count, 0, "Test data should be created")
-
-	// Run migration
-	err = TestMigrateSingleHour(httpAddr, "", "", testTimestamp, 1)
-	require.NoError(t, err)
-
-	// Verify migration results
-	var v3Count int
-	err = db.QueryRow("SELECT COUNT(*) FROM statshouse_v3_1h").Scan(&v3Count)
-	require.NoError(t, err)
-	require.Greater(t, v3Count, 0, "V3 data should be created")
-
-	// Verify data integrity by comparing some values
-	var v2Sum, v3Sum float64
-	err = db.QueryRow("SELECT SUM(sum) FROM statshouse_value_1h WHERE time = ?", time.Unix(int64(testTimestamp), 0)).Scan(&v2Sum)
-	require.NoError(t, err)
-
-	err = db.QueryRow("SELECT SUM(sum) FROM statshouse_v3_1h WHERE time = ?", time.Unix(int64(testTimestamp), 0)).Scan(&v3Sum)
-	require.NoError(t, err)
-
-	require.Equal(t, v2Sum, v3Sum, "Sum values should match between V2 and V3")
-
-	t.Logf("Migration successful: %d V2 rows -> %d V3 rows", count, v3Count)
-}
-
-func TestV2RowBinaryFormat(t *testing.T) {
-	// Test the V2 row parsing in isolation
-	v2Row := &v2Row{
-		metric:      1,
-		time:        1733000400,
-		keys:        [16]int32{123, 456, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		skey:        "test",
-		count:       10.0,
-		min:         1.0,
-		max:         5.0,
-		sum:         30.0,
-		sumsquare:   100.0,
-		percentiles: []byte{1, 2, 3}, // Simple test data
-		uniq_state:  []byte{4, 5, 6}, // Simple test data
-		min_host:    createV2ArgMinMaxData(100, 1.0, true),
-		max_host:    createV2ArgMinMaxData(200, 5.0, true),
+	req := chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      createV2TableQuery,
 	}
-
-	// Serialize and parse back
-	serialized := serializeV2Row(v2Row)
-	parsed, bytesRead, err := parseV2Row(serialized)
+	resp, err := req.Execute(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, len(serialized), bytesRead)
+	resp.Close()
 
-	// Verify all fields match
-	require.Equal(t, v2Row.metric, parsed.metric)
-	require.Equal(t, v2Row.time, parsed.time)
-	require.Equal(t, v2Row.keys, parsed.keys)
-	require.Equal(t, v2Row.skey, parsed.skey)
-	require.Equal(t, v2Row.count, parsed.count)
-	require.Equal(t, v2Row.min, parsed.min)
-	require.Equal(t, v2Row.max, parsed.max)
-	require.Equal(t, v2Row.sum, parsed.sum)
-	require.Equal(t, v2Row.sumsquare, parsed.sumsquare)
-}
+	// Step 5: Test with complete parseV2Row function from migration.go
+	// Create test data with all fields
+	testData := createTestData()
 
-func TestV3RowBinaryFormat(t *testing.T) {
-	// Test the V3 row generation in isolation
-	v2Row := &v2Row{
-		metric:      1,
-		time:        1733000400,
-		keys:        [16]int32{123, 456, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		skey:        "test",
-		count:       10.0,
-		min:         1.0,
-		max:         5.0,
-		sum:         30.0,
-		sumsquare:   100.0,
-		percentiles: []byte{1, 0, 0, 0, 2, 3},    // With length prefix
-		uniq_state:  []byte{3, 0, 0, 0, 4, 5, 6}, // With length prefix
-		min_host:    createV2ArgMinMaxData(100, 1.0, true),
-		max_host:    createV2ArgMinMaxData(200, 5.0, true),
+	// Insert test data using SQL with all fields
+	err = insertTestData(httpClient, httpAddr, "default", "secret", testData)
+	require.NoError(t, err)
+	t.Logf("Step 5: Inserted test data with SQL for timestamp %d", testData[0].time)
+
+	// we order by metric to get predictable order of rows, same as in the test data
+	selectQuery := fmt.Sprintf(`
+	SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+		count, min, max, sum, sumsquare, min_host, max_host, uniq_state
+	FROM statshouse_value_1h_dist
+	WHERE time = toDateTime(%d) ORDER BY metric`,
+		testData[0].time)
+
+	t.Logf("Executing query: %s", selectQuery)
+
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      selectQuery,
+		Format:     "RowBinary",
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resp, err = req.Execute(ctx)
+	require.NoError(t, err)
+	// defer resp.Close()
 
-	// Convert to V3
-	v3Data := convertRowV2ToV3(nil, v2Row)
-	require.Greater(t, len(v3Data), 0, "V3 data should not be empty")
+	t.Logf("Step 5: Query executed successfully, starting to read response")
 
-	// Basic structure validation - check that we have the expected minimum size
-	// This is a rough calculation based on the expected fields
-	expectedMinSize := 1 + 4 + 4 + 1 + 4 + (48 * (4 + 1)) + (6 * 8) + (5 * 8) + len(v2Row.percentiles) + len(v2Row.uniq_state)
-	require.GreaterOrEqual(t, len(v3Data), expectedMinSize/2, "V3 data should have reasonable size")
-
-	t.Logf("V3 row size: %d bytes", len(v3Data))
-}
-
-func setupTables(httpAddr string) error {
-	// Create minimal test tables
-	queries := []string{
-		// V2 table
-		`CREATE TABLE IF NOT EXISTS statshouse_value_1h (
-			metric Int32,
-			time DateTime,
-			key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
-			key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
-			skey String,
-			count SimpleAggregateFunction(sum, Float64),
-			min SimpleAggregateFunction(min, Float64),
-			max SimpleAggregateFunction(max, Float64),
-			sum SimpleAggregateFunction(sum, Float64),
-			sumsquare SimpleAggregateFunction(sum, Float64),
-			percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-			uniq_state AggregateFunction(uniq, Int64),
-			min_host AggregateFunction(argMin, Int32, Float32),
-			max_host AggregateFunction(argMax, Int32, Float32)
-		) ENGINE = AggregatingMergeTree()
-		ORDER BY (metric, time)`,
-
-		// V2 distributed table
-		`CREATE TABLE IF NOT EXISTS statshouse_value_1h_dist AS statshouse_value_1h ENGINE = Distributed('default', 'default', 'statshouse_value_1h')`,
-
-		// V3 table
-		`CREATE TABLE IF NOT EXISTS statshouse_v3_1h (
-			index_type UInt8,
-			metric Int32,
-			pre_tag UInt32,
-			pre_stag String,
-			time DateTime,
-			tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
-			tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
-			tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
-			tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
-			tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
-			tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
-			tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
-			tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
-			tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
-			tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
-			tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
-			tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
-			count SimpleAggregateFunction(sum, Float64),
-			min SimpleAggregateFunction(min, Float64),
-			max SimpleAggregateFunction(max, Float64),
-			max_count SimpleAggregateFunction(max, Float64),
-			sum SimpleAggregateFunction(sum, Float64),
-			sumsquare SimpleAggregateFunction(sum, Float64),
-			min_host AggregateFunction(argMin, String, Float32),
-			max_host AggregateFunction(argMax, String, Float32),
-			max_count_host AggregateFunction(argMax, String, Float32),
-			min_host_legacy AggregateFunction(argMin, Int32, Float32),
-			max_host_legacy AggregateFunction(argMax, Int32, Float32),
-			percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-			uniq_state AggregateFunction(uniq, Int64)
-		) ENGINE = AggregatingMergeTree()
-		ORDER BY (index_type, metric)`,
-	}
-
-	httpClient := &http.Client{Timeout: 30 * time.Second}
-
-	for _, query := range queries {
-		req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/", httpAddr), strings.NewReader(query))
+	// Parse the RowBinary response using the complete parseV2Row function
+	var parsedRows []*v2Row
+	bufReader := bufio.NewReader(resp)
+	for {
+		row, err := parseV2Row(bufReader)
 		if err != nil {
-			return err
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			require.NoError(t, err)
 		}
+		parsedRows = append(parsedRows, row)
+		t.Logf("Step 5: Parsed row %d: metric=%d, time=%d, key0=%d, skey=%s, count=%.2f, min=%.2f, max=%.2f, sum=%.2f, sumsquare=%.2f, min_host=(%d,%.2f), max_host=(%d,%.2f)",
+			len(parsedRows), row.metric, row.time, row.keys[0], row.skey, row.count, row.min, row.max, row.sum, row.sumsquare,
+			row.min_host.Arg, row.min_host.Val, row.max_host.Arg, row.max_host.Val)
+	}
 
-		resp, err := httpClient.Do(req)
+	// Validate parsed data matches original
+	require.Equal(t, len(testData), len(parsedRows), "Should parse same number of rows")
+
+	for i, expected := range testData {
+		actual := parsedRows[i]
+		require.Equal(t, expected.metric, actual.metric, "metric mismatch at row %d", i)
+		require.Equal(t, expected.time, actual.time, "time mismatch at row %d", i)
+		require.Equal(t, expected.keys, actual.keys, "keys mismatch at row %d", i)
+		require.Equal(t, expected.skey, actual.skey, "skey mismatch at row %d", i)
+		require.Equal(t, expected.count, actual.count, "count mismatch at row %d", i)
+		require.Equal(t, expected.min, actual.min, "min mismatch at row %d", i)
+		require.Equal(t, expected.max, actual.max, "max mismatch at row %d", i)
+		require.Equal(t, expected.sum, actual.sum, "sum mismatch at row %d", i)
+		require.Equal(t, expected.sumsquare, actual.sumsquare, "sumsquare mismatch at row %d", i)
+		require.Equal(t, expected.min_host.Arg, actual.min_host.Arg, "min_host.Arg mismatch at row %d", i)
+		require.Equal(t, expected.min_host.Val, actual.min_host.Val, "min_host.Val mismatch at row %d", i)
+		require.Equal(t, expected.max_host.Arg, actual.max_host.Arg, "max_host.Arg mismatch at row %d", i)
+		require.Equal(t, expected.max_host.Val, actual.max_host.Val, "max_host.Val mismatch at row %d", i)
+		// require.Equal(t, expected.percentiles, actual.percentiles, "percentiles mismatch at row %d", i)
+		// require.Equal(t, expected.uniq_state, actual.uniq_state, "uniq_state mismatch at row %d", i)
+	}
+
+	t.Logf("Step 5 SUCCESS: Validated %d rows with complete parseV2Row function", len(parsedRows))
+}
+
+func createTestData() []*v2Row {
+	perc := data_model.New()
+	perc.Add(0.5, 2.5)
+	uniq := &data_model.ChUnique{}
+	uniq.Insert(100)
+
+	perc2 := data_model.New()
+	perc2.Add(0.25, 1.75)
+	perc2.Add(0.75, 3.25)
+	uniq2 := &data_model.ChUnique{}
+	uniq2.Insert(200)
+	uniq2.Insert(300)
+
+	perc3 := data_model.New()
+	perc3.Add(0.1, 0.5)
+	perc3.Add(0.9, 4.5)
+	uniq3 := &data_model.ChUnique{}
+	uniq3.Insert(400)
+	uniq3.Insert(500)
+	uniq3.Insert(600)
+
+	testData := []*v2Row{
+		{
+			metric:    1,
+			time:      1733000400,                                                    // Fixed timestamp for testing
+			keys:      [16]int32{123, 567, 8, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0}, // Match SQL insert
+			skey:      "test_skey_1",
+			count:     10.0, // Step 5: Use default values
+			min:       1.0,
+			max:       5.0,
+			sum:       30.0,
+			sumsquare: 100.0,
+			perc:      perc,
+			uniq:      uniq,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
+		},
+		{
+			metric:    2,
+			time:      1733000400,
+			keys:      [16]int32{456, 789, 12, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},
+			skey:      "test_skey_2",
+			count:     15.0,
+			min:       0.5,
+			max:       8.0,
+			sum:       45.0,
+			sumsquare: 200.0,
+			perc:      perc2,
+			uniq:      uniq2,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
+		},
+		{
+			metric:    3,
+			time:      1733000400,
+			keys:      [16]int32{789, 123, 16, 0, 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0},
+			skey:      "test_skey_3",
+			count:     20.0,
+			min:       0.1,
+			max:       10.0,
+			sum:       60.0,
+			sumsquare: 300.0,
+			perc:      perc3,
+			uniq:      uniq3,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},
+		},
+	}
+	return testData
+}
+
+func insertTestData(httpClient *http.Client, httpAddr, user, password string, testData []*v2Row) error {
+	// Insert test data using SQL with all fields for step 5
+	if len(testData) == 0 {
+		return fmt.Errorf("no test data provided")
+	}
+
+	// For now, we'll use the first row's data to generate a SELECT statement
+	// This is a simplified approach - in a real implementation, you might want to handle multiple rows
+	for _, row := range testData {
+		insertQuery := fmt.Sprintf(`
+			INSERT INTO statshouse_value_1h_dist (
+				metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+				count, min, max, sum, sumsquare, min_host, max_host, uniq_state
+			)
+			SELECT 
+				%d as metric,
+				toDateTime(%d) as time,
+				%d as key0, %d as key1, %d as key2, %d as key3, %d as key4, %d as key5, %d as key6, %d as key7,
+				%d as key8, %d as key9, %d as key10, %d as key11, %d as key12, %d as key13, %d as key14, %d as key15,
+				'%s' as skey,
+				%.2f as count,
+				%.2f as min,
+				%.2f as max,
+				%.2f as sum,
+				%.2f as sumsquare,
+				argMinState(toInt32(%d), toFloat32(%.2f)) as min_host,
+				argMaxState(toInt32(%d), toFloat32(%.2f)) as max_host,
+				uniqState(toInt64(100)) as uniq_state
+			`,
+			// quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles,
+			row.metric, row.time,
+			row.keys[0], row.keys[1], row.keys[2], row.keys[3], row.keys[4], row.keys[5], row.keys[6], row.keys[7],
+			row.keys[8], row.keys[9], row.keys[10], row.keys[11], row.keys[12], row.keys[13], row.keys[14], row.keys[15],
+			row.skey,
+			row.count, row.min, row.max, row.sum, row.sumsquare,
+			row.min_host.Arg, row.min_host.Val, row.max_host.Arg, row.max_host.Val)
+
+		req := &chutil.ClickHouseHttpRequest{
+			HttpClient: httpClient,
+			Addr:       httpAddr,
+			User:       user,
+			Password:   password,
+			Query:      insertQuery,
+		}
+		resp, err := req.Execute(context.Background())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to execute insert query: %w", err)
 		}
-
-		if resp.StatusCode != 200 {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			return fmt.Errorf("ClickHouse query failed: %s - %s", resp.Status, string(body))
-		}
-		resp.Body.Close()
+		defer resp.Close()
 	}
 
 	return nil

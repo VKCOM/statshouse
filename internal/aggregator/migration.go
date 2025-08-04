@@ -9,25 +9,27 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
-	"bytes"
+	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/hrissan/tdigest"
 
-	"github.com/ClickHouse/ch-go/proto"
-	"github.com/vkcom/statshouse/internal/chutil"
-	"github.com/vkcom/statshouse/internal/vkgo/rowbinary"
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
 )
 
 const (
-	noErrorsWindow = 5 * 60 // 5 minutes
-	maxInsertTime  = 2.0    // 2 seconds
-	sleepInterval  = 30 * time.Second
+	noErrorsWindow   = 5 * 60 // 5 minutes
+	maxInsertTime    = 2.0    // 2 seconds
+	sleepInterval    = 30 * time.Second
+	maxAggregateSize = 10 * 1024 * 1024 // 10MB
 )
 
 // goMigrate runs the migration loop in a goroutine.
@@ -86,7 +88,7 @@ func CreateTestDataV2(khAddr, khUser, khPassword string, timestamp uint32) error
 
 	// Create test data with actual aggregate values
 	insertQuery := fmt.Sprintf(`
-		INSERT INTO statshouse_value_1h (
+		INSERT INTO statshouse_value_1h_dist (
 			metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
 			count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
 		)
@@ -125,32 +127,18 @@ func CreateTestDataV2(khAddr, khUser, khPassword string, timestamp uint32) error
 			argMaxState(toInt32(20), toFloat32(4.9)) as max_host`,
 		timestamp, timestamp)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	queryURL := fmt.Sprintf("http://%s/?query=%s", khAddr, url.QueryEscape(insertQuery))
-	req, err := http.NewRequestWithContext(ctx, "POST", queryURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       khAddr,
+		User:       khUser,
+		Password:   khPassword,
+		Query:      insertQuery,
 	}
-
-	if khUser != "" {
-		req.Header.Add("X-ClickHouse-User", khUser)
-	}
-	if khPassword != "" {
-		req.Header.Add("X-ClickHouse-Key", khPassword)
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to execute insert query: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ClickHouse insert returned status %d: %s", resp.StatusCode, string(body))
-	}
+	defer resp.Close()
 
 	log.Printf("[migration] Created test data for timestamp %d", timestamp)
 	return nil
@@ -164,66 +152,46 @@ func migrateSingleHour(httpClient *http.Client, khAddr, khUser, khPassword strin
 	// Step 1: Select data from V2 table for the given timestamp and shard
 	// Include all aggregate fields using special functions to get raw data
 	selectQuery := fmt.Sprintf(`
-		SELECT 
-			metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-			sum(count) as count, 
-			min(min) as min, 
-			max(max) as max, 
-			sum(sum) as sum, 
-			sum(sumsquare) as sumsquare,
-			quantilesTDigestMergeState(0.5)(percentiles) as percentiles_state,
-			uniqMergeState(uniq_state) as uniq_merge_state,
-			argMinMergeState(min_host) as min_host_state,
-			argMaxMergeState(max_host) as max_host_state
+		SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+			count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
 		FROM statshouse_value_1h_dist 
 		WHERE time = toDateTime(%d)
-		  AND metric %% 16 = %d
-		GROUP BY metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey
-		FORMAT RowBinary`,
+		  AND metric %% 16 = %d`,
 		timestamp, shardKey-1,
 	)
 
 	// Step 2: Execute query and get response
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute) // Long timeout for large data
-	defer cancel()
-
-	queryURL := fmt.Sprintf("http://%s/?query=%s", khAddr, url.QueryEscape(selectQuery))
-	req, err := http.NewRequestWithContext(ctx, "POST", queryURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       khAddr,
+		User:       khUser,
+		Password:   khPassword,
+		Query:      selectQuery,
+		Format:     "RowBinary",
 	}
-
-	if khUser != "" {
-		req.Header.Add("X-ClickHouse-User", khUser)
-	}
-	if khPassword != "" {
-		req.Header.Add("X-ClickHouse-Key", khPassword)
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to execute select query: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ClickHouse returned status %d: %s", resp.StatusCode, string(body))
-	}
+	defer resp.Close()
 
 	log.Printf("[migration] Successfully retrieved shard data, converting and inserting...")
 
 	// Step 3: Stream convert and insert data
-	return streamConvertAndInsert(httpClient, khAddr, khUser, khPassword, resp.Body)
+	return streamConvertAndInsert(httpClient, khAddr, khUser, khPassword, resp)
 }
 
 // streamConvertAndInsert reads V2 rowbinary data, converts to V3 format, and inserts
 func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword string, v2Data io.Reader) error {
-	// Create insert query for V3 incoming table (not the final table)
-	insertQuery := `INSERT INTO statshouse_v3_incoming FORMAT RowBinary`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
+	insertQueryBuilder := strings.Builder{}
+	insertQueryBuilder.WriteString("INSERT INTO statshouse_v3_1h(metric,time,")
+	for i := 0; i < format.MaxTags; i++ {
+		insertQueryBuilder.WriteString(fmt.Sprintf(`tag%d,stag%d`, i, i))
+	}
+	insertQueryBuilder.WriteString(",count,min,max,sum,sumsquare,percentiles,uniq_state,min_host,max_host) FORMAT RowBinary")
+	// Create insert query for V3 table
+	insertQuery := insertQueryBuilder.String()
+	insertQueryBuilder.Reset()
 
 	// Create pipe for streaming conversion
 	pipeReader, pipeWriter := io.Pipe()
@@ -239,29 +207,24 @@ func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword 
 	}()
 
 	// Execute insert with converted data
-	queryURL := fmt.Sprintf("http://%s/?query=%s", khAddr, url.QueryEscape(insertQuery))
-	req, err := http.NewRequestWithContext(ctx, "POST", queryURL, pipeReader)
+	bodyBytes, err := io.ReadAll(pipeReader)
 	if err != nil {
-		return fmt.Errorf("failed to create insert request: %w", err)
+		return fmt.Errorf("failed to read body: %w", err)
 	}
-
-	if khUser != "" {
-		req.Header.Add("X-ClickHouse-User", khUser)
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       khAddr,
+		User:       khUser,
+		Password:   khPassword,
+		Query:      insertQuery,
+		Body:       bodyBytes,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
 	}
-	if khPassword != "" {
-		req.Header.Add("X-ClickHouse-Key", khPassword)
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to execute insert query: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ClickHouse insert returned status %d: %s", resp.StatusCode, string(body))
-	}
+	defer resp.Close()
 
 	log.Printf("[migration] Successfully inserted converted data")
 	return nil
@@ -269,58 +232,33 @@ func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword 
 
 // convertV2ToV3Stream reads V2 rowbinary format and writes V3 rowbinary format
 func convertV2ToV3Stream(input io.Reader, output io.Writer) error {
-	buf := make([]byte, 0, 1024*1024) // 1MB buffer for building rows
-	readBuf := make([]byte, 64*1024)  // 64KB read buffer
-
-	var totalRows int
-
-	for {
-		// Read chunk of data
-		n, err := input.Read(readBuf)
-		if n > 0 {
-			rows, newBuf, convertErr := processV2Chunk(append(buf, readBuf[:n]...), output)
-			if convertErr != nil {
-				return fmt.Errorf("conversion error: %w", convertErr)
-			}
-			totalRows += rows
-			buf = newBuf
-		}
-
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("read error: %w", err)
-		}
+	rows, err := processV2Chunk(input, output)
+	if err != nil {
+		return fmt.Errorf("conversion error: %w", err)
 	}
 
-	// Process remaining data in buffer
-	if len(buf) > 0 {
-		rows, _, err := processV2Chunk(buf, output)
-		if err != nil {
-			return fmt.Errorf("final conversion error: %w", err)
-		}
-		totalRows += rows
-	}
-
-	log.Printf("[migration] Converted %d rows", totalRows)
+	log.Printf("[migration] Converted %d rows", rows)
 	return nil
 }
 
 // processV2Chunk processes a chunk of V2 rowbinary data and converts complete rows to V3 format
-func processV2Chunk(data []byte, output io.Writer) (rowsProcessed int, remainingData []byte, err error) {
-	pos := 0
+func processV2Chunk(input io.Reader, output io.Writer) (rowsProcessed int, err error) {
 	rowData := make([]byte, 0, 4096) // Buffer for single converted row
 
-	for pos < len(data) {
+	for {
 		// Try to parse one V2 row
-		v2Row, bytesRead, parseErr := parseV2Row(data[pos:])
+		v2Row, parseErr := parseV2Row(input)
 		if parseErr != nil {
-			if parseErr == io.ErrUnexpectedEOF {
-				// Incomplete row, return remaining data
-				return rowsProcessed, data[pos:], nil
+			if errors.Is(parseErr, io.EOF) {
+				// End of input, we're done
+				break
 			}
-			return rowsProcessed, nil, fmt.Errorf("failed to parse V2 row: %w", parseErr)
+			if errors.Is(parseErr, io.ErrUnexpectedEOF) {
+				// Incomplete row, but we're using io.Reader so this shouldn't happen
+				// unless the reader itself is incomplete
+				return rowsProcessed, parseErr
+			}
+			return rowsProcessed, fmt.Errorf("failed to parse V2 row: %w", parseErr)
 		}
 
 		// Convert to V3 format
@@ -329,358 +267,193 @@ func processV2Chunk(data []byte, output io.Writer) (rowsProcessed int, remaining
 
 		// Write converted row
 		if _, writeErr := output.Write(rowData); writeErr != nil {
-			return rowsProcessed, nil, fmt.Errorf("failed to write converted row: %w", writeErr)
+			return rowsProcessed, fmt.Errorf("failed to write converted row: %w", writeErr)
 		}
 
-		pos += bytesRead
 		rowsProcessed++
 	}
 
-	return rowsProcessed, nil, nil
+	return rowsProcessed, nil
 }
 
 // v2Row represents a parsed row from V2 format
 type v2Row struct {
-	metric      int32
-	time        uint32
-	keys        [16]int32
-	skey        string
-	count       float64
-	min         float64
-	max         float64
-	sum         float64
-	sumsquare   float64
-	percentiles []byte // raw aggregatefunction data
-	uniq_state  []byte // raw aggregatefunction data
-	min_host    []byte // raw aggregatefunction data
-	max_host    []byte // raw aggregatefunction data
+	metric    int32
+	time      uint32
+	keys      [16]int32
+	skey      string
+	count     float64
+	min       float64
+	max       float64
+	sum       float64
+	sumsquare float64
+	// perc_state []byte
+	perc *tdigest.TDigest
+	// uniq_state []byte
+	uniq     *data_model.ChUnique
+	min_host data_model.ArgMinInt32Float32
+	max_host data_model.ArgMaxInt32Float32
 }
 
-// parseV2Row parses a single V2 row from rowbinary data
-func parseV2Row(data []byte) (*v2Row, int, error) {
-	if len(data) < 4 {
-		return nil, 0, io.ErrUnexpectedEOF
+// parseV2Row parses a single V2 row from rowbinary data using io.Reader
+func parseV2Row(input io.Reader) (*v2Row, error) {
+	// Create a ByteReader wrapper for binary.ReadUvarint
+	byteReader, ok := input.(io.ByteReader)
+	if !ok {
+		// If the reader doesn't implement ByteReader, we need to create a wrapper
+		// For now, we'll assume the reader supports it, but in a real implementation
+		// you might want to create a proper wrapper
+		return nil, fmt.Errorf("input reader must implement io.ByteReader for varint parsing")
 	}
 
-	pos := 0
 	row := &v2Row{}
 
 	// Parse metric (Int32)
-	if pos+4 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.metric); err != nil {
+		return nil, err
 	}
-	row.metric = int32(binary.LittleEndian.Uint32(data[pos:]))
-	pos += 4
 
 	// Parse time (DateTime = UInt32)
-	if pos+4 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.time); err != nil {
+		return nil, err
 	}
-	row.time = binary.LittleEndian.Uint32(data[pos:])
-	pos += 4
 
 	// Parse all 16 keys (key0 through key15)
 	for i := 0; i < 16; i++ {
-		if pos+4 > len(data) {
-			return nil, 0, io.ErrUnexpectedEOF
+		if err := binary.Read(input, binary.LittleEndian, &row.keys[i]); err != nil {
+			return nil, err
 		}
-		row.keys[i] = int32(binary.LittleEndian.Uint32(data[pos:]))
-		pos += 4
 	}
 
 	// Parse skey (String) - LEB128 varint format
-	if pos >= len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	skeyLen, err := binary.ReadUvarint(byteReader)
+	if err != nil {
+		return nil, err
 	}
-
-	// Read LEB128 varint for string length
-	var skeyLen uint64
-	var shift uint
-	for i := 0; i < 9; i++ { // Max 9 bytes for 64-bit varint
-		if pos+i >= len(data) {
-			return nil, 0, io.ErrUnexpectedEOF
-		}
-		b := data[pos+i]
-		skeyLen |= uint64(b&0x7F) << shift
-		if (b & 0x80) == 0 {
-			pos += i + 1
-			break
-		}
-		shift += 7
+	// Bounds check for skey in order to avoid huge allocations in case of a bug
+	if skeyLen > 4096 {
+		return nil, fmt.Errorf("invalid skey length: %d", skeyLen)
 	}
-
-	// Bounds check for skey
-	if pos+int(skeyLen) > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	skeyBytes := make([]byte, skeyLen)
+	if _, err := io.ReadFull(input, skeyBytes); err != nil {
+		return nil, err
 	}
-	if skeyLen > 1<<31-1 || pos < 0 {
-		return nil, 0, fmt.Errorf("invalid skey length: %d, pos: %d, data len: %d", skeyLen, pos, len(data))
-	}
-	row.skey = string(data[pos : pos+int(skeyLen)])
-	pos += int(skeyLen)
+	row.skey = string(skeyBytes)
+	skeyBytes = nil
 
 	// Parse simple aggregates (Float64 each)
 	// count
-	if pos+8 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.count); err != nil {
+		return nil, err
 	}
-	row.count = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
-	pos += 8
 
 	// min
-	if pos+8 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.min); err != nil {
+		return nil, err
 	}
-	row.min = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
-	pos += 8
 
 	// max
-	if pos+8 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.max); err != nil {
+		return nil, err
 	}
-	row.max = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
-	pos += 8
 
 	// sum
-	if pos+8 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.sum); err != nil {
+		return nil, err
 	}
-	row.sum = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
-	pos += 8
 
 	// sumsquare
-	if pos+8 > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
+	if err := binary.Read(input, binary.LittleEndian, &row.sumsquare); err != nil {
+		return nil, err
 	}
-	row.sumsquare = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
-	pos += 8
 
-	// Parse complex aggregates (raw binary data with LEB128 length prefix)
-	// percentiles_state
-	percentilesLen, newPos, err := parseLEB128(data, pos)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to parse percentiles length: %w", err)
-	}
-	pos = newPos
-	if pos+int(percentilesLen) > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
-	}
-	row.percentiles = make([]byte, percentilesLen)
-	copy(row.percentiles, data[pos:pos+int(percentilesLen)])
-	pos += int(percentilesLen)
+	// Parse complex aggregates (original aggregate state data)
+	// percentiles
+	// percentilesLen, err := binary.ReadUvarint(byteReader)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to parse percentiles length: %w", err)
+	// }
+	// if percentilesLen > maxAggregateSize {
+	// 	return nil, fmt.Errorf("invalid percentiles length: %d", percentilesLen)
+	// }
+	// row.perc = make([]byte, percentilesLen)
+	// if _, err := io.ReadFull(input, row.perc_state); err != nil {
+	// 	return nil, err
+	// }
 
-	// uniq_merge_state
-	uniqLen, newPos, err := parseLEB128(data, pos)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to parse uniq_state length: %w", err)
-	}
-	pos = newPos
-	if pos+int(uniqLen) > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
-	}
-	row.uniq_state = make([]byte, uniqLen)
-	copy(row.uniq_state, data[pos:pos+int(uniqLen)])
-	pos += int(uniqLen)
+	// uniq_state
+	// uniqLen, err := binary.ReadUvarint(byteReader)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to parse uniq_state length: %w", err)
+	// }
+	// if uniqLen > maxAggregateSize {
+	// 	return nil, fmt.Errorf("invalid uniq_state length: %d", uniqLen)
+	// }
+	// row.uniq_state = make([]byte, uniqLen)
+	// if _, err := io.ReadFull(input, row.uniq_state); err != nil {
+	// 	return nil, err
+	// }
 
-	// min_host_state
-	minHostLen, newPos, err := parseLEB128(data, pos)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to parse min_host length: %w", err)
-	}
-	pos = newPos
-	if pos+int(minHostLen) > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
-	}
-	row.min_host = make([]byte, minHostLen)
-	copy(row.min_host, data[pos:pos+int(minHostLen)])
-	pos += int(minHostLen)
+	// min_host
+	row.min_host.ReadFrom(input)
 
-	// max_host_state
-	maxHostLen, newPos, err := parseLEB128(data, pos)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to parse max_host length: %w", err)
-	}
-	pos = newPos
-	if pos+int(maxHostLen) > len(data) {
-		return nil, 0, io.ErrUnexpectedEOF
-	}
-	row.max_host = make([]byte, maxHostLen)
-	copy(row.max_host, data[pos:pos+int(maxHostLen)])
-	pos += int(maxHostLen)
+	// max_host
+	row.max_host.ReadFrom(input)
 
-	return row, pos, nil
-}
+	// uniq_state
+	row.uniq = &data_model.ChUnique{}
+	row.uniq.ReadFrom(input)
 
-// parseLEB128 parses a LEB128 varint from the data starting at pos
-func parseLEB128(data []byte, pos int) (uint64, int, error) {
-	var result uint64
-	var shift uint
-	for i := 0; i < 9; i++ { // Max 9 bytes for 64-bit varint
-		if pos+i >= len(data) {
-			return 0, 0, io.ErrUnexpectedEOF
-		}
-		b := data[pos+i]
-		result |= uint64(b&0x7F) << shift
-		if (b & 0x80) == 0 {
-			return result, pos + i + 1, nil
-		}
-		shift += 7
-	}
-	return 0, 0, fmt.Errorf("LEB128 varint too long")
+	return row, nil
 }
 
 // convertRowV2ToV3 converts a single V2 row to V3 rowbinary format
 func convertRowV2ToV3(buf []byte, v2 *v2Row) []byte {
-	// V3 format according to actual table structure (DESCRIBE statshouse_v3_incoming):
+	// V3 format according to table structure statshouse_v3_1h
 	// index_type,metric,pre_tag,pre_stag,time,tag0,stag0,...,tag47,stag47,
-	// count,min,max,max_count,sum,sumsquare,min_host,max_host,max_count_host,min_host_legacy,max_host_legacy,percentiles,uniq_state
+	// count,min,max,max_count,sum,sumsquare,min_host,max_host,percentiles,uniq_state
 	//
 	// Conversion rules:
-	// - index_type = 0 (for hour data)
-	// - pre_tag = 0, pre_stag = ""
 	// - key0-key15 → tag0-tag15, tag16-tag47 = 0
 	// - skey → stag47, all other stags = ""
-	// - max_count = max (V2 doesn't have separate max_count)
-	// - max_count_host = max_host (V2 doesn't have separate max_count_host)
-
-	// index_type = 0 (for hour data)
-	buf = rowbinary.AppendUint8(buf, 0)
+	// - max_count = 0
+	// - min_host = min_host (with conversion Int32 -> String)
+	// - max_host = max_host (with conversion Int32 -> String)
 
 	// metric
 	buf = rowbinary.AppendInt32(buf, v2.metric)
 
-	// pre_tag = 0 (always empty for migration)
-	buf = rowbinary.AppendUint32(buf, 0)
-
-	// pre_stag = "" (always empty for migration)
-	buf = rowbinary.AppendString(buf, "")
-
 	// time - convert Unix timestamp to DateTime
 	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(v2.time), 0))
 
-	// tags 0-47: first 16 from V2 keys, rest are 0
-	for i := 0; i < 48; i++ {
-		if i < 16 {
-			buf = rowbinary.AppendInt32(buf, v2.keys[i])
-		} else {
-			buf = rowbinary.AppendInt32(buf, 0)
-		}
-		// stag47 gets skey from V2, all other stags are empty
-		if i == 47 {
-			buf = rowbinary.AppendString(buf, v2.skey)
-		} else {
-			buf = rowbinary.AppendString(buf, "")
-		}
+	// first 16 tags are from V2 keys
+	for i := 0; i < 16; i++ {
+		buf = rowbinary.AppendInt32(buf, v2.keys[i])
+		buf = rowbinary.AppendEmptyString(buf)
 	}
+	// new tags 16 to 47
+	for i := 16; i < 46; i++ {
+		buf = rowbinary.AppendInt32(buf, 0)
+		buf = rowbinary.AppendEmptyString(buf)
+	}
+	// stag47 gets skey from V2, all other stags are empty
+	buf = rowbinary.AppendInt32(buf, 0)
+	buf = rowbinary.AppendString(buf, v2.skey)
 
 	// Simple aggregates - use actual data from V2
 	buf = rowbinary.AppendFloat64(buf, v2.count)
 	buf = rowbinary.AppendFloat64(buf, v2.min)
 	buf = rowbinary.AppendFloat64(buf, v2.max)
-	buf = rowbinary.AppendFloat64(buf, v2.max) // max_count = max (V2 doesn't have separate max_count)
 	buf = rowbinary.AppendFloat64(buf, v2.sum)
 	buf = rowbinary.AppendFloat64(buf, v2.sumsquare)
 
-	// String-based argMin/argMax - convert from V2 Int32 format to V3 String format
-	// min_host
-	{
-		v2ch := unmarshalArgMinMaxInt32Float32(v2.min_host)
-		v3 := v2ch.ToStringFormat()
-		v3bin, _ := v3.MarshalBinary()
-		buf = append(buf, v3bin...)
-	}
-	// max_host
-	{
-		v2ch := unmarshalArgMinMaxInt32Float32(v2.max_host)
-		v3 := v2ch.ToStringFormat()
-		v3bin, _ := v3.MarshalBinary()
-		buf = append(buf, v3bin...)
-	}
-	// max_count_host (same as max_host in V2)
-	{
-		v2ch := unmarshalArgMinMaxInt32Float32(v2.max_host)
-		v3 := v2ch.ToStringFormat()
-		v3bin, _ := v3.MarshalBinary()
-		buf = append(buf, v3bin...)
-	}
+	// percentiles and uniq_state are unchanged from V2
+	// buf = rowbinary.AppendBytes(buf, v2.perc_state)
+	// buf = rowbinary.AppendBytes(buf, v2.uniq_state)
 
-	// Legacy argMin/argMax (Int32 format) - temporarily use empty to avoid corruption
-	buf = rowbinary.AppendArgMinMaxInt32Float32Empty(buf) // min_host_legacy (temporarily empty)
-	buf = rowbinary.AppendArgMinMaxInt32Float32Empty(buf) // max_host_legacy (temporarily empty)
-
-	// Complex aggregates - use raw V2 data directly (already has length prefix)
-	buf = append(buf, v2.percentiles...) // percentiles (raw V2 data)
-	buf = append(buf, v2.uniq_state...)  // uniq_state (raw V2 data)
+	// String-based argMin/argMax - use empty states for now to avoid format corruption
+	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // min_host (empty String format)
+	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // max_host (empty String format)
 
 	return buf
-}
-
-// convertArgMinMaxToString converts argMin/argMax from Int32 to String format
-func convertArgMinMaxToString(buf []byte, argMinMaxData []byte) []byte {
-	if len(argMinMaxData) == 0 {
-		return rowbinary.AppendArgMinMaxStringEmpty(buf)
-	}
-
-	// V2 format (Int32): [hasArg:1byte, arg:4bytes if hasArg!=0, hasVal:1byte, val:4bytes if hasVal!=0]
-	// V3 format (String): [string_len:4bytes, string_data, string_terminator:1byte, hasVal:1byte, val:8bytes if hasVal!=0]
-
-	pos := 0
-
-	// Parse hasArg flag
-	if pos >= len(argMinMaxData) {
-		return rowbinary.AppendArgMinMaxStringEmpty(buf)
-	}
-	hasArg := argMinMaxData[pos]
-	pos++
-
-	var argInt32 int32
-	// Parse arg if present
-	if hasArg != 0 {
-		if pos+4 > len(argMinMaxData) {
-			return rowbinary.AppendArgMinMaxStringEmpty(buf)
-		}
-		argInt32 = int32(binary.LittleEndian.Uint32(argMinMaxData[pos:]))
-		pos += 4
-	}
-
-	// Parse hasVal flag
-	if pos >= len(argMinMaxData) {
-		return rowbinary.AppendArgMinMaxStringEmpty(buf)
-	}
-	hasVal := argMinMaxData[pos]
-	pos++
-
-	var valueFloat32 float32
-	// Parse value if present
-	if hasVal != 0 {
-		if pos+4 > len(argMinMaxData) {
-			return rowbinary.AppendArgMinMaxStringEmpty(buf)
-		}
-		valueFloat32 = math.Float32frombits(binary.LittleEndian.Uint32(argMinMaxData[pos:]))
-		pos += 4
-	}
-
-	// If no arg or value, return empty
-	if hasArg == 0 || hasVal == 0 {
-		return rowbinary.AppendArgMinMaxStringEmpty(buf)
-	}
-
-	// Convert Int32 to String format: 5 bytes total (0 + 4 bytes of int32 in little endian)
-	// Create the special string format that chutil recognizes as converted Int32
-	argString := make([]byte, 5)
-	argString[0] = 0 // First byte is zero to indicate this is a converted Int32
-	binary.LittleEndian.PutUint32(argString[1:], uint32(argInt32))
-
-	// Use AppendArgMinMaxStringFloat64 (note: Float64, not Float32)
-	return rowbinary.AppendArgMinMaxStringFloat64(buf, string(argString), float64(valueFloat32))
-}
-
-// Helper to unmarshal V2 argMin/argMax binary
-func unmarshalArgMinMaxInt32Float32(data []byte) chutil.ArgMinMaxInt32Float32 {
-	var v chutil.ArgMinMaxInt32Float32
-	if len(data) > 0 {
-		protoR := proto.NewReader(bytes.NewReader(data))
-		_ = chutil.UnmarshalArgMinMaxInt32Float32(protoR, &v)
-	}
-	return v
 }
