@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/aggregator"
+	"github.com/VKCOM/statshouse/internal/aggregator"
 )
 
 func main() {
