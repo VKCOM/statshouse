@@ -7,6 +7,7 @@
 package data_model
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -459,14 +460,15 @@ func (ch *ChUnique) Marshall(dst io.Writer) error {
 	return nil
 }
 
-func (u *ChUnique) ReadFromProto(r ProtoReader) error {
+func (u *ChUnique) ReadFrom(r io.Reader) error {
+	br := bufio.NewReaderSize(r, 16)
 	u.hasZeroItem = false
-	sd, err := r.ReadByte()
+	sd, err := br.ReadByte()
 	if err != nil {
 		return err
 	}
 	u.skipDegree = uint32(sd)
-	ic, err := binary.ReadUvarint(r)
+	ic, err := binary.ReadUvarint(br)
 	if err != nil {
 		return err
 	}
@@ -492,12 +494,11 @@ func (u *ChUnique) ReadFromProto(r ProtoReader) error {
 		}
 	}
 
-	var tmp [4]byte
 	for i := 0; i < int(ic); i++ {
-		if err = r.ReadFull(tmp[:]); err != nil {
+		var x uint32
+		if err = binary.Read(br, binary.LittleEndian, &x); err != nil {
 			return err
 		}
-		x := binary.LittleEndian.Uint32(tmp[:])
 		if x == 0 {
 			u.hasZeroItem = true
 			continue
@@ -506,5 +507,3 @@ func (u *ChUnique) ReadFromProto(r ProtoReader) error {
 	}
 	return nil
 }
-
-// TODO - test that AppendMarshal and Marshal behave the same

@@ -29,7 +29,7 @@ func (col *ColUnique) DecodeColumn(r *proto.Reader, rows int) error {
 		res = (*col)[:rows]
 	}
 	for i := 0; i < len(res); i++ {
-		if err := res[i].ReadFromProto(r); err != nil {
+		if err := res[i].ReadFrom(r); err != nil {
 			return err
 		}
 	}
