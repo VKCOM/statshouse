@@ -22,7 +22,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"pgregory.net/rand"
 
-	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql/parser"
@@ -1625,9 +1624,9 @@ func parseSelectorWhat(str string) (DigestWhat, string, bool) {
 	return res, queryFunc, true
 }
 
-func getHostName(h Handler, arg chutil.ArgMinMaxStringFloat32) string {
-	if arg.Arg != "" {
-		return arg.Arg
+func getHostName(h Handler, arg data_model.ArgMinMaxStringFloat32) string {
+	if arg.AsString != "" {
+		return arg.AsString
 	} else if arg.AsInt32 != 0 {
 		return h.GetHostName(arg.AsInt32)
 	}
