@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
 	"math"
@@ -28,39 +27,50 @@ type ArgMaxStringFloat32 struct {
 	ArgMinMaxStringFloat32
 }
 
-func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.Reader, buf []byte) ([]byte, error) {
-	br := bufio.NewReaderSize(r, 16)
+func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.ByteReader, buf []byte) ([]byte, error) {
 	buf = slices.Grow(buf, 6)[:6]
 	// read string
-	if _, err := io.ReadFull(br, buf[:4]); err != nil {
-		return buf, err
-	}
-	if n := int32(binary.LittleEndian.Uint32(buf)); n > 0 {
-		buf = slices.Grow(buf, int(n))[:n]
-		if _, err := io.ReadFull(br, buf); err != nil {
-			return buf, err
-		}
-		if buf[0] == 0 { // 1 string/int flag + 4 int bytes
-			if n != 5 {
-				return buf, io.ErrUnexpectedEOF
-			}
-			arg.AsInt32 = int32(binary.LittleEndian.Uint32(buf[1:]))
-
-		} else if n > 1 {
-			arg.AsString = string(buf[1 : n-1])
-		}
-	}
-	// read value
-	hasValue, err := br.ReadByte()
+	len, err := readUint32LE(r)
 	if err != nil {
 		return buf, err
 	}
-	if hasValue != 0 {
-		buf = buf[:4]
-		if _, err := io.ReadFull(br, buf); err != nil {
+	// 0xffffffff is a special value that means "no string"
+	if len != 0xffffffff && len > 0 {
+		strFlag, err := r.ReadByte()
+		if err != nil {
 			return buf, err
 		}
-		arg.Val = math.Float32frombits(binary.LittleEndian.Uint32(buf))
+		if strFlag == 1 {
+			buf = slices.Grow(buf, int(len-1))[:len-1]
+			lastNonNull := 0
+			for i := 0; i < int(len-1); i++ {
+				buf[i], err = r.ReadByte()
+				if err != nil {
+					return buf, err
+				}
+				if buf[i] != 0 {
+					lastNonNull = i
+				}
+			}
+			arg.AsString = string(buf[:lastNonNull+1])
+		} else {
+			arg.AsInt32, err = readInt32LE(r)
+			if err != nil {
+				return buf, err
+			}
+		}
+	}
+	// read value
+	valueFlag, err := r.ReadByte()
+	if err != nil {
+		return buf, err
+	}
+	if valueFlag != 0 {
+		val, err := readFloat32LE(r)
+		if err != nil {
+			return buf, err
+		}
+		arg.Val = val
 	}
 	return buf, nil
 }

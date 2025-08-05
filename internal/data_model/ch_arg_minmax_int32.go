@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
 	"math"
@@ -26,28 +25,26 @@ type ArgMaxInt32Float32 struct {
 	ArgMinMaxInt32Float32
 }
 
-func (arg *ArgMinMaxInt32Float32) ReadFrom(r io.Reader) error {
-	var buf [4]byte
-	br := bufio.NewReaderSize(r, 16)
-	hasArg, err := br.ReadByte()
+func (arg *ArgMinMaxInt32Float32) ReadFrom(r io.ByteReader) error {
+	hasArg, err := r.ReadByte()
 	if err != nil {
 		return err
 	}
 	if hasArg != 0 {
-		if _, err := io.ReadFull(br, buf[:4]); err != nil {
+		arg.Arg, err = readInt32LE(r)
+		if err != nil {
 			return err
 		}
-		arg.Arg = int32(binary.LittleEndian.Uint32(buf[:]))
 	}
-	hasVal, err := br.ReadByte()
+	valueFlag, err := r.ReadByte()
 	if err != nil {
 		return err
 	}
-	if hasVal != 0 {
-		if _, err := io.ReadFull(br, buf[:4]); err != nil {
+	if valueFlag != 0 {
+		arg.Val, err = readFloat32LE(r)
+		if err != nil {
 			return err
 		}
-		arg.Val = math.Float32frombits(binary.LittleEndian.Uint32(buf[:]))
 	}
 	return nil
 }
@@ -83,4 +80,12 @@ func (arg *ArgMinMaxInt32Float32) MarshalAppend(buf []byte) []byte {
 		buf = append(buf, 0)
 	}
 	return buf
+}
+
+func readInt32LE(r io.ByteReader) (int32, error) {
+	bits, err := readUint32LE(r)
+	if err != nil {
+		return 0, err
+	}
+	return int32(bits), nil
 }

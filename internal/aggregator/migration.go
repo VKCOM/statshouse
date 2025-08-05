@@ -7,6 +7,7 @@
 package aggregator
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -231,7 +232,8 @@ func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword 
 
 // convertV2ToV3Stream reads V2 rowbinary format and writes V3 rowbinary format
 func convertV2ToV3Stream(input io.Reader, output io.Writer) error {
-	rows, err := processV2Chunk(input, output)
+	reader := bufio.NewReaderSize(input, 8192)
+	rows, err := processV2Chunk(reader, output)
 	if err != nil {
 		return fmt.Errorf("conversion error: %w", err)
 	}
@@ -241,12 +243,12 @@ func convertV2ToV3Stream(input io.Reader, output io.Writer) error {
 }
 
 // processV2Chunk processes a chunk of V2 rowbinary data and converts complete rows to V3 format
-func processV2Chunk(input io.Reader, output io.Writer) (rowsProcessed int, err error) {
+func processV2Chunk(reader *bufio.Reader, output io.Writer) (rowsProcessed int, err error) {
 	rowData := make([]byte, 0, 4096) // Buffer for single converted row
 
 	for {
 		// Try to parse one V2 row
-		v2Row, parseErr := parseV2Row(input)
+		v2Row, parseErr := parseV2Row(reader)
 		if parseErr != nil {
 			if errors.Is(parseErr, io.EOF) {
 				// End of input, we're done
@@ -292,38 +294,29 @@ type v2Row struct {
 	max_host  data_model.ArgMaxInt32Float32
 }
 
-// parseV2Row parses a single V2 row from rowbinary data using io.Reader
-func parseV2Row(input io.Reader) (*v2Row, error) {
-	// Create a ByteReader wrapper for binary.ReadUvarint
-	byteReader, ok := input.(io.ByteReader)
-	if !ok {
-		// If the reader doesn't implement ByteReader, we need to create a wrapper
-		// For now, we'll assume the reader supports it, but in a real implementation
-		// you might want to create a proper wrapper
-		return nil, fmt.Errorf("input reader must implement io.ByteReader for varint parsing")
-	}
-
+// parseV2Row parses a single V2 row from rowbinary data using io.ByteReader
+func parseV2Row(reader *bufio.Reader) (*v2Row, error) {
 	row := &v2Row{}
 
 	// Parse metric (Int32)
-	if err := binary.Read(input, binary.LittleEndian, &row.metric); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
 		return nil, err
 	}
 
 	// Parse time (DateTime = UInt32)
-	if err := binary.Read(input, binary.LittleEndian, &row.time); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
 		return nil, err
 	}
 
 	// Parse all 16 keys (key0 through key15)
 	for i := 0; i < 16; i++ {
-		if err := binary.Read(input, binary.LittleEndian, &row.keys[i]); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &row.keys[i]); err != nil {
 			return nil, err
 		}
 	}
 
 	// Parse skey (String) - LEB128 varint format
-	skeyLen, err := binary.ReadUvarint(byteReader)
+	skeyLen, err := binary.ReadUvarint(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +325,7 @@ func parseV2Row(input io.Reader) (*v2Row, error) {
 		return nil, fmt.Errorf("invalid skey length: %d", skeyLen)
 	}
 	skeyBytes := make([]byte, skeyLen)
-	if _, err := io.ReadFull(input, skeyBytes); err != nil {
+	if _, err := io.ReadFull(reader, skeyBytes); err != nil {
 		return nil, err
 	}
 	row.skey = string(skeyBytes)
@@ -340,43 +333,43 @@ func parseV2Row(input io.Reader) (*v2Row, error) {
 
 	// Parse simple aggregates (Float64 each)
 	// count
-	if err := binary.Read(input, binary.LittleEndian, &row.count); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
 		return nil, err
 	}
 
 	// min
-	if err := binary.Read(input, binary.LittleEndian, &row.min); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
 		return nil, err
 	}
 
 	// max
-	if err := binary.Read(input, binary.LittleEndian, &row.max); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
 		return nil, err
 	}
 
 	// sum
-	if err := binary.Read(input, binary.LittleEndian, &row.sum); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
 		return nil, err
 	}
 
 	// sumsquare
-	if err := binary.Read(input, binary.LittleEndian, &row.sumsquare); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
 		return nil, err
 	}
 
 	// min_host
-	row.min_host.ReadFrom(input)
+	row.min_host.ReadFrom(reader)
 
 	// max_host
-	row.max_host.ReadFrom(input)
+	row.max_host.ReadFrom(reader)
 
 	// percentiles
 	row.perc = &data_model.ChDigest{}
-	row.perc.ReadFrom(input)
+	row.perc.ReadFrom(reader)
 
 	// uniq_state
 	row.uniq = &data_model.ChUnique{}
-	row.uniq.ReadFrom(input)
+	row.uniq.ReadFrom(reader)
 
 	return row, nil
 }

@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -460,15 +459,14 @@ func (ch *ChUnique) Marshall(dst io.Writer) error {
 	return nil
 }
 
-func (u *ChUnique) ReadFrom(r io.Reader) error {
-	br := bufio.NewReaderSize(r, 16)
+func (u *ChUnique) ReadFrom(r io.ByteReader) error {
 	u.hasZeroItem = false
-	sd, err := br.ReadByte()
+	sd, err := r.ReadByte()
 	if err != nil {
 		return err
 	}
 	u.skipDegree = uint32(sd)
-	ic, err := binary.ReadUvarint(br)
+	ic, err := binary.ReadUvarint(r)
 	if err != nil {
 		return err
 	}
@@ -495,8 +493,8 @@ func (u *ChUnique) ReadFrom(r io.Reader) error {
 	}
 
 	for i := 0; i < int(ic); i++ {
-		var x uint32
-		if err = binary.Read(br, binary.LittleEndian, &x); err != nil {
+		x, err := readUint32LE(r)
+		if err != nil {
 			return err
 		}
 		if x == 0 {
@@ -506,4 +504,25 @@ func (u *ChUnique) ReadFrom(r io.Reader) error {
 		u.reinsertImpl(x)
 	}
 	return nil
+}
+
+func readUint32LE(br io.ByteReader) (uint32, error) {
+	b0, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b1, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b2, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b3, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(b0) | uint32(b1)<<8 | uint32(b2)<<16 | uint32(b3)<<24, nil
 }

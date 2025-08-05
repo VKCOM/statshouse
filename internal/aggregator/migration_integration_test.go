@@ -131,7 +131,7 @@ func TestV2DataParsingIntegration(t *testing.T) {
 		}
 		parsedRows = append(parsedRows, row)
 		t.Logf("Step 5: Parsed row %d: metric=%d, time=%d, key0=%d, skey=%s, count=%.2f, min=%.2f, max=%.2f, sum=%.2f, sumsquare=%.2f, min_host=(%d,%.2f), max_host=(%d,%.2f)",
-			len(parsedRows), row.metric, row.time, row.keys[0], row.skey, row.count, row.min, row.max, row.sum, row.sumsquare,
+			len(parsedRows)-1, row.metric, row.time, row.keys[0], row.skey, row.count, row.min, row.max, row.sum, row.sumsquare,
 			row.min_host.Arg, row.min_host.Val, row.max_host.Arg, row.max_host.Val)
 	}
 
@@ -167,25 +167,18 @@ func TestV2DataParsingIntegration(t *testing.T) {
 }
 
 func createTestData() []*v2Row {
-	perc := tdigest.New()
-	perc.Add(0.5, 2.5)
+	perc1 := tdigest.New()
+	perc1.Add(0.5, 2.5)
 	uniq := &data_model.ChUnique{}
 	uniq.Insert(100)
 
 	perc2 := tdigest.New()
 	perc2.Add(0.25, 1.75)
 	perc2.Add(0.75, 3.25)
-	uniq2 := &data_model.ChUnique{}
-	uniq2.Insert(200)
-	uniq2.Insert(300)
 
 	perc3 := tdigest.New()
 	perc3.Add(0.1, 0.5)
 	perc3.Add(0.9, 4.5)
-	uniq3 := &data_model.ChUnique{}
-	uniq3.Insert(400)
-	uniq3.Insert(500)
-	uniq3.Insert(600)
 
 	testData := []*v2Row{
 		{
@@ -198,7 +191,7 @@ func createTestData() []*v2Row {
 			max:       5.0,
 			sum:       30.0,
 			sumsquare: 100.0,
-			perc:      &data_model.ChDigest{Digest: perc},
+			perc:      &data_model.ChDigest{Digest: perc1},
 			uniq:      uniq,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
@@ -214,7 +207,7 @@ func createTestData() []*v2Row {
 			sum:       45.0,
 			sumsquare: 200.0,
 			perc:      &data_model.ChDigest{Digest: perc2},
-			uniq:      uniq2,
+			uniq:      uniq,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
 		},
@@ -229,7 +222,7 @@ func createTestData() []*v2Row {
 			sum:       60.0,
 			sumsquare: 300.0,
 			perc:      &data_model.ChDigest{Digest: perc3},
-			uniq:      uniq3,
+			uniq:      uniq,
 			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
 			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},
 		},
@@ -264,7 +257,7 @@ func insertTestData(httpClient *http.Client, httpAddr, user, password string, te
 				%.2f as sumsquare,
 				argMinState(toInt32(%d), toFloat32(%.2f)) as min_host,
 				argMaxState(toInt32(%d), toFloat32(%.2f)) as max_host,
-				uniqState(toInt64(100)) as uniq_state
+				uniqState(toInt64(100), toInt64(200)) as uniq_state
 			`,
 			// quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles,
 			row.metric, row.time,

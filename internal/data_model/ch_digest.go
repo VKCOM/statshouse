@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -22,11 +21,9 @@ type ChDigest struct {
 	Digest *tdigest.TDigest
 }
 
-func (cd *ChDigest) ReadFrom(r io.Reader) error {
-	br := bufio.NewReaderSize(r, 16)
-
+func (cd *ChDigest) ReadFrom(r io.ByteReader) error {
 	// Read number of centroids as varint
-	centroidCount, err := binary.ReadUvarint(br)
+	centroidCount, err := binary.ReadUvarint(r)
 	if err != nil {
 		return fmt.Errorf("failed to read centroid count: %w", err)
 	}
@@ -41,24 +38,24 @@ func (cd *ChDigest) ReadFrom(r io.Reader) error {
 	cd.Digest = tdigest.New()
 
 	// Use sampleFactor = 1.0 as default, similar to how it's used in aggregator
-	sampleFactor := 1.0
+	sampleFactor := float32(1.0)
 
-	var tmp [4]byte
 	for i := 0; i < int(centroidCount); i++ {
 		// Read mean as float32
-		if _, err := io.ReadFull(br, tmp[:]); err != nil {
+		mean, err := readFloat32LE(r)
+		if err != nil {
 			return fmt.Errorf("failed to read centroid %d mean: %w", i, err)
 		}
-		mean := float64(math.Float32frombits(binary.LittleEndian.Uint32(tmp[:])))
 
 		// Read weight as float32
-		if _, err := io.ReadFull(br, tmp[:]); err != nil {
+		weight, err := readFloat32LE(r)
+		if err != nil {
 			return fmt.Errorf("failed to read centroid %d weight: %w", i, err)
 		}
-		weight := float64(math.Float32frombits(binary.LittleEndian.Uint32(tmp[:]))) / sampleFactor
+		weight = weight / sampleFactor
 
 		// Add centroid to digest
-		cd.Digest.AddCentroid(tdigest.Centroid{Mean: mean, Weight: weight})
+		cd.Digest.AddCentroid(tdigest.Centroid{Mean: float64(mean), Weight: float64(weight)})
 	}
 	cd.Digest.Normalize()
 
@@ -67,4 +64,12 @@ func (cd *ChDigest) ReadFrom(r io.Reader) error {
 
 func (cd *ChDigest) MarshallAppend(buf []byte, sampleFactor float64) []byte {
 	return rowbinary.AppendCentroids(buf, cd.Digest, sampleFactor)
+}
+
+func readFloat32LE(r io.ByteReader) (float32, error) {
+	bits, err := readUint32LE(r)
+	if err != nil {
+		return 0, err
+	}
+	return math.Float32frombits(bits), nil
 }
