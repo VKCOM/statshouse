@@ -15,10 +15,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
-
-	"github.com/VKCOM/statshouse/internal/format"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -183,15 +180,15 @@ func migrateSingleHour(httpClient *http.Client, khAddr, khUser, khPassword strin
 
 // streamConvertAndInsert reads V2 rowbinary data, converts to V3 format, and inserts
 func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword string, v2Data io.Reader) error {
-	insertQueryBuilder := strings.Builder{}
-	insertQueryBuilder.WriteString("INSERT INTO statshouse_v3_1h(metric,time,")
-	for i := 0; i < format.MaxTags; i++ {
-		insertQueryBuilder.WriteString(fmt.Sprintf(`tag%d,stag%d`, i, i))
-	}
-	insertQueryBuilder.WriteString(",count,min,max,sum,sumsquare,percentiles,uniq_state,min_host,max_host) FORMAT RowBinary")
 	// Create insert query for V3 table
-	insertQuery := insertQueryBuilder.String()
-	insertQueryBuilder.Reset()
+	insertQuery := `INSERT INTO statshouse_v3_1h(
+		metric,time,
+		tag0,tag1,tag2,tag3,tag4,tag5,tag6,tag7,
+		tag8,tag9,tag10,tag11,tag12,tag13,tag14,tag15,stag47,
+		count,min,max,sum,sumsquare,
+		min_host,max_host,percentiles,uniq_state
+	)
+	FORMAT RowBinary`
 
 	// Create pipe for streaming conversion
 	pipeReader, pipeWriter := io.Pipe()
@@ -375,52 +372,41 @@ func parseV2Row(reader *bufio.Reader) (*v2Row, error) {
 }
 
 // convertRowV2ToV3 converts a single V2 row to V3 rowbinary format
-func convertRowV2ToV3(buf []byte, v2 *v2Row) []byte {
-	// V3 format according to table structure statshouse_v3_1h
-	// index_type,metric,pre_tag,pre_stag,time,tag0,stag0,...,tag47,stag47,
-	// count,min,max,max_count,sum,sumsquare,min_host,max_host,percentiles,uniq_state
-	//
-	// Conversion rules:
-	// - key0-key15 → tag0-tag15, tag16-tag47 = 0
-	// - skey → stag47, all other stags = ""
-	// - max_count = 0
-	// - min_host = min_host (with conversion Int32 -> String)
-	// - max_host = max_host (with conversion Int32 -> String)
+func convertRowV2ToV3(buf []byte, row *v2Row) []byte {
+	// Basic fields
+	buf = rowbinary.AppendInt32(buf, row.metric)
+	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(row.time), 0))
 
-	// metric
-	buf = rowbinary.AppendInt32(buf, v2.metric)
-
-	// time - convert Unix timestamp to DateTime
-	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(v2.time), 0))
-
-	// first 16 tags are from V2 keys
+	// First 16 tags
 	for i := 0; i < 16; i++ {
-		buf = rowbinary.AppendInt32(buf, v2.keys[i])
-		buf = rowbinary.AppendEmptyString(buf)
+		buf = rowbinary.AppendInt32(buf, row.keys[i])
 	}
-	// new tags 16 to 47
-	for i := 16; i < 46; i++ {
-		buf = rowbinary.AppendInt32(buf, 0)
-		buf = rowbinary.AppendEmptyString(buf)
+
+	// stag47
+	buf = rowbinary.AppendString(buf, row.skey) // stag47
+
+	// Basic aggregates
+	buf = rowbinary.AppendFloat64(buf, row.count)
+	buf = rowbinary.AppendFloat64(buf, row.min)
+	buf = rowbinary.AppendFloat64(buf, row.max)
+	buf = rowbinary.AppendFloat64(buf, row.sum)
+	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
+
+	// min_host
+	minHost := data_model.ArgMinMaxStringFloat32{
+		AsInt32: row.min_host.Arg,
+		Val:     row.min_host.Val,
 	}
-	// stag47 gets skey from V2, all other stags are empty
-	buf = rowbinary.AppendInt32(buf, 0)
-	buf = rowbinary.AppendString(buf, v2.skey)
+	buf = minHost.MarshallAppend(buf)
+	// max_host
+	maxHost := data_model.ArgMinMaxStringFloat32{
+		AsInt32: row.max_host.Arg,
+		Val:     row.max_host.Val,
+	}
+	buf = maxHost.MarshallAppend(buf)
 
-	// Simple aggregates - use actual data from V2
-	buf = rowbinary.AppendFloat64(buf, v2.count)
-	buf = rowbinary.AppendFloat64(buf, v2.min)
-	buf = rowbinary.AppendFloat64(buf, v2.max)
-	buf = rowbinary.AppendFloat64(buf, v2.sum)
-	buf = rowbinary.AppendFloat64(buf, v2.sumsquare)
-
-	// percentiles and uniq_state are unchanged from V2
-	// buf = rowbinary.AppendBytes(buf, v2.perc_state)
-	// buf = rowbinary.AppendBytes(buf, v2.uniq_state)
-
-	// String-based argMin/argMax - use empty states for now to avoid format corruption
-	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // min_host (empty String format)
-	buf = rowbinary.AppendArgMinMaxStringEmpty(buf) // max_host (empty String format)
+	buf = row.perc.MarshallAppend(buf, 1) // percentiles
+	buf = row.uniq.MarshallAppend(buf)    // uniq_state
 
 	return buf
 }

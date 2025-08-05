@@ -16,11 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/data_model"
-	"github.com/hrissan/tdigest"
-
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/hrissan/tdigest"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
@@ -166,6 +165,110 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	t.Logf("Step 5 SUCCESS: Validated %d rows with complete parseV2Row function", len(parsedRows))
 }
 
+// TestV2ToV3Conversion tests that convertRowV2ToV3 works correctly and generates data that can be inserted into V3 table
+func TestV2ToV3Conversion(t *testing.T) {
+	ctx := context.Background()
+
+	// Start ClickHouse container
+	clickHouseContainer, err := clickhouse.Run(ctx,
+		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouse.WithDatabase("default"),
+		clickhouse.WithUsername("default"),
+		clickhouse.WithPassword("secret"),
+	)
+	require.NoError(t, err)
+	defer func() {
+		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	}()
+
+	// Get connection details
+	connectionHost, err := clickHouseContainer.Host(ctx)
+	require.NoError(t, err)
+
+	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
+	require.NoError(t, err)
+
+	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
+	httpClient := &http.Client{Timeout: 120 * time.Second}
+
+	createV3TableQuery := `CREATE TABLE statshouse_v3_1h (
+		index_type UInt8,
+		metric Int32,
+		pre_tag UInt32,
+		pre_stag String,
+		time DateTime,
+		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
+		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
+		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
+		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
+		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
+		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
+		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
+		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
+		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
+		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
+		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
+		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		max_count SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		min_host AggregateFunction(argMin, String, Float32),
+		max_host AggregateFunction(argMax, String, Float32),
+		max_count_host AggregateFunction(argMax, String, Float32),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
+
+	req := chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      createV3TableQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+
+	testData := createTestData()
+	t.Logf("Generated %d test rows", len(testData))
+
+	body := make([]byte, 0, 1024)
+	for _, row := range testData {
+		body = convertRowV2ToV3(body, row)
+	}
+
+	// Insert data
+	insertQuery := `INSERT INTO statshouse_v3_1h(
+		metric,time,
+		tag0,tag1,tag2,tag3,tag4,tag5,tag6,tag7,
+		tag8,tag9,tag10,tag11,tag12,tag13,tag14,tag15,stag47,
+		count,min,max,sum,sumsquare,
+		min_host,max_host,percentiles,uniq_state
+	)
+	FORMAT RowBinary`
+	insertReq := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      insertQuery,
+		Body:       body,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
+	}
+	resp, err = insertReq.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+
+	t.Logf("SUCCESS: Inserted %d converted rows into V3 table", len(testData))
+}
+
 func createTestData() []*v2Row {
 	perc1 := tdigest.New()
 	perc1.Add(0.5, 2.5)
@@ -257,7 +360,7 @@ func insertTestData(httpClient *http.Client, httpAddr, user, password string, te
 				%.2f as sumsquare,
 				argMinState(toInt32(%d), toFloat32(%.2f)) as min_host,
 				argMaxState(toInt32(%d), toFloat32(%.2f)) as max_host,
-				uniqState(toInt64(100), toInt64(200)) as uniq_state
+				uniqState(toInt64(100)) as uniq_state
 			`,
 			// quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles,
 			row.metric, row.time,
