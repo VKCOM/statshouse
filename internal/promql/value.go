@@ -16,7 +16,7 @@ import (
 	"strconv"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql/parser"
 	"github.com/prometheus/prometheus/model/labels"
@@ -34,7 +34,7 @@ type Series struct {
 
 type SeriesData struct {
 	Values     *[]float64
-	MinMaxHost [2][]chutil.ArgMinMaxStringFloat32 // "min" at [0], "max" at [1]
+	MinMaxHost [2][]data_model.ArgMinMaxStringFloat32 // "min" at [0], "max" at [1]
 	Tags       SeriesTags
 	Offset     int64
 	What       SelectorWhat
@@ -121,7 +121,7 @@ func (sr *Series) appendSome(src Series, xs ...int) {
 	}
 }
 
-func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []chutil.ArgMinMaxStringFloat32 {
+func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []data_model.ArgMinMaxStringFloat32 {
 	if len(ds) == 0 {
 		return nil
 	}
@@ -130,10 +130,10 @@ func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []chutil.ArgMinMaxS
 	}
 	var i int
 	var t = ev.time()
-	var res []chutil.ArgMinMaxStringFloat32
+	var res []data_model.ArgMinMaxStringFloat32
 	for ; i < len(ds); i++ {
 		if len(ds[i].MinMaxHost[x]) != 0 {
-			res = make([]chutil.ArgMinMaxStringFloat32, 0, len(t))
+			res = make([]data_model.ArgMinMaxStringFloat32, 0, len(t))
 			break
 		}
 	}
@@ -488,7 +488,7 @@ func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []Serie
 	if len(d.MinMaxHost[x]) == 0 {
 		return []SeriesData{*d}
 	}
-	m := map[chutil.ArgMinMaxStringFloat32]int{}
+	m := map[data_model.ArgMinMaxStringFloat32]int{}
 	for i, h := range d.MinMaxHost[x] {
 		if !math.IsNaN((*d.Values)[i]) {
 			m[h] = i
@@ -512,7 +512,7 @@ func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []Serie
 		data.Tags.add(&SeriesTag{
 			ID:     tagID,
 			Value:  int64(h.AsInt32),
-			SValue: h.Arg,
+			SValue: h.AsString,
 		}, nil)
 		res = append(res, data)
 	}
@@ -598,7 +598,7 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 		}
 		if discard {
 			(*d.Values)[i] = NilValue
-			d.MinMaxHost[x][i] = chutil.ArgMinMaxStringFloat32{}
+			d.MinMaxHost[x][i] = data_model.ArgMinMaxStringFloat32{}
 		} else if !math.IsNaN((*d.Values)[i]) {
 			n++
 		}
@@ -613,11 +613,11 @@ func (d *SeriesData) pruneMinMaxHost() {
 	for i, v := range *d.Values {
 		if math.IsNaN(v) {
 			if i < len(d.MinMaxHost[0]) {
-				d.MinMaxHost[0][i] = chutil.ArgMinMaxStringFloat32{}
+				d.MinMaxHost[0][i] = data_model.ArgMinMaxStringFloat32{}
 
 			}
 			if i < len(d.MinMaxHost[1]) {
-				d.MinMaxHost[1][i] = chutil.ArgMinMaxStringFloat32{}
+				d.MinMaxHost[1][i] = data_model.ArgMinMaxStringFloat32{}
 			}
 		}
 	}
