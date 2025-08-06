@@ -459,12 +459,7 @@ func (ch *ChUnique) Marshall(dst io.Writer) error {
 	return nil
 }
 
-type ProtoReader interface {
-	ReadByte() (byte, error)
-	ReadFull(buf []byte) error
-}
-
-func (u *ChUnique) ReadFromProto(r ProtoReader) error {
+func (u *ChUnique) ReadFrom(r io.ByteReader) error {
 	u.hasZeroItem = false
 	sd, err := r.ReadByte()
 	if err != nil {
@@ -497,12 +492,11 @@ func (u *ChUnique) ReadFromProto(r ProtoReader) error {
 		}
 	}
 
-	var tmp [4]byte
 	for i := 0; i < int(ic); i++ {
-		if err = r.ReadFull(tmp[:]); err != nil {
+		x, err := readUint32LE(r)
+		if err != nil {
 			return err
 		}
-		x := binary.LittleEndian.Uint32(tmp[:])
 		if x == 0 {
 			u.hasZeroItem = true
 			continue
@@ -512,4 +506,23 @@ func (u *ChUnique) ReadFromProto(r ProtoReader) error {
 	return nil
 }
 
-// TODO - test that AppendMarshal and Marshal behave the same
+func readUint32LE(br io.ByteReader) (uint32, error) {
+	b0, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b1, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b2, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	b3, err := br.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(b0) | uint32(b1)<<8 | uint32(b2)<<16 | uint32(b3)<<24, nil
+}
