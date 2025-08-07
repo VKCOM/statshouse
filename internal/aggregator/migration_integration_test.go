@@ -8,11 +8,14 @@ package aggregator
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,6 +272,275 @@ func TestV2ToV3Conversion(t *testing.T) {
 	t.Logf("SUCCESS: Inserted %d converted rows into V3 table", len(testData))
 }
 
+// TestConvertV2ToV3Stream tests the streamConvertAndInsert function
+func TestConvertV2ToV3Stream(t *testing.T) {
+	ctx := context.Background()
+
+	// Start ClickHouse container
+	clickHouseContainer, err := clickhouse.Run(ctx,
+		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouse.WithDatabase("default"),
+		clickhouse.WithUsername("default"),
+		clickhouse.WithPassword("secret"),
+	)
+	require.NoError(t, err)
+	defer func() {
+		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	}()
+
+	// Get connection details
+	connectionHost, err := clickHouseContainer.Host(ctx)
+	require.NoError(t, err)
+
+	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
+	require.NoError(t, err)
+
+	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
+	httpClient := &http.Client{Timeout: 120 * time.Second}
+
+	// Create V2 table structure
+	createV2TableQuery := `CREATE TABLE statshouse_value_1h_dist (
+		metric Int32,
+		time DateTime,
+		key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
+		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
+		skey String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64),
+		min_host AggregateFunction(argMin, Int32, Float32),
+		max_host AggregateFunction(argMax, Int32, Float32)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
+
+	req := chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      createV2TableQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+
+	// Create V3 table structure
+	createV3TableQuery := `CREATE TABLE statshouse_v3_1h (
+		index_type UInt8,
+		metric Int32,
+		pre_tag UInt32,
+		pre_stag String,
+		time DateTime,
+		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
+		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
+		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
+		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
+		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
+		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
+		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
+		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
+		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
+		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
+		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
+		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		max_count SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		min_host AggregateFunction(argMin, String, Float32),
+		max_host AggregateFunction(argMax, String, Float32),
+		max_count_host AggregateFunction(argMax, String, Float32),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
+
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      createV3TableQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+
+	// Create test data and insert into V2 table
+	testData := createTestData()
+	err = insertTestData(httpClient, httpAddr, "default", "secret", testData)
+	require.NoError(t, err)
+	t.Logf("Inserted %d test rows into V2 table", len(testData))
+
+	// Export data from V2 table in RowBinary format
+	exportQuery := fmt.Sprintf(`
+	SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+		count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
+	FROM statshouse_value_1h_dist
+	WHERE time = toDateTime(%d) ORDER BY metric`,
+		testData[0].time)
+
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      exportQuery,
+		Format:     "RowBinary",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resp, err = req.Execute(ctx)
+	require.NoError(t, err)
+	defer resp.Close()
+
+	// Read the RowBinary data
+	v2Data, err := io.ReadAll(resp)
+	require.NoError(t, err)
+	t.Logf("Exported %d bytes of V2 data in RowBinary format", len(v2Data))
+
+	// Run streamConvertAndInsert
+	err = streamConvertAndInsert(httpClient, httpAddr, "default", "secret", bytes.NewReader(v2Data))
+	require.NoError(t, err)
+	t.Logf("Successfully ran streamConvertAndInsert")
+
+	// Validate that data was inserted into V3 table
+	countQuery := fmt.Sprintf(`SELECT count() FROM statshouse_v3_1h WHERE time = toDateTime(%d)`, testData[0].time)
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+	defer resp.Close()
+
+	// Read the count result
+	countBytes, err := io.ReadAll(resp)
+	require.NoError(t, err)
+	countStr := strings.TrimSpace(string(countBytes))
+	count, err := strconv.Atoi(countStr)
+	require.NoError(t, err)
+
+	// Validate the number of rows
+	require.Equal(t, len(testData), count, "Number of rows in V3 table should match the number of test data rows")
+	t.Logf("SUCCESS: Validated that %d rows were converted and inserted into V3 table", count)
+
+	// Validate the actual data in V3 table
+	validateQuery := fmt.Sprintf(`
+	SELECT metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47,
+		sum(count), min(min), max(max), sum(sum), sum(sumsquare),
+		argMinMerge(min_host), argMaxMerge(max_host), quantilesTDigestMerge(0.5)(percentiles), uniqMerge(uniq_state)
+	FROM statshouse_v3_1h
+	WHERE time = toDateTime(%d)
+	GROUP BY metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47
+	ORDER BY metric`,
+		testData[0].time)
+
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      validateQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+	defer resp.Close()
+
+	// Read the validation result
+	validateBytes, err := io.ReadAll(resp)
+	require.NoError(t, err)
+	validateStr := strings.TrimSpace(string(validateBytes))
+
+	// Parse the result (tab-separated values)
+	lines := strings.Split(validateStr, "\n")
+	require.Equal(t, len(testData), len(lines), "Number of result lines should match test data")
+
+	for i, line := range lines {
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		require.Equal(t, 28, len(fields), "Each row should have exactly 24 fields (metric, time, 16 tags, stag47, 5 aggregates)")
+
+		// Parse metric
+		metric, err := strconv.Atoi(fields[0])
+		require.NoError(t, err)
+		require.Equal(t, int(testData[i].metric), metric, "metric mismatch at row %d", i)
+
+		// Parse time (format: 2024-11-30 21:00:00)
+		timeStr := fields[1]
+		// Note: ClickHouse interprets timestamps in UTC, so we just validate that the time is present
+		// and has the expected format, but don't compare the exact value due to timezone differences
+		require.NotEmpty(t, timeStr, "time should not be empty at row %d", i)
+		require.Contains(t, timeStr, "2024-", "time should be in 2024 at row %d", i)
+
+		// Parse tags (tag0-tag15)
+		for j := 0; j < 16; j++ {
+			tag, err := strconv.Atoi(fields[2+j])
+			require.NoError(t, err)
+			require.Equal(t, int(testData[i].keys[j]), tag, "tag%d mismatch at row %d", j, i)
+		}
+
+		// Parse stag47
+		stag47 := fields[18]
+		require.Equal(t, testData[i].skey, stag47, "stag47 mismatch at row %d", i)
+
+		// Parse basic aggregates
+		count, err := strconv.ParseFloat(fields[19], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].count, count, 1e-6, "count mismatch at row %d", i)
+
+		min, err := strconv.ParseFloat(fields[20], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].min, min, 1e-6, "min mismatch at row %d", i)
+
+		max, err := strconv.ParseFloat(fields[21], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].max, max, 1e-6, "max mismatch at row %d", i)
+
+		sum, err := strconv.ParseFloat(fields[22], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].sum, sum, 1e-6, "sum mismatch at row %d", i)
+
+		sumsquare, err := strconv.ParseFloat(fields[23], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].sumsquare, sumsquare, 1e-6, "sumsquare mismatch at row %d", i)
+
+		min_host, err := strconv.ParseFloat(fields[24], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].min_host.Val, min_host, 1e-6, "min_host mismatch at row %d", i)
+
+		max_host, err := strconv.ParseFloat(fields[25], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].max_host.Val, max_host, 1e-6, "max_host mismatch at row %d", i)
+
+		percentiles, err := strconv.ParseFloat(fields[26], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].perc.Digest.Quantile(0.5), percentiles, 1e-6, "percentiles mismatch at row %d", i)
+
+		uniq_state, err := strconv.ParseFloat(fields[27], 64)
+		require.NoError(t, err)
+		require.InDelta(t, testData[i].uniq.ItemsCount(), uniq_state, 1e-6, "uniq_state mismatch at row %d", i)
+
+		t.Logf("Row %d validation: metric=%d, time=%s, tag0=%d, stag47=%s, count=%.2f, min=%.2f, max=%.2f, sum=%.2f, sumsquare=%.2f",
+			i, metric, timeStr, testData[i].keys[0], stag47, count, min, max, sum, sumsquare)
+	}
+
+	t.Logf("SUCCESS: Validated all %d rows have correct data in V3 table", len(testData))
+}
+
 func createTestData() []*v2Row {
 	perc1 := tdigest.New()
 	perc1.Add(0.5, 2.5)
@@ -360,9 +632,9 @@ func insertTestData(httpClient *http.Client, httpAddr, user, password string, te
 				%.2f as sumsquare,
 				argMinState(toInt32(%d), toFloat32(%.2f)) as min_host,
 				argMaxState(toInt32(%d), toFloat32(%.2f)) as max_host,
-				uniqState(toInt64(100)) as uniq_state
+				uniqState(toInt64(100)) as uniq_state,
+				quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles
 			`,
-			// quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles,
 			row.metric, row.time,
 			row.keys[0], row.keys[1], row.keys[2], row.keys[3], row.keys[4], row.keys[5], row.keys[6], row.keys[7],
 			row.keys[8], row.keys[9], row.keys[10], row.keys[11], row.keys[12], row.keys[13], row.keys[14], row.keys[15],
