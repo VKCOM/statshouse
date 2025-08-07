@@ -18,6 +18,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/btree"
+	"github.com/mailru/easyjson"
+	"github.com/zeebo/xxh3"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -25,9 +29,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
-	"github.com/google/btree"
-	"github.com/mailru/easyjson"
-	"github.com/zeebo/xxh3"
 )
 
 type journalEvent struct {
@@ -68,6 +69,10 @@ type JournalFast struct {
 	compact        bool // never changed, not protected by mu
 	dumpPathPrefix string
 
+	// periodic saving
+	lastSavedVersion     int64
+	periodicSaveInterval time.Duration
+
 	BuiltinLongPollImmediateOK    data_model.ItemValue
 	BuiltinLongPollImmediateError data_model.ItemValue
 	BuiltinLongPollEnqueue        data_model.ItemValue
@@ -106,6 +111,7 @@ func journalOrderLess(a, b journalOrder) bool {
 
 func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) *JournalFast {
 	return &JournalFast{
+		periodicSaveInterval:   time.Hour,
 		journalRequestDelay:    journalRequestDelay,
 		journal:                map[journalEventID]journalEvent{},
 		order:                  btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
@@ -547,5 +553,37 @@ func (ms *JournalFast) goUpdateMetrics(aggLog AggLog) {
 		backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
 		log.Printf("Failed to update metrics from sqliteengine, will retry: %v", err)
 		time.Sleep(backoffTimeout)
+	}
+}
+
+func (ms *JournalFast) StartPeriodicSaving() {
+	go ms.goPeriodicSaving()
+}
+
+func (ms *JournalFast) goPeriodicSaving() {
+	// Fixed 10-minute delay to prevent simultaneous saves with mappings cache
+	time.Sleep(10 * time.Minute)
+
+	ticker := time.NewTicker(ms.periodicSaveInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		ms.mu.RLock()
+		currentVersion := ms.currentVersion
+		lastSaved := ms.lastSavedVersion
+		ms.mu.RUnlock()
+
+		// Only save if there are changes
+		if currentVersion > lastSaved {
+			err := ms.Save()
+			if err != nil {
+				log.Printf("Periodic journal save failed: %v", err)
+			} else {
+				ms.mu.Lock()
+				ms.lastSavedVersion = currentVersion
+				ms.mu.Unlock()
+				log.Printf("Periodic journal save completed, version %d", currentVersion)
+			}
+		}
 	}
 }

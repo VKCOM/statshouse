@@ -10,16 +10,19 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"pgregory.net/rand"
 )
 
 type MappingPair = tlstatshouse.Mapping
@@ -74,6 +77,10 @@ type MappingsCache struct {
 	evicts               atomic.Int64
 	adds                 atomic.Int64
 
+	// periodic saving
+	hasChanges           atomic.Bool
+	periodicSaveInterval time.Duration
+
 	// custom FS
 	writeAt  func(offset int64, data []byte) error
 	truncate func(offset int64) error
@@ -85,11 +92,12 @@ func elementSizeMem(s string) int64 {
 
 func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
 	c := &MappingsCache{
-		cache:        map[string]cacheValue{},
-		rnd:          rand.New(),
-		accessTSGran: 1, // seconds
-		writeAt:      func(offset int64, data []byte) error { return nil },
-		truncate:     func(offset int64) error { return nil },
+		cache:                map[string]cacheValue{},
+		rnd:                  rand.New(),
+		accessTSGran:         1, // seconds
+		periodicSaveInterval: time.Hour,
+		writeAt:              func(offset int64, data []byte) error { return nil },
+		truncate:             func(offset int64) error { return nil },
 	}
 	c.maxSize.Store(maxSize)
 	c.maxTTL.Store(int64(maxTTL))
@@ -400,6 +408,7 @@ func (c *MappingsCache) addItem(k string, v int32, accessTS uint32) {
 	c.addSumTSLocked(int64(accessTS))
 	c.cache[k] = cacheValue{value: v, accessTS: accessTS}
 	c.adds.Add(1)
+	c.hasChanges.Store(true) // Mark that cache has changes
 }
 
 func (c *MappingsCache) removeItem(k string, v int32, accessTS uint32) {
@@ -417,6 +426,7 @@ func (c *MappingsCache) removeItem(k string, v int32, accessTS uint32) {
 	c.addSumTSLocked(-int64(accessTS))
 	delete(c.cache, k)
 	c.evicts.Add(1)
+	c.hasChanges.Store(true) // Mark that cache has changes
 }
 
 func elementSizeDisk(k string) int64 { // max, can be less if short string, requires no padding, etc.
@@ -515,4 +525,26 @@ func (c *MappingsCache) load(fileSize int64, readAt func(b []byte, offset int64)
 		}
 	}
 	return nil
+}
+
+func (c *MappingsCache) StartPeriodicSaving() {
+	go c.goPeriodicSaving()
+}
+
+func (c *MappingsCache) goPeriodicSaving() {
+	ticker := time.NewTicker(c.periodicSaveInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Only save if there are changes
+		if c.hasChanges.Load() {
+			err := c.Save()
+			if err != nil {
+				log.Printf("Periodic mappings cache save failed: %v", err)
+			} else {
+				c.hasChanges.Store(false) // Reset the flag after successful save
+				log.Printf("Periodic mappings cache save completed")
+			}
+		}
+	}
 }

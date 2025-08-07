@@ -182,6 +182,7 @@ func run() int {
 		}
 	}
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
+	mappingsCache.StartPeriodicSaving()
 
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	if argv.maxCores > 0 {
@@ -275,6 +276,7 @@ func run() int {
 	main.agent.Run(0, 0, 0)
 
 	journalFast.Start(main.agent, nil, main.agent.LoadMetaMetricJournal)
+	journalFast.StartPeriodicSaving()
 
 	var ac *data_model.AutoCreate
 	if argv.AutoCreate {
