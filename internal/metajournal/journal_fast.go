@@ -572,9 +572,8 @@ func (ms *JournalFast) StartPeriodicSaving() {
 
 func (ms *JournalFast) goPeriodicSaving() {
 	for {
-		sleepDuration := ms.periodicSaveInterval + time.Duration(rand.Intn(int(ms.periodicSaveInterval)))*time.Second
+		sleepDuration := ms.periodicSaveInterval + time.Duration(rand.Intn(int(ms.periodicSaveInterval)))
 		time.Sleep(sleepDuration)
-
 		ok, version, err := ms.Save()
 		if err != nil {
 			log.Printf("Periodic journal save failed: %v", err)

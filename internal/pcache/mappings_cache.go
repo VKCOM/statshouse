@@ -329,6 +329,7 @@ func (c *MappingsCache) AddValues(nowUnix uint32, pairs []MappingPair) {
 		for _, p := range pairs {
 			c.addItem(p.Str, p.Value, nowUnix)
 		}
+		c.version += 1
 		return
 	}
 	removeSize := c.sumSize + newItemsSizeMem - maxSize
@@ -542,7 +543,7 @@ func (c *MappingsCache) StartPeriodicSaving() {
 
 func (c *MappingsCache) goPeriodicSaving() {
 	for {
-		sleepDuration := c.periodicSaveInterval + time.Duration(rand.Intn(int(c.periodicSaveInterval)))*time.Second
+		sleepDuration := c.periodicSaveInterval + time.Duration(rand.Intn(int(c.periodicSaveInterval)))
 		time.Sleep(sleepDuration)
 
 		ok, err := c.Save()
