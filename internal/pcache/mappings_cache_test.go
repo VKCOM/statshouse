@@ -75,13 +75,13 @@ func TestAddValues(t *testing.T) {
 		t.Fail()
 	}
 	cache.debugPrint(now, os.Stdout)
-	if err := cache.Save(); err != nil {
+	if _, err := cache.Save(); err != nil {
 		t.Error(err)
 	}
 	fp2 := []byte(string(fp))
 	cache = newTestMappingsCache(&fp2)
 	cache.debugPrint(now, os.Stdout)
-	if err := cache.Save(); err != nil {
+	if _, err := cache.Save(); err != nil {
 		t.Error(err)
 	}
 	if string(fp) != string(fp2) {

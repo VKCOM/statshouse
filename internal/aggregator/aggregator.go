@@ -366,7 +366,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	go func() {
 		for {
 			time.Sleep(time.Hour) // arbitrary
-			_ = mappingsCache.Save()
+			_, _ = mappingsCache.Save()
 			a.SaveJournals()
 		}
 	}()
@@ -375,8 +375,8 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 }
 
 func (a *Aggregator) SaveJournals() {
-	_ = a.journalFast.Save()
-	_ = a.journalCompact.Save()
+	_, _, _ = a.journalFast.Save()
+	_, _, _ = a.journalCompact.Save()
 }
 
 func (a *Aggregator) Agent() *agent.Agent {

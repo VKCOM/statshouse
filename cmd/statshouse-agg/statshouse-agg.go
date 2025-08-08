@@ -174,8 +174,13 @@ main_loop:
 	log.Printf("4. Waiting RPC clients to receive responses and disconnect...")
 	agg.WaitRPCServer(10 * time.Second)
 	shutdownInfo.StopRPCServer = agent.ShutdownInfoDuration(&now).Nanoseconds()
-	log.Printf("5. Saving mappings...")
-	_ = mappingsCache.Save()
+	log.Printf("5. Saving mappings cache...")
+	ok, err := mappingsCache.Save()
+	if ok {
+		log.Printf("5. Mappings cache saved")
+	} else if err != nil {
+		log.Printf("5. Failed to save mappings cache: %v", err)
+	}
 	shutdownInfo.SaveMappings = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	log.Printf("6. Saving journals...")
 	agg.SaveJournals()

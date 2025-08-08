@@ -98,7 +98,7 @@ func Benchmark_SaveJournal(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		err := journal.Save()
+		_, _, err := journal.Save()
 		require.NoError(b, err)
 	}
 }
@@ -139,7 +139,8 @@ func Benchmark_LoadFast(b *testing.B) {
 			break
 		}
 	}
-	require.NoError(b, j.Save())
+	_, _, err = j.Save()
+	require.NoError(b, err)
 	_ = fp.Close()
 	fp, err = os.OpenFile(testFile, os.O_CREATE|os.O_RDWR, 0666)
 	require.NoError(b, err)
