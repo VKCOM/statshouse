@@ -159,7 +159,7 @@ const (
 	journalUpdateTimeout = 2 * time.Second
 
 	// healthcheck should query any lightweight metric, this one was chosen randomly
-	healthcheckMetric = "__agg_bucket_receive_delay_sec"
+	healthcheckMetric = "__agg_bucket_receive_delay_sec" // format.BuiltinMetricMetaAggBucketReceiveDelaySec.Name
 	healthcheckQuery  = `{@name="` + healthcheckMetric + `",@what="avg"}`
 )
 
@@ -1172,7 +1172,7 @@ func HandleGetMetric(r *httpRequestHandler) {
 }
 
 func HandleGetPromConfig(h *httpRequestHandler) {
-	if !h.accessInfo.isAdmin() {
+	if !h.accessInfo.bitAdmin {
 		err := httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 		respondJSON(h, nil, 0, 0, err)
 		return
@@ -1186,7 +1186,7 @@ func HandleGetPromConfig(h *httpRequestHandler) {
 }
 
 func HandleGetPromConfigGenerated(h *httpRequestHandler) {
-	if !h.accessInfo.isAdmin() {
+	if !h.accessInfo.bitAdmin {
 		err := httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 		respondJSON(h, nil, 0, 0, err)
 		return
@@ -1288,7 +1288,7 @@ func HandlePostResetFlood(r *httpRequestHandler) {
 	if r.checkReadOnlyMode() {
 		return
 	}
-	if !r.accessInfo.isAdmin() {
+	if !r.accessInfo.bitAdmin {
 		err := httpErr(http.StatusForbidden, fmt.Errorf("admin access required"))
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -1316,7 +1316,7 @@ func HandlePostPromConfig(r *httpRequestHandler) {
 	if r.checkReadOnlyMode() {
 		return
 	}
-	if !r.accessInfo.isAdmin() {
+	if !r.accessInfo.bitAdmin {
 		err := httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -1357,7 +1357,7 @@ func HandlePostKnownTags(r *httpRequestHandler) {
 	if r.checkReadOnlyMode() {
 		return
 	}
-	if !r.accessInfo.isAdmin() {
+	if !r.accessInfo.bitAdmin {
 		err := httpErr(http.StatusNotFound, fmt.Errorf("not found"))
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -1393,7 +1393,7 @@ func HandlePostKnownTags(r *httpRequestHandler) {
 }
 
 func HandleGetKnownTags(h *httpRequestHandler) {
-	if !h.accessInfo.isAdmin() {
+	if !h.accessInfo.bitAdmin {
 		err := httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 		respondJSON(h, nil, 0, 0, err)
 		return
@@ -1621,7 +1621,7 @@ func (h *Handler) handleGetNamespaceList(ai accessInfo, showInvisible bool) (*Ge
 }
 
 func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namespace format.NamespaceMeta, create bool) (*NamespaceInfo, error) {
-	if !ai.isAdmin() {
+	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("namespace %s not found", namespace.Name))
 	}
 	if !create {
@@ -1656,7 +1656,7 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 }
 
 func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group format.MetricsGroup, create bool) (*MetricsGroupInfo, error) {
-	if !ai.isAdmin() {
+	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("group %s not found", group.Name))
 	}
 	if !create {
@@ -2177,15 +2177,19 @@ func HandleFrontendStat(r *httpRequestHandler) {
 func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, meta *format.MetricMetaValue) (res seriesResponse, cleanup func()) {
 	timeNow := time.Now()
 	badges := requestHandler{
-		Handler:    h.Handler,
-		accessInfo: accessInfo{insecureMode: true},
+		Handler: h.Handler,
+		accessInfo: accessInfo{
+			user:          h.accessInfo.user,
+			service:       h.accessInfo.service,
+			bitViewMetric: map[string]bool{format.BuiltinMetricMetaBadges.Name: true},
+		},
 		endpointStat: endpointStat{
 			timestamp:  timeNow,
 			endpoint:   h.endpointStat.endpoint,
 			protocol:   h.endpointStat.protocol,
 			method:     h.endpointStat.method,
 			dataFormat: h.endpointStat.dataFormat,
-			metric:     "-35", // format.BuiltinMetricIDBadges
+			metric:     "-35", // strconv.Itoa(format.BuiltinMetricIDBadges)
 			tokenName:  h.endpointStat.tokenName,
 			user:       h.endpointStat.user,
 			priority:   h.endpointStat.priority,
@@ -3267,7 +3271,7 @@ func (r *DashboardTimeShifts) UnmarshalJSON(bs []byte) error {
 }
 
 func (r *seriesRequest) validate(h *requestHandler) error {
-	if r.avoidCache && !h.accessInfo.isAdmin() {
+	if r.avoidCache && !h.accessInfo.bitAdmin {
 		return httpErr(404, fmt.Errorf(""))
 	}
 	if r.step == _1M {
@@ -3322,14 +3326,14 @@ func HandleProfTrace(h *httpRequestHandler) {
 }
 
 func pprofAccessAllowed(h *httpRequestHandler) bool {
-	if ok := h.accessInfo.insecureMode || h.accessInfo.bitAdmin; !ok {
+	if !h.accessInfo.bitAdmin {
 		h.Response().WriteHeader(http.StatusForbidden)
 		return false
 	}
 	return true
 }
 
-func defaultAccessInfo(h *requestHandler) (accessInfo, bool) {
+func healthcheckAccessInfo(h *requestHandler) (accessInfo, bool) {
 	switch h.endpointStat.endpoint {
 	// healthcheck endpoint is used by nginx checks directly without token
 	case EndpointHealthcheck:
@@ -3356,7 +3360,7 @@ func (h *requestHandler) init(accessToken, version string) (err error) {
 		return fmt.Errorf("invalid version: %q", version)
 	}
 	if h.accessInfo, err = parseAccessToken(h.jwtHelper, accessToken, h.protectedMetricPrefixes, h.LocalMode, h.insecureMode); err != nil {
-		if ai, ok := defaultAccessInfo(h); !ok {
+		if ai, ok := healthcheckAccessInfo(h); !ok {
 			return err
 		} else {
 			h.accessInfo = ai
