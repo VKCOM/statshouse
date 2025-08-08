@@ -26,6 +26,7 @@ export const initialValues: IMetric = {
   tags: [getDefaultTag()],
   tags_draft: [],
   tagsSize: 1,
+  originalJson: undefined,
 };
 
 export type IActions =

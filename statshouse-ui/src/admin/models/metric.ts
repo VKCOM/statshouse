@@ -59,6 +59,7 @@ export interface IMetric extends IShortMetric {
   readonly version?: number;
   readonly group_id?: number;
   readonly fair_key_tag_ids?: string[];
+  readonly originalJson?: any; // Preserve original API response to avoid losing unknown fields
 }
 
 export interface IBackendMetric {
