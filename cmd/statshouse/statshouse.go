@@ -420,11 +420,21 @@ loop:
 	logOk.Printf("7. Waiting preprocessor to save %d buckets of historic data...", nonEmpty)
 	main.agent.WaitPreprocessor()
 	shutdownInfo.StopPreprocessor = agent.ShutdownInfoDuration(&now).Nanoseconds()
-	logOk.Printf("8. Saving mappings...")
-	_ = mappingsCache.Save()
+	logOk.Printf("8. Saving mappings cache...")
+	ok, err := mappingsCache.Save()
+	if ok {
+		logOk.Printf("8. Mappings cache saved")
+	} else if err != nil {
+		logErr.Printf("8. Failed to save mappings cache: %v", err)
+	}
 	shutdownInfo.SaveMappings = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	logOk.Printf("9. Saving journal...")
-	_ = journalFast.Save()
+	ok, version, err := journalFast.Save()
+	if ok {
+		logOk.Printf("9. Journal saved, new version %d", version)
+	} else if err != nil {
+		logErr.Printf("9. Failed to save journal: %v", err)
+	}
 	shutdownInfo.SaveJournal = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	agent.ShutdownInfoSave(argv.cacheDir, shutdownInfo)

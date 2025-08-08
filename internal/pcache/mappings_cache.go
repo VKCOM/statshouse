@@ -78,7 +78,8 @@ type MappingsCache struct {
 	adds                 atomic.Int64
 
 	// periodic saving
-	hasChanges           atomic.Bool
+	version              uint64 // accessed under modifyMu
+	lastSavedVersion     uint64 // accessed under modifyMu
 	periodicSaveInterval time.Duration
 
 	// custom FS
@@ -391,6 +392,7 @@ func (c *MappingsCache) AddValues(nowUnix uint32, pairs []MappingPair) {
 		c.addItem(p.Str, p.Value, nowUnix)
 		// ins++
 	}
+	c.version += 1
 	// d4 := time.Since(a)
 	// fmt.Printf("addPairsLocked len(pairs) len(items) dels ins: %d %d %d %d %v %v %v %v %v\n", len(pairs), len(items), dels, ins, d0, d1-d0, d2-d1, d3-d2, d4-d3)
 	// 1024 2048 1023 1024 104.589µs 54.722µs 459.022µs 74.654µs 93.05µs
@@ -408,7 +410,6 @@ func (c *MappingsCache) addItem(k string, v int32, accessTS uint32) {
 	c.addSumTSLocked(int64(accessTS))
 	c.cache[k] = cacheValue{value: v, accessTS: accessTS}
 	c.adds.Add(1)
-	c.hasChanges.Store(true) // Mark that cache has changes
 }
 
 func (c *MappingsCache) removeItem(k string, v int32, accessTS uint32) {
@@ -426,14 +427,13 @@ func (c *MappingsCache) removeItem(k string, v int32, accessTS uint32) {
 	c.addSumTSLocked(-int64(accessTS))
 	delete(c.cache, k)
 	c.evicts.Add(1)
-	c.hasChanges.Store(true) // Mark that cache has changes
 }
 
 func elementSizeDisk(k string) int64 { // max, can be less if short string, requires no padding, etc.
 	return 4 + int64(len(k)) + 3 + 4 + 4 // strlen, string, padding, value accessTS
 }
 
-func (c *MappingsCache) Save() error {
+func (c *MappingsCache) Save() (bool, error) {
 	// We exclude writers so that they do not block on Lock() while code below runs in RLock().
 	// If we allow this, all new readers (GetValue) block on RLock(), effectively waiting for Save to finish.
 	c.modifyMu.Lock()
@@ -441,6 +441,10 @@ func (c *MappingsCache) Save() error {
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
+	if c.version == c.lastSavedVersion {
+		return false, nil
+	}
 
 	saver := data_model.ChunkedStorageSaver{
 		WriteAt:  c.writeAt,
@@ -471,17 +475,22 @@ func (c *MappingsCache) Save() error {
 		})
 		for _, p := range items {
 			if err := appendItem(p.str, p.val.value, p.val.accessTS); err != nil {
-				return err
+				return false, err
 			}
 		}
 	} else {
 		for k, p := range c.cache {
 			if err := appendItem(k, p.value, p.accessTS); err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
-	return saver.FinishWrite(chunk)
+	err := saver.FinishWrite(chunk)
+	if err != nil {
+		return false, err
+	}
+	c.lastSavedVersion = c.version
+	return true, nil
 }
 
 // callers are expected to ignore error from this method
@@ -532,19 +541,15 @@ func (c *MappingsCache) StartPeriodicSaving() {
 }
 
 func (c *MappingsCache) goPeriodicSaving() {
-	ticker := time.NewTicker(c.periodicSaveInterval)
-	defer ticker.Stop()
+	for {
+		sleepDuration := c.periodicSaveInterval + time.Duration(rand.Intn(int(c.periodicSaveInterval)))*time.Second
+		time.Sleep(sleepDuration)
 
-	for range ticker.C {
-		// Only save if there are changes
-		if c.hasChanges.Load() {
-			err := c.Save()
-			if err != nil {
-				log.Printf("Periodic mappings cache save failed: %v", err)
-			} else {
-				c.hasChanges.Store(false) // Reset the flag after successful save
-				log.Printf("Periodic mappings cache save completed")
-			}
+		ok, err := c.Save()
+		if err != nil {
+			log.Printf("Periodic mappings cache save failed: %v", err)
+		} else if ok {
+			log.Printf("Periodic mappings cache save completed")
 		}
 	}
 }
