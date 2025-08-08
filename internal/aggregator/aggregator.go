@@ -363,13 +363,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 
 	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
 
-	go func() {
-		for {
-			time.Sleep(time.Hour) // arbitrary
-			_, _ = mappingsCache.Save()
-			a.SaveJournals()
-		}
-	}()
+	mappingsCache.StartPeriodicSaving()
 
 	return a, nil
 }
