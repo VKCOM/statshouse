@@ -9,7 +9,7 @@ import { IBackendKind, IBackendMetric, IKind, IMetric, ITag } from '../models/me
 import { freeKeyPrefix } from '@/url2';
 
 export function saveMetric(metric: IMetric) {
-  const body: IBackendMetric = {
+  const uiUpdates: IBackendMetric = {
     description: metric.description,
     kind: (metric.kind + (metric.withPercentiles ? '_p' : '')) as IBackendKind,
     name: metric.name,
@@ -48,6 +48,8 @@ export function saveMetric(metric: IMetric) {
     group_id: metric.group_id,
     fair_key_tag_ids: metric.fair_key_tag_ids,
   };
+
+  const body = metric.originalJson ? { ...metric.originalJson, ...uiUpdates } : uiUpdates;
 
   return fetch(`/api/metric${metric.id ? `?s=${metric.name}` : ''}`, {
     method: 'POST',
@@ -90,9 +92,10 @@ export const fetchMetric = async (url: string) => {
 };
 
 export const fetchAndProcessMetric = async (url: string) => {
+  const response = await fetchMetric(url);
   const {
     data: { metric },
-  } = await fetchMetric(url);
+  } = response;
 
   const tags_draft: ITag[] = Object.entries(metric.tags_draft ?? {})
     .map(([, t]) => t as ITag)
@@ -134,5 +137,6 @@ export const fetchAndProcessMetric = async (url: string) => {
     skip_max_host: !!metric.skip_max_host,
     skip_min_host: !!metric.skip_min_host,
     skip_sum_square: !!metric.skip_sum_square,
+    originalJson: metric, // Preserve the complete original JSON to avoid losing unknown fields
   };
 };
