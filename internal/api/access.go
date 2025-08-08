@@ -8,6 +8,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,7 +19,6 @@ import (
 type accessInfo struct {
 	user              string
 	service           bool
-	insecureMode      bool // full access to everything; can not be obtained from bits
 	protectedPrefixes []string
 	bitAdmin          bool
 	bitDeveloper      bool
@@ -37,18 +37,21 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	insecureMode bool) (accessInfo, error) {
 	if localMode || insecureMode {
 		ai := accessInfo{
-			user:              "@local_mode",
+			user:              "@insecure_mode",
 			protectedPrefixes: protectedPrefixes,
 			bitViewDefault:    true,
 			bitEditDefault:    true,
+			bitAdmin:          localMode,
 			bitDeveloper:      localMode,
 			bitViewPrefix:     map[string]bool{},
 			bitEditPrefix:     map[string]bool{},
 			bitViewMetric:     map[string]bool{},
 			bitEditMetric:     map[string]bool{},
-			insecureMode:      insecureMode,
 		}
 		return ai, nil
+	}
+	if accessToken == "" { // For better error text. Validation would return cryptic "invalid number of segments"
+		return accessInfo{}, httpErr(http.StatusUnauthorized, fmt.Errorf("empty access token, auth service (vkuth) is down"))
 	}
 	data, err := jwtHelper.ParseVkuthData(accessToken)
 	if err != nil {
@@ -62,7 +65,6 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 		bitEditPrefix:     map[string]bool{},
 		bitViewMetric:     map[string]bool{},
 		bitEditMetric:     map[string]bool{},
-		insecureMode:      insecureMode,
 	}
 
 	bits := data.Bits
@@ -120,9 +122,6 @@ func (ai *accessInfo) protectedMetric(name string) bool {
 }
 
 func (ai *accessInfo) CanViewMetricName(name string) bool {
-	if ai.insecureMode {
-		return true
-	}
 	if format.RemoteConfigMetric(name) && !ai.bitAdmin {
 		return false // remote config can only be viewed by administrators
 	}
@@ -136,7 +135,7 @@ func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
 }
 
 func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
-	if ai.insecureMode || ai.bitAdmin {
+	if ai.bitAdmin {
 		return true
 	}
 
@@ -152,9 +151,6 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 }
 
 func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
-	if ai.insecureMode {
-		return true
-	}
 	if ai.canChangeMetricByName(create, old, new_) {
 		if ai.bitAdmin {
 			return true
@@ -175,13 +171,6 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 		return true
 	}
 	return false
-}
-
-func (ai *accessInfo) isAdmin() bool {
-	if ai.insecureMode {
-		return true
-	}
-	return ai.bitAdmin
 }
 
 func preKey(m format.MetricMetaValue) uint32 {

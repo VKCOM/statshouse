@@ -17,7 +17,7 @@ type cache2DebugLogMessage struct {
 
 func DebugCacheLog(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -46,7 +46,7 @@ func DebugCacheLog(r *httpRequestHandler) {
 
 func DebugCacheReset(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -57,7 +57,7 @@ func DebugCacheReset(r *httpRequestHandler) {
 
 func DebugCacheInfo(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -110,7 +110,7 @@ func DebugCacheInfo(r *httpRequestHandler) {
 
 func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -242,7 +242,7 @@ func debugCacheCreateMetric(r *httpRequestHandler, metric format.MetricMetaValue
 		metric.MetricID = v.MetricID
 		metric.Version = v.Version
 	}
-	if _, err := r.handlePostMetric(context.Background(), accessInfo{insecureMode: true}, "", metric); err != nil {
+	if _, err := r.handlePostMetric(context.Background(), r.accessInfo, "", metric); err != nil {
 		w.Write([]byte(err.Error()))
 	} else {
 		w.Write([]byte("OK"))

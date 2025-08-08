@@ -162,7 +162,7 @@ func (r *httpRoute) handle(w http.ResponseWriter, req *http.Request) {
 
 func DumpInternalServerErrors(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -187,7 +187,7 @@ func DumpInternalServerErrors(r *httpRequestHandler) {
 
 func DumpQueryTopMemUsage(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -220,7 +220,7 @@ func DumpQueryTopMemUsage(r *httpRequestHandler) {
 
 func DumpQueryTopDuration(r *httpRequestHandler) {
 	w := r.Response()
-	if ok := r.accessInfo.insecureMode || r.accessInfo.bitAdmin; !ok {
+	if !r.accessInfo.bitAdmin {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
