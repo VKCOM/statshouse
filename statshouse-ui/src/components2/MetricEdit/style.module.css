@@ -1,0 +1,10 @@
+
+.link{
+  text-decoration: none;
+  font-weight: normal;
+}
+.link:global(.active){
+  color: var(--bs-secondary-color);
+  font-weight: bold;
+  cursor: auto;
+}

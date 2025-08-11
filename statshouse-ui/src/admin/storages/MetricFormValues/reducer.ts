@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { IMetric, ITag, ITagAlias } from '../../models/metric';
-import { maxTagsSize } from '../../../common/settings';
+import { maxTagsSize } from '@/common/settings';
 
 export function getDefaultTag() {
   return { name: '', alias: '', customMapping: [] };
@@ -128,7 +128,7 @@ export function reducer(state: IMetric, data: IActions): IMetric {
   if (data.type === 'fair_key_tag_ids') {
     return {
       ...state,
-      fair_key_tag_ids: Array.isArray(data.value) ? data.value : undefined,
+      fair_key_tag_ids: Array.isArray(data.value) ? data.value : [],
     };
   }
   return state;

@@ -7,10 +7,11 @@
 import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IMetric } from '../models/metric';
-import { saveMetric } from '../api/saveMetric';
+import { mapEditToMetric } from '../api/saveMetric';
 import { maxTagsSize } from '@/common/settings';
 import { getDefaultTag } from '../storages/MetricFormValues/reducer';
 import { useMetricMeta } from '@/hooks/useMetricMeta';
+import { useMutationMetricMeta } from '@/api/metric';
 
 export function CreatePage(props: { yAxisSize: number }) {
   const { yAxisSize } = props;
@@ -81,7 +82,8 @@ function useSubmitCreate(name: string) {
   const [isRunning, setRunning] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
-
+  const mutationMetricMeta = useMutationMetricMeta();
+  const createMetric = mutationMetricMeta.mutateAsync;
   const onSubmit = React.useCallback(() => {
     setError(null);
     setSuccess(null);
@@ -106,17 +108,22 @@ function useSubmitCreate(name: string) {
       tags_draft: [],
       tagsSize: maxTagsSize,
     };
-    saveMetric(values)
-      .then(() => {
+
+    createMetric(mapEditToMetric(values), {
+      onSuccess: () => {
         setSuccess('Saved');
         setRunning(false);
         navigate(`/view?s=${name}`, { replace: true });
-      })
-      .catch((err) => {
-        setError(err.message);
+      },
+      onError: (error) => {
+        setError(error.message);
         setRunning(false);
-      });
-  }, [name, navigate]);
+      },
+      onSettled: () => {
+        setRunning(false);
+      },
+    });
+  }, [createMetric, name, navigate]);
 
   return {
     isRunning,
