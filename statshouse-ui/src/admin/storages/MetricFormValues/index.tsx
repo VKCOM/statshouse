@@ -18,7 +18,6 @@ interface IMetricFormValuesContext {
   dispatch: Dispatch<IActions>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const MetricFormValuesContext = React.createContext<IMetricFormValuesContext>({
   values: initialValues,
   dispatch: () => {},

@@ -12,6 +12,9 @@ export const GET_PARAMS = {
   numResults: 'n',
   version: 'v',
   metricName: 's',
+  metricId: 'id',
+  metricApiVersion: 'ver',
+  metricUrlVersion: 'mv',
   metricCustomName: 'cn',
   /**
    * metric unit
@@ -220,6 +223,7 @@ export const METRIC_META_KIND = {
 export type MetricMetaKind = Enum<typeof METRIC_META_KIND>;
 
 export const METRIC_META_TAG_RAW_KIND = {
+  int: 'int',
   uint: 'uint',
   hex: 'hex',
   hexBswap: 'hex_bswap',
@@ -228,9 +232,16 @@ export const METRIC_META_TAG_RAW_KIND = {
   ip: 'ip',
   ipBswap: 'ip_bswap',
   lexencFloat: 'lexenc_float',
+  int64: 'int64',
+  uint64: 'uint64',
+  hex64: 'hex64',
+  hex64_bswap: 'hex64_bswap',
+  /** @deprecated 'float' raw value kind */
   float: 'float',
 } as const;
 export type MetricMetaTagRawKind = Enum<typeof METRIC_META_TAG_RAW_KIND>;
+export const isMetricMetaTagRawKind = isEnum<MetricMetaTagRawKind>(METRIC_META_TAG_RAW_KIND);
+export const toMetricMetaTagRawKind = toEnum(isMetricMetaTagRawKind);
 
 export const API_FETCH_OPT_METHODS = {
   get: 'GET',

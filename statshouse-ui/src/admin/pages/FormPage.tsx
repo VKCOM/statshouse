@@ -5,13 +5,19 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { IBackendMetric, IKind, IMetric, ITagAlias } from '../models/metric';
+import { useNavigate, useParams } from 'react-router-dom';
+import { IKind, IMetric, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { IActions } from '../storages/MetricFormValues/reducer';
-import { RawValueKind } from '@/view/api';
-import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '@/api/enum';
+import {
+  METRIC_META_TAG_RAW_KIND,
+  METRIC_TYPE,
+  METRIC_TYPE_DESCRIPTION,
+  type MetricMetaTagRawKind,
+  type MetricType,
+  toMetricMetaTagRawKind,
+} from '@/api/enum';
 import { maxTagsSize } from '@/common/settings';
 import { Button } from '@/components/UI';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
@@ -23,127 +29,57 @@ import { TagDraft } from './TagDraft';
 import { formatInputDate } from '@/view/utils2';
 import { Select } from '@/components/Select';
 
-import { fetchAndProcessMetric, resetMetricFlood, saveMetric } from '../api/saveMetric';
-import { StickyTop } from '@/components2/StickyTop';
-import { queryClient } from '@/common/queryClient';
-import { API_HISTORY } from '@/api/history';
-import { HistoryList } from '@/components2/HistoryList';
-import { HistoryDashboardLabel } from '@/components2/HistoryDashboardLabel';
+import { mapEditToMetric, mapMetricToEdit, resetMetricFlood } from '../api/saveMetric';
 import { ConfirmButton } from '@/components/UI/ConfirmButton';
 import { useStateBoolean } from '@/hooks';
+import { useApiMetric, useMutationMetricMeta } from '@/api/metric';
+import { useHistoricalMetricVersion } from '@/hooks/useHistoricalMetricVersion';
 
-const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
-const PATH_VERSION_PARAM = '?mv';
+const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE);
+const METRIC_META_TAG_RAW_KIND_KEYS: MetricMetaTagRawKind[] = Object.values(METRIC_META_TAG_RAW_KIND);
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
-  const { yAxisSize, adminMode } = props;
+  const { adminMode } = props;
   const { metricName } = useParams();
-  const location = useLocation();
-  const isHistoryRoute = location.pathname.endsWith('/history');
-  const mainPath = useMemo(() => `/admin/edit/${metricName}`, [metricName]);
-  const historyPath = useMemo(() => `${mainPath}/history`, [mainPath]);
-  const [searchParams] = useSearchParams();
-  const historicalMetricVersion = useMemo(() => searchParams.get('mv'), [searchParams]);
-
-  const [initMetric, setInitMetric] = useState<Partial<IMetric> | null>(null);
-
-  const isHistoricalMetric = useMemo(
-    () => !!initMetric?.version && !!historicalMetricVersion && initMetric.version !== Number(historicalMetricVersion),
-    [initMetric?.version, historicalMetricVersion]
-  );
-
-  const loadMetric = useCallback(async () => {
-    try {
-      if (historicalMetricVersion) {
-        const currentMetric = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
-        const historicalMetricData = await fetchAndProcessMetric(
-          `/api/metric?id=${currentMetric.id}&ver=${historicalMetricVersion}`
-        );
-
-        setInitMetric({
-          ...historicalMetricData,
-          version: currentMetric.version || historicalMetricData.version,
-        });
-      } else {
-        const metricData = await fetchAndProcessMetric(`/api/metric?s=${metricName}`);
-        setInitMetric(metricData);
-      }
-    } catch (_) {}
-  }, [metricName, historicalMetricVersion]);
-
-  useEffect(() => {
-    if (metricName) {
-      loadMetric();
-    }
-  }, [metricName, loadMetric]);
+  const historicalMetricVersion = useHistoricalMetricVersion();
+  const queryMetric = useApiMetric(metricName ?? '', historicalMetricVersion ?? undefined);
+  const isLoading = queryMetric.isLoading;
+  const error = queryMetric.error;
+  const metric = queryMetric.data?.data.metric;
+  const initMetric = useMemo(() => queryMetric.data && mapMetricToEdit(queryMetric.data), [queryMetric.data]);
+  const isHistoricalMetric = !!metric && metric.version !== metric.currentVersion;
 
   // update document title
   useEffect(() => {
     document.title = `${metricName + ': edit'} — StatsHouse`;
   }, [metricName]);
 
-  return (
-    <div className="container-xl pt-3 pb-3" style={{ paddingLeft: `${yAxisSize}px` }}>
-      <StickyTop className="mb-3">
-        <div className="d-flex">
-          <div className="my-auto">
-            <h6
-              className="overflow-force-wrap font-monospace fw-bold me-3 my-auto"
-              title={`ID: ${initMetric?.id || '?'}`}
-            >
-              {metricName}
-              <NavLink
-                to={mainPath}
-                end
-                className={({ isActive }) =>
-                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
-                }
-                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
-              >
-                : edit
-              </NavLink>
-              <NavLink
-                to={historyPath}
-                className={({ isActive }) =>
-                  `me-4 text-decoration-none ${isActive ? 'text-secondary' : 'text-primary fw-normal small'}`
-                }
-                style={({ isActive }) => ({ cursor: isActive ? 'default' : 'pointer' })}
-              >
-                history
-              </NavLink>
-              <NavLink className="text-decoration-none fw-normal small" to={`/view?s=${metricName}`}>
-                view
-              </NavLink>
-            </h6>
-          </div>
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center mt-5">
+        <div className="spinner-border text-secondary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        {error.message}
+      </div>
+    );
+  }
 
-          {isHistoricalMetric && <HistoryDashboardLabel />}
-        </div>
-      </StickyTop>
-      {initMetric?.id && metricName && isHistoryRoute ? (
-        <Routes>
-          <Route
-            path="history"
-            element={
-              <HistoryList id={initMetric?.id.toString()} mainPath={mainPath} pathVersionParam={PATH_VERSION_PARAM} />
-            }
-          />
-        </Routes>
-      ) : (
-        <div>
-          {!initMetric ? (
-            <div className="d-flex justify-content-center align-items-center mt-5">
-              <div className="spinner-border text-secondary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : (
-            <MetricFormValuesStorage initialMetric={initMetric || {}}>
-              <EditForm isReadonly={false} adminMode={adminMode} isHistoricalMetric={isHistoricalMetric} />
-            </MetricFormValuesStorage>
-          )}
-        </div>
-      )}
+  if (!initMetric) {
+    return null;
+  }
+
+  return (
+    <div>
+      <MetricFormValuesStorage initialMetric={initMetric || {}}>
+        <EditForm isReadonly={false} adminMode={adminMode} isHistoricalMetric={isHistoricalMetric} />
+      </MetricFormValuesStorage>
     </div>
   );
 }
@@ -786,7 +722,7 @@ function AliasField(props: {
                     onChange={(e) =>
                       onChange({
                         isRaw: e.target.checked,
-                        raw_kind: e.target.checked ? (value.raw_kind ?? 'int') : undefined,
+                        raw_kind: e.target.checked ? (value.raw_kind ?? METRIC_META_TAG_RAW_KIND.int) : undefined,
                       })
                     }
                   />
@@ -799,21 +735,15 @@ function AliasField(props: {
                 <select
                   className="form-control form-select"
                   value={value.raw_kind ?? 'int'}
-                  onChange={(e) => onChange({ raw_kind: e.target.value as RawValueKind })}
+                  onChange={(e) =>
+                    onChange({ raw_kind: toMetricMetaTagRawKind(e.target.value, METRIC_META_TAG_RAW_KIND.int) })
+                  }
                 >
-                  <option value="int">int</option>
-                  <option value="uint">uint</option>
-                  <option value="hex">hex</option>
-                  <option value="hex_bswap">hex_bswap</option>
-                  <option value="timestamp">timestamp</option>
-                  <option value="timestamp_local">timestamp_local</option>
-                  <option value="ip">ip</option>
-                  <option value="ip_bswap">ip_bswap</option>
-                  <option value="lexenc_float">lexenc_float</option>
-                  <option value="int64">int64</option>
-                  <option value="uint64">uint64</option>
-                  <option value="hex64">hex64</option>
-                  <option value="hex64_bswap">hex64_bswap</option>
+                  {METRIC_META_TAG_RAW_KIND_KEYS.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
@@ -907,31 +837,31 @@ function useSubmit(values: IMetric, dispatch: Dispatch<IActions>, isHistoricalMe
 
   const { metricName } = useParams();
   const navigate = useNavigate();
+  const mutationMetricMeta = useMutationMetricMeta();
 
   const onSubmit = () => {
     setError(null);
     setSuccess(null);
     setRunning(true);
-
-    saveMetric(values)
-      .then((r) => {
+    mutationMetricMeta.mutateAsync(mapEditToMetric(values), {
+      onSuccess: (success) => {
         setSuccess('Saved');
-        return r;
-      })
-      .then<{ data: { metric: IBackendMetric } }>((res) => res)
-      .then((r) => {
-        dispatch({ version: r.data.metric.version });
+        const nextMetric = success?.data.metric;
+        if (nextMetric) {
+          dispatch({ version: nextMetric.version });
 
-        if (metricName !== r.data.metric.name || isHistoricalMetric) {
-          const queryId = values.id.toString();
-          queryClient.invalidateQueries({ queryKey: [API_HISTORY, queryId], type: 'all' });
-          navigate(`/admin/edit/${r.data.metric.name}`);
+          if (metricName !== nextMetric.name || isHistoricalMetric) {
+            navigate(`/admin/edit/${nextMetric.name}`);
+          }
         }
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => {
+      },
+      onError: (error) => {
+        setError(error.message);
+      },
+      onSettled: () => {
         setRunning(false);
-      });
+      },
+    });
   };
 
   return {
