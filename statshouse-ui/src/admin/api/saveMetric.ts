@@ -7,7 +7,7 @@
 import { isNotNil } from '@/common/helpers';
 import { IBackendKind, IKind, IMetric, ITag } from '../models/metric';
 import { freeKeyPrefix } from '@/url2';
-import { ApiMetric, PostMetricMetaValue } from '@/api/metric';
+import { ApiMetric, MetricMetaValue } from '@/api/metric';
 
 export function resetMetricFlood(metricName: string) {
   return fetch(`/api/reset-flood?s=${metricName}`, {
@@ -70,7 +70,7 @@ export function mapMetricToEdit({ data: { metric } }: ApiMetric): IMetric {
   };
 }
 
-export function mapEditToMetric(metric: IMetric): PostMetricMetaValue {
+export function mapEditToMetric(metric: IMetric): MetricMetaValue {
   return {
     description: metric.description,
     kind: (metric.kind + (metric.withPercentiles ? '_p' : '')) as IBackendKind,

@@ -12,6 +12,7 @@ import css from './style.module.css';
 import cn from 'classnames';
 import { useHistoricalMetricVersion } from '@/hooks/useHistoricalMetricVersion';
 import { GET_PARAMS } from '@/api/enum';
+import { useMemo } from 'react';
 
 export type MetricEditMenuProps = {};
 
@@ -21,6 +22,13 @@ export function MetricEditMenu({}: MetricEditMenuProps) {
   const queryMetric = useApiMetric(metricName ?? '', historicalMetricVersion);
   const metric = queryMetric.data?.data.metric;
   const isHistoricalMetric = !!metric && metric.version !== metric.currentVersion;
+  const search = useMemo(
+    () =>
+      historicalMetricVersion
+        ? new URLSearchParams([[GET_PARAMS.metricUrlVersion, historicalMetricVersion.toString()]]).toString()
+        : undefined,
+    [historicalMetricVersion]
+  );
   if (queryMetric.isError) {
     return null;
   }
@@ -32,10 +40,8 @@ export function MetricEditMenu({}: MetricEditMenuProps) {
             {metricName}:
             <NavLink
               to={{
-                pathname: ``,
-                search: historicalMetricVersion
-                  ? `${GET_PARAMS.metricUrlVersion}=${historicalMetricVersion}`
-                  : undefined,
+                pathname: '',
+                search,
               }}
               end
               className={cn('mx-4', css.link)}
@@ -44,10 +50,8 @@ export function MetricEditMenu({}: MetricEditMenuProps) {
             </NavLink>
             <NavLink
               to={{
-                pathname: `history`,
-                search: historicalMetricVersion
-                  ? `${GET_PARAMS.metricUrlVersion}=${historicalMetricVersion}`
-                  : undefined,
+                pathname: 'history',
+                search,
               }}
               className={cn('me-4', css.link)}
             >
