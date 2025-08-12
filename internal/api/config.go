@@ -101,7 +101,11 @@ func (argv *HandlerOptions) Bind(f *flag.FlagSet) {
 }
 
 func (argv *HandlerOptions) Parse() error {
-	argv.protectedMetricPrefixes = strings.Split(argv.protectedMetricPrefixesS, ",")
+	if argv.protectedMetricPrefixesS == "" {
+		argv.protectedMetricPrefixes = nil
+	} else {
+		argv.protectedMetricPrefixes = strings.Split(argv.protectedMetricPrefixesS, ",")
+	}
 
 	// Parse location
 	if argv.weekStartAt < int(time.Sunday) || argv.weekStartAt > int(time.Saturday) {
