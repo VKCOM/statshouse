@@ -227,6 +227,8 @@ type (
 		queryTopMemUsageMu sync.Mutex
 		queryTopDuration   []queryTopDuration
 		queryTopDurationMu sync.Mutex
+
+		healthcheckGroup singleflight.Group
 	}
 
 	queryTopMemUsage struct {
@@ -1437,8 +1439,6 @@ func HandleGetHistory(r *httpRequestHandler) {
 	respondJSON(r, resp, defaultCacheTTL, 0, err)
 }
 
-var group singleflight.Group
-
 func HandleGetHealthcheck(r *httpRequestHandler) {
 	now := time.Now()
 	req := seriesRequest{
@@ -1447,10 +1447,13 @@ func HandleGetHealthcheck(r *httpRequestHandler) {
 		to:      now,
 		promQL:  healthcheckQuery,
 	}
-	_, err, _ := group.Do("healthcheck", func() (interface{}, error) {
+	_, err, _ := r.healthcheckGroup.Do("healthcheck", func() (interface{}, error) {
 		_, cancel, err := r.handleSeriesRequestS(r.Context(), req, make([]seriesResponse, 2))
+		if err != nil {
+			return nil, err
+		}
 		cancel()
-		return nil, err
+		return nil, nil
 	})
 	if err != nil {
 		log.Printf("[error] healtcheck failed: %v", err)
