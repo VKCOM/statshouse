@@ -63,6 +63,6 @@ export type UseEventTagColumnReturn2 = {
 };
 
 export function useEventTagColumns2(plot?: PlotParams, selectedOnly: boolean = false): UseEventTagColumnReturn2[] {
-  const meta = useMetricMeta(plot?.metricName ?? '');
+  const meta = useMetricMeta(plot?.metricName ?? '', true);
   return useMemo(() => getEventTagColumns(plot, meta, selectedOnly), [meta, plot, selectedOnly]);
 }
