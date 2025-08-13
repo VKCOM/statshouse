@@ -60,7 +60,7 @@ export type MetricMetaValue = {
   name: string;
   version?: number;
   currentVersion?: number;
-  update_time: number;
+  update_time?: number;
   description?: string;
   tags?: MetricMetaTag[];
   /**
@@ -85,8 +85,6 @@ export type MetricMetaValue = {
   [key: string]: unknown;
 };
 
-export type PostMetricMetaValue = Omit<MetricMetaValue, 'update_time' | 'currentVersion'>;
-
 export type MetricMetaTag = {
   name?: string;
   description?: string;
@@ -109,13 +107,13 @@ export async function apiMetricVersionFetch(params: ApiMetricVersionGet, keyRequ
 
 export function getMetricOptions<T = ApiMetric>(
   metricName: string,
-  version: string | null = null,
+  version: number | null = null,
   enabled: boolean = true
-): UndefinedInitialDataOptions<ApiMetric | undefined, ExtendedError, T, [string, string, string | null]> {
+): UndefinedInitialDataOptions<ApiMetric | undefined, ExtendedError, T, [string, string, number | null]> {
   return {
-    enabled: enabled && metricName !== '',
+    enabled,
     queryKey: [ApiMetricEndpoint, metricName, version],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal, client }) => {
       if (!metricName) {
         throw new ExtendedError('no metric name');
       }
@@ -123,9 +121,17 @@ export function getMetricOptions<T = ApiMetric>(
       if (error) {
         throw error;
       }
+      if (response) {
+        response.data.metric.currentVersion = response.data.metric.version;
+        client.setQueryData([ApiMetricEndpoint, metricName, response.data.metric.version], response);
+      }
       if (response && version) {
+        client.setQueryData([ApiMetricEndpoint, metricName, null], response);
         const historyVersion = await apiMetricVersionFetch(
-          { [GET_PARAMS.metricId]: response.data.metric.metric_id.toString(), [GET_PARAMS.metricApiVersion]: version },
+          {
+            [GET_PARAMS.metricId]: response.data.metric.metric_id.toString(),
+            [GET_PARAMS.metricApiVersion]: version.toString(),
+          },
           signal
         );
 
@@ -135,19 +141,14 @@ export function getMetricOptions<T = ApiMetric>(
           });
         }
       }
-      return (
-        response &&
-        produce(response, (res) => {
-          res.data.metric.currentVersion = res.data.metric.version;
-        })
-      );
+      return response;
     },
   };
 }
 
 export async function apiMetric<T = ApiMetric>(
   metricName: string,
-  version: string | null = null
+  version: number | null = null
 ): Promise<ApiFetchResponse<T>> {
   const result: ApiFetchResponse<T> = { ok: false, status: 0 };
 
@@ -186,7 +187,7 @@ export async function loadMetricMeta(metricName: string) {
 
 export function useApiMetric<T = ApiMetric>(
   metricName: string,
-  version: string | null = null,
+  version: number | null = null,
   select?: (response?: ApiMetric) => T,
   enabled: boolean = true
 ): UseQueryResult<T, ExtendedError> {
@@ -208,8 +209,12 @@ export function getMetricMeta(metricName: string): MetricMeta | null {
   return null;
 }
 
-async function postMetricMeta(metric: PostMetricMetaValue) {
-  const { response, error } = await apiFetch<ApiMetric>({ url: ApiMetricEndpoint, post: { metric }, method: 'POST' });
+async function postMetricMeta(metric: MetricMetaValue) {
+  const { response, error } = await apiFetch<ApiMetric, undefined, ApiMetricPost>({
+    url: ApiMetricEndpoint,
+    post: { metric },
+    method: 'POST',
+  });
   if (error) {
     throw error;
   }
@@ -218,13 +223,10 @@ async function postMetricMeta(metric: PostMetricMetaValue) {
 
 export function useMutationMetricMeta() {
   const queryClient = useQueryClient();
-  return useMutation<Awaited<ReturnType<typeof postMetricMeta>>, ExtendedError, PostMetricMetaValue>({
-    mutationFn: async (metric: PostMetricMetaValue, originalMetric?: MetricMetaValue) => {
-      originalMetric ??= queryClient.getQueryData<ApiMetric>([
-        ApiMetricEndpoint,
-        metric.name,
-        metric.version?.toString() ?? null,
-      ])?.data.metric;
+  return useMutation<Awaited<ReturnType<typeof postMetricMeta>>, ExtendedError, MetricMetaValue>({
+    mutationFn: async (metric: MetricMetaValue) => {
+      const originalMetric = queryClient.getQueryData<ApiMetric>([ApiMetricEndpoint, metric.name, metric.version])?.data
+        .metric;
       return postMetricMeta(
         produce({ ...originalMetric, ...metric }, (p) => {
           if (p.currentVersion) {
@@ -236,13 +238,14 @@ export function useMutationMetricMeta() {
       );
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [ApiMetricEndpoint, variables.name], type: 'all' });
       if (data) {
         const metric = data.data.metric;
         const metricName = metric.name;
         queryClient.setQueryData([ApiMetricEndpoint, metricName, null], data);
-        queryClient.setQueryData([ApiMetricEndpoint, metricName, metric.version?.toString() ?? null], data);
+        queryClient.setQueryData([ApiMetricEndpoint, metricName, metric.version ?? null], data);
         queryClient.invalidateQueries({ queryKey: [API_HISTORY, metric.metric_id], type: 'all' });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [ApiMetricEndpoint, variables.name], type: 'all' });
       }
     },
     onError: (_error, variables) => {
