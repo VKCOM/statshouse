@@ -662,39 +662,52 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 }
 
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
-	var (
-		owner     string
-		uptimeSec = float64(nowUnix - s.startTimestamp)
-	)
+	if count <= 0 {
+		return
+	}
+
+	owner := ""
 	if s.envLoader != nil {
 		e := s.envLoader.Load()
 		owner = e.Owner
 	}
-	s.AddValueCounterStringHostAERAExt(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
-		[]int32{
-			1: s.componentTag,
-			2: s.heartBeatEventType,
-			4: int32(build.CommitTag()),
-			6: int32(build.CommitTimestamp()),
-		},
-		[]string{
-			7: string(s.hostName),
-			9: owner,
-		},
-		data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
-	s.AddValueCounterStringHostAERAExt(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
-		[]int32{
-			1: s.componentTag,
-			2: s.heartBeatEventType,
-			3: s.argsHash,
-			4: int32(build.CommitTag()),
-			6: int32(build.CommitTimestamp()),
-		},
-		[]string{
-			7: string(s.hostName),
-			9: owner,
-		},
-		data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	uptimeSec := float64(nowUnix - s.startTimestamp)
+
+	tags := [48]int32{
+		1:                    s.componentTag,
+		2:                    s.heartBeatEventType,
+		4:                    int32(build.CommitTag()),
+		6:                    int32(build.CommitTimestamp()),
+		format.AggHostTag:    s.AggregatorHost,
+		format.AggShardTag:   s.AggregatorShardKey,
+		format.AggReplicaTag: s.AggregatorReplicaKey,
+	}
+	sTags := [48]string{
+		7: string(s.hostName),
+		9: owner,
+	}
+
+	vKey := data_model.Key{
+		Timestamp: nowUnix,
+		Metric:    s.builtinMetricMetaHeartbeatVersion.MetricID, // panics if metricInfo nil
+		Tags:      tags,
+		STags:     sTags,
+	}
+	vShardId, _, vWeightMul, vResolutionHash := s.shard(&vKey, &s.builtinMetricMetaHeartbeatVersion, nil)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	vShard := s.Shards[vShardId]
+	vShard.AddValueCounterStringHost(&vKey, vResolutionHash, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
+
+	aKey := data_model.Key{
+		Timestamp: nowUnix,
+		Metric:    s.builtinMetricMetaHeartbeatArgs.MetricID, // panics if metricInfo nil
+		Tags:      tags,
+		STags:     sTags,
+	}
+	aShardId, _, aWeightMul, aResolutionHash := s.shard(&aKey, &s.builtinMetricMetaHeartbeatArgs, nil)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	aShard := s.Shards[aShardId]
+	aShard.AddValueCounterStringHost(&aKey, aResolutionHash, data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatArgs, aWeightMul)
 }
 
 func (s *Agent) goFlushIteration(now time.Time) {
@@ -954,29 +967,6 @@ func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.Metri
 	}
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
-	}
-	if metricInfo.WithAgentEnvRouteArch {
-		key.Tags[format.AgentEnvTag] = aera.AgentEnv
-		key.Tags[format.RouteTag] = aera.Route
-		key.Tags[format.BuildArchTag] = aera.BuildArch
-	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
-	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardId]
-	shard.AddValueCounterStringHost(&key, resolutionHash, topValue, value, counter, hostTag, metricInfo, weightMul)
-}
-
-func (s *Agent) AddValueCounterStringHostAERAExt(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
-	if counter <= 0 {
-		return
-	}
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
-	copy(key.Tags[:], tags)
-	copy(key.STags[:], stags)
 	if metricInfo.WithAggregatorID {
 		key.Tags[format.AggHostTag] = s.AggregatorHost
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey
