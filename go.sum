@@ -65,8 +65,8 @@ github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/VKCOM/statshouse-go v0.5.14 h1:K4wWSjpaJLOCNu0KO8lziG/nET4QYFBlvJ7nQGfjER4=
-github.com/VKCOM/statshouse-go v0.5.14/go.mod h1:L0XvhgK+AqIKCcVlVArrLo7PNkgDrIyDl+VC29mq9Vs=
+github.com/VKCOM/statshouse-go v0.5.15 h1:QvG/q7LEdFItNySqrn1fKpHR67vzhOGs/zLOCveXw1s=
+github.com/VKCOM/statshouse-go v0.5.15/go.mod h1:L0XvhgK+AqIKCcVlVArrLo7PNkgDrIyDl+VC29mq9Vs=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
