@@ -61,6 +61,7 @@ var argv struct {
 	chV1Debug                bool
 	chV1MaxConns             int
 	chV1Password             string
+	chV1PasswordFile         string
 	chV1User                 string
 	chV2Addrs                []string
 	chV2Debug                bool
@@ -487,6 +488,7 @@ func parseCommandLine() (err error) {
 	flag.BoolVar(&argv.chV1Debug, "clickhouse-v1-debug", false, "ClickHouse-v1 debug mode")
 	flag.IntVar(&argv.chV1MaxConns, "clickhouse-v1-max-conns", 16, "maximum number of ClickHouse-v1 connections (fast and slow)")
 	flag.StringVar(&argv.chV1Password, "clickhouse-v1-password", "", "ClickHouse-v1 password")
+	flag.StringVar(&argv.chV1PasswordFile, "clickhouse-v1-password-file", "", "file with ClickHouse-v1 password")
 	flag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
 	config.StringSliceVar(flag.CommandLine, &argv.chV2Addrs, "clickhouse-v2-addrs", "", "comma-separated list of ClickHouse-v2 addresses")
 	flag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
@@ -550,6 +552,14 @@ func parseCommandLine() (err error) {
 	}
 	if argv.vkuthPublicKeys, err = vkuth.ParseVkuthKeys(argv.vkuthPublicKeysArg); err != nil {
 		return err
+	}
+	if argv.chV1PasswordFile != "" {
+		if p, err := os.ReadFile(argv.chV1PasswordFile); err == nil {
+			p = bytes.TrimSpace(p)
+			argv.chV1Password = string(p)
+		} else {
+			return fmt.Errorf("failed to read --clickhouse-v1-password-file: %w", err)
+		}
 	}
 	if argv.chV2PasswordFile != "" {
 		if p, err := os.ReadFile(argv.chV2PasswordFile); err == nil {
