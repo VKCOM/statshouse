@@ -104,6 +104,11 @@ lint:
 	staticcheck ./...
 
 test:
+# prevent CGO linkers erros on MacOS
+ifeq ($(shell uname),Darwin)
+	CGO_LDFLAGS="-w" go test -v -race ./...
+else
 	go test -v -race ./...
+endif
 
 check: lint test
