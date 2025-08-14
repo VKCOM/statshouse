@@ -662,13 +662,38 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 }
 
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
-	uptimeSec := float64(nowUnix - s.startTimestamp)
-
-	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
-		[]int32{0, s.componentTag, s.heartBeatEventType},
+	var (
+		owner     string
+		uptimeSec = float64(nowUnix - s.startTimestamp)
+	)
+	if s.envLoader != nil {
+		e := s.envLoader.Load()
+		owner = e.Owner
+	}
+	s.AddValueCounterStringV2(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
+		[]int32{
+			1: s.componentTag,
+			2: s.heartBeatEventType,
+			4: int32(build.CommitTag()),
+			6: int32(build.CommitTimestamp()),
+		},
+		[]string{
+			7: string(s.hostName),
+			9: owner,
+		},
 		build.Commit(), uptimeSec, count)
-	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
-		[]int32{0, s.componentTag, s.heartBeatEventType, s.argsHash, 0, 0, 0, 0, 0, s.argsLen},
+	s.AddValueCounterStringV2(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
+		[]int32{
+			1: s.componentTag,
+			2: s.heartBeatEventType,
+			3: s.argsHash,
+			4: int32(build.CommitTag()),
+			6: int32(build.CommitTimestamp()),
+		},
+		[]string{
+			7: string(s.hostName),
+			9: owner,
+		},
 		s.args, uptimeSec, count)
 }
 
@@ -929,6 +954,33 @@ func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.Metri
 	}
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
+	if metricInfo.WithAggregatorID {
+		key.Tags[format.AggHostTag] = s.AggregatorHost
+		key.Tags[format.AggShardTag] = s.AggregatorShardKey
+		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	}
+	if metricInfo.WithAgentEnvRouteArch {
+		key.Tags[format.AgentEnvTag] = aera.AgentEnv
+		key.Tags[format.RouteTag] = aera.Route
+		key.Tags[format.BuildArchTag] = aera.BuildArch
+	}
+	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	shard := s.Shards[shardId]
+	shard.AddValueCounterStringHost(&key, resolutionHash, topValue, value, counter, hostTag, metricInfo, weightMul)
+}
+
+func (s *Agent) AddValueCounterStringV2(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, str string, value float64, counter float64) {
+	s.AddValueCounterStringV2HostAERA(t, metricInfo, tags, stags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+}
+
+func (s *Agent) AddValueCounterStringV2HostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+	if counter <= 0 {
+		return
+	}
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	copy(key.STags[:], stags)
 	if metricInfo.WithAggregatorID {
 		key.Tags[format.AggHostTag] = s.AggregatorHost
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey

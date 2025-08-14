@@ -806,9 +806,6 @@ var BuiltinMetricMetaPromScrapeTime = &MetricMetaValue{
 	},
 }
 
-const BuiltinMetricIDAgentHeartbeatVersion = -41 // TODO - remove
-const BuiltinMetricIDAgentHeartbeatArgs = -42    // TODO - remove, this metric was writing larger than allowed strings to DB in the past
-
 var BuiltinMetricMetaUsageMemory = &MetricMetaValue{
 	Name:                    "__usage_mem",
 	Kind:                    MetricKindValue,

@@ -594,6 +594,7 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 			1: format.TagValueIDComponentIngressProxy,
 			2: int32(req.tag()),
 			6: p.clientCryptoKeyID,
+			7: p.hostnameID.Load(),
 			8: p.clientProtocolVersion,
 		}, float64(req.size), 1)
 }
