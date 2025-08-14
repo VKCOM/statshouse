@@ -670,7 +670,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 		e := s.envLoader.Load()
 		owner = e.Owner
 	}
-	s.AddValueCounterStringV2(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
+	s.AddValueCounterStringHostAERAExt(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
 		[]int32{
 			1: s.componentTag,
 			2: s.heartBeatEventType,
@@ -681,8 +681,8 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 			7: string(s.hostName),
 			9: owner,
 		},
-		build.Commit(), uptimeSec, count)
-	s.AddValueCounterStringV2(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
+		data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	s.AddValueCounterStringHostAERAExt(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
 		[]int32{
 			1: s.componentTag,
 			2: s.heartBeatEventType,
@@ -694,7 +694,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 			7: string(s.hostName),
 			9: owner,
 		},
-		s.args, uptimeSec, count)
+		data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
 }
 
 func (s *Agent) goFlushIteration(now time.Time) {
@@ -970,11 +970,7 @@ func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.Metri
 	shard.AddValueCounterStringHost(&key, resolutionHash, topValue, value, counter, hostTag, metricInfo, weightMul)
 }
 
-func (s *Agent) AddValueCounterStringV2(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, str string, value float64, counter float64) {
-	s.AddValueCounterStringV2HostAERA(t, metricInfo, tags, stags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
-}
-
-func (s *Agent) AddValueCounterStringV2HostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+func (s *Agent) AddValueCounterStringHostAERAExt(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
 	if counter <= 0 {
 		return
 	}
