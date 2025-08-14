@@ -5,7 +5,7 @@ go 1.22.9
 require (
 	github.com/ClickHouse/ch-go v0.63.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.4.2
-	github.com/VKCOM/statshouse-go v0.5.14
+	github.com/VKCOM/statshouse-go v0.5.15
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/dchest/siphash v1.2.3
 	github.com/dgryski/go-maglev v0.0.0-20200611225407-8961b9b1b8e6
