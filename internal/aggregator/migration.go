@@ -186,9 +186,6 @@ func TestMigrateSingleStep(khAddr, khUser, khPassword string, timestamp uint32, 
 }
 
 // TestMigrateSingleHour is a legacy function for backward compatibility
-func TestMigrateSingleHour(khAddr, khUser, khPassword string, timestamp uint32, shardKey int32) error {
-	return TestMigrateSingleStep(khAddr, khUser, khPassword, timestamp, shardKey, nil)
-}
 
 // CreateTestDataV2 creates some test data in the V2 table for testing migration
 func CreateTestDataV2(khAddr, khUser, khPassword string, timestamp uint32) error {
