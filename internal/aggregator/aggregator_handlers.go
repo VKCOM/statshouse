@@ -526,8 +526,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				if k.Tags[7] == 0 {
 					k.Tags[7] = hostId
 				}
-				// Valid for api as well because it is on the same host as agent
-				k.Tags[9] = ownerTagId
+				if k.Tags[9] == 0 {
+					k.Tags[9] = ownerTagId
+				}
 			case format.BuiltinMetricIDRPCRequests:
 				k.Tags[7] = hostId // agent cannot easily map its own host for now
 			}

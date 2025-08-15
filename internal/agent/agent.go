@@ -699,6 +699,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	vShard.AddValueCounterStringHost(&vKey, vResolutionHash, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
 
 	tags[3] = s.argsHash
+	tags[9] = s.argsLen
 	aKey := data_model.Key{
 		Timestamp: nowUnix,
 		Metric:    s.builtinMetricMetaHeartbeatArgs.MetricID, // panics if metricInfo nil
