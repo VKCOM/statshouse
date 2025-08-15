@@ -684,7 +684,6 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	}
 	sTags := [format.MaxTags]string{
 		7: string(s.hostName),
-		9: owner,
 	}
 
 	vKey := data_model.Key{
@@ -693,19 +692,22 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 		Tags:      tags,
 		STags:     sTags,
 	}
+	vKey.STags[9] = owner
+
 	vShardId, _, vWeightMul, vResolutionHash := s.shard(&vKey, &s.builtinMetricMetaHeartbeatVersion, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	vShard := s.Shards[vShardId]
 	vShard.AddValueCounterStringHost(&vKey, vResolutionHash, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
 
-	tags[3] = s.argsHash
-	tags[9] = s.argsLen
 	aKey := data_model.Key{
 		Timestamp: nowUnix,
 		Metric:    s.builtinMetricMetaHeartbeatArgs.MetricID, // panics if metricInfo nil
 		Tags:      tags,
 		STags:     sTags,
 	}
+	aKey.Tags[3] = s.argsHash
+	aKey.Tags[9] = s.argsLen
+
 	aShardId, _, aWeightMul, aResolutionHash := s.shard(&aKey, &s.builtinMetricMetaHeartbeatArgs, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	aShard := s.Shards[aShardId]
