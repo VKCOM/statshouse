@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//go:build integration
+
 package data_model_test
 
 import (
@@ -101,7 +103,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func TestArgInt32(t *testing.T) {
+func TestArgInt32Integration(t *testing.T) {
 	aggIn := data_model.ArgMinMaxInt32Float32{
 		Arg: 42,
 		Val: 1.5,
@@ -122,7 +124,7 @@ func TestArgInt32(t *testing.T) {
 	require.Equal(t, aggIn, aggOut)
 }
 
-func TestArgStringAsString(t *testing.T) {
+func TestArgStringAsStringIntegration(t *testing.T) {
 	aggIn := data_model.ArgMinMaxStringFloat32{
 		AsString: "unmapped",
 		Val:      1.5,
@@ -144,7 +146,7 @@ func TestArgStringAsString(t *testing.T) {
 	require.Equal(t, aggIn, aggOut)
 }
 
-func TestArgStringAsInt(t *testing.T) {
+func TestArgStringAsIntIntegration(t *testing.T) {
 	aggIn := data_model.ArgMinMaxStringFloat32{
 		AsInt32: 42,
 		Val:     1.5,
@@ -166,7 +168,7 @@ func TestArgStringAsInt(t *testing.T) {
 	require.Equal(t, aggIn, aggOut)
 }
 
-func TestArgStringEmpty(t *testing.T) {
+func TestArgStringEmptyIntegration(t *testing.T) {
 	err := insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v3(id)", [][]byte{
 		encodeUInt32(4), // id
 	})
@@ -184,7 +186,7 @@ func TestArgStringEmpty(t *testing.T) {
 	require.Equal(t, "", aggOut.AsString)
 }
 
-func TestArgIntEmpty(t *testing.T) {
+func TestArgIntEmptyIntegration(t *testing.T) {
 	err := insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v2(id)", [][]byte{
 		encodeUInt32(5), // id
 	})

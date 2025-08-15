@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//go:build integration
+
 package aggregator
 
 import (
@@ -167,7 +169,7 @@ func TestV2DataParsingIntegration(t *testing.T) {
 }
 
 // TestV2ToV3Conversion tests that convertRowV2ToV3 works correctly and generates data that can be inserted into V3 table
-func TestV2ToV3Conversion(t *testing.T) {
+func TestV2ToV3ConversionIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
@@ -527,7 +529,7 @@ func TestMigrateSingleHourIntegration(t *testing.T) {
 }
 
 // TestFullMigrationE2E tests the complete migration system end-to-end
-func TestFullMigrationE2E(t *testing.T) {
+func TestFullMigrationE2EIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
