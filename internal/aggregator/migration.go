@@ -817,12 +817,6 @@ func (a *Aggregator) migrateStepWithRetryWithConfig(httpClient *http.Client, ste
 	return 0, fmt.Errorf("migration failed after %d attempts, last error: %w", maxRetryAttempts, lastErr)
 }
 
-// countMigratedRows counts how many rows were migrated for a specific time step and shard
-func (a *Aggregator) countMigratedRows(httpClient *http.Client, step time.Time, shardKey int32) (uint64, error) {
-	config := NewDefaultMigrationConfig() // Use default for existing aggregator
-	return a.countMigratedRowsWithConfig(httpClient, step, shardKey, config)
-}
-
 // countMigratedRowsWithConfig counts how many rows were migrated for a specific time step and shard with custom config
 func (a *Aggregator) countMigratedRowsWithConfig(httpClient *http.Client, step time.Time, shardKey int32, config *MigrationConfig) (uint64, error) {
 	countQuery := fmt.Sprintf(`
