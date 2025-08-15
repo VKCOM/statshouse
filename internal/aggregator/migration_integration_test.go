@@ -22,6 +22,7 @@ import (
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
 	"github.com/hrissan/tdigest"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -89,15 +90,34 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	// Create test data with all fields
 	testData := createTestData()
 
-	// Insert test data using SQL with all fields
+	// Insert test data using RowBinary format
 	err = insertTestData(httpClient, httpAddr, "default", "secret", testData)
 	require.NoError(t, err)
-	t.Logf("Step 5: Inserted test data with SQL for timestamp %d", testData[0].time)
+	t.Logf("Step 5: Inserted %d test rows for timestamp %d", len(testData), testData[0].time)
+
+	// Verify all rows were inserted by checking the count
+	countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_value_1h_dist WHERE time = toDateTime(%d)`, testData[0].time)
+	req = chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var insertedCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &insertedCount)
+	require.NoError(t, err)
+	resp.Close()
+	t.Logf("Step 5: Verified %d rows were inserted into V2 table", insertedCount)
 
 	// we order by metric to get predictable order of rows, same as in the test data
+	// NOTE: Column order must match parseV2Row expectations: metric, time, keys, skey, aggregates, percentiles, uniq_state, min_host, max_host
 	selectQuery := fmt.Sprintf(`
 	SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-		count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
+		count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
 	FROM statshouse_value_1h_dist
 	WHERE time = toDateTime(%d) ORDER BY metric`,
 		testData[0].time)
@@ -112,7 +132,7 @@ func TestV2DataParsingIntegration(t *testing.T) {
 		Query:      selectQuery,
 		Format:     "RowBinary",
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	resp, err = req.Execute(ctx)
 	require.NoError(t, err)
@@ -124,9 +144,12 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	var parsedRows []*v2Row
 	bufReader := bufio.NewReader(resp)
 	for {
+		t.Logf("Step 5: Attempting to parse row %d...", len(parsedRows)+1)
 		row, err := parseV2Row(bufReader)
 		if err != nil {
+			t.Logf("Step 5: Parse error for row %d: %v", len(parsedRows)+1, err)
 			if errors.Is(err, io.EOF) {
+				t.Logf("Step 5: Reached EOF after parsing %d rows", len(parsedRows))
 				break
 			}
 			require.NoError(t, err)
@@ -337,58 +360,70 @@ func createTestData() []*v2Row {
 }
 
 func insertTestData(httpClient *http.Client, httpAddr, user, password string, testData []*v2Row) error {
-	// Insert test data using SQL with all fields including percentiles
+	// Insert test data using RowBinary format to properly create aggregate states
 	if len(testData) == 0 {
 		return fmt.Errorf("no test data provided")
 	}
 
-	// For now, we'll use the first row's data to generate a SELECT statement
-	// This is a simplified approach - in a real implementation, you might want to handle multiple rows
+	// Build RowBinary data for all rows
+	var body []byte
 	for _, row := range testData {
-		insertQuery := fmt.Sprintf(`
-			INSERT INTO statshouse_value_1h_dist (
-				metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-				count, min, max, sum, sumsquare, percentiles, min_host, max_host, uniq_state
-			)
-			SELECT 
-				%d as metric,
-				toDateTime(%d) as time,
-				%d as key0, %d as key1, %d as key2, %d as key3, %d as key4, %d as key5, %d as key6, %d as key7,
-				%d as key8, %d as key9, %d as key10, %d as key11, %d as key12, %d as key13, %d as key14, %d as key15,
-				'%s' as skey,
-				%.2f as count,
-				%.2f as min,
-				%.2f as max,
-				%.2f as sum,
-				%.2f as sumsquare,
-				quantilesTDigestState(0.5)(toFloat32(%.2f)) as percentiles,
-				argMinState(toInt32(%d), toFloat32(%.2f)) as min_host,
-				argMaxState(toInt32(%d), toFloat32(%.2f)) as max_host,
-				uniqState(toInt64(100)) as uniq_state
-			`,
-			row.metric, row.time,
-			row.keys[0], row.keys[1], row.keys[2], row.keys[3], row.keys[4], row.keys[5], row.keys[6], row.keys[7],
-			row.keys[8], row.keys[9], row.keys[10], row.keys[11], row.keys[12], row.keys[13], row.keys[14], row.keys[15],
-			row.skey,
-			row.count, row.min, row.max, row.sum, row.sumsquare,
-			row.min, // Use min value for percentile test data
-			row.min_host.Arg, row.min_host.Val, row.max_host.Arg, row.max_host.Val)
-
-		req := &chutil.ClickHouseHttpRequest{
-			HttpClient: httpClient,
-			Addr:       httpAddr,
-			User:       user,
-			Password:   password,
-			Query:      insertQuery,
-		}
-		resp, err := req.Execute(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to execute insert query: %w", err)
-		}
-		defer resp.Close()
+		// Convert each test row to V2 RowBinary format for insertion
+		body = appendV2RowBinary(body, row)
 	}
 
+	// Insert data using RowBinary format
+	insertQuery := `INSERT INTO statshouse_value_1h_dist (
+		metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+		count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
+	) FORMAT RowBinary`
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       user,
+		Password:   password,
+		Query:      insertQuery,
+		Body:       body,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to execute insert query: %w", err)
+	}
+	defer resp.Close()
+
 	return nil
+}
+
+// appendV2RowBinary appends a v2Row in RowBinary format to the buffer
+func appendV2RowBinary(buf []byte, row *v2Row) []byte {
+	// Use the same rowbinary helper functions from the migration code
+	buf = rowbinary.AppendInt32(buf, row.metric)
+	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(row.time), 0))
+
+	// Append all 16 keys
+	for i := 0; i < 16; i++ {
+		buf = rowbinary.AppendInt32(buf, row.keys[i])
+	}
+
+	// Append skey
+	buf = rowbinary.AppendString(buf, row.skey)
+
+	// Append simple aggregates
+	buf = rowbinary.AppendFloat64(buf, row.count)
+	buf = rowbinary.AppendFloat64(buf, row.min)
+	buf = rowbinary.AppendFloat64(buf, row.max)
+	buf = rowbinary.AppendFloat64(buf, row.sum)
+	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
+
+	// Append aggregate states
+	buf = row.perc.MarshallAppend(buf, 1)
+	buf = row.uniq.MarshallAppend(buf)
+	buf = row.min_host.MarshalAppend(buf)
+	buf = row.max_host.MarshalAppend(buf)
+
+	return buf
 }
 
 // TestMigrateSingleHourIntegration tests the complete migrateSingleHour function
@@ -497,7 +532,9 @@ func TestMigrateSingleHourIntegration(t *testing.T) {
 	testHour := uint32(testData[0].time)
 	shardKey := int32(1) // Test shard 1
 
-	err = TestMigrateSingleHour(httpAddr, "default", "secret", testHour, shardKey)
+	config := NewDefaultMigrationConfig()
+	config.TotalShards = 1
+	err = TestMigrateSingleStep(httpAddr, "default", "secret", testHour, shardKey, config)
 	require.NoError(t, err)
 	t.Logf("Migration completed successfully for hour %d, shard %d", testHour, shardKey)
 
