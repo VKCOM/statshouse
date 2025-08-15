@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 
@@ -35,7 +36,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
-	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
 )
 
@@ -398,6 +398,7 @@ func run() int {
 	heartbeatTags := statshouse.Tags{
 		1: "4",
 		2: fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		4: fmt.Sprint(build.CommitTag()),
 		6: fmt.Sprint(build.CommitTimestamp()),
 		7: srvfunc.HostnameForStatshouse(),
 	}

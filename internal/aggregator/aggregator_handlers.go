@@ -50,8 +50,14 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 		str = err.Error()
 	}
 	a.sh2.AddValueCounterString(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
-		[]int32{0, format.TagValueIDComponentAggregator, int32(tag), status, 0, 0, keyIDTag, 0, protocol},
-		str, float64(requestLen), 1)
+		[]int32{
+			1: format.TagValueIDComponentAggregator,
+			2: int32(tag),
+			3: status,
+			6: keyIDTag,
+			7: a.aggregatorHost,
+			8: protocol,
+		}, str, float64(requestLen), 1)
 	return err
 }
 
@@ -502,17 +508,12 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				k.Tags[format.RouteTag] = aera.Route
 				k.Tags[format.BuildArchTag] = aera.BuildArch
 			}
+			if k.Metric == format.BuiltinMetricIDHeartbeatVersion || k.Metric == format.BuiltinMetricIDHeartbeatArgs {
+				k.Tags[8] = int32(addrIPV4)
+			}
+
+			// TODO - remove
 			switch k.Metric {
-			case format.BuiltinMetricIDAgentHeartbeatVersion:
-				// Remap legacy metric to a new one
-				k.Metric = format.BuiltinMetricIDHeartbeatVersion
-				k.Tags[2] = k.Tags[1]
-				k.Tags[1] = format.TagValueIDComponentAgent
-			case format.BuiltinMetricIDAgentHeartbeatArgs:
-				// Remap legacy metric to a new one
-				k.Metric = format.BuiltinMetricIDHeartbeatArgs
-				k.Tags[2] = k.Tags[1]
-				k.Tags[1] = format.TagValueIDComponentAgent
 			case format.BuiltinMetricIDHeartbeatVersion, format.BuiltinMetricIDHeartbeatArgs:
 				// In case of agent we need to set IP anyway, so set other keys here, not by source
 				// In case of api other tags are already set, so don't overwrite them
@@ -525,9 +526,9 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				if k.Tags[7] == 0 {
 					k.Tags[7] = hostId
 				}
-				// Valid for api as well because it is on the same host as agent
-				k.Tags[8] = int32(addrIPV4)
-				k.Tags[9] = ownerTagId
+				if k.Tags[9] == 0 {
+					k.Tags[9] = ownerTagId
+				}
 			case format.BuiltinMetricIDRPCRequests:
 				k.Tags[7] = hostId // agent cannot easily map its own host for now
 			}
