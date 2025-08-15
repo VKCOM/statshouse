@@ -673,7 +673,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	}
 	uptimeSec := float64(nowUnix - s.startTimestamp)
 
-	tags := [48]int32{
+	tags := [format.MaxTags]int32{
 		1:                    s.componentTag,
 		2:                    s.heartBeatEventType,
 		4:                    int32(build.CommitTag()),
@@ -682,7 +682,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 		format.AggShardTag:   s.AggregatorShardKey,
 		format.AggReplicaTag: s.AggregatorReplicaKey,
 	}
-	sTags := [48]string{
+	sTags := [format.MaxTags]string{
 		7: string(s.hostName),
 		9: owner,
 	}
@@ -698,6 +698,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	vShard := s.Shards[vShardId]
 	vShard.AddValueCounterStringHost(&vKey, vResolutionHash, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
 
+	tags[3] = s.argsHash
 	aKey := data_model.Key{
 		Timestamp: nowUnix,
 		Metric:    s.builtinMetricMetaHeartbeatArgs.MetricID, // panics if metricInfo nil
