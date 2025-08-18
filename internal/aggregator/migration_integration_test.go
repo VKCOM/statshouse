@@ -355,10 +355,9 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 
 	// Test migrateSingleHour
 	testHour := testData[0].time
-	shardKey := int32(1) // Test shard 1
+	shardKey := int32(2) // Test shard 2
 
 	config := NewDefaultMigrationConfig()
-	config.TotalShards = 1
 	err = migrateSingleStep(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
 	require.NoError(t, err)
 	t.Logf("Migration completed successfully for hour %d, shard %d", testHour, shardKey)
@@ -379,10 +378,10 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	err = resp.Close()
 	require.NoError(t, err)
 
-	// Should have migrated the rows where metric % 16 = 0 (shard 1)
+	// Should have migrated the rows where metric % 16 = 0 (shard 1 processes metrics where metric % 16 = 0)
 	expectedCount := 0
 	for _, row := range testData {
-		if row.metric%16 == 0 { // shard 1 processes metrics where metric % 16 = 0
+		if row.metric%16 == shardKey-1 { // shard 1 processes metrics where metric % 16 = 0
 			expectedCount++
 		}
 	}
