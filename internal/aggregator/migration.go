@@ -175,80 +175,6 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 	}
 }
 
-// TestMigrateSingleStep is a standalone function for testing migration with local ClickHouse
-// Example usage: TestMigrateSingleStep("localhost:8123", "", "", 1672531200, 1, config)
-func TestMigrateSingleStep(khAddr, khUser, khPassword string, timestamp uint32, shardKey int32, config *MigrationConfig) error {
-	if config == nil {
-		config = NewDefaultMigrationConfig()
-	}
-	httpClient := makeHTTPClient()
-	return migrateSingleStep(httpClient, khAddr, khUser, khPassword, timestamp, shardKey, config)
-}
-
-// TestMigrateSingleHour is a legacy function for backward compatibility
-
-// CreateTestDataV2 creates some test data in the V2 table for testing migration
-func CreateTestDataV2(khAddr, khUser, khPassword string, timestamp uint32) error {
-	httpClient := makeHTTPClient()
-
-	// Create test data with actual aggregate values
-	insertQuery := fmt.Sprintf(`
-		INSERT INTO statshouse_value_1h_dist (
-			metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-			count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
-		)
-		SELECT 
-			1 as metric,
-			toDateTime(%d) as time,
-			123 as key0,
-			0 as key1, 0 as key2, 0 as key3, 0 as key4, 0 as key5, 0 as key6, 0 as key7,
-			0 as key8, 0 as key9, 0 as key10, 0 as key11, 0 as key12, 0 as key13, 0 as key14, 0 as key15,
-			'test_skey' as skey,
-			10.0 as count,
-			1.5 as min,
-			9.8 as max,
-			55.5 as sum,
-			123.45 as sumsquare,
-			quantilesTDigestState(0.5)(toFloat32(2.5)) as percentiles,
-			uniqState(toInt64(100)) as uniq_state,
-			argMinState(toInt32(42), toFloat32(1.5)) as min_host,
-			argMaxState(toInt32(99), toFloat32(9.8)) as max_host
-		UNION ALL
-		SELECT 
-			17 as metric,
-			toDateTime(%d) as time,
-			456 as key0,
-			1 as key1, 2 as key2, 0 as key3, 0 as key4, 0 as key5, 0 as key6, 0 as key7,
-			0 as key8, 0 as key9, 0 as key10, 0 as key11, 0 as key12, 0 as key13, 0 as key14, 0 as key15,
-			'another_test' as skey,
-			5.0 as count,
-			0.1 as min,
-			4.9 as max,
-			12.5 as sum,
-			31.25 as sumsquare,
-			quantilesTDigestState(0.5)(toFloat32(2.0)) as percentiles,
-			uniqState(toInt64(200)) as uniq_state,
-			argMinState(toInt32(10), toFloat32(0.1)) as min_host,
-			argMaxState(toInt32(20), toFloat32(4.9)) as max_host`,
-		timestamp, timestamp)
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       khAddr,
-		User:       khUser,
-		Password:   khPassword,
-		Query:      insertQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to execute insert query: %w", err)
-	}
-	defer resp.Close()
-
-	log.Printf("[migration] Created test data for timestamp %d", timestamp)
-	return nil
-}
-
 // migrateSingleStep migrates data for a single time step from V2 to V3 format
 // timestamp should be rounded to the appropriate time boundary based on config.StepDuration
 func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword string, timestamp uint32, shardKey int32, config *MigrationConfig) error {
@@ -286,12 +212,6 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 
 	// Step 3: Stream convert and insert data
 	return streamConvertAndInsert(httpClient, khAddr, khUser, khPassword, resp, config)
-}
-
-// migrateSingleHour is a legacy function for backward compatibility
-func migrateSingleHour(httpClient *http.Client, khAddr, khUser, khPassword string, timestamp uint32, shardKey int32) error {
-	config := NewDefaultMigrationConfig()
-	return migrateSingleStep(httpClient, khAddr, khUser, khPassword, timestamp, shardKey, config)
 }
 
 // streamConvertAndInsert reads V2 rowbinary data, converts to V3 format, and inserts

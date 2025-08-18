@@ -426,8 +426,8 @@ func appendV2RowBinary(buf []byte, row *v2Row) []byte {
 	return buf
 }
 
-// TestMigrateSingleHourIntegration tests the complete migrateSingleHour function
-func TestMigrateSingleHourIntegration(t *testing.T) {
+// TestMigrateSingleStepIntegration tests the complete migrateSingleHour function
+func TestMigrateSingleStepIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
@@ -529,12 +529,12 @@ func TestMigrateSingleHourIntegration(t *testing.T) {
 	t.Logf("Inserted %d test rows into V2 table", len(testData))
 
 	// Test migrateSingleHour
-	testHour := uint32(testData[0].time)
+	testHour := testData[0].time
 	shardKey := int32(1) // Test shard 1
 
 	config := NewDefaultMigrationConfig()
 	config.TotalShards = 1
-	err = TestMigrateSingleStep(httpAddr, "default", "secret", testHour, shardKey, config)
+	err = migrateSingleStep(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
 	require.NoError(t, err)
 	t.Logf("Migration completed successfully for hour %d, shard %d", testHour, shardKey)
 
@@ -876,6 +876,7 @@ func createMockAggregators(httpAddr, user, password string, numShards int) []*Mo
 }
 
 func simulateMigrationForAggregator(agg *MockAggregator, hours []time.Time) error {
+	config := NewDefaultMigrationConfig()
 	// Simulate migration for each hour
 	for _, hour := range hours {
 		// Check if this shard has data for this hour
@@ -902,7 +903,7 @@ func simulateMigrationForAggregator(agg *MockAggregator, hours []time.Time) erro
 			resp.Close()
 
 			// Migrate this hour
-			err = migrateSingleHour(agg.httpClient, agg.InsertAddr, agg.user, agg.password, uint32(hour.Unix()), agg.shardKey)
+			err = migrateSingleStep(agg.httpClient, agg.InsertAddr, agg.user, agg.password, uint32(hour.Unix()), agg.shardKey, config)
 			if err != nil {
 				return fmt.Errorf("failed to migrate hour %s for shard %d: %w", hour.Format("2006-01-02 15:04:05"), agg.shardKey, err)
 			}
