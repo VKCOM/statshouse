@@ -29,12 +29,64 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
 )
 
+const clickhouseImage = "clickhouse/clickhouse-server:24.3-alpine"
+
+const createV2tableQuery = `CREATE TABLE statshouse_value_1h_dist (
+		metric Int32,
+		time DateTime,
+		key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
+		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
+		skey String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64),
+		min_host AggregateFunction(argMin, Int32, Float32),
+		max_host AggregateFunction(argMax, Int32, Float32)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
+
+const createV3tableQuery = `CREATE TABLE statshouse_v3_1h (
+		index_type UInt8,
+		metric Int32,
+		pre_tag UInt32,
+		pre_stag String,
+		time DateTime,
+		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
+		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
+		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
+		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
+		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
+		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
+		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
+		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
+		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
+		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
+		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
+		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		max_count SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		min_host AggregateFunction(argMin, String, Float32),
+		max_host AggregateFunction(argMax, String, Float32),
+		max_count_host AggregateFunction(argMax, String, Float32),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
+
 func TestV2DataParsingIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
 	clickHouseContainer, err := clickhouse.Run(ctx,
-		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouseImage,
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
 		clickhouse.WithPassword("secret"),
@@ -57,34 +109,17 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	httpClient := &http.Client{Timeout: 120 * time.Second} // Increased timeout
 
 	// Create V2 table structure
-	createV2TableQuery := `CREATE TABLE statshouse_value_1h_dist (
-		metric Int32,
-		time DateTime,
-		key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
-		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
-		skey String,
-		count SimpleAggregateFunction(sum, Float64),
-		min SimpleAggregateFunction(min, Float64),
-		max SimpleAggregateFunction(max, Float64),
-		sum SimpleAggregateFunction(sum, Float64),
-		sumsquare SimpleAggregateFunction(sum, Float64),
-		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-		uniq_state AggregateFunction(uniq, Int64),
-		min_host AggregateFunction(argMin, Int32, Float32),
-		max_host AggregateFunction(argMax, Int32, Float32)
-	) ENGINE = AggregatingMergeTree()
-	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
-
 	req := chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
 		Addr:       httpAddr,
 		User:       "default",
 		Password:   "secret",
-		Query:      createV2TableQuery,
+		Query:      createV2tableQuery,
 	}
 	resp, err := req.Execute(context.Background())
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
 	// Step 5: Test with complete parseV2Row function from migration.go
 	// Create test data with all fields
@@ -110,7 +145,8 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	var insertedCount uint64
 	_, err = fmt.Fscanf(resp, "%d", &insertedCount)
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 	t.Logf("Step 5: Verified %d rows were inserted into V2 table", insertedCount)
 
 	// we order by metric to get predictable order of rows, same as in the test data
@@ -197,7 +233,7 @@ func TestV2ToV3ConversionIntegration(t *testing.T) {
 
 	// Start ClickHouse container
 	clickHouseContainer, err := clickhouse.Run(ctx,
-		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouseImage,
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
 		clickhouse.WithPassword("secret"),
@@ -219,48 +255,17 @@ func TestV2ToV3ConversionIntegration(t *testing.T) {
 	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
 	httpClient := &http.Client{Timeout: 120 * time.Second}
 
-	createV3TableQuery := `CREATE TABLE statshouse_v3_1h (
-		index_type UInt8,
-		metric Int32,
-		pre_tag UInt32,
-		pre_stag String,
-		time DateTime,
-		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
-		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
-		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
-		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
-		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
-		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
-		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
-		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
-		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
-		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
-		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
-		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
-		count SimpleAggregateFunction(sum, Float64),
-		min SimpleAggregateFunction(min, Float64),
-		max SimpleAggregateFunction(max, Float64),
-		max_count SimpleAggregateFunction(max, Float64),
-		sum SimpleAggregateFunction(sum, Float64),
-		sumsquare SimpleAggregateFunction(sum, Float64),
-		min_host AggregateFunction(argMin, String, Float32),
-		max_host AggregateFunction(argMax, String, Float32),
-		max_count_host AggregateFunction(argMax, String, Float32),
-		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-		uniq_state AggregateFunction(uniq, Int64)
-	) ENGINE = AggregatingMergeTree()
-	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
-
 	req := chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
 		Addr:       httpAddr,
 		User:       "default",
 		Password:   "secret",
-		Query:      createV3TableQuery,
+		Query:      createV3tableQuery,
 	}
 	resp, err := req.Execute(context.Background())
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
 	testData := createTestData()
 	t.Logf("Generated %d test rows", len(testData))
@@ -290,149 +295,18 @@ func TestV2ToV3ConversionIntegration(t *testing.T) {
 	}
 	resp, err = insertReq.Execute(context.Background())
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
 	t.Logf("SUCCESS: Inserted %d converted rows into V3 table", len(testData))
 }
 
-func createTestData() []*v2Row {
-	perc1 := tdigest.New()
-	perc1.Add(0.5, 2.5)
-	uniq := &data_model.ChUnique{}
-	uniq.Insert(100)
-
-	perc2 := tdigest.New()
-	perc2.Add(0.25, 1.75)
-	perc2.Add(0.75, 3.25)
-
-	perc3 := tdigest.New()
-	perc3.Add(0.1, 0.5)
-	perc3.Add(0.9, 4.5)
-
-	testData := []*v2Row{
-		{
-			metric:    1,
-			time:      1733000400,                                                    // Fixed timestamp for testing
-			keys:      [16]int32{123, 567, 8, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0}, // Match SQL insert
-			skey:      "test_skey_1",
-			count:     10.0, // Step 5: Use default values
-			min:       1.0,
-			max:       5.0,
-			sum:       30.0,
-			sumsquare: 100.0,
-			perc:      &data_model.ChDigest{Digest: perc1},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
-		},
-		{
-			metric:    2,
-			time:      1733000400,
-			keys:      [16]int32{456, 789, 12, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},
-			skey:      "test_skey_2",
-			count:     15.0,
-			min:       0.5,
-			max:       8.0,
-			sum:       45.0,
-			sumsquare: 200.0,
-			perc:      &data_model.ChDigest{Digest: perc2},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
-		},
-		{
-			metric:    3,
-			time:      1733000400,
-			keys:      [16]int32{789, 123, 16, 0, 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0},
-			skey:      "test_skey_3",
-			count:     20.0,
-			min:       0.1,
-			max:       10.0,
-			sum:       60.0,
-			sumsquare: 300.0,
-			perc:      &data_model.ChDigest{Digest: perc3},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},
-		},
-	}
-	return testData
-}
-
-func insertTestData(httpClient *http.Client, httpAddr, user, password string, testData []*v2Row) error {
-	// Insert test data using RowBinary format to properly create aggregate states
-	if len(testData) == 0 {
-		return fmt.Errorf("no test data provided")
-	}
-
-	// Build RowBinary data for all rows
-	var body []byte
-	for _, row := range testData {
-		// Convert each test row to V2 RowBinary format for insertion
-		body = appendV2RowBinary(body, row)
-	}
-
-	// Insert data using RowBinary format
-	insertQuery := `INSERT INTO statshouse_value_1h_dist (
-		metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
-		count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
-	) FORMAT RowBinary`
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       user,
-		Password:   password,
-		Query:      insertQuery,
-		Body:       body,
-		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to execute insert query: %w", err)
-	}
-	defer resp.Close()
-
-	return nil
-}
-
-// appendV2RowBinary appends a v2Row in RowBinary format to the buffer
-func appendV2RowBinary(buf []byte, row *v2Row) []byte {
-	// Use the same rowbinary helper functions from the migration code
-	buf = rowbinary.AppendInt32(buf, row.metric)
-	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(row.time), 0))
-
-	// Append all 16 keys
-	for i := 0; i < 16; i++ {
-		buf = rowbinary.AppendInt32(buf, row.keys[i])
-	}
-
-	// Append skey
-	buf = rowbinary.AppendString(buf, row.skey)
-
-	// Append simple aggregates
-	buf = rowbinary.AppendFloat64(buf, row.count)
-	buf = rowbinary.AppendFloat64(buf, row.min)
-	buf = rowbinary.AppendFloat64(buf, row.max)
-	buf = rowbinary.AppendFloat64(buf, row.sum)
-	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
-
-	// Append aggregate states
-	buf = row.perc.MarshallAppend(buf, 1)
-	buf = row.uniq.MarshallAppend(buf)
-	buf = row.min_host.MarshalAppend(buf)
-	buf = row.max_host.MarshalAppend(buf)
-
-	return buf
-}
-
-// TestMigrateSingleStepIntegration tests the complete migrateSingleHour function
 func TestMigrateSingleStepIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Start ClickHouse container
 	clickHouseContainer, err := clickhouse.Run(ctx,
-		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouseImage,
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
 		clickhouse.WithPassword("secret"),
@@ -455,72 +329,23 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	httpClient := &http.Client{Timeout: 120 * time.Second}
 
 	// Create V2 table
-	createV2TableQuery := `CREATE TABLE statshouse_value_1h_dist (
-		metric Int32,
-		time DateTime,
-		key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
-		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
-		skey String,
-		count SimpleAggregateFunction(sum, Float64),
-		min SimpleAggregateFunction(min, Float64),
-		max SimpleAggregateFunction(max, Float64),
-		sum SimpleAggregateFunction(sum, Float64),
-		sumsquare SimpleAggregateFunction(sum, Float64),
-		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-		uniq_state AggregateFunction(uniq, Int64),
-		min_host AggregateFunction(argMin, Int32, Float32),
-		max_host AggregateFunction(argMax, Int32, Float32)
-	) ENGINE = AggregatingMergeTree()
-	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
-
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
 		Addr:       httpAddr,
 		User:       "default",
 		Password:   "secret",
-		Query:      createV2TableQuery,
+		Query:      createV2tableQuery,
 	}
 	resp, err := req.Execute(context.Background())
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
-	// Create V3 table
-	createV3TableQuery := `CREATE TABLE statshouse_v3_1h (
-		index_type UInt8,
-		metric Int32,
-		pre_tag UInt32,
-		pre_stag String,
-		time DateTime,
-		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
-		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
-		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
-		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
-		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
-		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
-		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
-		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
-		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
-		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
-		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
-		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
-		count SimpleAggregateFunction(sum, Float64),
-		min SimpleAggregateFunction(min, Float64),
-		max SimpleAggregateFunction(max, Float64),
-		max_count SimpleAggregateFunction(max, Float64),
-		sum SimpleAggregateFunction(sum, Float64),
-		sumsquare SimpleAggregateFunction(sum, Float64),
-		min_host AggregateFunction(argMin, String, Float32),
-		max_host AggregateFunction(argMax, String, Float32),
-		max_count_host AggregateFunction(argMax, String, Float32),
-		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-		uniq_state AggregateFunction(uniq, Int64)
-	) ENGINE = AggregatingMergeTree()
-	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
-
-	req.Query = createV3TableQuery
+	req.Query = createV3tableQuery
 	resp, err = req.Execute(context.Background())
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
 	// Create test data and insert into V2 table
 	testData := createTestData()
@@ -551,7 +376,8 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	var migratedCount uint64
 	_, err = fmt.Fscanf(resp, "%d", &migratedCount)
 	require.NoError(t, err)
-	resp.Close()
+	err = resp.Close()
+	require.NoError(t, err)
 
 	// Should have migrated the rows where metric % 16 = 0 (shard 1)
 	expectedCount := 0
@@ -571,7 +397,7 @@ func TestFullMigrationE2EIntegration(t *testing.T) {
 
 	// Start ClickHouse container
 	clickHouseContainer, err := clickhouse.Run(ctx,
-		"clickhouse/clickhouse-server:24.3-alpine",
+		clickhouseImage,
 		clickhouse.WithDatabase("default"),
 		clickhouse.WithUsername("default"),
 		clickhouse.WithPassword("secret"),
@@ -684,6 +510,135 @@ func TestFullMigrationE2EIntegration(t *testing.T) {
 	t.Log("SUCCESS: Full E2E migration test completed successfully!")
 }
 
+func createTestData() []*v2Row {
+	perc1 := tdigest.New()
+	perc1.Add(0.5, 2.5)
+	uniq := &data_model.ChUnique{}
+	uniq.Insert(100)
+
+	perc2 := tdigest.New()
+	perc2.Add(0.25, 1.75)
+	perc2.Add(0.75, 3.25)
+
+	perc3 := tdigest.New()
+	perc3.Add(0.1, 0.5)
+	perc3.Add(0.9, 4.5)
+
+	testData := []*v2Row{
+		{
+			metric:    1,
+			time:      1733000400,                                                    // Fixed timestamp for testing
+			keys:      [16]int32{123, 567, 8, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0}, // Match SQL insert
+			skey:      "test_skey_1",
+			count:     10.0, // Step 5: Use default values
+			min:       1.0,
+			max:       5.0,
+			sum:       30.0,
+			sumsquare: 100.0,
+			perc:      &data_model.ChDigest{Digest: perc1},
+			uniq:      uniq,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
+		},
+		{
+			metric:    2,
+			time:      1733000400,
+			keys:      [16]int32{456, 789, 12, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},
+			skey:      "test_skey_2",
+			count:     15.0,
+			min:       0.5,
+			max:       8.0,
+			sum:       45.0,
+			sumsquare: 200.0,
+			perc:      &data_model.ChDigest{Digest: perc2},
+			uniq:      uniq,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
+		},
+		{
+			metric:    3,
+			time:      1733000400,
+			keys:      [16]int32{789, 123, 16, 0, 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0},
+			skey:      "test_skey_3",
+			count:     20.0,
+			min:       0.1,
+			max:       10.0,
+			sum:       60.0,
+			sumsquare: 300.0,
+			perc:      &data_model.ChDigest{Digest: perc3},
+			uniq:      uniq,
+			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
+			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},
+		},
+	}
+	return testData
+}
+
+func insertTestData(httpClient *http.Client, httpAddr, user, password string, testData []*v2Row) error {
+	// Insert test data using RowBinary format to properly create aggregate states
+	if len(testData) == 0 {
+		return fmt.Errorf("no test data provided")
+	}
+
+	// Build RowBinary data for all rows
+	var body []byte
+	for _, row := range testData {
+		// Convert each test row to V2 RowBinary format for insertion
+		body = appendV2RowBinary(body, row)
+	}
+
+	// Insert data using RowBinary format
+	insertQuery := `INSERT INTO statshouse_value_1h_dist (
+		metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
+		count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
+	) FORMAT RowBinary`
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       user,
+		Password:   password,
+		Query:      insertQuery,
+		Body:       body,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to execute insert query: %w", err)
+	}
+	return resp.Close()
+}
+
+// appendV2RowBinary appends a v2Row in RowBinary format to the buffer
+func appendV2RowBinary(buf []byte, row *v2Row) []byte {
+	// Use the same rowbinary helper functions from the migration code
+	buf = rowbinary.AppendInt32(buf, row.metric)
+	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(row.time), 0))
+
+	// Append all 16 keys
+	for i := 0; i < 16; i++ {
+		buf = rowbinary.AppendInt32(buf, row.keys[i])
+	}
+
+	// Append skey
+	buf = rowbinary.AppendString(buf, row.skey)
+
+	// Append simple aggregates
+	buf = rowbinary.AppendFloat64(buf, row.count)
+	buf = rowbinary.AppendFloat64(buf, row.min)
+	buf = rowbinary.AppendFloat64(buf, row.max)
+	buf = rowbinary.AppendFloat64(buf, row.sum)
+	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
+
+	// Append aggregate states
+	buf = row.perc.MarshallAppend(buf, 1)
+	buf = row.uniq.MarshallAppend(buf)
+	buf = row.min_host.MarshalAppend(buf)
+	buf = row.max_host.MarshalAppend(buf)
+
+	return buf
+}
+
 // MockAggregator represents a mock aggregator for testing
 type MockAggregator struct {
 	shardKey   int32
@@ -697,58 +652,8 @@ type MockAggregator struct {
 
 func createAllTestTables(httpClient *http.Client, httpAddr, user, password string) error {
 	queries := []string{
-		// V2 table
-		`CREATE TABLE IF NOT EXISTS statshouse_value_1h_dist (
-			metric Int32,
-			time DateTime,
-			key0 Int32, key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
-			key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
-			skey String,
-			count SimpleAggregateFunction(sum, Float64),
-			min SimpleAggregateFunction(min, Float64),
-			max SimpleAggregateFunction(max, Float64),
-			sum SimpleAggregateFunction(sum, Float64),
-			sumsquare SimpleAggregateFunction(sum, Float64),
-			percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-			uniq_state AggregateFunction(uniq, Int64),
-			min_host AggregateFunction(argMin, Int32, Float32),
-			max_host AggregateFunction(argMax, Int32, Float32)
-		) ENGINE = AggregatingMergeTree()
-		ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`,
-
-		// V3 table
-		`CREATE TABLE IF NOT EXISTS statshouse_v3_1h (
-			index_type UInt8,
-			metric Int32,
-			pre_tag UInt32,
-			pre_stag String,
-			time DateTime,
-			tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
-			tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
-			tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
-			tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
-			tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
-			tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
-			tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
-			tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
-			tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
-			tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
-			tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
-			tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
-			count SimpleAggregateFunction(sum, Float64),
-			min SimpleAggregateFunction(min, Float64),
-			max SimpleAggregateFunction(max, Float64),
-			max_count SimpleAggregateFunction(max, Float64),
-			sum SimpleAggregateFunction(sum, Float64),
-			sumsquare SimpleAggregateFunction(sum, Float64),
-			min_host AggregateFunction(argMin, String, Float32),
-			max_host AggregateFunction(argMax, String, Float32),
-			max_count_host AggregateFunction(argMax, String, Float32),
-			percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
-			uniq_state AggregateFunction(uniq, Int64)
-		) ENGINE = AggregatingMergeTree()
-		ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`,
-
+		createV2tableQuery,
+		createV3tableQuery,
 		// Migration state table
 		`CREATE TABLE IF NOT EXISTS migration_state (
 			shard_key Int32,
@@ -761,7 +666,6 @@ func createAllTestTables(httpClient *http.Client, httpAddr, user, password strin
 			retry_count UInt32
 		) ENGINE = ReplacingMergeTree(started_at)
 		ORDER BY (shard_key, current_hour)`,
-
 		// Migration logs table
 		`CREATE TABLE IF NOT EXISTS migration_logs (
 			timestamp DateTime,
@@ -786,7 +690,10 @@ func createAllTestTables(httpClient *http.Client, httpAddr, user, password strin
 		if err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
 		}
-		resp.Close()
+		err = resp.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close response: %w", err)
+		}
 	}
 
 	return nil
@@ -900,7 +807,10 @@ func simulateMigrationForAggregator(agg *MockAggregator, hours []time.Time) erro
 
 		var count uint64
 		if _, err := fmt.Fscanf(resp, "%d", &count); err == nil && count > 0 {
-			resp.Close()
+			err = resp.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close response: %w", err)
+			}
 
 			// Migrate this hour
 			err = migrateSingleStep(agg.httpClient, agg.InsertAddr, agg.user, agg.password, uint32(hour.Unix()), agg.shardKey, config)
@@ -921,9 +831,15 @@ func simulateMigrationForAggregator(agg *MockAggregator, hours []time.Time) erro
 			if err != nil {
 				return fmt.Errorf("failed to update migration state: %w", err)
 			}
-			resp2.Close()
+			err = resp2.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close response: %w", err)
+			}
 		} else {
-			resp.Close()
+			err = resp.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close response: %w", err)
+			}
 		}
 	}
 
@@ -947,11 +863,15 @@ func countMigratedRowsForHour(httpClient *http.Client, httpAddr, user, password 
 	if err != nil {
 		return 0, fmt.Errorf("failed to count migrated rows: %w", err)
 	}
-	defer resp.Close()
 
 	var count uint64
 	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
 		return 0, fmt.Errorf("failed to parse migrated count: %w", err)
+	}
+
+	err = resp.Close()
+	if err != nil {
+		return 0, fmt.Errorf("failed to close response: %w", err)
 	}
 
 	return count, nil
@@ -974,11 +894,14 @@ func countOriginalRowsForHour(httpClient *http.Client, httpAddr, user, password 
 	if err != nil {
 		return 0, fmt.Errorf("failed to count original rows: %w", err)
 	}
-	defer resp.Close()
 
 	var count uint64
 	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
 		return 0, fmt.Errorf("failed to parse original count: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return 0, fmt.Errorf("failed to close response: %w", err)
 	}
 
 	return count, nil
@@ -1014,11 +937,14 @@ func countCompletedShards(httpClient *http.Client, httpAddr, user, password stri
 	if err != nil {
 		return 0, fmt.Errorf("failed to count completed shards: %w", err)
 	}
-	defer resp.Close()
 
 	var count int
 	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
 		return 0, fmt.Errorf("failed to parse completed count: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return 0, fmt.Errorf("failed to close response: %w", err)
 	}
 
 	return count, nil
@@ -1038,11 +964,14 @@ func countMigrationLogs(httpClient *http.Client, httpAddr, user, password string
 	if err != nil {
 		return 0, fmt.Errorf("failed to count migration logs: %w", err)
 	}
-	defer resp.Close()
 
 	var count int
 	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
 		return 0, fmt.Errorf("failed to parse log count: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return 0, fmt.Errorf("failed to close response: %w", err)
 	}
 
 	return count, nil
