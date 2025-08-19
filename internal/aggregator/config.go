@@ -151,6 +151,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
+		f.BoolVar(&c.DisableMappingReplica, "mapping-queue-disable-mapping-replica", d.DisableMappingReplica, "Mapping queue will disable the replica.")
+		f.BoolVar(&c.DisableMappingLongPoll, "mapping-queue-disable-mapping-long-poll", d.DisableMappingLongPoll, "Mapping queue will disable the long poll.")
 	}
 }
 

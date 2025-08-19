@@ -40,6 +40,11 @@ metadata.getJournalResponsenew#9286aaaa {field_mask: #}
     events: (vector metadata.event)
     = metadata.GetJournalResponsenew field_mask;
 
+metadata.getMappingsNewResponse#9287aaaa {field_mask: #}
+    current_version: long
+    pairs: (vector statshouse.mapping)
+    = metadata.GetMappingsNewResponse field_mask;
+
 metadata.getMappingResponse#9286abfc {field_mask: #}
     id: int
     = metadata.GetMappingResponse field_mask;
@@ -106,6 +111,11 @@ metadata.resetFloodResponse2#9286abef
     version: long
      = metadata.Event;
 
+@read metadata.getMappingsNew#93ba92f7
+    field_mask: #
+    from: long // строго больше
+    limit: long
+     = metadata.GetMappingsNewResponse field_mask;
 
 @readwrite metadata.getMapping#9dfa7a83
     field_mask: #

@@ -34,6 +34,10 @@ type Handler struct {
 	getJournalClients map[*rpc.HandlerContext]tlmetadata.GetJournalnew // by getJournalMx
 	minVersion        int64                                            // by getJournalMx
 
+	getMappingMx      sync.Mutex
+	getMappingClients map[*rpc.HandlerContext]tlmetadata.GetMappingsNew // by getMappingMx
+	minMappingVersion int64                                             // by getMappingMx
+
 	host string
 	log  func(s string, args ...interface{})
 }
@@ -44,6 +48,9 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		getJournalMx:      sync.Mutex{},
 		getJournalClients: map[*rpc.HandlerContext]tlmetadata.GetJournalnew{},
 		minVersion:        math.MaxInt64,
+		getMappingMx:      sync.Mutex{},
+		getMappingClients: map[*rpc.HandlerContext]tlmetadata.GetMappingsNew{},
+		minMappingVersion: math.MaxInt64,
 		log:               log,
 		host:              host,
 	}
@@ -62,24 +69,47 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
 	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host}, 1)
 	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, hctx)
+	h.getJournalMx.Unlock()
+
+	h.getMappingMx.Lock()
+	delete(h.getMappingClients, hctx)
+	h.getMappingMx.Unlock()
+
 }
 
 func (h *Handler) broadcastCancel() {
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
-	clientGotResponseCount := len(h.getJournalClients)
-	for hctx, args := range h.getJournalClients {
-		delete(h.getJournalClients, hctx)
-		resp := filterResponse(nil, nil, func(m tlmetadata.Event) bool {
-			return true
-		})
-		resp.CurrentVersion = args.From
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, resp)
-		hctx.SendHijackedResponse(err)
-	}
+	var clientGotResponseCount int
+	func() {
+		h.getJournalMx.Lock()
+		defer h.getJournalMx.Unlock()
+		clientGotResponseCount += len(h.getJournalClients)
+		for hctx, args := range h.getJournalClients {
+			delete(h.getJournalClients, hctx)
+			resp := filterResponse(nil, nil, func(m tlmetadata.Event) bool {
+				return true
+			})
+			resp.CurrentVersion = args.From
+			var err error
+			hctx.Response, err = args.WriteResult(hctx.Response, resp)
+			hctx.SendHijackedResponse(err)
+		}
+	}()
+	func() {
+		h.getMappingMx.Lock()
+		defer h.getMappingMx.Unlock()
+		clientGotResponseCount += len(h.getMappingClients)
+		for hctx, args := range h.getMappingClients {
+			delete(h.getMappingClients, hctx)
+			resp := filterMapping(nil, nil, func(m tlstatshouse.Mapping) bool {
+				return true
+			})
+			resp.CurrentVersion = args.From
+			var err error
+			hctx.Response, err = args.WriteResult(hctx.Response, resp)
+			hctx.SendHijackedResponse(err)
+		}
+	}()
 	if clientGotResponseCount > 0 {
 		h.log("[info] client got cancel error count: %d", clientGotResponseCount)
 	}
@@ -128,6 +158,49 @@ func (h *Handler) broadcastJournal() {
 	h.minVersion = newMinimum
 }
 
+func (h *Handler) broadcastMapping() {
+	h.getMappingMx.Lock()
+	qLength := len(h.getMappingClients)
+	h.getMappingMx.Unlock()
+	if qLength == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	items, err := h.db.GetMappingsNew(ctx, h.minMappingVersion, 100)
+	cancel()
+	if err != nil {
+		return
+	}
+	if len(items) == 0 {
+		return
+	}
+	h.getMappingMx.Lock()
+	defer h.getMappingMx.Unlock()
+	itemsToClient := make([]tlstatshouse.Mapping, 0)
+	clientGotResponseCount := 0
+	var newMinimum int64 = math.MaxInt64
+	for hctx, args := range h.getMappingClients {
+		resp := filterMapping(items, itemsToClient, func(m tlstatshouse.Mapping) bool {
+			return int64(m.Value) > args.From
+		})
+		if len(resp.Pairs) == 0 {
+			if args.From < newMinimum {
+				newMinimum = args.From
+			}
+			continue
+		}
+		delete(h.getMappingClients, hctx)
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		hctx.SendHijackedResponse(err)
+		itemsToClient = itemsToClient[:0]
+		clientGotResponseCount++
+	}
+	if clientGotResponseCount > 0 {
+		h.log("[info] client got response count: %d", clientGotResponseCount)
+	}
+	h.minMappingVersion = newMinimum
+}
+
 func (h *Handler) initStats() {
 	statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 		h.getJournalMx.Lock()
@@ -159,6 +232,29 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	if h.minVersion > args.From {
 		h.minVersion = args.From
 	}
+	return "", hctx.HijackResponse(h)
+}
+
+func (h *Handler) RawGetMappingsNew(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetMappingsNew
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.getMappingsNew request: %w", err)
+	}
+	version := args.From
+	m, err := h.db.GetMappingsNew(ctx, version, args.Limit)
+	if err != nil {
+		return "", fmt.Errorf("failed to get mappings update: %w", err)
+	}
+	if len(m) > 0 {
+		resp := filterMapping(m, nil, func(m tlstatshouse.Mapping) bool { return true })
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return "", err
+	}
+	h.getMappingMx.Lock()
+	defer h.getMappingMx.Unlock() // HijackResponse must be under our lock
+	h.getMappingClients[hctx] = args
+	h.minMappingVersion = min(h.minMappingVersion, args.From)
 	return "", hctx.HijackResponse(h)
 }
 
@@ -240,6 +336,7 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	status := "load_mapping"
 	if mapping.IsCreated() {
 		status = "create_mapping"
+		h.broadcastMapping()
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, mapping)
 	return status, err
@@ -255,6 +352,8 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", err
 	}
+
+	h.broadcastMapping()
 	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.PutMappingResponse{})
 	return "", err
 }
@@ -362,5 +461,22 @@ func filterResponse(ms []tlmetadata.Event, buffer []tlmetadata.Event, filter fun
 	}
 	result.CurrentVersion = currentVersion
 	result.Events = buffer
+	return result
+}
+
+func filterMapping(ms []tlstatshouse.Mapping, buffer []tlstatshouse.Mapping, filter func(m tlstatshouse.Mapping) bool) tlmetadata.GetMappingsNewResponse {
+	var currentVersion int32 = math.MinInt32
+	result := tlmetadata.GetMappingsNewResponse{}
+	for _, m := range ms {
+		if !filter(m) {
+			continue
+		}
+		buffer = append(buffer, m)
+		if currentVersion < m.Value {
+			currentVersion = m.Value
+		}
+	}
+	result.CurrentVersion = int64(currentVersion)
+	result.Pairs = buffer
 	return result
 }

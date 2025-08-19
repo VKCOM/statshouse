@@ -8,12 +8,14 @@ package aggregator
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/mapping"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache"
 )
@@ -30,13 +32,16 @@ type configTagsMapper2 struct {
 	TagHitsToCreate           int // if used in 10 different seconds, then create
 	MaxUnknownTagsToKeep      int
 	MaxSendTagsToAgent        int
+	DisableMappingReplica     bool
+	DisableMappingLongPoll    bool
 }
 
 type tagsMapper2 struct {
-	agg           *Aggregator
-	sh2           *agent.Agent
-	metricStorage *metajournal.MetricsStorage
-	loader        *metajournal.MetricMetaLoader
+	agg            *Aggregator
+	sh2            *agent.Agent
+	metricStorage  *metajournal.MetricsStorage
+	loader         *metajournal.MetricMetaLoader
+	mappingStorage *mapping.DB
 
 	mu              sync.Mutex
 	unknownTags     map[string]unknownTag // collect statistics here
@@ -48,15 +53,16 @@ type tagsMapper2 struct {
 
 // TODO make unknownTagsList algo.CircularSlice[string]
 
-func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper2 {
+func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader, mappingStorage *mapping.DB) *tagsMapper2 {
 	ms := &tagsMapper2{
-		agg:           agg,
-		sh2:           sh2,
-		metricStorage: metricStorage,
-		loader:        loader,
-		unknownTags:   map[string]unknownTag{},
-		createTags:    map[string]format.CreateMappingExtra{},
-		config:        agg.configR.configTagsMapper2,
+		agg:            agg,
+		sh2:            sh2,
+		metricStorage:  metricStorage,
+		loader:         loader,
+		mappingStorage: mappingStorage,
+		unknownTags:    map[string]unknownTag{},
+		createTags:     map[string]format.CreateMappingExtra{},
+		config:         agg.configR.configTagsMapper2,
 	}
 	return ms
 }
@@ -119,6 +125,22 @@ func (ms *tagsMapper2) goRun() {
 		createTags, loadTags, maxCreateTagsPerIteration := ms.getTagsToCreateOrLoad()
 		pairs = pairs[:0]
 		counter := 0
+		for _, str := range loadTags {
+			if ms.config.DisableMappingReplica {
+				tagValue := ms.createTag(str, format.CreateMappingExtra{
+					Create: false, // for documenting intent
+					Host:   ms.agg.aggregatorHost,
+				}) // tagValue might be 0 or -1, they are ignored by AddValues
+				pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
+				continue
+			}
+			id, ok, _ := ms.mappingStorage.GetMappingByValue(context.Background(), str)
+			if !ok {
+				continue
+			}
+			delete(createTags, str)
+			pairs = append(pairs, pcache.MappingPair{Str: str, Value: id})
+		}
 		for str, extra := range createTags {
 			counter++
 			if counter > maxCreateTagsPerIteration {
@@ -127,16 +149,27 @@ func (ms *tagsMapper2) goRun() {
 			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
 			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
 		}
-		for _, str := range loadTags { // also limited to maxCreateOrLoadTagsPerIteration
-			extra := format.CreateMappingExtra{
-				Create: false, // for documenting intent
-				Host:   ms.agg.aggregatorHost,
-			}
-			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
-			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-		}
 		nowUnix := uint32(time.Now().Unix())
 		ms.agg.mappingsCache.AddValues(nowUnix, pairs)
+	}
+}
+
+func (ms *tagsMapper2) goUpdateMappings() {
+	backoffTimeout := time.Duration(0)
+	for {
+		if ms.config.DisableMappingLongPoll {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		err := ms.updateMapping()
+		if err == nil {
+			backoffTimeout = 0
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
+		log.Printf("Failed to update mapping, will retry: %v", err)
+		time.Sleep(backoffTimeout)
 	}
 }
 
@@ -176,4 +209,28 @@ func (ms *tagsMapper2) getTagsToCreateOrLoad() (map[string]format.CreateMappingE
 	}
 	ms.unknownTagsList = ms.unknownTagsList[len(loadTags):]
 	return createTags, loadTags, ms.config.MaxCreateTagsPerIteration
+}
+
+func (ms *tagsMapper2) updateMapping() error {
+	ctx := context.Background()
+	version, err := ms.mappingStorage.GetMaxMappingID(ctx)
+	if err != nil {
+		return err
+	}
+
+	items, newVersion, err := ms.loader.GetMappingNew(ctx, int64(version))
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		return nil
+	}
+
+	for _, item := range items {
+		if err = ms.mappingStorage.CreateMapping(ctx, item.Value, item.Str); err != nil {
+			return err
+		}
+	}
+	log.Printf("[info] added %d mappings to storage, varsion: %d", len(items), newVersion)
+	return nil
 }

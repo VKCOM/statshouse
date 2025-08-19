@@ -105,6 +105,7 @@ func init() {
 	meta.SetGlobalFactoryCreateForFunction(0x9faf5280, func() meta.Object { var ret internal.MetadataGetInvertMapping; return &ret }, func() meta.Function { var ret internal.MetadataGetInvertMapping; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x93ba92f8, func() meta.Object { var ret internal.MetadataGetJournalnew; return &ret }, func() meta.Function { var ret internal.MetadataGetJournalnew; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x9dfa7a83, func() meta.Object { var ret internal.MetadataGetMapping; return &ret }, func() meta.Function { var ret internal.MetadataGetMapping; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForFunction(0x93ba92f7, func() meta.Object { var ret internal.MetadataGetMappingsNew; return &ret }, func() meta.Function { var ret internal.MetadataGetMappingsNew; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x93ba92f5, func() meta.Object { var ret internal.MetadataGetMetrics; return &ret }, func() meta.Function { var ret internal.MetadataGetMetrics; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x5fc81a9b, func() meta.Object { var ret internal.MetadataGetTagMappingBootstrap; return &ret }, func() meta.Function { var ret internal.MetadataGetTagMappingBootstrap; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x5854dfaf, func() meta.Object { var ret internal.MetadataPutBootstrapEvent; return &ret })

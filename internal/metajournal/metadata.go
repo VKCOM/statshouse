@@ -18,6 +18,8 @@ import (
 	"github.com/mailru/easyjson"
 	"go4.org/mem"
 
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -304,6 +306,21 @@ func (l *MetricMetaLoader) LoadJournal(ctx context.Context, lastVersion int64, r
 		return nil, 0, fmt.Errorf("failed to load journal: %w", err)
 	}
 	return resp.Events, resp.CurrentVersion, nil
+}
+
+func (l *MetricMetaLoader) GetMappingNew(ctx context.Context, lastVersion int64) ([]tlstatshouse.Mapping, int64, error) {
+	resp := tlmetadata.GetMappingsNewResponse{}
+	req := tlmetadata.GetMappingsNew{
+		From:  lastVersion,
+		Limit: 1000,
+	}
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	err := l.client.GetMappingsNew(ctx, req, &extra, &resp)
+	if err != nil {
+		log.Println("err: ", err.Error())
+		return nil, 0, fmt.Errorf("failed to load mapping: %w", err)
+	}
+	return resp.Pairs, resp.CurrentVersion, nil
 }
 
 func (l *MetricMetaLoader) PutTagMapping(ctx context.Context, tag string, id int32) error {

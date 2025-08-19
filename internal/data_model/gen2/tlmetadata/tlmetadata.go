@@ -40,6 +40,8 @@ type (
 	GetMappingResponseCreated            = internal.MetadataGetMappingResponseCreated
 	GetMappingResponseFloodLimitError    = internal.MetadataGetMappingResponseFloodLimitError
 	GetMappingResponseKeyNotExists       = internal.MetadataGetMappingResponseKeyNotExists
+	GetMappingsNew                       = internal.MetadataGetMappingsNew
+	GetMappingsNewResponse               = internal.MetadataGetMappingsNewResponse
 	GetMetrics                           = internal.MetadataGetMetrics
 	GetMetricsResponse                   = internal.MetadataGetMetricsResponse
 	GetTagMappingBootstrap               = internal.MetadataGetTagMappingBootstrap
@@ -242,6 +244,36 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 	return nil
 }
 
+func (c *Client) GetMappingsNew(ctx context.Context, args GetMappingsNew, extra *rpc.InvokeReqExtra, ret *GetMappingsNewResponse) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "metadata.getMappingsNew"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("metadata.getMappingsNew", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("metadata.getMappingsNew", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("metadata.getMappingsNew", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.InvokeReqExtra, ret *GetMetricsResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -424,6 +456,7 @@ type Handler struct {
 	GetInvertMapping       func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponse, error)                              // metadata.getInvertMapping
 	GetJournalnew          func(ctx context.Context, args GetJournalnew) (GetJournalResponsenew, error)                                    // metadata.getJournalnew
 	GetMapping             func(ctx context.Context, args GetMapping) (GetMappingResponse, error)                                          // metadata.getMapping
+	GetMappingsNew         func(ctx context.Context, args GetMappingsNew) (GetMappingsNewResponse, error)                                  // metadata.getMappingsNew
 	GetMetrics             func(ctx context.Context, args GetMetrics) (GetMetricsResponse, error)                                          // metadata.getMetrics
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (internal.StatshouseGetTagMappingBootstrapResult, error) // metadata.getTagMappingBootstrap
 	PutMapping             func(ctx context.Context, args PutMapping) (PutMappingResponse, error)                                          // metadata.putMapping
@@ -437,6 +470,7 @@ type Handler struct {
 	RawGetInvertMapping       func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getInvertMapping
 	RawGetJournalnew          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getJournalnew
 	RawGetMapping             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMapping
+	RawGetMappingsNew         func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMappingsNew
 	RawGetMetrics             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMetrics
 	RawGetTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getTagMappingBootstrap
 	RawPutMapping             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.putMapping
@@ -631,6 +665,37 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("metadata.getMapping", err)
+			}
+			return nil
+		}
+	case 0x93ba92f7: // metadata.getMappingsNew
+		hctx.RequestFunctionName = "metadata.getMappingsNew"
+		if h.RawGetMappingsNew != nil {
+			hctx.Request = r
+			err = h.RawGetMappingsNew(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getMappingsNew", err)
+			}
+			return nil
+		}
+		if h.GetMappingsNew != nil {
+			var args GetMappingsNew
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("metadata.getMappingsNew", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetMappingsNew(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getMappingsNew", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("metadata.getMappingsNew", err)
 			}
 			return nil
 		}

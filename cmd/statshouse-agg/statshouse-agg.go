@@ -21,17 +21,19 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/aggregator"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/mapping"
 	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/platform"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
-	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
@@ -134,9 +136,21 @@ func mainAggregator() int {
 	}
 	defer fjCompact.Close()
 
+	mappingDB, err := mapping.OpenDB(filepath.Join(argv.cacheDir, "mapping_storage.sqlite3"))
+	if err != nil {
+		fmt.Printf("db-path: %s, failed to open db: %w", argv.cacheDir, err)
+		return 1
+	}
+	defer func() {
+		err := mappingDB.Close()
+		if err != nil {
+			log.Printf("[error] %v", err)
+		}
+	}()
+
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
 	startDiscCacheTime := time.Now()                                                                    // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(dc, fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(dc, fj, fjCompact, mappingsCache, mappingDB, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
