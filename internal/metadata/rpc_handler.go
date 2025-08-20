@@ -300,6 +300,7 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	return status, err
 }
 
+// RawPutMapping Agent cache, Aggregator cache and Aggregator mapping replica DB will not know about changes!
 func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.PutMapping
 	_, err := args.Read(hctx.Request)
