@@ -198,18 +198,16 @@ func (c *ConfigAggregatorRemote) Validate() error {
 
 func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string) error {
 	var f flag.FlagSet
+	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
 	c.Bind(&f, *c, false)
-	var s []string
-	for _, v := range strings.Split(description, "\n") {
-		v = strings.TrimSpace(v)
-		if len(v) != 0 && !strings.HasPrefix(v, "#") {
-			s = append(s, v)
+	s := strings.Split(description, "\n")
+	for i := 0; i < len(s); i++ {
+		t := strings.TrimSpace(s[i])
+		if len(t) == 0 || strings.HasPrefix(t, "#") {
+			continue
 		}
-	}
-	err := f.Parse(s)
-	if err != nil {
-		return err
+		_ = f.Parse([]string{t})
 	}
 	return c.Validate()
 }
