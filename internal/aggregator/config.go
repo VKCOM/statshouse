@@ -96,12 +96,14 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MapStringTop:         false, // disabled by default because API doesn't support it yet
 
 			configTagsMapper2: configTagsMapper2{
-				MaxUnknownTagsInBucket:    1024,
-				MaxCreateTagsPerIteration: 128,
-				MaxLoadTagsPerIteration:   128,
-				TagHitsToCreate:           10,
-				MaxUnknownTagsToKeep:      1_000_000,
-				MaxSendTagsToAgent:        256,
+				MaxUnknownTagsInBucket:       1024,
+				MaxCreateTagsPerIteration:    128,
+				MaxLoadTagsPerIteration:      128,
+				TagHitsToCreate:              10,
+				MaxUnknownTagsToKeep:         1_000_000,
+				MaxSendTagsToAgent:           256,
+				DisableMappingReplicaReader:  false,
+				DisableMappingReplicaUpdater: false,
 			},
 		},
 	}
