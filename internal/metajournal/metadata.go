@@ -308,19 +308,25 @@ func (l *MetricMetaLoader) LoadJournal(ctx context.Context, lastVersion int64, r
 	return resp.Events, resp.CurrentVersion, nil
 }
 
-func (l *MetricMetaLoader) GetMappingNew(ctx context.Context, lastVersion int64) ([]tlstatshouse.Mapping, int64, error) {
-	resp := tlmetadata.GetMappingsNewResponse{}
-	req := tlmetadata.GetMappingsNew{
+func (l *MetricMetaLoader) GetNewMapping(ctx context.Context, lastVersion int32) ([]tlstatshouse.Mapping, int32, error) {
+	resp := tlmetadata.GetNewMappingsResponse{}
+	req := tlmetadata.GetNewMappings{
 		From:  lastVersion,
 		Limit: 1000,
 	}
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	err := l.client.GetMappingsNew(ctx, req, &extra, &resp)
+	err := l.client.GetNewMappings(ctx, req, &extra, &resp)
 	if err != nil {
 		log.Println("err: ", err.Error())
 		return nil, 0, fmt.Errorf("failed to load mapping: %w", err)
 	}
-	return resp.Pairs, resp.CurrentVersion, nil
+	if item, ok := resp.AsGetNewMappingsResponse(); ok {
+		return item.Pairs, item.CurrentVersion, nil
+	}
+	if resp.IsNotExists() {
+		return nil, 0, nil
+	}
+	return nil, 0, fmt.Errorf("failed to load new mappings: uknown format")
 }
 
 func (l *MetricMetaLoader) PutTagMapping(ctx context.Context, tag string, id int32) error {

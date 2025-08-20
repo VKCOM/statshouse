@@ -40,10 +40,13 @@ metadata.getJournalResponsenew#9286aaaa {field_mask: #}
     events: (vector metadata.event)
     = metadata.GetJournalResponsenew field_mask;
 
-metadata.getMappingsNewResponse#9287aaaa {field_mask: #}
-    current_version: long
+metadata.getNewMappingsResponse#9287aaaa {field_mask: #}
+    current_version: int
     pairs: (vector statshouse.mapping)
-    = metadata.GetMappingsNewResponse field_mask;
+    = metadata.GetNewMappingsResponse field_mask;
+
+metadata.getNewMappingsResponseNotExists#9287aaab {field_mask: #}
+    = metadata.GetNewMappingsResponse field_mask;
 
 metadata.getMappingResponse#9286abfc {field_mask: #}
     id: int
@@ -111,11 +114,11 @@ metadata.resetFloodResponse2#9286abef
     version: long
      = metadata.Event;
 
-@read metadata.getMappingsNew#93ba92f7
+@read metadata.getNewMappings#93ba92f7
     field_mask: #
-    from: long // строго больше
-    limit: long
-     = metadata.GetMappingsNewResponse field_mask;
+    from: int // excluded
+    limit: int
+     = metadata.GetNewMappingsResponse field_mask;
 
 @readwrite metadata.getMapping#9dfa7a83
     field_mask: #

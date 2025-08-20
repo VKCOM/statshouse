@@ -323,7 +323,7 @@ func run() error {
 	}
 	sh := &tlmetadata.Handler{
 		RawGetJournalnew:  proxy.HandleProxy("getJournal", handler.RawGetJournal),
-		RawGetMappingsNew: proxy.HandleProxy("getMappingsNew", handler.RawGetMappingsNew),
+		RawGetNewMappings: proxy.HandleProxy("getMappingsNew", handler.RawGetNewMappings),
 	}
 	engineRPCHandler := metadata.NewEngineRpcHandler(argv.binlogPrefix, db)
 	engineHandler := &tlengine.Handler{

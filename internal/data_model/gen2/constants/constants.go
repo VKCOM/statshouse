@@ -96,10 +96,11 @@ const (
 	MetadataGetMappingResponseCreated            = 0x9286abbb // metadata.getMappingResponseCreated
 	MetadataGetMappingResponseFloodLimitError    = 0x9286abfd // metadata.getMappingResponseFloodLimitError
 	MetadataGetMappingResponseKeyNotExists       = 0x9286abff // metadata.getMappingResponseKeyNotExists
-	MetadataGetMappingsNew                       = 0x93ba92f7 // metadata.getMappingsNew
-	MetadataGetMappingsNewResponse               = 0x9287aaaa // metadata.getMappingsNewResponse
 	MetadataGetMetrics                           = 0x93ba92f5 // metadata.getMetrics
 	MetadataGetMetricsResponse                   = 0x9286abfb // metadata.getMetricsResponse
+	MetadataGetNewMappings                       = 0x93ba92f7 // metadata.getNewMappings
+	MetadataGetNewMappingsResponse               = 0x9287aaaa // metadata.getNewMappingsResponse
+	MetadataGetNewMappingsResponseNotExists      = 0x9287aaab // metadata.getNewMappingsResponseNotExists
 	MetadataGetTagMappingBootstrap               = 0x5fc81a9b // metadata.getTagMappingBootstrap
 	MetadataHistoryShortResponse                 = 0x7186baaf // metadata.history_short_response
 	MetadataHistoryShortResponseEvent            = 0x1186baaf // metadata.history_short_response_event

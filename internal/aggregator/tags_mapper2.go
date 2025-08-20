@@ -26,14 +26,14 @@ type unknownTag struct { // fits well into cache line
 }
 
 type configTagsMapper2 struct {
-	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
-	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
-	MaxLoadTagsPerIteration   int // keep for low at first, then increase gradually
-	TagHitsToCreate           int // if used in 10 different seconds, then create
-	MaxUnknownTagsToKeep      int
-	MaxSendTagsToAgent        int
-	DisableMappingReplica     bool
-	DisableMappingLongPoll    bool
+	MaxUnknownTagsInBucket       int // keep for low at first, then increase gradually
+	MaxCreateTagsPerIteration    int // keep for low at first, then increase gradually
+	MaxLoadTagsPerIteration      int // keep for low at first, then increase gradually
+	TagHitsToCreate              int // if used in 10 different seconds, then create
+	MaxUnknownTagsToKeep         int
+	MaxSendTagsToAgent           int
+	DisableMappingReplicaReader  bool
+	DisableMappingReplicaUpdater bool
 }
 
 type tagsMapper2 struct {
@@ -122,25 +122,32 @@ func (ms *tagsMapper2) goRun() {
 	var pairs []pcache.MappingPair
 	for { // no reason for graceful shutdown
 		time.Sleep(500 * time.Millisecond) // arbitrary delay to reduce meta DDOS
+		ms.mu.Lock()
+		disableReplica := ms.config.DisableMappingReplicaReader
+		ms.mu.Unlock()
+
 		createTags, loadTags, maxCreateTagsPerIteration := ms.getTagsToCreateOrLoad()
 		pairs = pairs[:0]
-		counter := 0
-		for _, str := range loadTags {
-			if ms.config.DisableMappingReplica {
+
+		if disableReplica {
+			for _, str := range loadTags {
 				tagValue := ms.createTag(str, format.CreateMappingExtra{
 					Create: false, // for documenting intent
 					Host:   ms.agg.aggregatorHost,
 				}) // tagValue might be 0 or -1, they are ignored by AddValues
 				pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-				continue
 			}
-			id, ok, _ := ms.mappingStorage.GetMappingByValue(context.Background(), str)
-			if !ok {
-				continue
+		} else {
+			for _, str := range loadTags {
+				id, ok, _ := ms.mappingStorage.GetMappingByValue(context.Background(), str)
+				if !ok {
+					continue
+				}
+				delete(createTags, str)
+				pairs = append(pairs, pcache.MappingPair{Str: str, Value: id})
 			}
-			delete(createTags, str)
-			pairs = append(pairs, pcache.MappingPair{Str: str, Value: id})
 		}
+		counter := 0
 		for str, extra := range createTags {
 			counter++
 			if counter > maxCreateTagsPerIteration {
@@ -157,7 +164,11 @@ func (ms *tagsMapper2) goRun() {
 func (ms *tagsMapper2) goUpdateMappings() {
 	backoffTimeout := time.Duration(0)
 	for {
-		if ms.config.DisableMappingLongPoll {
+		ms.mu.Lock()
+		disableReplica := ms.config.DisableMappingReplicaUpdater
+		ms.mu.Unlock()
+
+		if disableReplica {
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -213,12 +224,12 @@ func (ms *tagsMapper2) getTagsToCreateOrLoad() (map[string]format.CreateMappingE
 
 func (ms *tagsMapper2) updateMapping() error {
 	ctx := context.Background()
-	version, err := ms.mappingStorage.GetMaxMappingID(ctx)
+	curMaxID, err := ms.mappingStorage.GetMaxMappingID(ctx)
 	if err != nil {
 		return err
 	}
 
-	items, newVersion, err := ms.loader.GetMappingNew(ctx, int64(version))
+	items, maxID, err := ms.loader.GetNewMapping(ctx, curMaxID)
 	if err != nil {
 		return err
 	}
@@ -231,6 +242,6 @@ func (ms *tagsMapper2) updateMapping() error {
 			return err
 		}
 	}
-	log.Printf("[info] added %d mappings to storage, varsion: %d", len(items), newVersion)
+	log.Printf("[info] added %d mappings to storage, max id: %d", len(items), maxID)
 	return nil
 }

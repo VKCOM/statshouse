@@ -144,7 +144,7 @@ func mainAggregator() int {
 	defer func() {
 		err := mappingDB.Close()
 		if err != nil {
-			log.Printf("[error] %v", err)
+			log.Printf("[error] failed to close mapping DB: %v", err)
 		}
 	}()
 

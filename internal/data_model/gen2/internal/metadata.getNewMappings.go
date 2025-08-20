@@ -13,44 +13,44 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataGetMappingsNew struct {
+type MetadataGetNewMappings struct {
 	FieldMask uint32
-	From      int64
-	Limit     int64
+	From      int32
+	Limit     int32
 }
 
-func (MetadataGetMappingsNew) TLName() string { return "metadata.getMappingsNew" }
-func (MetadataGetMappingsNew) TLTag() uint32  { return 0x93ba92f7 }
+func (MetadataGetNewMappings) TLName() string { return "metadata.getNewMappings" }
+func (MetadataGetNewMappings) TLTag() uint32  { return 0x93ba92f7 }
 
-func (item *MetadataGetMappingsNew) Reset() {
+func (item *MetadataGetNewMappings) Reset() {
 	item.FieldMask = 0
 	item.From = 0
 	item.Limit = 0
 }
 
-func (item *MetadataGetMappingsNew) Read(w []byte) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.LongRead(w, &item.From); err != nil {
+	if w, err = basictl.IntRead(w, &item.From); err != nil {
 		return w, err
 	}
-	return basictl.LongRead(w, &item.Limit)
+	return basictl.IntRead(w, &item.Limit)
 }
 
 // This method is general version of Write, use it instead!
-func (item *MetadataGetMappingsNew) WriteGeneral(w []byte) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
 
-func (item *MetadataGetMappingsNew) Write(w []byte) []byte {
+func (item *MetadataGetNewMappings) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	w = basictl.LongWrite(w, item.From)
-	w = basictl.LongWrite(w, item.Limit)
+	w = basictl.IntWrite(w, item.From)
+	w = basictl.IntWrite(w, item.Limit)
 	return w
 }
 
-func (item *MetadataGetMappingsNew) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x93ba92f7); err != nil {
 		return w, err
 	}
@@ -58,42 +58,42 @@ func (item *MetadataGetMappingsNew) ReadBoxed(w []byte) (_ []byte, err error) {
 }
 
 // This method is general version of WriteBoxed, use it instead!
-func (item *MetadataGetMappingsNew) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
 
-func (item *MetadataGetMappingsNew) WriteBoxed(w []byte) []byte {
+func (item *MetadataGetNewMappings) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x93ba92f7)
 	return item.Write(w)
 }
 
-func (item *MetadataGetMappingsNew) ReadResult(w []byte, ret *MetadataGetMappingsNewResponse) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) ReadResult(w []byte, ret *MetadataGetNewMappingsResponse) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMappingsNew) WriteResult(w []byte, ret MetadataGetMappingsNewResponse) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) WriteResult(w []byte, ret MetadataGetNewMappingsResponse) (_ []byte, err error) {
 	w = ret.WriteBoxed(w, item.FieldMask)
 	return w, nil
 }
 
-func (item *MetadataGetMappingsNew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetMappingsNewResponse) error {
+func (item *MetadataGetNewMappings) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetNewMappingsResponse) error {
 	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataGetMappingsNew) WriteResultJSON(w []byte, ret MetadataGetMappingsNewResponse) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) WriteResultJSON(w []byte, ret MetadataGetNewMappingsResponse) (_ []byte, err error) {
 	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataGetMappingsNew) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetMappingsNewResponse) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetNewMappingsResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask)
 	return w, nil
 }
 
-func (item *MetadataGetMappingsNew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetMappingsNewResponse
+func (item *MetadataGetNewMappings) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataGetNewMappingsResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -101,8 +101,8 @@ func (item *MetadataGetMappingsNew) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *MetadataGetMappingsNew) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetMappingsNewResponse
+func (item *MetadataGetNewMappings) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataGetNewMappingsResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -110,8 +110,8 @@ func (item *MetadataGetMappingsNew) ReadResultWriteResultJSONOpt(newTypeNames bo
 	return r, w, err
 }
 
-func (item *MetadataGetMappingsNew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	var ret MetadataGetMappingsNewResponse
+func (item *MetadataGetNewMappings) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret MetadataGetNewMappingsResponse
 	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
 	if err != nil {
 		return r, w, err
@@ -120,11 +120,11 @@ func (item *MetadataGetMappingsNew) ReadResultJSONWriteResult(r []byte, w []byte
 	return r, w, err
 }
 
-func (item MetadataGetMappingsNew) String() string {
+func (item MetadataGetNewMappings) String() string {
 	return string(item.WriteJSON(nil))
 }
 
-func (item *MetadataGetMappingsNew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+func (item *MetadataGetNewMappings) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propFromPresented bool
 	var propLimitPresented bool
@@ -140,7 +140,7 @@ func (item *MetadataGetMappingsNew) ReadJSON(legacyTypeNames bool, in *basictl.J
 			switch key {
 			case "field_mask":
 				if propFieldMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMappingsNew", "field_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappings", "field_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
 					return err
@@ -148,22 +148,22 @@ func (item *MetadataGetMappingsNew) ReadJSON(legacyTypeNames bool, in *basictl.J
 				propFieldMaskPresented = true
 			case "from":
 				if propFromPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMappingsNew", "from")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappings", "from")
 				}
-				if err := Json2ReadInt64(in, &item.From); err != nil {
+				if err := Json2ReadInt32(in, &item.From); err != nil {
 					return err
 				}
 				propFromPresented = true
 			case "limit":
 				if propLimitPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMappingsNew", "limit")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappings", "limit")
 				}
-				if err := Json2ReadInt64(in, &item.Limit); err != nil {
+				if err := Json2ReadInt32(in, &item.Limit); err != nil {
 					return err
 				}
 				propLimitPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("metadata.getMappingsNew", key)
+				return ErrorInvalidJSONExcessElement("metadata.getNewMappings", key)
 			}
 			in.WantComma()
 		}
@@ -185,14 +185,14 @@ func (item *MetadataGetMappingsNew) ReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingsNew) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+func (item *MetadataGetNewMappings) WriteJSONGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w), nil
 }
 
-func (item *MetadataGetMappingsNew) WriteJSON(w []byte) []byte {
+func (item *MetadataGetNewMappings) WriteJSON(w []byte) []byte {
 	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetMappingsNew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataGetNewMappings) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -204,27 +204,27 @@ func (item *MetadataGetMappingsNew) WriteJSONOpt(newTypeNames bool, short bool, 
 	backupIndexFrom := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"from":`...)
-	w = basictl.JSONWriteInt64(w, item.From)
+	w = basictl.JSONWriteInt32(w, item.From)
 	if (item.From != 0) == false {
 		w = w[:backupIndexFrom]
 	}
 	backupIndexLimit := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"limit":`...)
-	w = basictl.JSONWriteInt64(w, item.Limit)
+	w = basictl.JSONWriteInt32(w, item.Limit)
 	if (item.Limit != 0) == false {
 		w = w[:backupIndexLimit]
 	}
 	return append(w, '}')
 }
 
-func (item *MetadataGetMappingsNew) MarshalJSON() ([]byte, error) {
+func (item *MetadataGetNewMappings) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil), nil
 }
 
-func (item *MetadataGetMappingsNew) UnmarshalJSON(b []byte) error {
+func (item *MetadataGetNewMappings) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("metadata.getMappingsNew", err.Error())
+		return ErrorInvalidJSON("metadata.getNewMappings", err.Error())
 	}
 	return nil
 }
