@@ -64,6 +64,10 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		}
 	}()
 	h.initStats()
+
+	h.mappingCacheMx.Lock()
+	defer h.mappingCacheMx.Unlock()
+	h.bootStrapMappingCacheUnlocked(context.Background())
 	return h
 }
 
@@ -322,7 +326,7 @@ func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapp
 	defer h.mappingCacheMx.Unlock()
 
 	if h.mappingHead == -1 {
-		h.bootStrapMappingCache(ctx)
+		h.bootStrapMappingCacheUnlocked(ctx)
 		return
 	}
 	tail := normalizeCircleIndex(h.mappingHead-1, mappingCacheSize)
@@ -335,10 +339,11 @@ func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapp
 		h.mappingHead = normalizeCircleIndex(h.mappingHead+1, mappingCacheSize)
 		return
 	}
-	h.bootStrapMappingCache(ctx)
+	h.log("[INFO] BOOTSTRAP all cache")
+	h.bootStrapMappingCacheUnlocked(ctx)
 }
 
-func (h *Handler) bootStrapMappingCache(ctx context.Context) {
+func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
 	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
 	if err != nil || len(mappings) != mappingCacheSize {
 		h.mappingHead = -1
