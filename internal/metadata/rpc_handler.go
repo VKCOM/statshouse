@@ -339,7 +339,6 @@ func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapp
 		h.mappingHead = normalizeCircleIndex(h.mappingHead+1, mappingCacheSize)
 		return
 	}
-	h.log("[INFO] BOOTSTRAP all cache")
 	h.bootStrapMappingCacheUnlocked(ctx)
 }
 
