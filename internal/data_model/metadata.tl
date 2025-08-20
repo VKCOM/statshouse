@@ -114,6 +114,7 @@ metadata.resetFloodResponse2#9286abef
     version: long
      = metadata.Event;
 
+// eventual consistency
 @read metadata.getNewMappings#93ba92f7
     field_mask: #
     from: int // excluded

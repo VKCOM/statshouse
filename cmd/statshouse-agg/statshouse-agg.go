@@ -138,7 +138,7 @@ func mainAggregator() int {
 
 	mappingDB, err := mapping.OpenDB(filepath.Join(argv.cacheDir, "mapping_storage.sqlite3"))
 	if err != nil {
-		fmt.Printf("db-path: %s, failed to open db: %w", argv.cacheDir, err)
+		log.Printf("db-path: %s, failed to open db: %w", argv.cacheDir, err)
 		return 1
 	}
 	defer func() {
