@@ -202,6 +202,34 @@ func TestArgIntEmptyIntegration(t *testing.T) {
 	require.Equal(t, int32(0), aggOut.Arg)
 }
 
+func TestArgStringAsIntIntegrationNegative(t *testing.T) {
+	aggIn := data_model.ArgMinMaxStringFloat32{
+		AsInt32: 1065353216,
+		Val:     -2,
+	}
+	aggInBytes := aggIn.MarshallAppend(nil)
+
+	err := insertRawBinary(httpClient, clickHouseAddr, "default", "secret", "v3(id, agg)", [][]byte{
+		encodeUInt32(6), // id
+		aggInBytes,      // agg
+	})
+	require.NoError(t, err)
+
+	aggOutBytes, err := selectRawBinary(httpClient, clickHouseAddr, "default", "secret", `SELECT agg FROM v3 WHERE id=6`)
+	require.NoError(t, err)
+
+	// Debug: print the bytes returned from ClickHouse
+	t.Logf("Input bytes: %x (len=%d)", aggInBytes, len(aggInBytes))
+	t.Logf("Output bytes: %x (len=%d)", aggOutBytes, len(aggOutBytes))
+
+	var aggOut data_model.ArgMinMaxStringFloat32
+	_, err = aggOut.ReadFrom(bytes.NewReader(aggOutBytes), make([]byte, 6))
+	require.NoError(t, err)
+	t.Logf("Expected: AsInt32=%d, Val=%f", aggIn.AsInt32, aggIn.Val)
+	t.Logf("Actual: AsInt32=%d, Val=%f", aggOut.AsInt32, aggOut.Val)
+	require.Equal(t, aggIn, aggOut)
+}
+
 func execQuery(httpClient *http.Client, addr, user, password, query string) error {
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
