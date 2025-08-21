@@ -58,6 +58,11 @@ func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.ByteReader, buf []byte) ([]byte
 			if err != nil {
 				return buf, err
 			}
+			// ClickHouse might add extra bytes to string (null terminator) for compatibility with old versions
+			// so we need to skip them
+			for i := uint32(5); i < len; i++ { // 5 is the size of int32 + 1 for string flag
+				_, _ = r.ReadByte()
+			}
 		}
 	}
 	// read value
