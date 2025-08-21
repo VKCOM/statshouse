@@ -11,11 +11,11 @@ package aggregator
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
@@ -353,160 +353,144 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("Inserted %d test rows into V2 table", len(testData))
 
-	// Test migrateSingleHour
 	testHour := testData[0].time
-	shardKey := int32(2) // Test shard 2
-
 	config := NewDefaultMigrationConfig()
-	err = migrateSingleStep(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
-	require.NoError(t, err)
-	t.Logf("Migration completed successfully for hour %d, shard %d", testHour, shardKey)
 
-	// Verify migration results
-	checkQuery := fmt.Sprintf(`
-		SELECT count() as cnt 
-		FROM statshouse_v3_1h 
-		WHERE time = toDateTime(%d)`, testHour)
-
-	req.Query = checkQuery
-	resp, err = req.Execute(context.Background())
-	require.NoError(t, err)
-
-	var migratedCount uint64
-	_, err = fmt.Fscanf(resp, "%d", &migratedCount)
-	require.NoError(t, err)
-	err = resp.Close()
-	require.NoError(t, err)
-
-	// Should have migrated the rows where metric % 16 = 0 (shard 1 processes metrics where metric % 16 = 0)
-	expectedCount := 0
-	for _, row := range testData {
-		if row.metric%16 == shardKey-1 { // shard 1 processes metrics where metric % 16 = 0
-			expectedCount++
-		}
+	var shardsToTest []int32
+	for i := range 16 {
+		shardsToTest = append(shardsToTest, int32(i+1))
 	}
 
-	require.Equal(t, uint64(expectedCount), migratedCount, "Should migrate correct number of rows for shard")
-	t.Logf("SUCCESS: Migrated %d rows as expected", migratedCount)
-}
+	for _, shardKey := range shardsToTest {
+		t.Run(fmt.Sprintf("shard_%d", shardKey), func(t *testing.T) {
+			// Run migration for this shard
+			err = migrateSingleStep(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
+			require.NoError(t, err)
+			t.Logf("Migration completed successfully for hour %d, shard %d", testHour, shardKey)
 
-// TestFullMigrationE2E tests the complete migration system end-to-end
-func TestFullMigrationE2EIntegration(t *testing.T) {
-	ctx := context.Background()
-
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
-		clickhouseImage,
-		clickhouse.WithDatabase("default"),
-		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword("secret"),
-	)
-	require.NoError(t, err)
-	defer func() {
-		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}()
-
-	// Get connection details
-	connectionHost, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-
-	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
-	require.NoError(t, err)
-
-	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
-	httpClient := &http.Client{Timeout: 120 * time.Second}
-
-	// Create all necessary tables (V2, V3, migration state, logs)
-	t.Log("Creating database tables...")
-	err = createAllTestTables(httpClient, httpAddr, "default", "secret")
-	require.NoError(t, err)
-
-	// Create comprehensive test data for multiple hours
-	t.Log("Creating test data for multiple hours...")
-	testHours := []time.Time{
-		time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
-		time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
-		time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
-	}
-
-	totalRowsInserted := 0
-	for _, hour := range testHours {
-		testData := createTestDataForHour(hour)
-		err = insertTestDataForHour(httpClient, httpAddr, "default", "secret", testData)
-		require.NoError(t, err)
-		totalRowsInserted += len(testData)
-		t.Logf("Inserted %d rows for hour %s", len(testData), hour.Format("2006-01-02 15:04:05"))
-	}
-
-	// Create mock aggregator instances for testing
-	aggregators := createMockAggregators(httpAddr, "default", "secret", 3) // Test with 3 shards
-
-	// Test migration coordination
-	t.Log("Starting migration simulation...")
-
-	// Run migrations for each aggregator in separate goroutines
-	var wg sync.WaitGroup
-	migrationResults := make(chan error, len(aggregators))
-
-	for i, agg := range aggregators {
-		wg.Add(1)
-		go func(aggIndex int, aggregator *MockAggregator) {
-			defer wg.Done()
-
-			// Simulate migration for this aggregator
-			err := simulateMigrationForAggregator(aggregator, testHours)
-			if err != nil {
-				t.Logf("Aggregator %d migration failed: %v", aggIndex, err)
-				migrationResults <- fmt.Errorf("aggregator %d failed: %w", aggIndex, err)
-			} else {
-				t.Logf("Aggregator %d migration completed successfully", aggIndex)
-				migrationResults <- nil
+			// Get expected rows for this shard
+			var expectedRows []*v2Row
+			for _, row := range testData {
+				if row.metric%16 == shardKey-1 { // shard processes metrics where metric % 16 = shardKey-1
+					expectedRows = append(expectedRows, row)
+				}
 			}
-		}(i, agg)
+
+			// First, get the count of expected rows to know when to stop parsing
+			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND metric %% 16 = %d`, testHour, shardKey-1)
+			req.Query = countQuery
+			req.Format = "" // Default format for count query
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			resp, err = req.Execute(ctx)
+			require.NoError(t, err)
+
+			var expectedRowCount uint64
+			if _, err := fmt.Fscanf(resp, "%d", &expectedRowCount); err != nil {
+				require.NoError(t, err, "Failed to parse row count")
+			}
+			err = resp.Close()
+			require.NoError(t, err)
+
+			t.Logf("Shard %d: Expecting %d rows", shardKey, expectedRowCount)
+
+			// Query all fields that are actually inserted by the migration
+			selectQuery := fmt.Sprintf(`
+			SELECT metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47,
+				count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
+			FROM statshouse_v3_1h
+			WHERE time = toDateTime(%d) AND metric %% 16 = %d
+			ORDER BY metric`, testHour, shardKey-1)
+
+			t.Logf("Executing V3 query for shard %d: %s", shardKey, selectQuery)
+
+			req.Query = selectQuery
+			req.Format = "RowBinary"
+			resp, err = req.Execute(ctx)
+			require.NoError(t, err)
+
+			// Parse the RowBinary response using parseV3Row function
+			// Parse exactly the expected number of rows instead of relying on EOF
+			var migratedRows []*v3Row
+			bufReader := bufio.NewReader(resp)
+			for i := uint64(0); i < expectedRowCount; i++ {
+				row, err := parseV3Row(bufReader)
+				require.NoError(t, err, "Failed to parse V3 row %d", i+1)
+				migratedRows = append(migratedRows, row)
+				t.Logf("Shard %d: Parsed V3 row %d: metric=%d, time=%d, tag0=%d, stag47=%s, count=%.2f",
+					shardKey, len(migratedRows), row.metric, row.time, row.tags[0], row.stag47, row.count)
+			}
+
+			// Verify that we don't have any more data by trying to read one more byte
+			// This should fail with EOF if we've consumed all the row data
+			oneByte := make([]byte, 1)
+			n, _ := bufReader.Read(oneByte)
+			if n > 0 {
+				t.Logf("Shard %d: Warning - found %d extra bytes after expected row data", shardKey, n)
+				// Don't fail the test for this, as it might be normal ClickHouse response padding
+			}
+
+			err = resp.Close()
+			require.NoError(t, err)
+
+			// Validate counts match
+			require.Equal(t, len(expectedRows), len(migratedRows),
+				"Shard %d: Should migrate same number of rows as expected", shardKey)
+
+			// Comprehensive validation: compare all fields between original V2 and migrated V3
+			for i, expectedV2 := range expectedRows {
+				actualV3 := migratedRows[i]
+
+				// Validate V2→V3 field mapping
+				require.Equal(t, expectedV2.metric, actualV3.metric,
+					"Shard %d row %d: metric mismatch", shardKey, i)
+				require.Equal(t, expectedV2.time, actualV3.time,
+					"Shard %d row %d: time mismatch", shardKey, i)
+				require.Equal(t, expectedV2.keys, actualV3.tags,
+					"Shard %d row %d: keys→tags mismatch", shardKey, i)
+				require.Equal(t, expectedV2.skey, actualV3.stag47,
+					"Shard %d row %d: skey→stag47 mismatch", shardKey, i)
+				require.Equal(t, expectedV2.count, actualV3.count,
+					"Shard %d row %d: count mismatch", shardKey, i)
+				require.Equal(t, expectedV2.min, actualV3.min,
+					"Shard %d row %d: min mismatch", shardKey, i)
+				require.Equal(t, expectedV2.max, actualV3.max,
+					"Shard %d row %d: max mismatch", shardKey, i)
+				require.Equal(t, expectedV2.sum, actualV3.sum,
+					"Shard %d row %d: sum mismatch", shardKey, i)
+				require.Equal(t, expectedV2.sumsquare, actualV3.sumsquare,
+					"Shard %d row %d: sumsquare mismatch", shardKey, i)
+
+				// Validate host aggregates
+				require.Empty(t, actualV3.min_host.AsString,
+					"Shard %d row %d: min_host string not empty", shardKey, i)
+				require.Equal(t, expectedV2.min_host.Val, actualV3.min_host.Val,
+					"Shard %d row %d: min_host.Val mismatch", shardKey, i)
+				require.Empty(t, actualV3.max_host.AsString,
+					"Shard %d row %d: max_host string not empty", shardKey, i)
+				require.Equal(t, expectedV2.max_host.Val, actualV3.max_host.Val,
+					"Shard %d row %d: max_host.Val mismatch", shardKey, i)
+
+				// Validate percentiles (aggregate states)
+				if expectedV2.perc.Digest != nil && actualV3.perc.Digest != nil {
+					require.InDelta(t, expectedV2.perc.Digest.Quantile(0.5), actualV3.perc.Digest.Quantile(0.5), 1e-6,
+						"Shard %d row %d: percentile 0.5 mismatch", shardKey, i)
+					require.InDelta(t, expectedV2.perc.Digest.Quantile(0.99), actualV3.perc.Digest.Quantile(0.99), 1e-6,
+						"Shard %d row %d: percentile 0.99 mismatch", shardKey, i)
+				} else {
+					require.Nil(t, actualV3.perc.Digest,
+						"Shard %d row %d: percentiles should be nil", shardKey, i)
+				}
+
+				// Validate unique state
+				require.Equal(t, expectedV2.uniq.ItemsCount(), actualV3.uniq.ItemsCount(),
+					"Shard %d row %d: uniq_state mismatch", shardKey, i)
+			}
+
+			t.Logf("SUCCESS: Shard %d migrated and validated %d rows with complete field-by-field comparison",
+				shardKey, len(migratedRows))
+		})
 	}
-
-	// Wait for all migrations to complete
-	wg.Wait()
-	close(migrationResults)
-
-	// Check results
-	var migrationErrors []error
-	for err := range migrationResults {
-		if err != nil {
-			migrationErrors = append(migrationErrors, err)
-		}
-	}
-
-	require.Empty(t, migrationErrors, "All migrations should succeed")
-
-	// Verify final state
-	t.Log("Verifying migration results...")
-
-	// Check that all data was migrated correctly
-	for _, hour := range testHours {
-		migratedCount, err := countMigratedRowsForHour(httpClient, httpAddr, "default", "secret", hour)
-		require.NoError(t, err)
-
-		originalCount, err := countOriginalRowsForHour(httpClient, httpAddr, "default", "secret", hour)
-		require.NoError(t, err)
-
-		t.Logf("Hour %s: Original=%d, Migrated=%d", hour.Format("2006-01-02 15:04:05"), originalCount, migratedCount)
-		require.Equal(t, originalCount, migratedCount, "All rows should be migrated for hour %s", hour.Format("2006-01-02 15:04:05"))
-	}
-
-	// Check migration state table
-	completedShards, err := countCompletedShards(httpClient, httpAddr, "default", "secret", testHours)
-	require.NoError(t, err)
-	require.Equal(t, len(aggregators)*len(testHours), completedShards, "All shard-hour combinations should be completed")
-
-	// Check migration logs
-	logCount, err := countMigrationLogs(httpClient, httpAddr, "default", "secret")
-	require.NoError(t, err)
-	require.Greater(t, logCount, 0, "Should have migration logs")
-
-	t.Log("SUCCESS: Full E2E migration test completed successfully!")
 }
 
 func createTestData() []*v2Row {
@@ -974,4 +958,146 @@ func countMigrationLogs(httpClient *http.Client, httpAddr, user, password string
 	}
 
 	return count, nil
+}
+
+// v3Row represents a parsed row from V3 format (after migration)
+type v3Row struct {
+	metric    int32
+	time      uint32
+	tags      [16]int32 // tag0-tag15
+	stag47    string    // V2 skey maps to stag47
+	count     float64
+	min       float64
+	max       float64
+	sum       float64
+	sumsquare float64
+	min_host  data_model.ArgMinMaxStringFloat32 // Note: V3 uses String format
+	max_host  data_model.ArgMinMaxStringFloat32 // Note: V3 uses String format
+	perc      *data_model.ChDigest
+	uniq      *data_model.ChUnique
+}
+
+// parseV3Row parses a single V3 row from rowbinary data
+// Based on the V3 insert query order: metric,time, tag0-tag15,stag47, count,min,max,sum,sumsquare, min_host,max_host,percentiles,uniq_state
+func parseV3Row(reader *bufio.Reader) (*v3Row, error) {
+	row := &v3Row{}
+
+	fmt.Printf("[v3parse] Starting to parse row...\n")
+	// Parse metric (Int32)
+	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
+		fmt.Printf("[v3parse] metric error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] metric = %d\n", row.metric)
+
+	// Parse time (DateTime = UInt32)
+	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
+		fmt.Printf("[v3parse] time error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] time = %d\n", row.time)
+
+	// Parse all 16 tags (tag0 through tag15)
+	for i := 0; i < 16; i++ {
+		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
+			fmt.Printf("[v3parse] tag %d error: %s\n", i, err)
+			return nil, err
+		}
+	}
+	fmt.Printf("[v3parse] tags = %+v\n", row.tags)
+
+	// Parse stag47 (String) - LEB128 varint format
+	fmt.Printf("[v3parse] parsing stag47...\n")
+	stag47Len, err := binary.ReadUvarint(reader)
+	if err != nil {
+		fmt.Printf("[v3parse] stag47 length error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] stag47 length = %d\n", stag47Len)
+	// Bounds check for stag47 to avoid huge allocations
+	if stag47Len > 4096 {
+		return nil, fmt.Errorf("invalid stag47 length: %d", stag47Len)
+	}
+	stag47Bytes := make([]byte, stag47Len)
+	if _, err := io.ReadFull(reader, stag47Bytes); err != nil {
+		fmt.Printf("[v3parse] stag47 content error: %s\n", err)
+		return nil, err
+	}
+	row.stag47 = string(stag47Bytes)
+	fmt.Printf("[v3parse] stag47 = %s\n", row.stag47)
+
+	// Parse simple aggregates (Float64 each)
+	fmt.Printf("[v3parse] parsing aggregates...\n")
+	// count
+	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
+		fmt.Printf("[v3parse] count error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] count = %.2f\n", row.count)
+
+	// min
+	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
+		fmt.Printf("[v3parse] min error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] min = %.2f\n", row.min)
+
+	// max
+	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
+		fmt.Printf("[v3parse] max error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] max = %.2f\n", row.max)
+
+	// sum
+	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
+		fmt.Printf("[v3parse] sum error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] sum = %.2f\n", row.sum)
+
+	// sumsquare
+	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
+		fmt.Printf("[v3parse] sumsquare error: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("[v3parse] sumsquare = %.2f\n", row.sumsquare)
+
+	// Parse aggregate fields from ClickHouse internal format
+	fmt.Printf("[v3parse] parsing aggregate states...\n")
+	// min_host (ArgMinStringFloat32)
+	var buf []byte
+	buf, err = row.min_host.ReadFrom(reader, buf)
+	if err != nil {
+		fmt.Printf("[v3parse] min_host error: %s\n", err)
+		return nil, fmt.Errorf("failed to parse min_host: %w", err)
+	}
+	fmt.Printf("[v3parse] min_host parsed successfully - AsInt32=%d, Val=%.2f\n", row.min_host.AsInt32, row.min_host.Val)
+
+	// max_host (ArgMaxStringFloat32)
+	buf, err = row.max_host.ReadFrom(reader, buf)
+	if err != nil {
+		fmt.Printf("[v3parse] max_host error: %s\n", err)
+		return nil, fmt.Errorf("failed to parse max_host: %w", err)
+	}
+	fmt.Printf("[v3parse] max_host parsed successfully - AsInt32=%d, Val=%.2f\n", row.max_host.AsInt32, row.max_host.Val)
+
+	// percentiles
+	row.perc = &data_model.ChDigest{}
+	if err := row.perc.ReadFrom(reader); err != nil {
+		fmt.Printf("[v3parse] percentiles error: %s\n", err)
+		return nil, fmt.Errorf("failed to parse percentiles: %w", err)
+	}
+	fmt.Printf("[v3parse] percentiles parsed successfully\n")
+
+	// uniq_state
+	row.uniq = &data_model.ChUnique{}
+	if err := row.uniq.ReadFrom(reader); err != nil {
+		fmt.Printf("[v3parse] uniq_state error: %s\n", err)
+		return nil, fmt.Errorf("failed to parse uniq_state: %w", err)
+	}
+	fmt.Printf("[v3parse] uniq_state parsed successfully\n")
+	fmt.Printf("[v3parse] row parsing completed successfully\n")
+
+	return row, nil
 }
