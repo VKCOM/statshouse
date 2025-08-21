@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -27,9 +28,141 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
+	"pgregory.net/rand"
 )
 
 const clickhouseImage = "clickhouse/clickhouse-server:24.3-alpine"
+
+// Package-level variables for shared ClickHouse container
+var (
+	clickHouseContainer testcontainers.Container
+	clickHouseHost      string
+	clickHousePort      string
+	clickHouseAddr      string
+	httpClient          *http.Client
+	tablesCreated       bool
+)
+
+// TestMain sets up and tears down the shared ClickHouse container
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	// Start ClickHouse container once for all tests
+	var err error
+	clickHouseContainer, err = clickhouse.Run(ctx,
+		clickhouseImage,
+		clickhouse.WithDatabase("default"),
+		clickhouse.WithUsername("default"),
+		clickhouse.WithPassword("secret"),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to start ClickHouse container: %v", err))
+	}
+
+	// Get connection details
+	clickHouseHost, err = clickHouseContainer.Host(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get container host: %v", err))
+	}
+
+	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get mapped port: %v", err))
+	}
+	clickHousePort = httpPort.Port()
+	clickHouseAddr = fmt.Sprintf("%s:%s", clickHouseHost, clickHousePort)
+
+	// Create shared HTTP client
+	httpClient = &http.Client{Timeout: 120 * time.Second}
+
+	// Ensure tables are created once for all tests
+	err = ensureTablesCreated()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create tables: %v", err))
+	}
+
+	// Run all tests
+	exitCode := m.Run()
+
+	// Clean up container
+	if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to terminate container: %s\n", err)
+	}
+
+	os.Exit(exitCode)
+}
+
+// ensureTablesCreated creates the necessary tables if they haven't been created yet
+func ensureTablesCreated() error {
+	if tablesCreated {
+		return nil
+	}
+
+	// Create V2 table
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      createV2tableQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to create V2 table: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close V2 table creation response: %w", err)
+	}
+
+	// Create V3 table
+	req.Query = createV3tableQuery
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to create V3 table: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close V3 table creation response: %w", err)
+	}
+
+	tablesCreated = true
+	fmt.Printf("Tables created successfully\n")
+	return nil
+}
+
+// cleanupTables removes all data from tables to ensure test isolation
+func cleanupTables() error {
+	// Clear V2 table data
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      "TRUNCATE TABLE statshouse_value_1h_dist",
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear V2 table: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close V2 table clear response: %w", err)
+	}
+
+	// Clear V3 table data
+	req.Query = "TRUNCATE TABLE statshouse_v3_1h"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear V3 table: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close V3 table clear response: %w", err)
+	}
+
+	return nil
+}
 
 const createV2tableQuery = `CREATE TABLE statshouse_value_1h_dist (
 		metric Int32,
@@ -82,43 +215,11 @@ const createV3tableQuery = `CREATE TABLE statshouse_v3_1h (
 	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
 
 func TestV2DataParsingIntegration(t *testing.T) {
-	ctx := context.Background()
+	// Use shared container connection details
+	httpAddr := clickHouseAddr
 
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
-		clickhouseImage,
-		clickhouse.WithDatabase("default"),
-		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword("secret"),
-	)
-	require.NoError(t, err)
-	defer func() {
-		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}()
-
-	// Get connection details
-	connectionHost, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-
-	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
-	require.NoError(t, err)
-
-	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
-	httpClient := &http.Client{Timeout: 120 * time.Second} // Increased timeout
-
-	// Create V2 table structure
-	req := chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       "default",
-		Password:   "secret",
-		Query:      createV2tableQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	require.NoError(t, err)
-	err = resp.Close()
+	// Clean up tables before test to ensure isolation
+	err := cleanupTables()
 	require.NoError(t, err)
 
 	// Step 5: Test with complete parseV2Row function from migration.go
@@ -132,14 +233,14 @@ func TestV2DataParsingIntegration(t *testing.T) {
 
 	// Verify all rows were inserted by checking the count
 	countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_value_1h_dist WHERE time = toDateTime(%d)`, testData[0].time)
-	req = chutil.ClickHouseHttpRequest{
+	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
 		Addr:       httpAddr,
 		User:       "default",
 		Password:   "secret",
 		Query:      countQuery,
 	}
-	resp, err = req.Execute(context.Background())
+	resp, err := req.Execute(context.Background())
 	require.NoError(t, err)
 
 	var insertedCount uint64
@@ -160,7 +261,7 @@ func TestV2DataParsingIntegration(t *testing.T) {
 
 	t.Logf("Executing query: %s", selectQuery)
 
-	req = chutil.ClickHouseHttpRequest{
+	req = &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
 		Addr:       httpAddr,
 		User:       "default",
@@ -229,42 +330,11 @@ func TestV2DataParsingIntegration(t *testing.T) {
 
 // TestV2ToV3Conversion tests that convertRowV2ToV3 works correctly and generates data that can be inserted into V3 table
 func TestV2ToV3ConversionIntegration(t *testing.T) {
-	ctx := context.Background()
+	// Use shared container connection details
+	httpAddr := clickHouseAddr
 
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
-		clickhouseImage,
-		clickhouse.WithDatabase("default"),
-		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword("secret"),
-	)
-	require.NoError(t, err)
-	defer func() {
-		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}()
-
-	// Get connection details
-	connectionHost, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-
-	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
-	require.NoError(t, err)
-
-	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
-	httpClient := &http.Client{Timeout: 120 * time.Second}
-
-	req := chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       "default",
-		Password:   "secret",
-		Query:      createV3tableQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	require.NoError(t, err)
-	err = resp.Close()
+	// Clean up tables before test to ensure isolation
+	err := cleanupTables()
 	require.NoError(t, err)
 
 	testData := createTestData()
@@ -293,7 +363,7 @@ func TestV2ToV3ConversionIntegration(t *testing.T) {
 		Body:       body,
 		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
 	}
-	resp, err = insertReq.Execute(context.Background())
+	resp, err := insertReq.Execute(context.Background())
 	require.NoError(t, err)
 	err = resp.Close()
 	require.NoError(t, err)
@@ -302,49 +372,11 @@ func TestV2ToV3ConversionIntegration(t *testing.T) {
 }
 
 func TestMigrateSingleStepIntegration(t *testing.T) {
-	ctx := context.Background()
+	// Use shared container connection details
+	httpAddr := clickHouseAddr
 
-	// Start ClickHouse container
-	clickHouseContainer, err := clickhouse.Run(ctx,
-		clickhouseImage,
-		clickhouse.WithDatabase("default"),
-		clickhouse.WithUsername("default"),
-		clickhouse.WithPassword("secret"),
-	)
-	require.NoError(t, err)
-	defer func() {
-		if err := testcontainers.TerminateContainer(clickHouseContainer); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}()
-
-	// Get connection details
-	connectionHost, err := clickHouseContainer.Host(ctx)
-	require.NoError(t, err)
-
-	httpPort, err := clickHouseContainer.MappedPort(ctx, "8123/tcp")
-	require.NoError(t, err)
-
-	httpAddr := fmt.Sprintf("%s:%s", connectionHost, httpPort.Port())
-	httpClient := &http.Client{Timeout: 120 * time.Second}
-
-	// Create V2 table
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       "default",
-		Password:   "secret",
-		Query:      createV2tableQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	require.NoError(t, err)
-	err = resp.Close()
-	require.NoError(t, err)
-
-	req.Query = createV3tableQuery
-	resp, err = req.Execute(context.Background())
-	require.NoError(t, err)
-	err = resp.Close()
+	// Clean up tables before test to ensure isolation
+	err := cleanupTables()
 	require.NoError(t, err)
 
 	// Create test data and insert into V2 table
@@ -378,11 +410,17 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 
 			// First, get the count of expected rows to know when to stop parsing
 			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND metric %% 16 = %d`, testHour, shardKey-1)
-			req.Query = countQuery
-			req.Format = "" // Default format for count query
+			req := &chutil.ClickHouseHttpRequest{
+				HttpClient: httpClient,
+				Addr:       httpAddr,
+				User:       "default",
+				Password:   "secret",
+				Query:      countQuery,
+				Format:     "", // Default format for count query
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
-			resp, err = req.Execute(ctx)
+			resp, err := req.Execute(ctx)
 			require.NoError(t, err)
 
 			var expectedRowCount uint64
@@ -414,7 +452,7 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 			var migratedRows []*v3Row
 			bufReader := bufio.NewReader(resp)
 			for i := uint64(0); i < expectedRowCount; i++ {
-				row, err := parseV3Row(bufReader)
+				row, err := parseV3Row(bufReader, t)
 				require.NoError(t, err, "Failed to parse V3 row %d", i+1)
 				migratedRows = append(migratedRows, row)
 				t.Logf("Shard %d: Parsed V3 row %d: metric=%d, time=%d, tag0=%d, stag47=%s, count=%.2f",
@@ -493,67 +531,144 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	}
 }
 
-func createTestData() []*v2Row {
-	perc1 := tdigest.New()
-	perc1.Add(0.5, 2.5)
+// generateRandomTDigest creates a random tdigest with random quantiles
+func generateRandomTDigest(rnd *rand.Rand) *tdigest.TDigest {
+	perc := tdigest.New()
+	numQuantiles := rnd.Intn(5) + 1 // 1-5 quantiles
+
+	for i := 0; i < numQuantiles; i++ {
+		quantile := rnd.Float64()       // 0.0 to 1.0
+		value := rnd.Float64()*100 - 50 // -50 to 50
+		perc.Add(quantile, value)
+	}
+	return perc
+}
+
+// generateRandomUnique creates a random unique state
+func generateRandomUnique(rnd *rand.Rand) *data_model.ChUnique {
 	uniq := &data_model.ChUnique{}
-	uniq.Insert(100)
+	numItems := rnd.Intn(100) + 1 // 1-100 unique items
 
-	perc2 := tdigest.New()
-	perc2.Add(0.25, 1.75)
-	perc2.Add(0.75, 3.25)
+	for i := 0; i < numItems; i++ {
+		item := rnd.Uint64() // Random uint64
+		uniq.Insert(item)
+	}
+	return uniq
+}
 
-	perc3 := tdigest.New()
-	perc3.Add(0.1, 0.5)
-	perc3.Add(0.9, 4.5)
+// generateRandomKeys creates random keys with some zeros (absent fields)
+func generateRandomKeys(rnd *rand.Rand) [16]int32 {
+	var keys [16]int32
+	for i := 0; i < 16; i++ {
+		// 70% chance of having a value, 30% chance of being 0 (absent)
+		if rnd.Float64() < 0.7 {
+			keys[i] = rnd.Int31n(1000000) + 1 // 1 to 1000000
+		} else {
+			keys[i] = 0 // Absent field
+		}
+	}
+	return keys
+}
 
-	testData := []*v2Row{
-		{
-			metric:    1,
-			time:      1733000400,                                                    // Fixed timestamp for testing
-			keys:      [16]int32{123, 567, 8, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0}, // Match SQL insert
-			skey:      "test_skey_1",
-			count:     10.0, // Step 5: Use default values
-			min:       1.0,
-			max:       5.0,
-			sum:       30.0,
-			sumsquare: 100.0,
-			perc:      &data_model.ChDigest{Digest: perc1},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1234132, Val: 1.5}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1065353216, Val: -2}},
-		},
-		{
-			metric:    2,
-			time:      1733000400,
-			keys:      [16]int32{456, 789, 12, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},
-			skey:      "test_skey_2",
-			count:     15.0,
-			min:       0.5,
-			max:       8.0,
-			sum:       45.0,
-			sumsquare: 200.0,
-			perc:      &data_model.ChDigest{Digest: perc2},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2345678, Val: 0.5}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3456789, Val: 8.0}},
-		},
-		{
-			metric:    3,
-			time:      1733000400,
-			keys:      [16]int32{789, 123, 16, 0, 0, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0},
-			skey:      "test_skey_3",
-			count:     20.0,
-			min:       0.1,
-			max:       10.0,
-			sum:       60.0,
-			sumsquare: 300.0,
-			perc:      &data_model.ChDigest{Digest: perc3},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4567890, Val: 0.1}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5678901, Val: 10.0}},
+// generateRandomStringKey creates a random string key
+func generateRandomStringKey(rnd *rand.Rand) string {
+	length := rnd.Intn(20) + 5 // 5-25 characters
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[rnd.Intn(len(charset))]
+	}
+	return string(result)
+}
+
+// generateRandomAggregates creates random aggregate values
+func generateRandomAggregates(rnd *rand.Rand) (float64, float64, float64, float64, float64) {
+	count := float64(rnd.Intn(1000) + 1)       // 1-1000
+	min := rnd.Float64()*100 - 50              // -50 to 50
+	max := min + rnd.Float64()*100             // min to min+100
+	sum := min*count + rnd.Float64()*1000      // reasonable sum
+	sumsquare := sum*sum + rnd.Float64()*10000 // reasonable sumsquare
+
+	return count, min, max, sum, sumsquare
+}
+
+// generateRandomHostAggregates creates random host aggregate values
+func generateRandomHostAggregates(rnd *rand.Rand) (data_model.ArgMinInt32Float32, data_model.ArgMaxInt32Float32) {
+	minArg := rnd.Int31n(10000000) + 1 // 1 to 10000000
+	minVal := rnd.Float32()*100 - 50   // -50 to 50
+
+	maxArg := rnd.Int31n(10000000) + 1 // 1 to 10000000
+	maxVal := rnd.Float32()*100 - 50   // -50 to 50
+
+	minHost := data_model.ArgMinInt32Float32{
+		ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+			Arg: minArg,
+			Val: minVal,
 		},
 	}
+
+	maxHost := data_model.ArgMaxInt32Float32{
+		ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+			Arg: maxArg,
+			Val: maxVal,
+		},
+	}
+
+	return minHost, maxHost
+}
+
+func createTestData() []*v2Row {
+	// Create random generator with seed for reproducible tests
+	rnd := rand.New(42)
+
+	// Create comprehensive test data covering all 16 shards
+	var testData []*v2Row
+
+	for metricId := int32(0); metricId < 160; metricId++ {
+		// Generate random data with various combinations
+		keys := generateRandomKeys(rnd)
+		skey := generateRandomStringKey(rnd)
+		count, min, max, sum, sumsquare := generateRandomAggregates(rnd)
+		minHost, maxHost := generateRandomHostAggregates(rnd)
+
+		// Always initialize pointers, but randomly decide content
+		var perc *data_model.ChDigest
+		if rnd.Float64() < 0.8 { // 80% chance of having percentiles
+			perc = &data_model.ChDigest{Digest: generateRandomTDigest(rnd)}
+		} else {
+			// Initialize with empty digest
+			perc = &data_model.ChDigest{Digest: tdigest.New()}
+		}
+
+		var uniq *data_model.ChUnique
+		if rnd.Float64() < 0.8 { // 80% chance of having unique state
+			uniq = generateRandomUnique(rnd)
+		} else {
+			// Initialize with empty unique state
+			uniq = &data_model.ChUnique{}
+		}
+
+		// Create row with random data
+		row := &v2Row{
+			metric:    metricId,
+			time:      1733000400, // Fixed timestamp for testing
+			keys:      keys,
+			skey:      skey,
+			count:     count,
+			min:       min,
+			max:       max,
+			sum:       sum,
+			sumsquare: sumsquare,
+			perc:      perc,
+			uniq:      uniq,
+			min_host:  minHost,
+			max_host:  maxHost,
+		}
+
+		testData = append(testData, row)
+	}
+
 	return testData
 }
 
@@ -622,344 +737,6 @@ func appendV2RowBinary(buf []byte, row *v2Row) []byte {
 	return buf
 }
 
-// MockAggregator represents a mock aggregator for testing
-type MockAggregator struct {
-	shardKey   int32
-	InsertAddr string
-	user       string
-	password   string
-	httpClient *http.Client
-}
-
-// Helper functions for E2E testing
-
-func createAllTestTables(httpClient *http.Client, httpAddr, user, password string) error {
-	queries := []string{
-		createV2tableQuery,
-		createV3tableQuery,
-		// Migration state table
-		`CREATE TABLE IF NOT EXISTS migration_state (
-			shard_key Int32,
-			current_hour DateTime,
-			status String,
-			started_at DateTime,
-			completed_at Nullable(DateTime),
-			rows_migrated UInt64,
-			error_message String,
-			retry_count UInt32
-		) ENGINE = ReplacingMergeTree(started_at)
-		ORDER BY (shard_key, current_hour)`,
-		// Migration logs table
-		`CREATE TABLE IF NOT EXISTS migration_logs (
-			timestamp DateTime,
-			shard_key Int32,
-			hour DateTime,
-			level String,
-			message String,
-			details String
-		) ENGINE = MergeTree()
-		ORDER BY (timestamp, shard_key)`,
-	}
-
-	for _, query := range queries {
-		req := &chutil.ClickHouseHttpRequest{
-			HttpClient: httpClient,
-			Addr:       httpAddr,
-			User:       user,
-			Password:   password,
-			Query:      query,
-		}
-		resp, err := req.Execute(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to create table: %w", err)
-		}
-		err = resp.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close response: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func createTestDataForHour(hour time.Time) []*v2Row {
-	perc1 := tdigest.New()
-	perc1.Add(0.5, 2.5)
-	uniq := &data_model.ChUnique{}
-	uniq.Insert(100)
-
-	perc2 := tdigest.New()
-	perc2.Add(0.25, 1.75)
-	perc2.Add(0.75, 3.25)
-
-	// Create metrics that will be distributed across different shards
-	testData := []*v2Row{
-		{
-			metric:    1, // metric % 16 = 1 (shard 2)
-			time:      uint32(hour.Unix()),
-			keys:      [16]int32{100, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			skey:      fmt.Sprintf("test_hour_%s_metric_1", hour.Format("15")),
-			count:     10.0,
-			min:       1.0,
-			max:       5.0,
-			sum:       30.0,
-			sumsquare: 100.0,
-			perc:      &data_model.ChDigest{Digest: perc1},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 1000, Val: 1.0}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 2000, Val: 5.0}},
-		},
-		{
-			metric:    16, // metric % 16 = 0 (shard 1)
-			time:      uint32(hour.Unix()),
-			keys:      [16]int32{300, 400, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			skey:      fmt.Sprintf("test_hour_%s_metric_16", hour.Format("15")),
-			count:     20.0,
-			min:       0.5,
-			max:       8.0,
-			sum:       60.0,
-			sumsquare: 200.0,
-			perc:      &data_model.ChDigest{Digest: perc2},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 3000, Val: 0.5}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 4000, Val: 8.0}},
-		},
-		{
-			metric:    34, // metric % 16 = 2 (shard 3)
-			time:      uint32(hour.Unix()),
-			keys:      [16]int32{500, 600, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			skey:      fmt.Sprintf("test_hour_%s_metric_34", hour.Format("15")),
-			count:     15.0,
-			min:       2.0,
-			max:       7.0,
-			sum:       45.0,
-			sumsquare: 150.0,
-			perc:      &data_model.ChDigest{Digest: perc1},
-			uniq:      uniq,
-			min_host:  data_model.ArgMinInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 5000, Val: 2.0}},
-			max_host:  data_model.ArgMaxInt32Float32{ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{Arg: 6000, Val: 7.0}},
-		},
-	}
-
-	return testData
-}
-
-func insertTestDataForHour(httpClient *http.Client, httpAddr, user, password string, testData []*v2Row) error {
-	return insertTestData(httpClient, httpAddr, user, password, testData)
-}
-
-func createMockAggregators(httpAddr, user, password string, numShards int) []*MockAggregator {
-	var aggregators []*MockAggregator
-
-	for i := 1; i <= numShards; i++ {
-		agg := &MockAggregator{
-			shardKey:   int32(i),
-			InsertAddr: httpAddr,
-			user:       user,
-			password:   password,
-			httpClient: &http.Client{Timeout: 120 * time.Second},
-		}
-		aggregators = append(aggregators, agg)
-	}
-
-	return aggregators
-}
-
-func simulateMigrationForAggregator(agg *MockAggregator, hours []time.Time) error {
-	config := NewDefaultMigrationConfig()
-	// Simulate migration for each hour
-	for _, hour := range hours {
-		// Check if this shard has data for this hour
-		hasDataQuery := fmt.Sprintf(`
-			SELECT count() as cnt
-			FROM statshouse_value_1h_dist 
-			WHERE time = toDateTime(%d) AND metric %% 16 = %d`,
-			hour.Unix(), agg.shardKey-1)
-
-		req := &chutil.ClickHouseHttpRequest{
-			HttpClient: agg.httpClient,
-			Addr:       agg.InsertAddr,
-			User:       agg.user,
-			Password:   agg.password,
-			Query:      hasDataQuery,
-		}
-		resp, err := req.Execute(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to check for data: %w", err)
-		}
-
-		var count uint64
-		if _, err := fmt.Fscanf(resp, "%d", &count); err == nil && count > 0 {
-			err = resp.Close()
-			if err != nil {
-				return fmt.Errorf("failed to close response: %w", err)
-			}
-
-			// Migrate this hour
-			err = migrateSingleStep(agg.httpClient, agg.InsertAddr, agg.user, agg.password, uint32(hour.Unix()), agg.shardKey, config)
-			if err != nil {
-				return fmt.Errorf("failed to migrate hour %s for shard %d: %w", hour.Format("2006-01-02 15:04:05"), agg.shardKey, err)
-			}
-
-			// Update migration state
-			updateQuery := fmt.Sprintf(`
-				INSERT INTO migration_state 
-				(shard_key, current_hour, status, started_at, completed_at, rows_migrated, error_message, retry_count)
-				VALUES (%d, toDateTime(%d), 'completed', '%s', '%s', %d, '', 0)`,
-				agg.shardKey, hour.Unix(), time.Now().Format("2006-01-02 15:04:05"),
-				time.Now().Format("2006-01-02 15:04:05"), count)
-
-			req.Query = updateQuery
-			resp2, err := req.Execute(context.Background())
-			if err != nil {
-				return fmt.Errorf("failed to update migration state: %w", err)
-			}
-			err = resp2.Close()
-			if err != nil {
-				return fmt.Errorf("failed to close response: %w", err)
-			}
-		} else {
-			err = resp.Close()
-			if err != nil {
-				return fmt.Errorf("failed to close response: %w", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func countMigratedRowsForHour(httpClient *http.Client, httpAddr, user, password string, hour time.Time) (uint64, error) {
-	countQuery := fmt.Sprintf(`
-		SELECT count() as cnt 
-		FROM statshouse_v3_1h 
-		WHERE time = toDateTime(%d)`, hour.Unix())
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       user,
-		Password:   password,
-		Query:      countQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return 0, fmt.Errorf("failed to count migrated rows: %w", err)
-	}
-
-	var count uint64
-	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
-		return 0, fmt.Errorf("failed to parse migrated count: %w", err)
-	}
-
-	err = resp.Close()
-	if err != nil {
-		return 0, fmt.Errorf("failed to close response: %w", err)
-	}
-
-	return count, nil
-}
-
-func countOriginalRowsForHour(httpClient *http.Client, httpAddr, user, password string, hour time.Time) (uint64, error) {
-	countQuery := fmt.Sprintf(`
-		SELECT count() as cnt 
-		FROM statshouse_value_1h_dist 
-		WHERE time = toDateTime(%d)`, hour.Unix())
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       user,
-		Password:   password,
-		Query:      countQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return 0, fmt.Errorf("failed to count original rows: %w", err)
-	}
-
-	var count uint64
-	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
-		return 0, fmt.Errorf("failed to parse original count: %w", err)
-	}
-	err = resp.Close()
-	if err != nil {
-		return 0, fmt.Errorf("failed to close response: %w", err)
-	}
-
-	return count, nil
-}
-
-func countCompletedShards(httpClient *http.Client, httpAddr, user, password string, hours []time.Time) (int, error) {
-	// Count completed shard-hour combinations
-	var conditions []string
-	for _, hour := range hours {
-		conditions = append(conditions, fmt.Sprintf("current_hour = toDateTime(%d)", hour.Unix()))
-	}
-
-	countQuery := fmt.Sprintf(`
-		SELECT count() as cnt 
-		FROM migration_state 
-		WHERE status = 'completed' AND (%s)`,
-		fmt.Sprintf("(%s)", conditions[0]))
-
-	if len(conditions) > 1 {
-		for _, condition := range conditions[1:] {
-			countQuery += fmt.Sprintf(" OR (%s)", condition)
-		}
-	}
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       user,
-		Password:   password,
-		Query:      countQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return 0, fmt.Errorf("failed to count completed shards: %w", err)
-	}
-
-	var count int
-	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
-		return 0, fmt.Errorf("failed to parse completed count: %w", err)
-	}
-	err = resp.Close()
-	if err != nil {
-		return 0, fmt.Errorf("failed to close response: %w", err)
-	}
-
-	return count, nil
-}
-
-func countMigrationLogs(httpClient *http.Client, httpAddr, user, password string) (int, error) {
-	countQuery := `SELECT count() as cnt FROM migration_logs`
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       httpAddr,
-		User:       user,
-		Password:   password,
-		Query:      countQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return 0, fmt.Errorf("failed to count migration logs: %w", err)
-	}
-
-	var count int
-	if _, err := fmt.Fscanf(resp, "%d", &count); err != nil {
-		return 0, fmt.Errorf("failed to parse log count: %w", err)
-	}
-	err = resp.Close()
-	if err != nil {
-		return 0, fmt.Errorf("failed to close response: %w", err)
-	}
-
-	return count, nil
-}
-
 // v3Row represents a parsed row from V3 format (after migration)
 type v3Row struct {
 	metric    int32
@@ -979,125 +756,106 @@ type v3Row struct {
 
 // parseV3Row parses a single V3 row from rowbinary data
 // Based on the V3 insert query order: metric,time, tag0-tag15,stag47, count,min,max,sum,sumsquare, min_host,max_host,percentiles,uniq_state
-func parseV3Row(reader *bufio.Reader) (*v3Row, error) {
+func parseV3Row(reader *bufio.Reader, t *testing.T) (*v3Row, error) {
 	row := &v3Row{}
 
-	fmt.Printf("[v3parse] Starting to parse row...\n")
 	// Parse metric (Int32)
 	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
-		fmt.Printf("[v3parse] metric error: %s\n", err)
+		t.Logf("[v3parse] metric error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] metric = %d\n", row.metric)
 
 	// Parse time (DateTime = UInt32)
 	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
-		fmt.Printf("[v3parse] time error: %s\n", err)
+		t.Logf("[v3parse] time error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] time = %d\n", row.time)
 
 	// Parse all 16 tags (tag0 through tag15)
 	for i := 0; i < 16; i++ {
 		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
-			fmt.Printf("[v3parse] tag %d error: %s\n", i, err)
+			t.Logf("[v3parse] tag %d error: %s\n", i, err)
 			return nil, err
 		}
 	}
-	fmt.Printf("[v3parse] tags = %+v\n", row.tags)
 
 	// Parse stag47 (String) - LEB128 varint format
-	fmt.Printf("[v3parse] parsing stag47...\n")
 	stag47Len, err := binary.ReadUvarint(reader)
 	if err != nil {
-		fmt.Printf("[v3parse] stag47 length error: %s\n", err)
+		t.Logf("[v3parse] stag47 length error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] stag47 length = %d\n", stag47Len)
 	// Bounds check for stag47 to avoid huge allocations
 	if stag47Len > 4096 {
 		return nil, fmt.Errorf("invalid stag47 length: %d", stag47Len)
 	}
 	stag47Bytes := make([]byte, stag47Len)
 	if _, err := io.ReadFull(reader, stag47Bytes); err != nil {
-		fmt.Printf("[v3parse] stag47 content error: %s\n", err)
+		t.Logf("[v3parse] stag47 content error: %s\n", err)
 		return nil, err
 	}
 	row.stag47 = string(stag47Bytes)
-	fmt.Printf("[v3parse] stag47 = %s\n", row.stag47)
 
 	// Parse simple aggregates (Float64 each)
-	fmt.Printf("[v3parse] parsing aggregates...\n")
 	// count
 	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
-		fmt.Printf("[v3parse] count error: %s\n", err)
+		t.Logf("[v3parse] count error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] count = %.2f\n", row.count)
 
 	// min
 	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
-		fmt.Printf("[v3parse] min error: %s\n", err)
+		t.Logf("[v3parse] min error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] min = %.2f\n", row.min)
 
 	// max
 	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
-		fmt.Printf("[v3parse] max error: %s\n", err)
+		t.Logf("[v3parse] max error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] max = %.2f\n", row.max)
 
 	// sum
 	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
-		fmt.Printf("[v3parse] sum error: %s\n", err)
+		t.Logf("[v3parse] sum error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] sum = %.2f\n", row.sum)
 
 	// sumsquare
 	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
-		fmt.Printf("[v3parse] sumsquare error: %s\n", err)
+		t.Logf("[v3parse] sumsquare error: %s\n", err)
 		return nil, err
 	}
-	fmt.Printf("[v3parse] sumsquare = %.2f\n", row.sumsquare)
 
 	// Parse aggregate fields from ClickHouse internal format
-	fmt.Printf("[v3parse] parsing aggregate states...\n")
 	// min_host (ArgMinStringFloat32)
 	var buf []byte
 	buf, err = row.min_host.ReadFrom(reader, buf)
 	if err != nil {
-		fmt.Printf("[v3parse] min_host error: %s\n", err)
+		t.Logf("[v3parse] min_host error: %s\n", err)
 		return nil, fmt.Errorf("failed to parse min_host: %w", err)
 	}
-	fmt.Printf("[v3parse] min_host parsed successfully - AsInt32=%d, Val=%.2f\n", row.min_host.AsInt32, row.min_host.Val)
 
 	// max_host (ArgMaxStringFloat32)
 	buf, err = row.max_host.ReadFrom(reader, buf)
 	if err != nil {
-		fmt.Printf("[v3parse] max_host error: %s\n", err)
+		t.Logf("[v3parse] max_host error: %s\n", err)
 		return nil, fmt.Errorf("failed to parse max_host: %w", err)
 	}
-	fmt.Printf("[v3parse] max_host parsed successfully - AsInt32=%d, Val=%.2f\n", row.max_host.AsInt32, row.max_host.Val)
 
 	// percentiles
 	row.perc = &data_model.ChDigest{}
 	if err := row.perc.ReadFrom(reader); err != nil {
-		fmt.Printf("[v3parse] percentiles error: %s\n", err)
+		t.Logf("[v3parse] percentiles error: %s\n", err)
 		return nil, fmt.Errorf("failed to parse percentiles: %w", err)
 	}
-	fmt.Printf("[v3parse] percentiles parsed successfully\n")
 
 	// uniq_state
 	row.uniq = &data_model.ChUnique{}
 	if err := row.uniq.ReadFrom(reader); err != nil {
-		fmt.Printf("[v3parse] uniq_state error: %s\n", err)
+		t.Logf("[v3parse] uniq_state error: %s\n", err)
 		return nil, fmt.Errorf("failed to parse uniq_state: %w", err)
 	}
-	fmt.Printf("[v3parse] uniq_state parsed successfully\n")
-	fmt.Printf("[v3parse] row parsing completed successfully\n")
 
 	return row, nil
 }
