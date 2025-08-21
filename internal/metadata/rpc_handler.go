@@ -51,7 +51,7 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		minVersion:        math.MaxInt64,
 		mappingCacheMx:    sync.RWMutex{},
 		mappingCircleList: [100]tlstatshouse.Mapping{},
-		mappingHead:       0,
+		mappingHead:       -1,
 		log:               log,
 		host:              host,
 	}
@@ -185,6 +185,8 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 		h.mappingCacheMx.RLock()
 		defer h.mappingCacheMx.RUnlock()
 
+		// Fallback to DB when cache is empty OR
+		// Requested version is older than our oldest cached version
 		if h.mappingHead == -1 || h.mappingCircleList[h.mappingHead].Value > args.From+1 {
 			return
 		}
@@ -316,6 +318,7 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", err
 	}
 
+	// force bootstrap
 	h.updateMappingCache(ctx, tlstatshouse.Mapping{Value: math.MaxInt32})
 	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.PutMappingResponse{})
 	return "", err
@@ -349,9 +352,7 @@ func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
 		h.log("[err] failed to bootstrap mapping cache: %v", err)
 		return
 	}
-	for i := 0; i < mappingCacheSize; i++ {
-		h.mappingCircleList[i] = mappings[mappingCacheSize-i-1]
-	}
+	copy(h.mappingCircleList[:], mappings)
 	h.mappingHead = 0
 }
 

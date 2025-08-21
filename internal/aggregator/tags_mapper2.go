@@ -229,7 +229,7 @@ func (ms *tagsMapper2) updateMapping() error {
 		return err
 	}
 
-	items, maxID, err := ms.loader.GetNewMapping(ctx, curMaxID)
+	items, maxID, err := ms.loader.GetNewMappings(ctx, curMaxID)
 	if err != nil {
 		return err
 	}

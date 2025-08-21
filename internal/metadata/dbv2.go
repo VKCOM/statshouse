@@ -313,7 +313,7 @@ func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([
 func (db *DBV2) GetLastNMappings(ctx context.Context, n int) ([]tlstatshouse.Mapping, error) {
 	result := make([]tlstatshouse.Mapping, 0, n)
 	err := db.eng.Do(ctx, "get_last_n_mappings", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("select_mappings", "SELECT id, name FROM mappings ORDER BY id desc LIMIT $limit;",
+		rows := conn.Query("select_mappings", "SELECT * FROM (SELECT id, name FROM mappings ORDER BY id desc LIMIT $limit) ORDER BY id asc;",
 			sqlite.Int64("$limit", int64(n)))
 		for rows.Next() {
 			id, _ := rows.ColumnInt64(0)

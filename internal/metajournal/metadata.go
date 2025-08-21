@@ -308,7 +308,7 @@ func (l *MetricMetaLoader) LoadJournal(ctx context.Context, lastVersion int64, r
 	return resp.Events, resp.CurrentVersion, nil
 }
 
-func (l *MetricMetaLoader) GetNewMapping(ctx context.Context, lastVersion int32) ([]tlstatshouse.Mapping, int32, error) {
+func (l *MetricMetaLoader) GetNewMappings(ctx context.Context, lastVersion int32) ([]tlstatshouse.Mapping, int32, error) {
 	resp := tlmetadata.GetNewMappingsResponse{}
 	req := tlmetadata.GetNewMappings{
 		From:  lastVersion,
@@ -317,7 +317,6 @@ func (l *MetricMetaLoader) GetNewMapping(ctx context.Context, lastVersion int32)
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	err := l.client.GetNewMappings(ctx, req, &extra, &resp)
 	if err != nil {
-		log.Println("err: ", err.Error())
 		return nil, 0, fmt.Errorf("failed to load mapping: %w", err)
 	}
 	if item, ok := resp.AsGetNewMappingsResponse(); ok {
