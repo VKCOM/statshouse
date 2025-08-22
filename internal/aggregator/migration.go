@@ -82,6 +82,15 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		return // Only one replica should run migration per shard
 	}
 
+	// Check if migration is enabled (time range must be configured)
+	a.configMu.RLock()
+	if a.configR.MigrationTimeRange == "" {
+		a.configMu.RUnlock()
+		log.Println("[migration] Migration disabled: no time range configured")
+		return
+	}
+	a.configMu.RUnlock()
+
 	shardKey := a.shardKey
 	httpClient := makeHTTPClient()
 
@@ -508,18 +517,28 @@ func (a *Aggregator) createMigrationTables(httpClient *http.Client) error {
 
 // findNextTimestampToMigrate finds the next timestamp that needs migration for this shard
 func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKey int32) (time.Time, error) {
-	// Strategy: Look for the earliest timestamp with data in V2 table that hasn't been migrated yet
-	// Start from current time and work backwards
+	// Parse migration time range from config
+	a.configMu.RLock()
+	startTs, endTs := a.configR.ParseMigrationTimeRange()
+	a.configMu.RUnlock()
 
-	currentTs := time.Now().Truncate(a.migrationConfig.StepDuration)
-
-	// Check recent timestamps for unmigrated data
-	maxChecks := 24 // Default to checking 24 hours (1 day)
-	if a.migrationConfig.StepDuration < time.Hour {
-		maxChecks = int(time.Hour/a.migrationConfig.StepDuration) * 24 // Scale based on step duration
+	// If no time range configured, migration is disabled
+	if startTs == 0 && endTs == 0 {
+		return time.Time{}, nil
 	}
 
-	for i := 0; i < maxChecks; i++ {
+	log.Printf("[migration] Searching for timestamps to migrate in range: %d (start) to %d (end)", startTs, endTs)
+
+	// Strategy: Start from startTs and work backwards to endTs
+	currentTs := time.Unix(int64(startTs), 0).Truncate(a.migrationConfig.StepDuration)
+	endTime := time.Unix(int64(endTs), 0).Truncate(a.migrationConfig.StepDuration)
+
+	// Calculate how many steps to check
+	stepsToCheck := int(currentTs.Sub(endTime) / a.migrationConfig.StepDuration)
+
+	log.Printf("[migration] Checking %d timestamps from %s to %s", stepsToCheck+1, currentTs.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"))
+
+	for i := 0; i <= stepsToCheck; i++ {
 		checkTs := currentTs.Add(-time.Duration(i) * a.migrationConfig.StepDuration)
 
 		// Check if this timestamp has data in V2 table
@@ -562,11 +581,13 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 			var migratedCount uint64
 			if _, err := fmt.Fscanf(resp2, "%d", &migratedCount); err == nil && migratedCount == 0 {
 				// Timestamp has data but not migrated yet
+				log.Printf("[migration] Found unmigrated timestamp: %s", checkTs.Format("2006-01-02 15:04:05"))
 				return checkTs, nil
 			}
 		}
 	}
 
+	log.Printf("[migration] No unmigrated timestamps found in the configured range")
 	// No unmigrated timestamps found
 	return time.Time{}, nil
 }
