@@ -386,6 +386,7 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	t.Logf("Inserted %d test rows into V2 table", len(testData))
 
 	testHour := testData[0].time
+	// Use default config for testing
 	config := NewDefaultMigrationConfig()
 
 	var shardsToTest []int32
