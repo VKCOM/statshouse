@@ -127,6 +127,9 @@ type (
 		// migration stats
 		lastErrorTs    uint32
 		insertTimeEWMA float64 // exponential weighted moving average in seconds
+
+		// migration configuration
+		migrationConfig *MigrationConfig
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -239,6 +242,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
+		migrationConfig:             NewDefaultMigrationConfig(),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
