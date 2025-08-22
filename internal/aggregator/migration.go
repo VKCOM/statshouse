@@ -186,6 +186,13 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 	return streamConvertAndInsert(httpClient, khAddr, khUser, khPassword, resp, config)
 }
 
+// TestMigrateSingleStep is a standalone function for testing migration of a single time step
+// This function can be called from external tools like test-migration
+func TestMigrateSingleStep(khAddr, khUser, khPassword string, timestamp uint32, shardKey int32, config *MigrationConfig) error {
+	httpClient := makeHTTPClient()
+	return migrateSingleStep(httpClient, khAddr, khUser, khPassword, timestamp, shardKey, config)
+}
+
 // streamConvertAndInsert reads V2 rowbinary data, converts to V3 format, and inserts
 func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword string, v2Data io.Reader, config *MigrationConfig) error {
 	// Create insert query for V3 table - ClickHouse will use defaults for missing fields
@@ -463,13 +470,7 @@ func convertRowV2ToV3(buf []byte, row *v2Row) []byte {
 
 // createMigrationTables creates the migration state and log tables if they don't exist
 func (a *Aggregator) createMigrationTables(httpClient *http.Client) error {
-	config := NewDefaultMigrationConfig() // Use default for existing aggregator
-	return a.createMigrationTablesWithConfig(httpClient, config)
-}
-
-// createMigrationTablesWithConfig creates the migration state and log tables if they don't exist
-func (a *Aggregator) createMigrationTablesWithConfig(httpClient *http.Client, config *MigrationConfig) error {
-	// Create migration_state table
+	var config *MigrationConfig = a.migrationConfig
 	stateTableQuery := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			shard_key Int32,
@@ -481,21 +482,12 @@ func (a *Aggregator) createMigrationTablesWithConfig(httpClient *http.Client, co
 			retry UInt32
 		) ENGINE = ReplacingMergeTree(retry)
 		ORDER BY (shard_key, ts, started)`, config.StateTableName)
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       a.config.KHAddr,
-		User:       a.config.KHUser,
-		Password:   a.config.KHPassword,
-		Query:      stateTableQuery,
-	}
+	req := &chutil.ClickHouseHttpRequest{HttpClient: httpClient, Addr: a.config.KHAddr, User: a.config.KHUser, Password: a.config.KHPassword, Query: stateTableQuery}
 	resp, err := req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to create migration_state table: %w", err)
 	}
 	resp.Close()
-
-	// Create migration_logs table
 	logTableQuery := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			timestamp DateTime,
@@ -505,45 +497,37 @@ func (a *Aggregator) createMigrationTablesWithConfig(httpClient *http.Client, co
 			message String
 		) ENGINE = MergeTree()
 		ORDER BY (timestamp, shard_key, ts, retry)`, config.LogsTableName)
-
 	req.Query = logTableQuery
 	resp, err = req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to create migration_logs table: %w", err)
 	}
 	resp.Close()
-
 	return nil
 }
 
 // findNextTimestampToMigrate finds the next timestamp that needs migration for this shard
 func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKey int32) (time.Time, error) {
-	config := NewDefaultMigrationConfig() // Use default for existing aggregator
-	return a.findNextTimestampToMigrateWithConfig(httpClient, shardKey, config)
-}
-
-// findNextTimestampToMigrateWithConfig finds the next timestamp that needs migration for this shard with custom config
-func (a *Aggregator) findNextTimestampToMigrateWithConfig(httpClient *http.Client, shardKey int32, config *MigrationConfig) (time.Time, error) {
 	// Strategy: Look for the earliest timestamp with data in V2 table that hasn't been migrated yet
 	// Start from current time and work backwards
 
-	currentTs := time.Now().Truncate(config.StepDuration)
+	currentTs := time.Now().Truncate(a.migrationConfig.StepDuration)
 
 	// Check recent timestamps for unmigrated data
 	maxChecks := 24 // Default to checking 24 hours (1 day)
-	if config.StepDuration < time.Hour {
-		maxChecks = int(time.Hour/config.StepDuration) * 24 // Scale based on step duration
+	if a.migrationConfig.StepDuration < time.Hour {
+		maxChecks = int(time.Hour/a.migrationConfig.StepDuration) * 24 // Scale based on step duration
 	}
 
 	for i := 0; i < maxChecks; i++ {
-		checkTs := currentTs.Add(-time.Duration(i) * config.StepDuration)
+		checkTs := currentTs.Add(-time.Duration(i) * a.migrationConfig.StepDuration)
 
 		// Check if this timestamp has data in V2 table
 		hasDataQuery := fmt.Sprintf(`
 			SELECT count() as cnt
 			FROM %s
 			WHERE time = toDateTime(%d) AND metric %% %d = %d
-			LIMIT 1`, config.V2TableName, checkTs.Unix(), config.TotalShards, shardKey-1)
+			LIMIT 1`, a.migrationConfig.V2TableName, checkTs.Unix(), a.migrationConfig.TotalShards, shardKey-1)
 
 		req := &chutil.ClickHouseHttpRequest{
 			HttpClient: httpClient,
@@ -566,7 +550,7 @@ func (a *Aggregator) findNextTimestampToMigrateWithConfig(httpClient *http.Clien
 				SELECT count() as cnt
 				FROM %s
 				WHERE ts = toDateTime(%d)
-				AND shard_key = %d`, config.StateTableName, checkTs.Unix(), shardKey)
+				AND shard_key = %d`, a.migrationConfig.StateTableName, checkTs.Unix(), shardKey)
 
 			req.Query = migratedQuery
 			resp2, err := req.Execute(context.Background())
@@ -587,8 +571,8 @@ func (a *Aggregator) findNextTimestampToMigrateWithConfig(httpClient *http.Clien
 	return time.Time{}, nil
 }
 
-// updateMigrationStateWithConfig updates the migration state for a shard and timestamp with custom config
-func (a *Aggregator) updateMigrationStateWithConfig(httpClient *http.Client, shardKey int32, ts time.Time, v2Rows, v3Rows uint64, retryCount uint32, started time.Time, ended *time.Time, config *MigrationConfig) error {
+// updateMigrationState updates the migration state for a shard and timestamp
+func (a *Aggregator) updateMigrationState(httpClient *http.Client, shardKey int32, ts time.Time, v2Rows, v3Rows uint64, retryCount uint32, started time.Time, ended *time.Time) error {
 	endedStr := "NULL"
 	if ended != nil {
 		endedStr = fmt.Sprintf("'%s'", ended.Format("2006-01-02 15:04:05"))
@@ -598,7 +582,7 @@ func (a *Aggregator) updateMigrationStateWithConfig(httpClient *http.Client, sha
 		INSERT INTO %s
 		(shard_key, ts, started, ended, v2_rows, v3_rows, retry)
 		VALUES (%d, toDateTime(%d), '%s', %s, %d, %d, %d)`,
-		config.StateTableName, shardKey, ts.Unix(), started.Format("2006-01-02 15:04:05"),
+		a.migrationConfig.StateTableName, shardKey, ts.Unix(), started.Format("2006-01-02 15:04:05"),
 		endedStr, v2Rows, v3Rows, retryCount)
 
 	req := &chutil.ClickHouseHttpRequest{
@@ -619,70 +603,42 @@ func (a *Aggregator) updateMigrationStateWithConfig(httpClient *http.Client, sha
 
 // migrateTimestampWithRetry performs migration for a timestamp with retry logic
 func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.Time, shardKey int32) (v2Rows, v3Rows uint64, err error) {
-	config := NewDefaultMigrationConfig() // Use default for existing aggregator
-	return a.migrateTimestampWithRetryWithConfig(httpClient, ts, shardKey, config)
-}
-
-// migrateTimestampWithRetryWithConfig performs migration for a timestamp with retry logic using custom config
-func (a *Aggregator) migrateTimestampWithRetryWithConfig(httpClient *http.Client, ts time.Time, shardKey int32, config *MigrationConfig) (v2Rows, v3Rows uint64, err error) {
 	var lastErr error
-
 	started := time.Now()
-
-	// Count V2 rows first
-	v2Rows, v2CountErr := a.countV2RowsWithConfig(httpClient, ts, shardKey, config)
+	v2Rows, v2CountErr := a.countV2RowsWithConfig(httpClient, ts, shardKey, a.migrationConfig)
 	if v2CountErr != nil {
 		log.Printf("[migration] Warning: failed to count V2 rows: %v", v2CountErr)
 		v2Rows = 0
 	}
-
 	for attempt := 0; attempt < maxRetryAttempts; attempt++ {
 		if attempt > 0 {
 			log.Printf("[migration] Retry attempt %d for timestamp %s", attempt+1, ts.Format("2006-01-02 15:04:05"))
-			time.Sleep(retryDelay * time.Duration(math.Pow(2, float64(attempt)))) // Exponential backoff
+			time.Sleep(retryDelay * time.Duration(math.Pow(2, float64(attempt))))
 		}
-
-		// Update state to started (or retry)
-		a.updateMigrationStateWithConfig(httpClient, shardKey, ts, v2Rows, 0, uint32(attempt), started, nil, config)
-
-		err := migrateSingleStep(httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, uint32(ts.Unix()), shardKey, config)
+		a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, uint32(attempt), started, nil)
+		err := migrateSingleStep(httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, uint32(ts.Unix()), shardKey, a.migrationConfig)
 		if err == nil {
-			v3Rows, countErr := a.countV3RowsWithConfig(httpClient, ts, shardKey, config)
+			v3Rows, countErr := a.countV3Rows(httpClient, ts, shardKey)
 			if countErr != nil {
 				log.Printf("[migration] Warning: failed to count V3 rows: %v", countErr)
 				v3Rows = 0
 			}
-
-			// Update state to completed
 			now := time.Now()
-			a.updateMigrationStateWithConfig(httpClient, shardKey, ts, v2Rows, v3Rows, uint32(attempt), started, &now, config)
+			a.updateMigrationState(httpClient, shardKey, ts, v2Rows, v3Rows, uint32(attempt), started, &now)
 			return v2Rows, v3Rows, nil
 		}
-
 		lastErr = err
 		log.Printf("[migration] Attempt %d failed for timestamp %s: %v", attempt+1, ts.Format("2006-01-02 15:04:05"), err)
-
-		// Log ClickHouse error to migration_logs table
 		logQuery := fmt.Sprintf(`
-			INSERT INTO %s
-			(timestamp, shard_key, ts, retry, message)
-			VALUES ('%s', %d, toDateTime(%d), %d, '%s')`,
-			config.LogsTableName, time.Now().Format("2006-01-02 15:04:05"), shardKey, ts.Unix(), attempt+1, err.Error())
-
-		logReq := &chutil.ClickHouseHttpRequest{
-			HttpClient: httpClient,
-			Addr:       a.config.KHAddr,
-			User:       a.config.KHUser,
-			Password:   a.config.KHPassword,
-			Query:      logQuery,
-		}
+		INSERT INTO %s
+		(timestamp, shard_key, ts, retry, message)
+		VALUES ('%s', %d, toDateTime(%d), %d, '%s')`, a.migrationConfig.LogsTableName, time.Now().Format("2006-01-02 15:04:05"), shardKey, ts.Unix(), attempt+1, err.Error())
+		logReq := &chutil.ClickHouseHttpRequest{HttpClient: httpClient, Addr: a.config.KHAddr, User: a.config.KHUser, Password: a.config.KHPassword, Query: logQuery}
 		if logResp, logErr := logReq.Execute(context.Background()); logErr == nil {
 			logResp.Close()
 		}
 	}
-
-	// Final failure state
-	a.updateMigrationStateWithConfig(httpClient, shardKey, ts, v2Rows, 0, uint32(maxRetryAttempts), started, nil, config)
+	a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, uint32(maxRetryAttempts), started, nil)
 	return 0, 0, fmt.Errorf("migration failed after %d attempts, last error: %w", maxRetryAttempts, lastErr)
 }
 
@@ -715,13 +671,13 @@ func (a *Aggregator) countV2RowsWithConfig(httpClient *http.Client, ts time.Time
 	return count, nil
 }
 
-// countV3RowsWithConfig counts how many rows exist in V3 table for a specific timestamp and shard with custom config
-func (a *Aggregator) countV3RowsWithConfig(httpClient *http.Client, ts time.Time, shardKey int32, config *MigrationConfig) (uint64, error) {
+// countV3Rows counts how many rows exist in V3 table for a specific timestamp and shard
+func (a *Aggregator) countV3Rows(httpClient *http.Client, ts time.Time, shardKey int32) (uint64, error) {
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM %s
 		WHERE time = toDateTime(%d) AND metric %% %d = %d`,
-		config.V3TableName, ts.Unix(), config.TotalShards, shardKey-1)
+		a.migrationConfig.V3TableName, ts.Unix(), a.migrationConfig.TotalShards, shardKey-1)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
