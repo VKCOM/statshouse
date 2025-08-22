@@ -58,13 +58,14 @@ type endpointStat struct {
 	method     string
 	dataFormat string
 	// TODO: currently lane comes from the first query that sets it, it's non deterministic
-	lane      string
-	laneMutex sync.Mutex // we access lane from main and badges query
-	metric    string
-	tokenName string
-	user      string
-	priority  string
-	timings   ServerTimingHeader
+	lane        string
+	laneMutex   sync.Mutex // we access lane from main and badges query
+	metric      string
+	tokenName   string
+	tokenSource string
+	user        string
+	priority    string
+	timings     ServerTimingHeader
 }
 
 func (es *endpointStat) reportServiceTime(code int, err error) {
@@ -116,6 +117,7 @@ func (es *endpointStat) report(code int, metric string) {
 		8:  strconv.Itoa(code),
 		9:  es.metric,
 		10: es.priority,
+		11: es.tokenSource,
 	}
 	statshouse.Value(metric, t, v)
 }

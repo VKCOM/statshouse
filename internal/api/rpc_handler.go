@@ -15,13 +15,14 @@ import (
 	"strconv"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
-	"pgregory.net/rand"
 )
 
 const (
@@ -116,7 +117,7 @@ func (h *rpcRequestHandler) init(accessToken string, version int32) (err error) 
 	if version != 0 {
 		s = strconv.Itoa(int(version))
 	}
-	return h.requestHandler.init(accessToken, s)
+	return h.requestHandler.init(accessToken, sourceJWTFromClient, s)
 }
 
 func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerContext) (err error) {

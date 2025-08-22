@@ -1358,6 +1358,8 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 	}, {
 		Description: "priority",
 		RawKind:     "int",
+	}, {
+		Description: "token_source",
 	}},
 }
 
@@ -1402,6 +1404,8 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 	}, {
 		Description: "priority",
 		RawKind:     "int",
+	}, {
+		Description: "token_source",
 	}},
 }
 
@@ -2581,7 +2585,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2615,7 +2619,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
