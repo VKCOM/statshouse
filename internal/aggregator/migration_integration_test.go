@@ -860,3 +860,184 @@ func parseV3Row(reader *bufio.Reader, t *testing.T) (*v3Row, error) {
 
 	return row, nil
 }
+
+func TestCreateMigrationTablesIntegration(t *testing.T) {
+	aggregator := &Aggregator{
+		config: ConfigAggregator{
+			KHAddr:     clickHouseAddr,
+			KHUser:     "default",
+			KHPassword: "secret",
+		},
+		migrationConfig: NewDefaultMigrationConfig(),
+	}
+
+	// Test creating migration tables
+	err := aggregator.createMigrationTables(httpClient)
+	require.NoError(t, err, "createMigrationTables should succeed")
+	err = aggregator.createMigrationTables(httpClient)
+	require.NoError(t, err, "createMigrationTables should succeed even if tables already exist")
+
+	// Verify tables were created by checking if they exist
+	checkTablesQuery := `
+		SELECT count() as cnt
+		FROM system.tables
+		WHERE database = 'default' AND (name = 'migration_state' OR name = 'migration_logs')`
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      checkTablesQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var tablesCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &tablesCount)
+	require.NoError(t, err)
+	resp.Close()
+
+	require.Equal(t, uint64(2), tablesCount, "migration_state and migration_logs tables should exist")
+}
+
+func TestUpdateMigrationStateIntegration(t *testing.T) {
+	aggregator := &Aggregator{
+		config: ConfigAggregator{
+			KHAddr:     clickHouseAddr,
+			KHUser:     "default",
+			KHPassword: "secret",
+		},
+		migrationConfig: NewDefaultMigrationConfig(),
+	}
+
+	err := aggregator.createMigrationTables(httpClient)
+	require.NoError(t, err)
+
+	// Test updating migration state
+	testShardKey := int32(1)
+	testTs := time.Unix(1733000400, 0) // Fixed timestamp for testing
+	testStarted := time.Now()
+	testEnded := time.Now().Add(time.Minute)
+
+	err = aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, testStarted, &testEnded)
+	require.NoError(t, err, "updateMigrationState should succeed")
+
+	// Verify the state was recorded correctly
+	verifyQuery := fmt.Sprintf(`
+		SELECT shard_key, ts, v2_rows, v3_rows, retry
+		FROM migration_state
+		WHERE shard_key = %d AND ts = toDateTime(%d)
+		ORDER BY started DESC
+		LIMIT 1`, testShardKey, testTs.Unix())
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      verifyQuery,
+	}
+
+	countQuery := fmt.Sprintf(`
+		SELECT count() as cnt
+		FROM migration_state
+		WHERE shard_key = %d AND ts = toDateTime(%d)`, testShardKey, testTs.Unix())
+
+	req.Query = countQuery
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var recordCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &recordCount)
+	require.NoError(t, err)
+	resp.Close()
+
+	require.Equal(t, uint64(1), recordCount, "Should have exactly one migration state record")
+}
+
+func TestMigrationOrchestration(t *testing.T) {
+	aggregator := &Aggregator{
+		config: ConfigAggregator{
+			KHAddr:     clickHouseAddr,
+			KHUser:     "default",
+			KHPassword: "secret",
+		},
+		migrationConfig: NewDefaultMigrationConfig(),
+		configR: ConfigAggregatorRemote{
+			MigrationTimeRange: "36000-3600",
+		},
+	}
+
+	// Step 1: Create migration tables
+	err := aggregator.createMigrationTables(httpClient)
+	require.NoError(t, err, "Step 1: createMigrationTables should succeed")
+	cleanupMigrationTables(t)
+
+	// Step 2: Find first timestamp to migrate
+	testShardKey := int32(1)
+	firstTs, err := aggregator.findNextTimestampToMigrate(httpClient, testShardKey)
+	require.NoError(t, err, "Step 2: findNextTimestampToMigrate should succeed")
+	require.Equal(t, time.Unix(36000, 0), firstTs, "Step 2: Should find the first timestamp")
+
+	// Step 3: Update migration state for the found timestamp
+	started := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, started, nil)
+	require.NoError(t, err, "Step 3: updateMigrationState should succeed")
+
+	// Step 4: Mark the migration as completed
+	ended := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, started, &ended)
+	require.NoError(t, err, "Step 4: updateMigrationState completion should succeed")
+
+	// Step 5: Find next timestamp - should be the previous hour (backward migration)
+	nextTs, err := aggregator.findNextTimestampToMigrate(httpClient, testShardKey)
+	require.NoError(t, err, "Step 5: findNextTimestampToMigrate should succeed")
+	require.Equal(t, firstTs.Add(-time.Hour), nextTs, "Step 5: Should find previous timestamp")
+
+	// Step 6: Verify migration state records
+	countQuery := fmt.Sprintf(`
+		SELECT count() as cnt
+		FROM migration_state
+		WHERE shard_key = %d`, testShardKey)
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var recordCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &recordCount)
+	require.NoError(t, err)
+	resp.Close()
+
+	require.GreaterOrEqual(t, recordCount, uint64(2), "Should have at least 2 migration state records (start and end)")
+
+	t.Logf("SUCCESS: End-to-end migration orchestration test completed successfully")
+}
+
+func cleanupMigrationTables(t *testing.T) {
+	cleanupStateQuery := `TRUNCATE TABLE migration_state;`
+	cleanupLogsQuery := `TRUNCATE TABLE migration_logs;`
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      cleanupStateQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+
+	req.Query = cleanupLogsQuery
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+	resp.Close()
+}

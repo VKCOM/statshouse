@@ -517,7 +517,6 @@ func (a *Aggregator) createMigrationTables(httpClient *http.Client) error {
 
 // findNextTimestampToMigrate finds the next timestamp that needs migration for this shard
 func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKey int32) (time.Time, error) {
-	// Parse migration time range from config
 	a.configMu.RLock()
 	startTs, endTs := a.configR.ParseMigrationTimeRange()
 	a.configMu.RUnlock()
@@ -527,69 +526,64 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 		return time.Time{}, nil
 	}
 
-	log.Printf("[migration] Searching for timestamps to migrate in range: %d (start) to %d (end)", startTs, endTs)
+	log.Printf("[migration] Searching for next timestamp to migrate in range: %d (start) to %d (end)", startTs, endTs)
 
-	// Strategy: Start from startTs and work backwards to endTs
-	currentTs := time.Unix(int64(startTs), 0).Truncate(a.migrationConfig.StepDuration)
-	endTime := time.Unix(int64(endTs), 0).Truncate(a.migrationConfig.StepDuration)
+	latestMigratedQuery := fmt.Sprintf(`
+		SELECT toUnixTimestamp(ts) as ts_unix
+		FROM %s
+		WHERE shard_key = %d AND ended IS NOT NULL AND ts_unix <= %d AND ts_unix >= %d
+		ORDER BY ts DESC
+		LIMIT 1`, a.migrationConfig.StateTableName, shardKey, startTs, endTs)
 
-	// Calculate how many steps to check
-	stepsToCheck := int(currentTs.Sub(endTime) / a.migrationConfig.StepDuration)
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       a.config.KHAddr,
+		User:       a.config.KHUser,
+		Password:   a.config.KHPassword,
+		Query:      latestMigratedQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to find latest migrated timestamp: %w", err)
+	}
+	defer resp.Close()
 
-	log.Printf("[migration] Checking %d timestamps from %s to %s", stepsToCheck+1, currentTs.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"))
-
-	for i := 0; i <= stepsToCheck; i++ {
-		checkTs := currentTs.Add(-time.Duration(i) * a.migrationConfig.StepDuration)
-
-		// Check if this timestamp has data in V2 table
-		hasDataQuery := fmt.Sprintf(`
-			SELECT count() as cnt
-			FROM %s
-			WHERE time = toDateTime(%d) AND metric %% %d = %d
-			LIMIT 1`, a.migrationConfig.V2TableName, checkTs.Unix(), a.migrationConfig.TotalShards, shardKey-1)
-
-		req := &chutil.ClickHouseHttpRequest{
-			HttpClient: httpClient,
-			Addr:       a.config.KHAddr,
-			User:       a.config.KHUser,
-			Password:   a.config.KHPassword,
-			Query:      hasDataQuery,
+	// Read the entire response to check if there are any results
+	scanner := bufio.NewScanner(resp)
+	var latestTs int64
+	foundResult := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue // Skip empty lines
 		}
-		resp, err := req.Execute(context.Background())
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed to check for V2 data: %w", err)
+		if _, err := fmt.Sscanf(line, "%d", &latestTs); err != nil {
+			return time.Time{}, fmt.Errorf("failed to parse latest migrated timestamp from line '%s': %w", line, err)
 		}
-		defer resp.Close()
-
-		// Read count result
-		var count uint64
-		if _, err := fmt.Fscanf(resp, "%d", &count); err == nil && count > 0 {
-			// This timestamp has data, check if it's already migrated
-			migratedQuery := fmt.Sprintf(`
-				SELECT count() as cnt
-				FROM %s
-				WHERE ts = toDateTime(%d)
-				AND shard_key = %d`, a.migrationConfig.StateTableName, checkTs.Unix(), shardKey)
-
-			req.Query = migratedQuery
-			resp2, err := req.Execute(context.Background())
-			if err != nil {
-				return time.Time{}, fmt.Errorf("failed to check migration status: %w", err)
-			}
-			defer resp2.Close()
-
-			var migratedCount uint64
-			if _, err := fmt.Fscanf(resp2, "%d", &migratedCount); err == nil && migratedCount == 0 {
-				// Timestamp has data but not migrated yet
-				log.Printf("[migration] Found unmigrated timestamp: %s", checkTs.Format("2006-01-02 15:04:05"))
-				return checkTs, nil
-			}
-		}
+		foundResult = true
+		break // We only need the first (and should be only) result
+	}
+	if err := scanner.Err(); err != nil {
+		return time.Time{}, fmt.Errorf("error reading response: %w", err)
 	}
 
-	log.Printf("[migration] No unmigrated timestamps found in the configured range")
-	// No unmigrated timestamps found
-	return time.Time{}, nil
+	nextTs := time.Unix(int64(startTs), 0).Truncate(a.migrationConfig.StepDuration)
+	if foundResult {
+		// Found latest migrated timestamp - start from the previous timestamp before it (backward migration)
+		latestTime := time.Unix(latestTs, 0).Truncate(a.migrationConfig.StepDuration)
+		nextTs = latestTime.Add(-a.migrationConfig.StepDuration)
+	}
+	log.Printf("[migration] Next timestamp to migrate: %s", nextTs.Format("2006-01-02 15:04:05"))
+
+	// Check if we've reached the start of the migration range (migration complete)
+	endTime := time.Unix(int64(endTs), 0)
+	if nextTs.Before(endTime) || nextTs.Equal(endTime) {
+		log.Printf("[migration] Next timestamp %s is before or at migration end time %s, migration complete",
+			nextTs.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"))
+		return time.Time{}, nil
+	}
+
+	return nextTs, nil
 }
 
 // updateMigrationState updates the migration state for a shard and timestamp
