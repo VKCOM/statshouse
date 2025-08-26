@@ -161,6 +161,11 @@ const (
 	// healthcheck should query any lightweight metric, this one was chosen randomly
 	healthcheckMetric = "__agg_bucket_receive_delay_sec" // format.BuiltinMetricMetaAggBucketReceiveDelaySec.Name
 	healthcheckQuery  = `{@name="` + healthcheckMetric + `",@what="avg"}`
+
+	headerVkuthJWTFromClient = "X-Vkuth-JWT-From-Client"
+	sourceJWTNotSet          = "0"
+	sourceJWTFromClient      = "1"
+	sourceJWTFromVkuth       = "2"
 )
 
 type (
@@ -3295,7 +3300,15 @@ func mergeMetricNamespace(namespace string, metric string) string {
 }
 
 func (h *httpRequestHandler) init() error {
-	return h.requestHandler.init(vkuth.GetAccessToken(h.Request), h.Request.FormValue(ParamVersion))
+	return h.requestHandler.init(vkuth.GetAccessToken(h.Request), getAccessTokenSource(h.Request), h.Request.FormValue(ParamVersion))
+}
+
+func getAccessTokenSource(req *http.Request) string {
+	if req.Header.Get(headerVkuthJWTFromClient) == "1" {
+		return sourceJWTFromClient
+	} else {
+		return sourceJWTFromVkuth
+	}
 }
 
 func HandleProf(h *httpRequestHandler) {
@@ -3349,7 +3362,7 @@ func healthcheckAccessInfo(h *requestHandler) (accessInfo, bool) {
 	}
 }
 
-func (h *requestHandler) init(accessToken, version string) (err error) {
+func (h *requestHandler) init(accessToken, tokenSource, version string) (err error) {
 	switch version {
 	case Version1, Version3:
 		h.version = version
@@ -3362,6 +3375,7 @@ func (h *requestHandler) init(accessToken, version string) (err error) {
 	default:
 		return fmt.Errorf("invalid version: %q", version)
 	}
+	h.endpointStat.tokenSource = tokenSource
 	if h.accessInfo, err = parseAccessToken(h.jwtHelper, accessToken, h.protectedMetricPrefixes, h.LocalMode, h.insecureMode); err != nil {
 		if ai, ok := healthcheckAccessInfo(h); !ok {
 			return err

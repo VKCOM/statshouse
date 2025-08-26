@@ -386,6 +386,9 @@ const (
 	TagValueIDMappingQueueEventUnknownListAdd    = 4
 	TagValueIDMappingQueueEventCreateMapAdd      = 5
 	TagValueIDMappingQueueEventCreateMapRemove   = 6
+
+	TagSourceTokenFromClient = 1
+	TagSourceTokenFromVkuth  = 2
 )
 
 var (
@@ -414,3 +417,8 @@ var (
 		394:    "QUERY_WAS_CANCELLED",
 	}
 )
+
+var tokenSourceToValue = map[int32]string{
+	TagSourceTokenFromClient: "client",
+	TagSourceTokenFromVkuth:  "vkuth",
+}
