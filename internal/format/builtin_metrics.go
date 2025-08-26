@@ -1359,7 +1359,9 @@ var BuiltinMetricMetaAPIServiceTime = &MetricMetaValue{
 		Description: "priority",
 		RawKind:     "int",
 	}, {
-		Description: "token_source",
+		Description:   "token_source",
+		RawKind:       "int",
+		ValueComments: convertToValueComments(tokenSourceToValue),
 	}},
 }
 
@@ -1405,7 +1407,9 @@ var BuiltinMetricMetaAPIResponseTime = &MetricMetaValue{
 		Description: "priority",
 		RawKind:     "int",
 	}, {
-		Description: "token_source",
+		Description:   "token_source",
+		RawKind:       "int",
+		ValueComments: convertToValueComments(tokenSourceToValue),
 	}},
 }
 

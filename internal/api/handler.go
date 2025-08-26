@@ -163,8 +163,9 @@ const (
 	healthcheckQuery  = `{@name="` + healthcheckMetric + `",@what="avg"}`
 
 	headerVkuthJWTFromClient = "X-Vkuth-JWT-From-Client"
-	sourceJWTFromClient      = "client"
-	sourceJWTFromVkuth       = "vkuth"
+	sourceJWTNotSet          = "0"
+	sourceJWTFromClient      = "1"
+	sourceJWTFromVkuth       = "2"
 )
 
 type (

@@ -117,7 +117,7 @@ func (h *rpcRequestHandler) init(accessToken string, version int32) (err error) 
 	if version != 0 {
 		s = strconv.Itoa(int(version))
 	}
-	return h.requestHandler.init(accessToken, sourceJWTFromClient, s)
+	return h.requestHandler.init(accessToken, sourceJWTNotSet, s)
 }
 
 func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
