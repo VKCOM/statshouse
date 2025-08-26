@@ -79,17 +79,9 @@ type MigrationLog struct {
 // It coordinates with other shards to migrate data from V2 to V3 format.
 func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 	if a.replicaKey != 1 {
+		log.Printf("[migration] Skipping migration: replica key is %d, expected 1", a.replicaKey)
 		return // Only one replica should run migration per shard
 	}
-
-	// Check if migration is enabled (time range must be configured)
-	a.configMu.RLock()
-	if a.configR.MigrationTimeRange == "" {
-		a.configMu.RUnlock()
-		log.Println("[migration] Migration disabled: no time range configured")
-		return
-	}
-	a.configMu.RUnlock()
 
 	shardKey := a.shardKey
 	httpClient := makeHTTPClient()
@@ -112,6 +104,16 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 			return
 		default:
 		}
+
+		// Check if migration is enabled (time range must be configured)
+		a.configMu.RLock()
+		if a.configR.MigrationTimeRange == "" {
+			a.configMu.RUnlock()
+			log.Println("[migration] Migration disabled: no time range configured")
+			time.Sleep(sleepInterval)
+			continue
+		}
+		a.configMu.RUnlock()
 
 		// Check system load before proceeding
 		nowUnix := uint32(time.Now().Unix())
@@ -172,8 +174,6 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 		config.V2TableName, timestamp, config.TotalShards, shardKey-1,
 	)
 
-	log.Printf("[migration] Executing V2 select query: %s", selectQuery)
-
 	// Step 2: Execute query and get response
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
@@ -213,8 +213,6 @@ func streamConvertAndInsert(httpClient *http.Client, khAddr, khUser, khPassword 
 		min_host,max_host,percentiles,uniq_state
 	)
 	FORMAT RowBinary`, config.V3TableName)
-
-	log.Printf("[migration] Executing V3 insert query: %s", insertQuery)
 
 	// Create pipe for streaming conversion
 	pipeReader, pipeWriter := io.Pipe()
@@ -267,8 +265,6 @@ func convertV2ToV3Stream(input io.Reader, output io.Writer) (int, error) {
 	if err != nil {
 		return rows, fmt.Errorf("conversion error: %w", err)
 	}
-
-	log.Printf("[migration] Converted %d rows", rows)
 	return rows, nil
 }
 
@@ -296,12 +292,6 @@ func processV2Chunk(reader *bufio.Reader, output io.Writer) (rowsProcessed int, 
 			return rowsProcessed, fmt.Errorf("failed to parse V2 row: %w", parseErr)
 		}
 
-		// Log details of first few rows for debugging
-		if rowsProcessed < 3 {
-			log.Printf("[migration] Processing V2 row %d: metric=%d, time=%d, skey=%s, count=%.2f",
-				rowsProcessed+1, v2Row.metric, v2Row.time, v2Row.skey, v2Row.count)
-		}
-
 		// Convert to V3 format
 		rowData = rowData[:0] // Reset buffer
 		rowData = convertRowV2ToV3(rowData, v2Row)
@@ -313,14 +303,7 @@ func processV2Chunk(reader *bufio.Reader, output io.Writer) (rowsProcessed int, 
 		}
 
 		rowsProcessed++
-
-		// Log progress every 100 rows
-		if rowsProcessed%100 == 0 {
-			log.Printf("[migration] Processed %d rows...", rowsProcessed)
-		}
 	}
-
-	log.Printf("[migration] Finished processing, total rows: %d", rowsProcessed)
 	return rowsProcessed, nil
 }
 
@@ -532,7 +515,7 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 		SELECT toUnixTimestamp(ts) as ts_unix
 		FROM %s
 		WHERE shard_key = %d AND ended IS NOT NULL AND ts_unix <= %d AND ts_unix >= %d
-		ORDER BY ts DESC
+		ORDER BY ts ASC
 		LIMIT 1`, a.migrationConfig.StateTableName, shardKey, startTs, endTs)
 
 	req := &chutil.ClickHouseHttpRequest{
