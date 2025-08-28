@@ -3294,7 +3294,7 @@ func (r *seriesRequest) validate(h *requestHandler) error {
 		if period > time.Hour*24*2 && r.step < _1m {
 			return httpErr(http.StatusBadRequest, fmt.Errorf("maximum period for %v interval is 2 days", time.Second*time.Duration(r.step)))
 		}
-		if period > time.Hour*24*30 && r.step <= _1m {
+		if period > time.Hour*24*30 && r.step < _1h {
 			return httpErr(http.StatusBadRequest, fmt.Errorf("maximum period for %v interval is 30 days", time.Second*time.Duration(r.step)))
 		}
 	}
