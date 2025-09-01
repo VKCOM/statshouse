@@ -21,10 +21,11 @@ import (
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/VKCOM/statshouse-go"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+
+	"github.com/VKCOM/statshouse-go"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -758,7 +759,7 @@ func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagVal
 		tags = make(map[int64]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
-		query := pq.buildTagValueIDsQuery(lod)
+		query := pq.buildTagValueIDsQuery(lod, h.getSelectSettings())
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 		newSharding := h.newSharding(pq.metric, lod.FromSec)
 		err := h.doSelect(ctx, chutil.QueryMetaInto{
