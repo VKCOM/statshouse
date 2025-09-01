@@ -191,6 +191,7 @@ type (
 		DisableCHAddr     []string
 		CacheBlacklist    []string
 		CacheWhitelist    []string
+		selectSettings    string // cached ClickHouse SELECT settings string
 
 		HandlerOptions
 		showInvisible         bool
@@ -614,6 +615,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			Version3: chV2,
 		},
 		metricsStorage: metricStorage,
+		selectSettings: cfg.BuildSelectSettings(),
 		tagValueCache: &pcache.Cache{
 			Loader: tagValueInverseLoader{
 				loadTimeout: metajournal.DefaultMetaTimeout,
@@ -681,6 +683,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.DisableCHAddr = cfg.DisableCHAddr
 		h.CacheBlacklist = cfg.CacheBlacklist
 		h.CacheWhitelist = cfg.CacheWhitelist
+		h.selectSettings = cfg.BuildSelectSettings()
 		h.ConfigMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
@@ -752,6 +755,12 @@ func (h *Handler) disabledCHAddrs() []string {
 	return h.DisableCHAddr
 }
 
+func (h *Handler) getSelectSettings() string {
+	h.ConfigMu.RLock()
+	defer h.ConfigMu.RUnlock()
+	return h.selectSettings
+}
+
 func (h *requestHandler) savePanic(requestURI string, err any, stack []byte) {
 	v := error500{time: time.Now(), requestURI: requestURI, what: err, stack: stack, trace: h.trace}
 	h.errorsMu.Lock()
@@ -815,7 +824,6 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	sb.WriteString(fmt.Sprint(from))
 	sb.WriteString(" GROUP BY time,key1 LIMIT ")
 	sb.WriteString(fmt.Sprint(cacheInvalidateMaxRows))
-	sb.WriteString(" SETTINGS optimize_aggregation_in_order=1")
 	// TODO - write metric with len(rows)
 	// TODO - code that works if we hit limit above
 
@@ -1941,7 +1949,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		valueIDCount[format.TagValueIDProductionLegacy] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
-			query := pq.buildTagValuesQuery(lod)
+			query := pq.buildTagValuesQuery(lod, h.getSelectSettings())
 			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			newSharding := h.newSharding(pq.metric, lod.FromSec)
 			err = h.doSelect(ctx, chutil.QueryMetaInto{
@@ -3020,7 +3028,7 @@ func replaceInfNan(v *float64) {
 }
 
 func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query, err := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod, h.getSelectSettings())
 	if err != nil {
 		return 0, err
 	}
@@ -3082,7 +3090,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 }
 
 func loadPoint(ctx context.Context, h *requestHandler, pq *queryBuilder, lod data_model.LOD) ([]pSelectRow, error) {
-	query, err := pq.buildSeriesQuery(lod)
+	query, err := pq.buildSeriesQuery(lod, h.getSelectSettings())
 	if err != nil {
 		return nil, err
 	}

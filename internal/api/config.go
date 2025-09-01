@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"maps"
 	"strings"
 	"time"
 
@@ -12,20 +14,22 @@ import (
 )
 
 type Config struct {
-	ApproxCacheMaxSize int
-	Version3Start      int64
-	Version3Prob       float64
-	Version3StrcmpOff  bool
-	UserLimitsStr      string
-	UserLimits         []chutil.ConnLimits
-	MaxCacheSize       int // hard limit, in bytes
-	MaxCacheSizeSoft   int // soft limit, in bytes
-	MaxCacheAge        int // seconds
-	CacheChunkSize     int
-	CacheBlacklist     []string
-	CacheWhitelist     []string
-	DisableCHAddr      []string
-	NewShardingStart   int64
+	ApproxCacheMaxSize  int
+	Version3Start       int64
+	Version3Prob        float64
+	Version3StrcmpOff   bool
+	UserLimitsStr       string
+	UserLimits          []chutil.ConnLimits
+	MaxCacheSize        int // hard limit, in bytes
+	MaxCacheSizeSoft    int // soft limit, in bytes
+	MaxCacheAge         int // seconds
+	CacheChunkSize      int
+	CacheBlacklist      []string
+	CacheWhitelist      []string
+	DisableCHAddr       []string
+	NewShardingStart    int64
+	CHSelectSettingsStr string
+	CHSelectSettings    map[string]string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -38,6 +42,25 @@ func (argv *Config) ValidateConfig() error {
 		argv.UserLimits = userLimits
 	}
 
+	if argv.CHSelectSettingsStr != "" {
+		settings := make(map[string]string)
+		pairs := strings.Split(argv.CHSelectSettingsStr, ",")
+		for _, pair := range pairs {
+			parts := strings.SplitN(strings.TrimSpace(pair), "=", 2)
+			if len(parts) != 2 {
+				log.Printf("invalid CH select setting format '%s', expected 'key=value', skipping", pair)
+				continue
+			}
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			if key == "" || value == "" {
+				log.Printf("invalid CH select setting '%s', key and value cannot be empty, skipping", pair)
+				continue
+			}
+			settings[key] = value
+		}
+		argv.CHSelectSettings = settings
+	}
 	return nil
 }
 
@@ -45,6 +68,7 @@ func (argv *Config) Copy() config.Config {
 	cp := *argv
 	cp.UserLimits = make([]chutil.ConnLimits, len(cp.UserLimits))
 	copy(cp.UserLimits, argv.UserLimits)
+	cp.CHSelectSettings = maps.Clone(argv.CHSelectSettings)
 	return &cp
 }
 
@@ -63,12 +87,32 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
 	config.StringSliceVar(f, &argv.DisableCHAddr, "disable-clickhouse-addrs", "", "disable clickhouse addresses")
 	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", 0, "timestamp of new sharding start, zero means not set")
+	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", "", "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		ApproxCacheMaxSize: 1_000_000,
 	}
+}
+
+func (cfg *Config) BuildSelectSettings() string {
+	if len(cfg.CHSelectSettings) == 0 {
+		return " SETTINGS optimize_aggregation_in_order=1"
+	}
+
+	settingPairs := make([]string, 0, len(cfg.CHSelectSettings)+1)
+	settingPairs = append(settingPairs, "optimize_aggregation_in_order=1")
+
+	for k, v := range cfg.CHSelectSettings {
+		if k == "optimize_aggregation_in_order" {
+			settingPairs[0] = fmt.Sprintf("optimize_aggregation_in_order=%s", v)
+		} else {
+			settingPairs = append(settingPairs, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
+	return fmt.Sprintf(" SETTINGS %s", strings.Join(settingPairs, ","))
 }
 
 type HandlerOptions struct {
