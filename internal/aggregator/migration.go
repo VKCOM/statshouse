@@ -560,7 +560,7 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 
 	// Check if we've reached the start of the migration range (migration complete)
 	endTime := time.Unix(int64(endTs), 0)
-	if nextTs.Before(endTime) || nextTs.Equal(endTime) {
+	if nextTs.Before(endTime) {
 		log.Printf("[migration] Next timestamp %s is before or at migration end time %s, migration complete",
 			nextTs.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"))
 		return time.Time{}, nil
