@@ -14,22 +14,26 @@ import (
 )
 
 type Config struct {
-	ApproxCacheMaxSize  int
-	Version3Start       int64
-	Version3Prob        float64
-	Version3StrcmpOff   bool
-	UserLimitsStr       string
-	UserLimits          []chutil.ConnLimits
-	MaxCacheSize        int // hard limit, in bytes
-	MaxCacheSizeSoft    int // soft limit, in bytes
-	MaxCacheAge         int // seconds
-	CacheChunkSize      int
-	CacheBlacklist      []string
-	CacheWhitelist      []string
-	DisableCHAddr       []string
-	NewShardingStart    int64
-	CHSelectSettingsStr string
-	CHSelectSettings    map[string]string
+	ApproxCacheMaxSize     int
+	Version3Start          int64
+	Version3Prob           float64
+	Version3StrcmpOff      bool
+	UserLimitsStr          string
+	UserLimits             []chutil.ConnLimits
+	MaxCacheSize           int // hard limit, in bytes
+	MaxCacheSizeSoft       int // soft limit, in bytes
+	MaxCacheAge            int // seconds
+	CacheChunkSize         int
+	CacheBlacklist         []string
+	CacheWhitelist         []string
+	DisableCHAddr          []string
+	NewShardingStart       int64
+	CHSelectSettingsStr    string
+	CHSelectSettings       map[string]string
+	BlockedMetricPrefixesS string
+	BlockedMetricPrefixes  []string
+	BlockedUsersS          string
+	BlockedUsers           []string
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -61,6 +65,14 @@ func (argv *Config) ValidateConfig() error {
 		}
 		argv.CHSelectSettings = settings
 	}
+	argv.BlockedMetricPrefixes = nil
+	if argv.BlockedMetricPrefixesS != "" {
+		argv.BlockedMetricPrefixes = strings.Split(argv.BlockedMetricPrefixesS, ",")
+	}
+	argv.BlockedUsers = nil
+	if argv.BlockedUsersS != "" {
+		argv.BlockedUsers = strings.Split(argv.BlockedUsersS, ",")
+	}
 	return nil
 }
 
@@ -88,6 +100,8 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	config.StringSliceVar(f, &argv.DisableCHAddr, "disable-clickhouse-addrs", "", "disable clickhouse addresses")
 	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", 0, "timestamp of new sharding start, zero means not set")
 	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", "", "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
+	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", "", "comma-separated list of metric prefixes that are blocked")
+	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
 }
 
 func DefaultConfig() *Config {
