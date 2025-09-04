@@ -183,15 +183,17 @@ type (
 	}
 
 	Handler struct {
-		Version3Start     atomic.Int64
-		Version3Prob      atomic.Float64
-		Version3StrcmpOff atomic.Bool
-		NewShardingStart  atomic.Int64
-		ConfigMu          sync.RWMutex
-		DisableCHAddr     []string
-		CacheBlacklist    []string
-		CacheWhitelist    []string
-		selectSettings    string // cached ClickHouse SELECT settings string
+		Version3Start         atomic.Int64
+		Version3Prob          atomic.Float64
+		Version3StrcmpOff     atomic.Bool
+		NewShardingStart      atomic.Int64
+		ConfigMu              sync.RWMutex
+		DisableCHAddr         []string
+		CacheBlacklist        []string
+		CacheWhitelist        []string
+		selectSettings        string // cached ClickHouse SELECT settings string
+		blockedMetricPrefixes []string
+		blockedUsers          []string
 
 		HandlerOptions
 		showInvisible         bool
@@ -614,8 +616,10 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			Version2: chV2,
 			Version3: chV2,
 		},
-		metricsStorage: metricStorage,
-		selectSettings: cfg.BuildSelectSettings(),
+		metricsStorage:        metricStorage,
+		selectSettings:        cfg.BuildSelectSettings(),
+		blockedMetricPrefixes: cfg.BlockedMetricPrefixes,
+		blockedUsers:          cfg.BlockedUsers,
 		tagValueCache: &pcache.Cache{
 			Loader: tagValueInverseLoader{
 				loadTimeout: metajournal.DefaultMetaTimeout,
@@ -684,6 +688,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.CacheBlacklist = cfg.CacheBlacklist
 		h.CacheWhitelist = cfg.CacheWhitelist
 		h.selectSettings = cfg.BuildSelectSettings()
+		h.blockedMetricPrefixes = cfg.BlockedMetricPrefixes
+		h.blockedUsers = cfg.BlockedUsers
 		h.ConfigMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
@@ -896,6 +902,22 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto, version string, query ch.Query) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
+	}
+	err := func() error {
+		h.Handler.ConfigMu.RLock()
+		defer h.Handler.ConfigMu.RUnlock()
+		for _, prefix := range h.blockedMetricPrefixes {
+			if strings.HasPrefix(meta.Metric.Name, prefix) {
+				return httpErr(http.StatusBadRequest, fmt.Errorf("metric %q is blocked", meta.Metric.Name))
+			}
+		}
+		if slices.Contains(h.blockedUsers, meta.User) {
+			return httpErr(http.StatusBadRequest, fmt.Errorf("user %q is blocked", meta.User))
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	h.Tracef("%s", query.Body)
