@@ -26,7 +26,6 @@ import (
 const (
 	noErrorsWindow = 5 * 60 // 5 minutes
 	maxInsertTime  = 2.0    // 2 seconds
-	sleepInterval  = 30 * time.Second
 
 	// Migration coordination constants
 	maxRetryAttempts = 10
@@ -110,7 +109,7 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		if a.configR.MigrationTimeRange == "" {
 			a.configMu.RUnlock()
 			log.Println("[migration] Migration disabled: no time range configured")
-			time.Sleep(sleepInterval)
+			time.Sleep(time.Duration(a.configR.MigrationDelaySec) * time.Second)
 			continue
 		}
 		a.configMu.RUnlock()
@@ -124,7 +123,10 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		}
 		if a.insertTimeEWMA > maxInsertTime {
 			log.Printf("[migration] Skipping: EWMA insert time is too high (%.2fs)", a.insertTimeEWMA)
-			time.Sleep(sleepInterval)
+			a.configMu.RLock()
+			delaySec := a.configR.MigrationDelaySec
+			a.configMu.RUnlock()
+			time.Sleep(time.Duration(delaySec) * time.Second)
 			continue
 		}
 
@@ -132,7 +134,10 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		nextTs, err := a.findNextTimestampToMigrate(httpClient, shardKey)
 		if err != nil {
 			log.Printf("[migration] Error finding next timestamp: %v", err)
-			time.Sleep(sleepInterval)
+			a.configMu.RLock()
+			delaySec := a.configR.MigrationDelaySec
+			a.configMu.RUnlock()
+			time.Sleep(time.Duration(delaySec) * time.Second)
 			continue
 		}
 
@@ -147,7 +152,10 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		v2Rows, v3Rows, err := a.migrateTimestampWithRetry(httpClient, nextTs, shardKey)
 		if err != nil {
 			log.Printf("[migration] Failed to migrate timestamp %s: %v", nextTs.Format("2006-01-02 15:04:05"), err)
-			time.Sleep(sleepInterval)
+			a.configMu.RLock()
+			delaySec := a.configR.MigrationDelaySec
+			a.configMu.RUnlock()
+			time.Sleep(time.Duration(delaySec) * time.Second)
 			continue
 		}
 

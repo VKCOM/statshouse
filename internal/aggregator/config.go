@@ -32,6 +32,7 @@ type ConfigAggregatorRemote struct {
 	MapStringTop         bool
 	BufferedInsertAgeSec int    // age in seconds of data that should be sent to buffer table
 	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
+	MigrationDelaySec    int    // delay in seconds between migration steps
 
 	configTagsMapper2
 }
@@ -96,6 +97,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MappingCacheTTL:      86400 * 7,
 			MapStringTop:         false, // disabled by default because API doesn't support it yet
 			MigrationTimeRange:   "",    // empty means migration disabled
+			MigrationDelaySec:    30,    // 30 seconds delay between migration steps
 
 			configTagsMapper2: configTagsMapper2{
 				MaxUnknownTagsInBucket:    1024,
@@ -147,6 +149,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
 		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
+		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
@@ -219,6 +222,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	}
 	if c.StringTopCountInsert < data_model.MinStringTopInsert {
 		return fmt.Errorf("--string-top-insert (%d) must be >= %d", c.StringTopCountInsert, data_model.MinStringTopInsert)
+	}
+	if c.MigrationDelaySec < 1 {
+		return fmt.Errorf("--migration-delay-sec (%d) must be >= 1", c.MigrationDelaySec)
 	}
 
 	return nil
