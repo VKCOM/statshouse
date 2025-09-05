@@ -1624,8 +1624,10 @@ func easyjson888c126aDecodeGithubComVKCOMStatshouseInternalApi14(in *jlexer.Lexe
 		switch key {
 		case "name":
 			out.Name = string(in.String())
-		case "MetricID":
+		case "metric_id":
 			out.MetricID = int32(in.Int32())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -1645,10 +1647,15 @@ func easyjson888c126aEncodeGithubComVKCOMStatshouseInternalApi14(out *jwriter.Wr
 		out.RawString(prefix[1:])
 		out.String(string(in.Name))
 	}
-	{
-		const prefix string = ",\"MetricID\":"
+	if in.MetricID != 0 {
+		const prefix string = ",\"metric_id\":"
 		out.RawString(prefix)
 		out.Int32(int32(in.MetricID))
+	}
+	if in.Disable {
+		const prefix string = ",\"disable\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
