@@ -115,6 +115,7 @@ const (
 	paramPriority     = "priority"
 	paramCompat       = "compat"
 	paramYL, paramYH  = "yl", "yh" // Y scale range
+	paramFull         = "full"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -287,7 +288,9 @@ type (
 	}
 
 	metricShortInfo struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		MetricID int32  `json:"metric_id,omitempty"` // we set to 0 to remove from JSON
+		Disable  bool   `json:"disable,omitempty"`   // we set to "false" to remove from JSON
 	}
 
 	dashboardShortInfo struct {
@@ -1185,18 +1188,30 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleGetMetricsList(h *httpRequestHandler) {
+	full := h.FormValue(paramFull) == "1"
+
 	resp := &GetMetricsListResp{
 		Metrics: []metricShortInfo{},
 	}
-	for _, m := range format.BuiltinMetrics {
-		if !h.showInvisible && m.Disable { // we have invisible builtin metrics
+	for _, v := range format.BuiltinMetrics {
+		if !h.showInvisible && v.Disable && !full { // we have invisible builtin metrics
 			continue
 		}
-		resp.Metrics = append(resp.Metrics, metricShortInfo{Name: m.Name})
+		info := metricShortInfo{Name: v.Name}
+		if full {
+			info.MetricID = v.MetricID
+			info.Disable = v.Disable
+		}
+		resp.Metrics = append(resp.Metrics, info)
 	}
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible || full) {
 		if h.accessInfo.CanViewMetric(*v) {
-			resp.Metrics = append(resp.Metrics, metricShortInfo{Name: v.Name})
+			info := metricShortInfo{Name: v.Name}
+			if full {
+				info.MetricID = v.MetricID
+				info.Disable = v.Disable
+			}
+			resp.Metrics = append(resp.Metrics, info)
 		}
 	}
 	sort.Slice(resp.Metrics, func(i int, j int) bool { return resp.Metrics[i].Name < resp.Metrics[j].Name })

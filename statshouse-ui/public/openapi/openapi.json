@@ -136,7 +136,11 @@
     "/metrics-list": {
       "get": {
         "description": "Get metrics list",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramFull"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -664,6 +668,16 @@
           ]
         }
       },
+      "paramFull": {
+        "name": "full",
+        "in": "query",
+        "description": "Full list (with disabled metrics) and IDs) ",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string"
+        }
+      },
       "paramRenderFormat": {
         "name": "df",
         "in": "query",
@@ -896,6 +910,12 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "metric_id": {
+            "type": "number"
+          },
+          "disable": {
+            "type": "boolean"
           }
         },
         "required": [
