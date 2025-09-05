@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lexer, out *NamespaceMeta) {
+func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat(in *jlexer.Lexer, out *NamespaceMeta) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -60,7 +60,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 		in.Consumed()
 	}
 }
-func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.Writer, in NamespaceMeta) {
+func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.Writer, in NamespaceMeta) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -104,14 +104,14 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v NamespaceMeta) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat(w, v)
+	easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *NamespaceMeta) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat(l, v)
+	easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat(l, v)
 }
-func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Lexer, out *MetricsGroup) {
+func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat1(in *jlexer.Lexer, out *MetricsGroup) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -154,7 +154,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.Writer, in MetricsGroup) {
+func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat1(out *jwriter.Writer, in MetricsGroup) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -198,14 +198,14 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricsGroup) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat1(w, v)
+	easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat1(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricsGroup) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat1(l, v)
+	easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat1(l, v)
 }
-func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *MetricMetaValue) {
+func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat2(in *jlexer.Lexer, out *MetricMetaValue) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -251,7 +251,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 				}
 				for !in.IsDelim(']') {
 					var v1 MetricMetaTag
-					easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat3(in, &v1)
+					easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat3(in, &v1)
 					out.Tags = append(out.Tags, v1)
 					in.WantComma()
 				}
@@ -271,7 +271,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 					key := string(in.String())
 					in.WantColon()
 					var v2 MetricMetaTag
-					easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat3(in, &v2)
+					easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat3(in, &v2)
 					(out.TagsDraft)[key] = v2
 					in.WantComma()
 				}
@@ -344,7 +344,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in MetricMetaValue) {
+func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat2(out *jwriter.Writer, in MetricMetaValue) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -408,7 +408,7 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 				if v4 > 0 {
 					out.RawByte(',')
 				}
-				easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat3(out, v5)
+				easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat3(out, v5)
 			}
 			out.RawByte(']')
 		}
@@ -432,7 +432,7 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 				}
 				out.String(string(v6Name))
 				out.RawByte(':')
-				easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat3(out, v6Value)
+				easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat3(out, v6Value)
 			}
 			out.RawByte('}')
 		}
@@ -631,14 +631,14 @@ func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricMetaValue) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat2(w, v)
+	easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat2(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricMetaValue) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat2(l, v)
+	easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat2(l, v)
 }
-func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Lexer, out *MetricMetaTag) {
+func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat3(in *jlexer.Lexer, out *MetricMetaTag) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -695,7 +695,7 @@ func easyjson72863a49DecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson72863a49EncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.Writer, in MetricMetaTag) {
+func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat3(out *jwriter.Writer, in MetricMetaTag) {
 	out.RawByte('{')
 	first := true
 	_ = first
