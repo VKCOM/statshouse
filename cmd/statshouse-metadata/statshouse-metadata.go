@@ -20,6 +20,9 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+	"github.com/cloudflare/tableflip"
+	"github.com/spf13/pflag"
+
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlengine"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -29,8 +32,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
-	"github.com/cloudflare/tableflip"
-	"github.com/spf13/pflag"
 )
 
 var argv struct {
@@ -321,7 +322,8 @@ func run() error {
 		ResetFlood2:            metadata.HandleProxyGen(&proxy, "resetFloo2", handler.ResetFlood2),
 	}
 	sh := &tlmetadata.Handler{
-		RawGetJournalnew: proxy.HandleProxy("getJournal", handler.RawGetJournal),
+		RawGetJournalnew:  proxy.HandleProxy("getJournal", handler.RawGetJournal),
+		RawGetNewMappings: proxy.HandleProxy("getMappingsNew", handler.RawGetNewMappings),
 	}
 	engineRPCHandler := metadata.NewEngineRpcHandler(argv.binlogPrefix, db)
 	engineHandler := &tlengine.Handler{
