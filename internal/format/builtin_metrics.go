@@ -2711,3 +2711,19 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 		}),
 	}},
 }
+
+const BuiltinMetricIDMigrationLog = -141
+
+var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
+	Name:                    "__migration_log",
+	Kind:                    MetricKindCounter,
+	Description:             "Number of rows migrated in successful migration step",
+	NoSampleAgent:           true, // because we need to know exact number of migrated rows
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "migration_timestamp",
+		RawKind:     "timestamp",
+	}},
+}
