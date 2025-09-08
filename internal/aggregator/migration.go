@@ -20,6 +20,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
 )
 
@@ -631,6 +632,11 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 			}
 			now := time.Now()
 			a.updateMigrationState(httpClient, shardKey, ts, v2Rows, v3Rows, uint32(attempt), started, &now)
+
+			// Write migration log metric
+			migrationTags := []int32{0, int32(ts.Unix())}
+			a.sh2.AddValueCounterHost(uint32(now.Unix()), format.BuiltinMetricMetaMigrationLog, migrationTags, float64(v3Rows), 1, a.aggregatorHostTag)
+
 			return v2Rows, v3Rows, nil
 		}
 		lastErr = err
