@@ -8,6 +8,7 @@ Wants=network-online.target
 ExecStart=/usr/share/engine/bin/statshouse agent -u='' -g=''\
  --agg-addr='localhost:13336,localhost:13336,localhost:13336'\
  --cache-dir=/var/lib/statshouse
+ --aes-pwd-file=/etc/engine/pass
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 
