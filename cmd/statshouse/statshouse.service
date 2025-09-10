@@ -5,13 +5,12 @@ Wants=network-online.target
 
 [Service]
 # NB! Do not modify '-u' and '-g' parameters
-ExecStart=/usr/share/engine/bin/statshouse -u='' -g=''\
+ExecStart=/usr/share/engine/bin/statshouse agent -u='' -g=''\
  --agg-addr='localhost:13336,localhost:13336,localhost:13336'\
  --cache-dir=/var/lib/statshouse
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 
-DynamicUser=true
 StateDirectory=statshouse
 WorkingDirectory=/var/lib/statshouse
 PrivateUsers=true
