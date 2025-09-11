@@ -256,7 +256,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
-		// TODO - make historic queue strict queue instead (?)
 		for j := 0; j < data_model.MaxConveyorDelay*2; j++ {
 			shard.readHistoricSecondLocked() // not actually locked here, but we have exclusive access
 		}
@@ -331,7 +330,6 @@ func (s *Agent) initBuiltInMetrics() {
 		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 	s.TimingsSendHistoric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
 		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendHistoric, int32(build.CommitTimestamp()), int32(build.CommitTag())})
-
 }
 
 // Idea behind this semaphore is
@@ -431,7 +429,7 @@ func (s *Agent) NumShards() int {
 
 // if first one is nil, second one is also nil
 func (s *Agent) getRandomLiveShardReplicas() (*ShardReplica, *ShardReplica) {
-	var liveShardReplicas []*ShardReplica // TODO - do not alloc
+	liveShardReplicas := make([]*ShardReplica, 0, 64*3) // no allocation for up to 64 shards.
 	for _, shardReplica := range s.ShardReplicas {
 		if shardReplica.alive.Load() {
 			liveShardReplicas = append(liveShardReplicas, shardReplica)

@@ -56,8 +56,6 @@ type MappedMetricHeader struct {
 	InvalidRawTagKey      int32  // key of InvalidRawValue
 }
 
-// TODO - implement InvalidRawValue and InvalidRawTagKey
-
 func (h *MappedMetricHeader) SetTag(index int32, id int32, tagIDKey int32) {
 	if index == format.HostTagIndex {
 		h.HostTag.I = id

@@ -65,7 +65,7 @@ const (
 	TagValueIDTimingLateRecent                      = 3
 	TagValueIDTimingLongWindowThrownAgent           = 4
 	TagValueIDTimingLongWindowThrownAggregator      = 5
-	TagValueIDTimingMissedSeconds                   = 6 // TODO - remove after everyone uses TagValueIDTimingMissedSecondsAgents
+	TagValueIDTimingMissedSeconds                   = 6 // was written by legacy agents, keep for old metrics
 	TagValueIDTimingLongWindowThrownAggregatorLater = 7
 	TagValueIDTimingDiskOverflowThrownAgent         = 8
 	TagValueIDTimingMissedSecondsAgent              = 9  // separate to prevent mix of old and new way to write missed seconds
@@ -130,7 +130,7 @@ const (
 	TagValueIDSrcIngestionStatusWarnTimestampClampedPast     = 55
 	TagValueIDSrcIngestionStatusWarnTimestampClampedFuture   = 56
 	TagValueIDSrcIngestionStatusErrMetricBuiltin             = 57
-	TagValueIDSrcIngestionStatusOKDup                        = 58 // TODO - remove after removing duplication code
+	TagValueIDSrcIngestionStatusOKDup                        = 58 // TODO - remove after we do not need to investigate conveyor duplication code
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
