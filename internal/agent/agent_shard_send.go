@@ -190,7 +190,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			status := tlstatshouse.IngestionStatus2{
 				Env:    item.Key.Tags[0],
 				Metric: item.Key.Tags[1],
-				Value:  float32(item.Tail.Value.Count()),
+				Value:  float32(item.Tail.Value.Count() * item.SF),
 			}
 			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, status)
 			continue
@@ -260,7 +260,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
-	sb.SampleFactors = append(sb.SampleFactors, buffers.SampleFactors...)
+	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
