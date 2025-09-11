@@ -37,8 +37,7 @@ func ValidateMetricData(metricBytes *tlstatshouse.MetricBytes) (ingestionStatus 
 	return
 }
 
-// TODO - remove isDup after metric duplicates removed
-func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate, isDup bool) (tagMeta *format.MetricMetaTag, tagIDKey int32, validEvent bool) {
+func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, validEvent bool) {
 	tagMeta, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
 	validEvent = true
 	if tagMeta == nil || tagMeta.Index >= format.MaxTags {
@@ -46,12 +45,8 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 		validKey, err := format.AppendValidStringValue(v.Key[:0], v.Key)
 		if err != nil { // important case with garbage in tag name
 			validEvent = false
-			if isDup { // do not destroy Key, it will be needed to map original metric
-				h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, nil)
-			} else {
-				v.Key = format.AppendHexStringValue(v.Key[:0], v.Key)
-				h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, v.Key)
-			}
+			v.Key = format.AppendHexStringValue(v.Key[:0], v.Key)
+			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding, 0, v.Key)
 			return
 		}
 		v.Key = validKey

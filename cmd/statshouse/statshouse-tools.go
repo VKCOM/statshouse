@@ -81,9 +81,6 @@ func mainTestParser() int {
 }
 
 func mainTestMap() int {
-	// TODO - we have no such RPC call
-	// var mapInt int
-	// flag.IntVar(&mapInt, "int", 0, "int to map back.")
 	client, _ := argvCreateClient()
 	metajournal.TestMapper(argv.AggregatorAddresses, argv.mapString, client)
 	return 0

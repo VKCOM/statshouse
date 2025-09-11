@@ -745,28 +745,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketAggregateTimeSec,
 		[]int32{0, 0, 0, 0, conveyor, spare},
 		now2.Sub(now).Seconds(), 1, hostTag, aera)
-	if bucket.MissedSeconds != 0 { // TODO - remove after all agents upgraded to write this metric with tag format.TagValueIDTimingMissedSecondsAgent
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaTimingErrors,
-			[]int32{0, format.TagValueIDTimingMissedSeconds},
-			float64(bucket.MissedSeconds), 1, hostTag, aera)
-	}
-	// TODO - remove all queue metrics below after all agents upgraded to write this metric directly to bucket
-	// we set AggShard/Replica/Host manually for legacy agents for reason, do not change this.
-	if args.QueueSizeMemory > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueMemory, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
-			float64(args.QueueSizeMemory), 1, hostTag, aera)
-	}
-	if args.QueueSizeDiskUnsent > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskUnsent, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
-			float64(args.QueueSizeDiskUnsent), 1, hostTag, aera)
-	}
-	if queueSizeDiskSent := float64(args.QueueSizeDisk) - float64(args.QueueSizeDiskUnsent); queueSizeDiskSent > 0 {
-		a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAgentHistoricQueueSize,
-			[]int32{0, format.TagValueIDHistoricQueueDiskSent, format.AggShardTag: a.shardKey, format.AggReplicaTag: a.replicaKey, format.AggHostTag: a.aggregatorHost},
-			float64(queueSizeDiskSent), 1, hostTag, aera)
-	}
 
 	componentTag := args.Header.ComponentTag
 	if componentTag != format.TagValueIDComponentAgent && componentTag != format.TagValueIDComponentAggregator &&

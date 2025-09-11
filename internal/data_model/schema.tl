@@ -1,4 +1,4 @@
-// Mega TODO - when all statshouses updated to commit contating this message, we can:
+// Mega TODO - when all statshouses updated to commit containing this message, we can:
 // 1. remove all functions without "2" suffix from this TL, statshouse.sourceBucket, statshouse.item, statshouse.ingestion_status, statshouse.string_top_element
 // 2. remove code referring to them from aggregator (recursively)
 // This commit is made on 2022-sep-25

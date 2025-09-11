@@ -45,25 +45,10 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
-	{ // duplication code - TODO - remove after conveyor v3 fully works
-		const dupSuffix = "_statshouse_dup"
-		originalNameLen := len(args.MetricBytes.Name)
-		dupName := append(args.MetricBytes.Name, dupSuffix...)
-		args.MetricBytes.Name = dupName[:originalNameLen] // reuse, if allocated above
-		if dupMeta := w.metricStorage.GetMetaMetricByNameBytes(dupName); dupMeta != nil && !dupMeta.Disable {
-			w.fillTime(args, &h)
-			h.MetricMeta = dupMeta
-			h.Key.Metric = dupMeta.MetricID
-			// mapping tags code below either changes args but in a way second call is NOP, or returns error
-			w.sh2.Map(args, &h, nil, true) // no autocreate for duplicates
-			w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKDup, args.Scratch)
-			h = data_model.MappedMetricHeader{}
-		}
-	}
 	w.fillTime(args, &h)
 	metaOk := w.fillMetricMeta(args, &h)
 	if metaOk {
-		w.sh2.Map(args, &h, w.autoCreate, false)
+		w.sh2.Map(args, &h, w.autoCreate)
 	} else {
 		w.sh2.MapEnvironment(args.MetricBytes, &h)
 	}
