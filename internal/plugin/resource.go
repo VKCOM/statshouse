@@ -231,7 +231,7 @@ func (h *ResourceHandler) handleMetric(w http.ResponseWriter, r *http.Request) {
 		t := Tag{
 			ID:          "key" + strconv.Itoa(i),
 			Description: tag.Name,
-			IsRaw:       tag.Raw,
+			IsRaw:       tag.Raw(),
 		}
 		if tag.Description != "" {
 			t.Description = tag.Description

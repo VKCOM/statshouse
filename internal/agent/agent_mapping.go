@@ -50,7 +50,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 			h.SetTag(tagMeta.Index+1, hi, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
 
 			tagValue.I = lo
-		case tagMeta.Raw:
+		case tagMeta.Raw():
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value))
 			if !ok {
 				h.InvalidRawValue = v.Value

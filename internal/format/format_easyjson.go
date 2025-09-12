@@ -277,8 +277,6 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat2(in *jlexer.Le
 				}
 				in.Delim('}')
 			}
-		case "visible":
-			out.Visible = bool(in.Bool())
 		case "disable":
 			out.Disable = bool(in.Bool())
 		case "kind":
@@ -436,16 +434,6 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat2(out *jwriter.
 			}
 			out.RawByte('}')
 		}
-	}
-	if in.Visible {
-		const prefix string = ",\"visible\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Bool(bool(in.Visible))
 	}
 	if in.Disable {
 		const prefix string = ",\"disable\":"
@@ -683,8 +671,6 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat3(in *jlexer.Le
 				}
 				in.Delim('}')
 			}
-		case "raw":
-			out.Raw = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -748,16 +734,6 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat3(out *jwriter.
 			}
 			out.RawByte('}')
 		}
-	}
-	if in.Raw {
-		const prefix string = ",\"raw\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Bool(bool(in.Raw))
 	}
 	out.RawByte('}')
 }

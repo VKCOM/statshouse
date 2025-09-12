@@ -166,10 +166,9 @@ type MetricMetaTag struct {
 	RawKind       string            `json:"raw_kind,omitempty"` // UI can show some raw values beautifully - timestamps, hex values, etc.
 	ValueComments map[string]string `json:"value_comments,omitempty"`
 
-	Comment2Value map[string]string `json:"-"`             // Should be restored from ValueComments after reading
-	Index         int32             `json:"-"`             // Should be restored from position in MetricMetaValue.Tags
-	BuiltinKind   uint8             `json:"-"`             // Only for built-in metrics so never saved or parsed
-	Raw           bool              `json:"raw,omitempty"` // Depends on RawKind, serialized for old agents only
+	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
+	Index         int32             `json:"-"` // Should be restored from position in MetricMetaValue.Tags
+	BuiltinKind   uint8             `json:"-"` // Only for built-in metrics so never saved or parsed
 	raw64         bool
 }
 
@@ -177,6 +176,7 @@ func (t *MetricMetaTag) IsMetric() bool    { return t.BuiltinKind == BuiltinKind
 func (t *MetricMetaTag) IsGroup() bool     { return t.BuiltinKind == BuiltinKindGroup }
 func (t *MetricMetaTag) IsNamespace() bool { return t.BuiltinKind == BuiltinKindNamespace }
 func (t *MetricMetaTag) Raw64() bool       { return t.raw64 }
+func (t *MetricMetaTag) Raw() bool         { return t.RawKind != "" }
 
 const (
 	MetricEvent       int32 = 0
@@ -254,7 +254,6 @@ type MetricMetaValue struct {
 	Description          string                   `json:"description,omitempty"`
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
 	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
-	Visible              bool                     `json:"visible,omitempty"`
 	Disable              bool                     `json:"disable,omitempty"` // TODO - finish migration from visible flag to this flag
 	Kind                 string                   `json:"kind,omitempty"`
 	Weight               float64                  `json:"weight,omitempty"`
@@ -434,18 +433,11 @@ func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canoni
 	m.name2Tag[name] = newTag
 }
 
-// while we have v2 agents, we must serialize Raw, Visible fields
-// so we must make sure they are always correctly set
-// after we have no more v2 agents, TODO - remove this function
+// TODO - remove this function after we have no v2 agents
 func (m *MetricMetaValue) BeforeSavingCheck() error {
 	var err error
 	if !ValidMetricKind(m.Kind) { // We have relaxed check in RestoreCachedInfo
 		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
-	}
-	for i, tag := range m.Tags {
-		if (!tag.Raw && tag.RawKind != "") || (tag.Raw && tag.RawKind == "") {
-			err = multierr.Append(err, fmt.Errorf("mismatch of raw kind %q and Raw %v of tag %d", tag.RawKind, tag.Raw, i))
-		}
 	}
 	return err
 }
@@ -467,7 +459,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if !ValidMetricKind(m.Kind) && m.Kind != "" { // Kind is empty in compact form
 		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
-	m.Visible = !m.Disable // Visible is serialized for v2 agents only
 
 	m.name2Tag = map[string]*MetricMetaTag{}
 
@@ -479,7 +470,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		// We want mapEnvironment() to work even when metric is not found, so we must not allow users to
 		// set their environment tag name. They must use canonical "0" name instead.
 		m.Tags[0].Name = ""
-		m.Tags[0].Raw = false // TODO - remove after it removing v2 agents
 		m.Tags[0].RawKind = ""
 		m.Tags[0].ValueComments = nil
 		if m.Tags[0].Description != "-" { // most builtin metrics have no environment, we want to remove it from UI
@@ -519,7 +509,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
-		tag.Raw = tag.RawKind != "" // Raw is serialized for v2 agents only
 		tag.raw64 = IsRaw64Kind(tag.RawKind)
 		if tag.raw64 && tag.Index >= MaxTags-1 { // for now, to avoid overflows in v2 and v3 mapping
 			err = multierr.Append(err, fmt.Errorf("last tag cannot be raw64 kind %q of tag %d", tag.RawKind, i))
@@ -1269,7 +1258,7 @@ func RemoteConfigMetric(name string) bool {
 
 func SameCompactTag(ta, tb *MetricMetaTag) bool {
 	return ta.Index == tb.Index && ta.Name == tb.Name &&
-		ta.Raw == tb.Raw && ta.Raw64() == tb.Raw64()
+		ta.RawKind == tb.RawKind
 }
 
 func SameCompactMetric(a, b *MetricMetaValue) bool {
@@ -1278,7 +1267,6 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.NamespaceID != b.NamespaceID ||
 		a.GroupID != b.GroupID ||
 		a.Disable != b.Disable ||
-		a.Visible != b.Visible || // we have legacy agents checking Visible flag, so must not change
 		a.EffectiveWeight != b.EffectiveWeight ||
 		a.EffectiveResolution != b.EffectiveResolution ||
 		!slices.Equal(a.FairKey, b.FairKey) ||
@@ -1335,7 +1323,6 @@ func MakeCompactMetric(value *MetricMetaValue) {
 	if !keepCompactMetricDescription(value) {
 		value.Description = ""
 	}
-	value.Visible = false // this flag is restored from Disabled
 	value.MetricID = 0    // restored from event anyway
 	value.NamespaceID = 0 // restored from event anyway
 	value.Name = ""       // restored from event anyway
@@ -1345,7 +1332,6 @@ func MakeCompactMetric(value *MetricMetaValue) {
 		tag := &value.Tags[ti]
 		tag.Description = ""
 		tag.ValueComments = nil
-		tag.Raw = false // this flag is restored from RawKind
 		if tag.RawKind != "" || tag.Name != "" {
 			cutTags = ti + 1 // keep this tag
 		}

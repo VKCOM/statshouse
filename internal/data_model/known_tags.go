@@ -77,7 +77,6 @@ func publishDraftTags(meta *format.MetricMetaValue, knownTags []KnownTag) int {
 						rawKind = ""
 					}
 					if format.ValidRawKind(rawKind) {
-						draftTag.Raw = true
 						draftTag.RawKind = rawKind
 					}
 				}
