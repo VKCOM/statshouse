@@ -114,7 +114,7 @@ func (q *tagValuesQuery) hasInt(lod *data_model.LOD) bool {
 func (q *tagValuesQuery) hasStr(lod *data_model.LOD, mode queryBuilderMode) bool {
 	switch lod.Version {
 	case Version3:
-		return !q.tag.Raw && !q.tag.Raw64() && mode != buildTagValueIDsQuery
+		return !q.tag.Raw() && !q.tag.Raw64() && mode != buildTagValueIDsQuery
 	default:
 		return q.tag.Index == format.StringTopTagIndexV3
 	}

@@ -544,7 +544,7 @@ type (
 	SeriesMetaTag struct {
 		Value   string `json:"value"`
 		Comment string `json:"comment,omitempty"`
-		Raw     bool   `json:"raw,omitempty"`
+		Raw     bool   `json:"raw,omitempty"` // TODO - remove, use RawKind everywhere
 		RawKind string `json:"raw_kind,omitempty"`
 	}
 
@@ -1036,7 +1036,7 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 		}
 		return format.CodeTagValue(tagValueID)
 	}
-	if tag.Raw {
+	if tag.Raw() {
 		base := int32(0)
 		if version == Version1 {
 			base = format.TagValueIDRawDeltaLegacy
@@ -1066,7 +1066,7 @@ func (h *Handler) getTagValueID(tagValue string) (int32, error) {
 func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version string, tagValue string) (int64, error) {
 	id, err := format.ParseCodeTagValue(tagValue)
 	if err == nil {
-		if version == Version1 && tag.Raw {
+		if version == Version1 && tag.Raw() {
 			id += format.TagValueIDRawDeltaLegacy
 		}
 		return id, nil
@@ -1093,7 +1093,7 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version st
 		}
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("group %q not found", tagValue))
 	}
-	if tag.Raw {
+	if tag.Raw() {
 		value, ok := tag.Comment2Value[tagValue]
 		if ok {
 			id, err = format.ParseCodeTagValue(value)
@@ -2811,7 +2811,7 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 			if s.Series.Meta.Metric != nil {
 				if meta := s.Series.Meta.Metric.Name2Tag(name); meta != nil {
 					v.Comment = meta.ValueComments[v.Value]
-					v.Raw = meta.Raw
+					v.Raw = meta.Raw()
 					v.RawKind = meta.RawKind
 				}
 			}
@@ -2892,7 +2892,7 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 	}
 	if tag := metricMeta.Name2Tag(tagID); tag != nil {
 		metaTag.Comment = tag.ValueComments[metaTag.Value]
-		metaTag.Raw = tag.Raw
+		metaTag.Raw = tag.Raw()
 		metaTag.RawKind = tag.RawKind
 	}
 	m[format.TagIDLegacy(tagIndex)] = metaTag

@@ -452,7 +452,7 @@ func (ev *requestHandler) GetTagFilter(metric *format.MetricMetaValue, tagIndex 
 	var t format.MetricMetaTag
 	if 0 <= tagIndex && tagIndex < len(metric.Tags) {
 		t = metric.Tags[tagIndex]
-		if t.Raw {
+		if t.Raw() {
 			// histogram bucket label
 			if t.Name == labels.BucketLabel {
 				if v, err := strconv.ParseFloat(tagValue, 32); err == nil {
@@ -1105,7 +1105,7 @@ func promqlGetFilterValue(tagID string, s string, m *format.MetricMetaValue) str
 		return ""
 	}
 	if m != nil {
-		if t := m.Name2Tag(tagID); t.Raw && t.BuiltinKind == 0 && len(t.ValueComments) != 0 {
+		if t := m.Name2Tag(tagID); t.Raw() && t.BuiltinKind == 0 && len(t.ValueComments) != 0 {
 			if v := t.ValueComments[s]; v != "" {
 				return v
 			}

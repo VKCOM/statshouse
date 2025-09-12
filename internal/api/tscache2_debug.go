@@ -137,7 +137,6 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 	tags = append(tags, format.MetricMetaTag{
 		Index:       2,
 		Description: "mode",
-		Raw:         true,
 		RawKind:     "int",
 		ValueComments: map[string]string{
 			" 0": "default",
@@ -167,7 +166,6 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		format.MetricMetaTag{
 			Index:       3,
 			Description: "result",
-			Raw:         true,
 			RawKind:     "int",
 			ValueComments: map[string]string{
 				" 0": "miss",
@@ -176,7 +174,6 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		format.MetricMetaTag{
 			Index:       4,
 			Description: "step",
-			Raw:         true,
 			RawKind:     "int",
 		},
 		format.MetricMetaTag{

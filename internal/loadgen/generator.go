@@ -258,7 +258,6 @@ func setCommonMetricValues(mv *format.MetricMetaValue) {
 		},
 		{
 			Name:    rawTag,
-			Raw:     true,
 			RawKind: "int",
 		},
 		{

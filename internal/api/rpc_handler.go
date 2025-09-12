@@ -428,7 +428,7 @@ func parseFilterValues(filter []tlstatshouseApi.Filter, meta *format.MetricMetaV
 				if tag == nil {
 					return nil, nil, fmt.Errorf("tag with name %q not found", f.Key)
 				}
-				if !tag.Raw {
+				if !tag.Raw() {
 					break
 				}
 				if format.HasRawValuePrefix(fv.Value) {

@@ -359,7 +359,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 		var started bool
 		var raw bool
 		if b.metric != nil && tagX < len(b.metric.Tags) {
-			raw = b.metric.Tags[tagX].Raw
+			raw = b.metric.Tags[tagX].Raw()
 		}
 		for _, v := range filter.Values {
 			if v.Empty() {
