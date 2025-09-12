@@ -190,7 +190,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			status := tlstatshouse.IngestionStatus2{
 				Env:    item.Key.Tags[0],
 				Metric: item.Key.Tags[1],
-				Value:  float32(item.Tail.Value.Count() * item.SF),
+				Value:  float32(item.Tail.Value.Count()),
 			}
 			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, status)
 			continue
