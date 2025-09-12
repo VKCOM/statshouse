@@ -69,12 +69,8 @@ func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.Met
 	validValue, err := format.AppendValidStringValue(v.Value[:0], v.Value)
 	if err != nil {
 		validEvent = false
-		if isDup { // do not destroy Value, it will be needed to map original metric
-			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, nil)
-		} else {
-			v.Value = format.AppendHexStringValue(v.Value[:0], v.Value)
-			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, v.Value)
-		}
+		v.Value = format.AppendHexStringValue(v.Value[:0], v.Value)
+		h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, tagIDKey, v.Value)
 		return
 	}
 	v.Value = validValue
