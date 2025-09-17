@@ -49,7 +49,7 @@ type cacheKeyValue struct {
 // 4. minimally block getters while updating
 //
 // We do not incrementally update disk file, because this adds complexity.
-// We save on agent shutdown, simply over writing all disk pages.
+// We save everything on agent shutdown (and periodically).
 // If agent crashed, we are ready to start with stale or no mappings.
 
 type MappingsCache struct {
