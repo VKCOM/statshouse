@@ -57,7 +57,6 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		contributors       map[*rpc.HandlerContext]struct{}                               // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
 		contributors3      map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response // Protected by mu, can be removed if client disconnects.
 		historicHosts      [2][2]map[int32]int64                                          // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue                                     // [role][route] Not recorded for keep-alive, protected by aggregator mutex
@@ -137,8 +136,7 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// we cannot remove merged data or merged set, so data remains in buckets
-	// cancels are rare, so we simply remove from all 3 maps, we do not know in which map hctx is
-	delete(b.contributors, hctx)
+	// cancels are rare, so we simply remove from all maps, we do not know in which map hctx is
 	delete(b.contributors3, hctx)
 	delete(b.contributorsSimulatedErrors, hctx)
 }
@@ -238,7 +236,6 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
-		GetConfig2: a.handleGetConfig2,
 		RawGetConfig3: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.handleGetConfig3(ctx, hctx)
 		},
@@ -250,9 +247,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 			hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
 			return nil
 		},
-		RawSendKeepAlive2:    a.handleSendKeepAlive2,
 		RawSendKeepAlive3:    a.handleSendKeepAlive3,
-		RawSendSourceBucket2: a.handleSendSourceBucket2,
 		RawSendSourceBucket3: a.handleSendSourceBucket3,
 		RawTestConnection2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			return a.testConnection.handleTestConnection(ctx, hctx)
@@ -717,11 +712,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
 			for _, b := range staleBuckets {
 				b.mu.Lock()
-				for hctx := range b.contributors {
-					var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
-					hctx.SendHijackedResponse(nil)
-				}
 				for hctx, resp := range b.contributors3 {
 					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 					resp.Warning = "Successfully discarded historic bucket with timestamp before historic window"
@@ -729,8 +719,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
 					hctx.SendHijackedResponse(nil)
 				}
-				clear(b.contributors) // safeguard against sending more than once
-				clear(b.contributors3)
+				clear(b.contributors3) // safeguard against sending more than once
 				historicHosts := b.historicHosts
 				b.mu.Unlock()
 				a.mu.Lock()
@@ -805,11 +794,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		for i, b := range aggBuckets {
 			b.mu.Lock()
-			for hctx := range b.contributors {
-				var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-				hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
-				hctx.SendHijackedResponse(sendErr)
-			}
 			for hctx, resp := range b.contributors3 {
 				var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 				if sendErr != nil {
@@ -819,8 +803,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
 				hctx.SendHijackedResponse(nil)
 			}
-			clear(b.contributors) // safeguard against sending more than once
-			clear(b.contributors3)
+			clear(b.contributors3) // safeguard against sending more than once
 			historicHosts := b.historicHosts
 			b.mu.Unlock()
 			a.mu.Lock()
@@ -983,7 +966,6 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 	if len(a.recentBuckets) == 0 { // Jumped into future, also initial state
 		b := &aggregatorBucket{
 			time:                        nowUnix - uint32(a.config.ShortWindow),
-			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
@@ -993,7 +975,6 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 	for len(a.recentBuckets) < a.config.ShortWindow+data_model.FutureWindow {
 		b := &aggregatorBucket{
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
-			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
@@ -1023,8 +1004,8 @@ func (a *Aggregator) goTicker() {
 			aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
 			// Here we have exclusive access to bucket, without locks
 			if aggBucket.time%3 != uint32(a.replicaKey-1) { // must be empty
-				if len(aggBucket.contributors) != 0 || len(aggBucket.contributors3) != 0 || len(aggBucket.contributorsSimulatedErrors) != 0 {
-					log.Panicf("not our (%d) bucket %d has %d (%d) contributors", a.replicaKey, aggBucket.time, len(aggBucket.contributors), len(aggBucket.contributorsSimulatedErrors))
+				if len(aggBucket.contributors3) != 0 || len(aggBucket.contributorsSimulatedErrors) != 0 {
+					log.Panicf("not our (%d) bucket %d has %d (%d) contributors", a.replicaKey, aggBucket.time, len(aggBucket.contributors3), len(aggBucket.contributorsSimulatedErrors))
 				}
 				continue
 			}
@@ -1045,17 +1026,13 @@ func (a *Aggregator) goTicker() {
 				// there must be exactly 0 historic hosts in this bucket, so can skip the next lines
 				// historicHosts := aggBucket.historicHosts
 				// (under aggregator lock): a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
-				for hctx := range aggBucket.contributors {
-					hctx.SendHijackedResponse(err)
-				}
 				for hctx, resp := range aggBucket.contributors3 {
 					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 					resp.Warning = err.Error()
 					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
 					hctx.SendHijackedResponse(nil)
 				}
-				clear(aggBucket.contributors) // safeguard against sending more than once
-				clear(aggBucket.contributors3)
+				clear(aggBucket.contributors3) // safeguard against sending more than once
 				aggBucket.mu.Unlock()
 			}
 		}

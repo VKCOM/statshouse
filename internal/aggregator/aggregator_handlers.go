@@ -61,15 +61,6 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	return err
 }
 
-func (a *Aggregator) getConfigResult() tlstatshouse.GetConfigResult {
-	return tlstatshouse.GetConfigResult{
-		Addresses:         a.addresses,
-		MaxAddressesCount: int32(len(a.addresses)), // TODO - support reducing list,
-		PreviousAddresses: int32(a.config.PreviousNumShards),
-		Ts:                time.Now().UnixMilli(),
-	}
-}
-
 func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
 	return tlstatshouse.GetConfigResult3{
 		Addresses:          a.addresses,
@@ -98,31 +89,6 @@ func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
 
 func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) *data_model.Key {
 	return data_model.AggKey(t, m, k, a.aggregatorHost, a.shardKey, a.replicaKey)
-}
-
-// TODO - remove after all clients are new conveyor
-func (a *Aggregator) handleGetConfig2(_ context.Context, args tlstatshouse.GetConfig2) (tlstatshouse.GetConfigResult, error) {
-	now := time.Now()
-	nowUnix := uint32(now.Unix())
-	hostId := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricMetaBudgetHost.Name, false)
-	hostTag := data_model.TagUnionBytes{I: hostId}
-	aera := format.AgentEnvRouteArch{
-		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
-		Route:     format.TagValueIDRouteDirect,
-		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
-	}
-	isRouteProxy := args.Header.IsSetIngressProxy(args.FieldsMask)
-	if isRouteProxy {
-		aera.Route = format.TagValueIDRouteIngressProxy
-	}
-	if args.Cluster != a.config.Cluster {
-		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, 1, hostTag, aera)
-		return tlstatshouse.GetConfigResult{}, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
-	}
-	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, 1, hostTag, aera)
-	return a.getConfigResult(), nil
 }
 
 func equalConfigResult3(a, b tlstatshouse.GetConfigResult3) bool {
@@ -183,33 +149,6 @@ func (a *Aggregator) handleGetMetrics3(_ context.Context, hctx *rpc.HandlerConte
 	return a.journalFast.HandleGetMetrics3(args, hctx)
 }
 
-func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.HandlerContext) error {
-	var args tlstatshouse.SendSourceBucket2Bytes
-	if _, err := args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket2 request: %w", err)
-	}
-	bucketBytes, err := compress.Decompress(args.OriginalSize, args.CompressedData)
-	if err != nil {
-		return err
-	}
-	// if you add fields to the TL, just add placeholders here for those agents who do not send them
-	bucketBytes = append(bucketBytes, 0, 0, 0, 0) // ingestion_status_ok2
-
-	var bucket tlstatshouse.SourceBucket2Bytes
-	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
-	}
-	str, err, _ := a.handleSendSourceBucketAny(hctx, args, bucket, false)
-	if rpc.IsHijackedResponse(err) {
-		return err
-	}
-	if err != nil {
-		return err
-	}
-	hctx.Response, _ = args.WriteResult(hctx.Response, []byte(str))
-	return nil
-}
-
 func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.HandlerContext) error {
 	// we must not return errors to agent, we must instead always return
 	// optional text to print and order to either discard or keep data
@@ -252,7 +191,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		SampleFactors:      bucket.SampleFactors,
 		IngestionStatusOk2: bucket.IngestionStatusOk2,
 	}
-	str, err, discard := a.handleSendSourceBucketAny(hctx, args2, bucket2, true)
+	str, err, discard := a.handleSendSourceBucketAny(hctx, args2, bucket2)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -261,7 +200,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 	return nil
 }
 
-func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes, version3 bool) (string, error, bool) {
+func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes) (string, error, bool) {
 	a.configMu.RLock()
 	configR := a.configR
 	a.configMu.RUnlock()
@@ -317,10 +256,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal},
 			1, hostTag, aera)
-		if version3 {
-			return err.Error(), nil, true
-		}
-		return "", err, false
+		return err.Error(), nil, true
 	}
 
 	if a.bucketsToSend == nil {
@@ -368,7 +304,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 			if aggBucket == nil {
 				aggBucket = &aggregatorBucket{
 					time:                        args.Time,
-					contributors:                map[*rpc.HandlerContext]struct{}{},
 					contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 					historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
@@ -395,13 +330,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 				[]int32{0, format.TagValueIDTimingLateRecent},
 				float64(newestTime)-float64(args.Time), 1, hostTag, aera)
 			// agent should resend via historic conveyor
-			if version3 {
-				return "bucket time is too far in the past for recent conveyor", nil, false
-			}
-			return "", &rpc.Error{
-				Code:        data_model.RPCErrorMissedRecentConveyor,
-				Description: "bucket time is too far in the past for recent conveyor",
-			}, false
+			return "bucket time is too far in the past for recent conveyor", nil, false
 		}
 		aggBucket = a.recentBuckets[roundedToOurTime-oldestTime]
 		if a.config.SimulateRandomErrors > 0 && rng.Float64() < a.config.SimulateRandomErrors { // SimulateRandomErrors > 0 is optimization
@@ -659,11 +588,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	if args.IsSetHistoric() {
 		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostId]++
 	}
-	if version3 {
-		aggBucket.contributors3[hctx] = resp // must be under bucket lock
-	} else {
-		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
-	}
+	aggBucket.contributors3[hctx] = resp // must be under bucket lock
 	compressedSize := len(hctx.Request)
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 
@@ -816,23 +741,15 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	return "", errHijack, false
 }
 
-func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {
-	var args tlstatshouse.SendKeepAlive2Bytes
-	if _, err := args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
-	}
-	return a.handleSendKeepAliveAny(hctx, tlstatshouse.SendKeepAlive3Bytes(args), false)
-}
-
 func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.SendKeepAlive3Bytes
 	if _, err := args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive3 request: %w", err)
 	}
-	return a.handleSendKeepAliveAny(hctx, args, true)
+	return a.handleSendKeepAliveAny(hctx, args)
 }
 
-func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes, version3 bool) error {
+func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes) error {
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -868,12 +785,8 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	defer aggBucket.sendMu.RUnlock()
 
 	aggBucket.mu.Lock()
-	if version3 {
-		aggBucket.contributors3[hctx] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
-	} else {
-		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
-	}
-	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
+	aggBucket.contributors3[hctx] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
+	errHijack := hctx.HijackResponse(aggBucket)                              // must be under bucket lock
 	aggBucket.mu.Unlock()
 	// Write meta statistics
 
