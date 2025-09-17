@@ -168,6 +168,13 @@ RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us
 
 FROM debian:buster AS debuild-buster
 ENV DEBIAN_FRONTEND=noninteractive
+# replace sources.list with archive repositories since buster is not supported anymore
+RUN printf "deb http://archive.debian.org/debian/ buster main contrib non-free\n\
+deb-src http://archive.debian.org/debian/ buster main contrib non-free\n\
+deb http://archive.debian.org/debian/ buster-updates main contrib non-free\n\
+deb-src http://archive.debian.org/debian/ buster-updates main contrib non-free\n\
+deb http://archive.debian.org/debian-security buster/updates main contrib non-free\n\
+deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free\n" > /etc/apt/sources.list
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*

@@ -104,6 +104,14 @@ RUN set -eux; \
 
 FROM buildpack-deps:buster-scm
 
+# replace sources.list with archive repositories since buster is not supported anymore
+RUN printf "deb http://archive.debian.org/debian/ buster main contrib non-free\n\
+deb-src http://archive.debian.org/debian/ buster main contrib non-free\n\
+deb http://archive.debian.org/debian/ buster-updates main contrib non-free\n\
+deb-src http://archive.debian.org/debian/ buster-updates main contrib non-free\n\
+deb http://archive.debian.org/debian-security buster/updates main contrib non-free\n\
+deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free\n" > /etc/apt/sources.list
+
 # install cgo-related dependencies
 RUN set -eux; \
 	apt-get update; \
