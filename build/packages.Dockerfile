@@ -141,7 +141,7 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
 FROM debian:bullseye AS debuild-bullseye
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
-  && apt-get install -y devscripts build-essential dh-exec \
+  && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-bullseye /src/target/* /src/target/
 COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
@@ -155,7 +155,7 @@ RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us
 FROM debian:bookworm AS debuild-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
-  && apt-get install -y devscripts build-essential dh-exec \
+  && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-bookworm /src/target/* /src/target/
 COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
@@ -176,7 +176,7 @@ deb-src http://archive.debian.org/debian/ buster-updates main contrib non-free\n
 deb http://archive.debian.org/debian-security buster/updates main contrib non-free\n\
 deb-src http://archive.debian.org/debian-security buster/updates main contrib non-free\n" > /etc/apt/sources.list
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
-  && apt-get install -y devscripts build-essential dh-exec \
+  && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-buster /src/target/* /src/target/
 COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
@@ -190,7 +190,7 @@ RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us
 FROM ubuntu:focal AS debuild-focal
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
-  && apt-get install -y devscripts build-essential dh-exec \
+  && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-focal /src/target/* /src/target/
 COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
@@ -204,7 +204,7 @@ RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us
 FROM ubuntu:jammy AS debuild-jammy 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
-  && apt-get install -y devscripts build-essential dh-exec \
+  && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-jammy /src/target/* /src/target/
 COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
