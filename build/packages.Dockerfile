@@ -149,8 +149,9 @@ COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
 ARG DEBIAN_VERSION
+ARG STATSHOUSE_AGG_ADDR
 RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
-RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
+RUN --mount=type=bind,src=cmd/,target=/src/cmd,readwrite debuild --preserve-envvar STATSHOUSE_AGG_ADDR --no-lintian -us -uc -b
 
 FROM debian:bookworm AS debuild-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
@@ -163,8 +164,9 @@ COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
 ARG DEBIAN_VERSION
+ARG STATSHOUSE_AGG_ADDR
 RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
-RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
+RUN --mount=type=bind,src=cmd/,target=/src/cmd,readwrite debuild --preserve-envvar STATSHOUSE_AGG_ADDR --no-lintian -us -uc -b
 
 FROM debian:buster AS debuild-buster
 ENV DEBIAN_FRONTEND=noninteractive
@@ -177,8 +179,9 @@ COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
 ARG DEBIAN_VERSION
+ARG STATSHOUSE_AGG_ADDR
 RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
-RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
+RUN --mount=type=bind,src=cmd/,target=/src/cmd,readwrite debuild --preserve-envvar STATSHOUSE_AGG_ADDR --no-lintian -us -uc -b
 
 FROM ubuntu:focal AS debuild-focal
 ENV DEBIAN_FRONTEND=noninteractive
@@ -191,8 +194,9 @@ COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
 ARG DEBIAN_VERSION
+ARG STATSHOUSE_AGG_ADDR
 RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
-RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
+RUN --mount=type=bind,src=cmd/,target=/src/cmd,readwrite debuild --preserve-envvar STATSHOUSE_AGG_ADDR --no-lintian -us -uc -b
 
 FROM ubuntu:jammy AS debuild-jammy 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -205,8 +209,9 @@ COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
 ARG DEBIAN_VERSION
+ARG STATSHOUSE_AGG_ADDR
 RUN dch --create --distribution stable --package statshouse --newversion "$DEBIAN_VERSION" "up to version $DEBIAN_VERSION"
-RUN --mount=type=bind,src=cmd/,target=/src/cmd,readonly debuild --no-lintian -us -uc -b
+RUN --mount=type=bind,src=cmd/,target=/src/cmd,readwrite debuild --preserve-envvar STATSHOUSE_AGG_ADDR --no-lintian -us -uc -b
 
 FROM scratch AS debian-bullseye
 COPY --from=debuild-bullseye /src/*.deb /

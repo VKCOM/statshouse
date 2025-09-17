@@ -5,9 +5,8 @@ Wants=network-online.target
 
 [Service]
 # NB! Do not modify '-u' and '-g' parameters
-EnvironmentFile=-/etc/statshouse/statshouse.service.conf
 ExecStart=/usr/share/engine/bin/statshouse agent -u='' -g=''\
- --agg-addr='${STATSHOUSE_AGG_ADDR}'\
+ --agg-addr='__STATSHOUSE_AGG_ADDR__'\
  --cache-dir=/var/lib/statshouse
  --aes-pwd-file=/etc/engine/pass
 ExecReload=/bin/kill -HUP $MAINPID

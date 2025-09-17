@@ -17,7 +17,6 @@ mkdir -p %{buildroot}/usr/bin/
 mkdir -p %{buildroot}/usr/share/engine/bin/
 mkdir -p %{buildroot}/usr/lib/systemd/system/
 mkdir -p %{buildroot}/usr/lib/statshouse-api/statshouse-ui/
-mkdir -p %{buildroot}/etc/statshouse/
 install -m 755 %{_topdir}/target/statshouse-api %{buildroot}/usr/bin/
 install -m 755 %{_topdir}/target/statshouse %{buildroot}/usr/share/engine/bin
 install -m 755 %{_topdir}/target/statshouse-metadata %{buildroot}/usr/share/engine/bin
@@ -28,12 +27,17 @@ install -m 444 %{_topdir}/cmd/statshouse-api/statshouse-api.service %{buildroot}
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
-install -m 644 %{_topdir}/cmd/statshouse/statshouse.service.conf %{buildroot}/etc/statshouse/statshouse.service.conf
+
+if [ -z "$STATSHOUSE_AGG_ADDR" ]; then \
+	echo "ERROR: STATSHOUSE_AGG_ADDR environment variable is required but not set"; \
+	exit 1; \
+fi
+sed "s|__STATSHOUSE_AGG_ADDR__|$STATSHOUSE_AGG_ADDR|g" %{_topdir}/cmd/statshouse/statshouse.service > %{buildroot}/usr/lib/systemd/system/statshouse.service
+
 
 %files
 /usr/share/engine/bin/statshouse
 /usr/lib/systemd/system/statshouse.service
-/etc/statshouse/statshouse.service.conf
 
 %changelog
 

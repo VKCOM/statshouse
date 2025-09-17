@@ -91,6 +91,7 @@ docker run -i --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
   -e GOCACHE="/src/$GOCACHE" -e BUILD_TRUSTED_SUBNET_GROUPS \
   -e BUILD_ID \
   -e BUILD_TIME \
+  -e STATSHOUSE_AGG_ADDR \
   $BUILD_IMAGE /bin/bash <<EOF
   set -x &&\
   make build-sh build-sh-metadata build-sh-api build-igp build-agg &&\
