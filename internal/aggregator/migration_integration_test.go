@@ -410,7 +410,7 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 			}
 
 			// First, get the count of expected rows to know when to stop parsing
-			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND metric %% 16 = %d`, testHour, shardKey-1)
+			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND %s`, testHour, getConditionForSelectV3(16, shardKey))
 			req := &chutil.ClickHouseHttpRequest{
 				HttpClient: httpClient,
 				Addr:       httpAddr,
@@ -438,8 +438,8 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 			SELECT metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47,
 				count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
 			FROM statshouse_v3_1h
-			WHERE time = toDateTime(%d) AND metric %% 16 = %d
-			ORDER BY metric`, testHour, shardKey-1)
+			WHERE time = toDateTime(%d) AND %s
+			ORDER BY metric`, testHour, getConditionForSelectV3(16, shardKey))
 
 			t.Logf("Executing V3 query for shard %d: %s", shardKey, selectQuery)
 
@@ -1040,4 +1040,123 @@ func cleanupMigrationTables(t *testing.T) {
 	resp, err = req.Execute(context.Background())
 	require.NoError(t, err)
 	resp.Close()
+}
+
+// createShardBuiltinTestData creates test data for ShardBuiltin metrics
+func createShardBuiltinTestData(metricID int32, timestamp int64, shardByTag int32, numShards int) []*v2Row {
+	var data []*v2Row
+
+	// Create data points that will be distributed across different shards
+	for shard := 0; shard < numShards; shard++ {
+		for i := 0; i < 3; i++ { // Multiple data points per shard
+			var keys [16]int32
+
+			// Set the sharding tag value to target this specific shard
+			keys[shardByTag] = int32(shard)
+
+			// Set other tags to distinguish data points
+			for j := 0; j < 16; j++ {
+				if j != int(shardByTag) {
+					keys[j] = int32(shard*100 + i*10 + j)
+				}
+			}
+
+			// Create test digest and unique state
+			perc := &data_model.ChDigest{Digest: createTestDigest()}
+			uniq := &data_model.ChUnique{}
+			uniq.Insert(uint64(shard*1000 + i))
+
+			// Create host aggregates
+			minHost := data_model.ArgMinInt32Float32{
+				ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+					Arg: int32(shard),
+					Val: float32(shard),
+				},
+			}
+			maxHost := data_model.ArgMaxInt32Float32{
+				ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+					Arg: int32(shard + 1),
+					Val: float32(shard + 1),
+				},
+			}
+
+			data = append(data, &v2Row{
+				metric:    metricID,
+				time:      uint32(timestamp),
+				keys:      keys,
+				skey:      fmt.Sprintf("skey_%d_%d", shard, i),
+				count:     float64(1 + i),
+				min:       float64(10 + i),
+				max:       float64(20 + i),
+				sum:       float64(30 + i*10),
+				sumsquare: float64(100 + i*50),
+				perc:      perc,
+				uniq:      uniq,
+				min_host:  minHost,
+				max_host:  maxHost,
+			})
+		}
+	}
+
+	return data
+}
+
+// createContributorsLogTestData creates test data for __contributors_log metric
+func createContributorsLogTestData(timestamp int64, numShards int) []*v2Row {
+	var data []*v2Row
+
+	// __contributors_log appears in all shards, create the same data for all shards
+	for shard := 0; shard < numShards; shard++ {
+		var keys [16]int32
+
+		// Set some tag values
+		for j := 0; j < 16; j++ {
+			keys[j] = int32(shard*100 + j)
+		}
+
+		// Create test digest and unique state
+		perc := &data_model.ChDigest{Digest: createTestDigest()}
+		uniq := &data_model.ChUnique{}
+		uniq.Insert(uint64(shard))
+
+		// Create host aggregates
+		minHost := data_model.ArgMinInt32Float32{
+			ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+				Arg: int32(shard),
+				Val: float32(shard),
+			},
+		}
+		maxHost := data_model.ArgMaxInt32Float32{
+			ArgMinMaxInt32Float32: data_model.ArgMinMaxInt32Float32{
+				Arg: int32(shard),
+				Val: float32(shard),
+			},
+		}
+
+		data = append(data, &v2Row{
+			metric:    -61, // __contributors_log
+			time:      uint32(timestamp),
+			keys:      keys,
+			skey:      fmt.Sprintf("contributors_skey_%d", shard),
+			count:     float64(1),
+			min:       float64(1),
+			max:       float64(1),
+			sum:       float64(1),
+			sumsquare: float64(1),
+			perc:      perc,
+			uniq:      uniq,
+			min_host:  minHost,
+			max_host:  maxHost,
+		})
+	}
+
+	return data
+}
+
+// createTestDigest creates a test percentile digest for testing
+func createTestDigest() *tdigest.TDigest {
+	digest := tdigest.New()
+	digest.Add(0.5, 1)
+	digest.Add(0.99, 1)
+	return digest
 }
