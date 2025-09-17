@@ -80,7 +80,6 @@ type Agent struct {
 	mappingsCache *pcache.MappingsCache
 	metricStorage format.MetaStorageInterface
 
-	journalHV        func() (int64, string, string)
 	journalFastHV    func() (int64, string)
 	journalCompactHV func() (int64, string)
 
@@ -145,7 +144,7 @@ func stagingLevel(statsHouseEnv string) int {
 // All shard aggregators must be on the same network
 func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
 	mappingsCache *pcache.MappingsCache,
-	journalHV func() (int64, string, string), journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
+	journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, nowUnix uint32), getConfigResult *tlstatshouse.GetConfigResult3, envLoader *env.Loader, sendSourceBucket2 bool) (*Agent, error) {
 	newClient := func() rpc.Client {
@@ -181,7 +180,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		logF:                              logF,
 		buildArchTag:                      format.GetBuildArchKey(runtime.GOARCH),
 		mappingsCache:                     mappingsCache,
-		journalHV:                         journalHV,
 		journalFastHV:                     journalFastHV,
 		journalCompactHV:                  journalCompactHV,
 		metricStorage:                     metricStorage,
@@ -597,12 +595,6 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 		s.AddCounterStringBytes(nowUnix, format.BuiltinMetricMetaJournalVersions,
 			[]int32{0, s.componentTag, 0, 0, 0, int32(version), hashTag, journalTag},
 			[]byte(hashStr), 1)
-	}
-
-	if s.journalHV != nil {
-		version, hashStr, hashStrXXH3 := s.journalHV()
-		writeJournalVersion(version, hashStr, format.TagValueIDMetaJournalVersionsKindLegacySHA1)
-		writeJournalVersion(version, hashStrXXH3, format.TagValueIDMetaJournalVersionsKindLegacyXXH3)
 	}
 	if s.journalFastHV != nil {
 		version, hashStr := s.journalFastHV()

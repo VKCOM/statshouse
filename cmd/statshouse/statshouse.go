@@ -228,7 +228,7 @@ func run() int {
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
 		metricStorage, mappingsCache,
-		nil, nil, journalFast.VersionHash,
+		nil, journalFast.VersionHash,
 		log.Printf,
 		main.beforeFlushBucket,
 		nil,
