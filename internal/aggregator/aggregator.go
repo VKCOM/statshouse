@@ -114,7 +114,6 @@ type (
 		configMu sync.RWMutex
 
 		metricStorage  *metajournal.MetricsStorage
-		journal        *metajournal.Journal
 		journalFast    *metajournal.JournalFast
 		journalCompact *metajournal.JournalFast
 		testConnection *TestConnection
@@ -302,8 +301,6 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 			a.autoCreate.applyConfig(configID, configS)
 		}
 	})
-	a.journal = metajournal.MakeJournal(a.config.Cluster, data_model.JournalDDOSProtectionTimeout, dc,
-		[]metajournal.ApplyEvent{a.metricStorage.ApplyEvent})
 	// we ignore errors because cache can be damaged
 	a.journalFast, _ = metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionTimeout, false,
 		nil)
@@ -318,7 +315,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
 		format.TagValueIDComponentAggregator,
 		a.metricStorage, mappingsCache,
-		a.journal.VersionHash, a.journalFast.VersionHash, a.journalCompact.VersionHash,
+		a.journalFast.VersionHash, a.journalCompact.VersionHash,
 		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil, false)
 	if err != nil {
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
@@ -328,7 +325,6 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	if a.autoCreate != nil {
 		a.autoCreate.run(a.metricStorage)
 	}
-	a.journal.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 	a.journalFast.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 	a.journalCompact.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 

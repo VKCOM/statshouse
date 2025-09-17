@@ -158,7 +158,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(),
 			format.TagValueIDComponentIngressProxy,
 			nil, mappingsCache,
-			nil, nil, nil,
+			nil, nil,
 			log.Printf,
 			func(s *agent.Agent, nowUnix uint32) {
 				// __igp_vm_size

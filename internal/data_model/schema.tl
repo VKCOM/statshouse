@@ -247,7 +247,6 @@ statshouse.sendSourceBucket3Response#0e177acc
     from: long // строго больше
     limit: long
     return_if_empty: field_mask.3?true
-    new_journal: field_mask.15?true    // will return from new journal. We will deprecate this flag quickly, hence 15
     compact_journal: field_mask.4?true // will return from new compact journal (only fields for agents)
      = metadata.GetJournalResponsenew fields_mask;
 

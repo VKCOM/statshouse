@@ -180,10 +180,7 @@ func (a *Aggregator) handleGetMetrics3(_ context.Context, hctx *rpc.HandlerConte
 	if args.IsSetCompactJournal() {
 		return a.journalCompact.HandleGetMetrics3(args, hctx)
 	}
-	if args.IsSetNewJournal() {
-		return a.journalFast.HandleGetMetrics3(args, hctx)
-	}
-	return a.journal.HandleGetMetrics3(args, hctx)
+	return a.journalFast.HandleGetMetrics3(args, hctx)
 }
 
 func (a *Aggregator) handleSendSourceBucket2(_ context.Context, hctx *rpc.HandlerContext) error {
