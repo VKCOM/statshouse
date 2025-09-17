@@ -16,6 +16,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
@@ -32,6 +33,68 @@ const (
 	maxRetryAttempts = 10
 	retryDelay       = 5 * time.Second
 )
+
+func getBuiltinShardingMetrics() map[int32]int {
+	shardingMetrics := make(map[int32]int)
+
+	for metricID, metric := range format.BuiltinMetrics {
+		if metric.ShardStrategy == format.ShardBuiltin {
+			// For metrics with MetricTagID > 0, use the specified tag
+			// For metrics with MetricTagID = 0 (like contributors_log), they appear in all shards
+			if metric.MetricTagID > 0 {
+				shardingMetrics[metricID] = int(metric.MetricTagID)
+			} else {
+				// Special case: metrics with MetricTagID = 0 appear in all shards
+				shardingMetrics[metricID] = -1 // Use -1 to indicate "appears in all shards"
+			}
+		}
+	}
+
+	return shardingMetrics
+}
+
+// getConditionForSelect returns the complete condition for SELECT queries
+// This handles both regular metrics and ShardBuiltin metrics in a single query
+func getConditionForSelect(totalShards int, shardKey int32, tagPrefix string) string {
+	// Get all builtin metrics with special sharding
+	shardingMetrics := getBuiltinShardingMetrics()
+
+	// Collect builtin metric IDs to exclude from regular sharding
+	var builtinMetricIDs []string
+	var builtinConditions []string
+
+	for metricID, tagID := range shardingMetrics {
+		builtinMetricIDs = append(builtinMetricIDs, fmt.Sprintf("%d", metricID))
+
+		if tagID == -1 {
+			// Special case: contributors_log(_rev) appears in all shards, but we don't know where to put it, so we just skip it
+			continue
+		}
+		// Use the specified tag for sharding
+		builtinConditions = append(builtinConditions,
+			fmt.Sprintf("(metric = %d AND %s%d %% %d = %d)", metricID, tagPrefix, tagID, totalShards, shardKey-1))
+	}
+
+	// Regular metrics condition: exclude builtin metrics to avoid duplication
+	regularCondition := fmt.Sprintf("(metric %% %d = %d AND metric NOT IN (%s) AND count > 0)",
+		totalShards, shardKey-1, strings.Join(builtinMetricIDs, ", "))
+
+	// Combine all conditions with OR
+	allConditions := append([]string{regularCondition}, builtinConditions...)
+	return "(" + strings.Join(allConditions, " OR ") + ")"
+}
+
+// getConditionForSelectV2 returns the complete condition for SELECT queries on V2 tables
+// This handles both regular metrics and ShardBuiltin metrics in a single query
+func getConditionForSelectV2(totalShards int, shardKey int32) string {
+	return getConditionForSelect(totalShards, shardKey, "key")
+}
+
+// getConditionForSelectV3 returns the complete condition for SELECT queries on V3 tables
+// This handles both regular metrics and ShardBuiltin metrics in a single query
+func getConditionForSelectV3(totalShards int, shardKey int32) string {
+	return getConditionForSelect(totalShards, shardKey, "tag")
+}
 
 // MigrationConfig holds configuration for migration operations
 type MigrationConfig struct {
@@ -174,13 +237,15 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 
 	// Step 1: Select data from V2 table for the given timestamp and shard
 	// Include all aggregate fields - our parsers handle ClickHouse internal format correctly
+	// For ShardBuiltin metrics, we need special sharding conditions
+	shardingCondition := getConditionForSelectV2(config.TotalShards, shardKey)
 	selectQuery := fmt.Sprintf(`
 		SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,
 			count, min, max, sum, sumsquare, percentiles, uniq_state, min_host, max_host
 		FROM %s 
 		WHERE time = toDateTime(%d)
-		  AND metric %% %d = %d`,
-		config.V2TableName, timestamp, config.TotalShards, shardKey-1,
+		  AND %s`,
+		config.V2TableName, timestamp, shardingCondition,
 	)
 
 	// Step 2: Execute query and get response
@@ -656,11 +721,12 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 
 // countV2RowsWithConfig counts how many rows exist in V2 table for a specific timestamp and shard with custom config
 func (a *Aggregator) countV2RowsWithConfig(httpClient *http.Client, ts time.Time, shardKey int32, config *MigrationConfig) (uint64, error) {
+	shardingCondition := getConditionForSelectV2(config.TotalShards, shardKey)
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM %s
-		WHERE time = toDateTime(%d) AND metric %% %d = %d`,
-		config.V2TableName, ts.Unix(), config.TotalShards, shardKey-1)
+		WHERE time = toDateTime(%d) AND %s`,
+		config.V2TableName, ts.Unix(), shardingCondition)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
@@ -685,11 +751,12 @@ func (a *Aggregator) countV2RowsWithConfig(httpClient *http.Client, ts time.Time
 
 // countV3Rows counts how many rows exist in V3 table for a specific timestamp and shard
 func (a *Aggregator) countV3Rows(httpClient *http.Client, ts time.Time, shardKey int32) (uint64, error) {
+	shardingCondition := getConditionForSelectV3(a.migrationConfig.TotalShards, shardKey)
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM %s
-		WHERE time = toDateTime(%d) AND metric %% %d = %d`,
-		a.migrationConfig.V3TableName, ts.Unix(), a.migrationConfig.TotalShards, shardKey-1)
+		WHERE time = toDateTime(%d) AND %s`,
+		a.migrationConfig.V3TableName, ts.Unix(), shardingCondition)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
