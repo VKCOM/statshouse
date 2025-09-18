@@ -18,8 +18,7 @@ import (
 
 func Test_Compress(t *testing.T) {
 	roundtrip := func(input []byte) {
-		inputc, err := CompressAndFrame(input)
-		require.NoError(t, err)
+		inputc := CompressAndFrame(input)
 		originalSize, cdata, err := DeFrame(inputc)
 		require.NoError(t, err)
 		input2, err := Decompress(originalSize, cdata)
