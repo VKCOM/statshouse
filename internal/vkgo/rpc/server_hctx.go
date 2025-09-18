@@ -84,6 +84,10 @@ func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.localAddr }
 func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.remoteAddr }
 func (hctx *HandlerContext) BodyFormatTL2() bool       { return hctx.bodyFormatTL2 }
 
+func (hctx *HandlerContext) SetRequestFunctionName(name string) {
+	hctx.RequestFunctionName = name
+}
+
 // for implementing servers, also for tests with server mock ups
 func (hctx *HandlerContext) ResetTo(
 	commonConn HandlerContextConnection, listenAddr net.Addr, localAddr net.Addr, remoteAddr net.Addr,
