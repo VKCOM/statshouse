@@ -175,23 +175,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		writeResponse(fmt.Sprintf("failed to deserialize statshouse.sourceBucket3: %v", err), true)
 		return nil
 	}
-	// we should clear all legacy fields mask which can be independently used by SourceBucket3
-	// we leave only common proxy header maskas, spare and historic which are set to the same bits
-	args2 := tlstatshouse.SendSourceBucket2Bytes{
-		FieldsMask:     args.FieldsMask,
-		Header:         args.Header,
-		Time:           args.Time,
-		BuildCommit:    args.BuildCommit,
-		BuildCommitTs:  args.BuildCommitTs,
-		OriginalSize:   args.OriginalSize,
-		CompressedData: args.CompressedData,
-	}
-	bucket2 := tlstatshouse.SourceBucket2Bytes{
-		Metrics:            bucket.Metrics,
-		SampleFactors:      bucket.SampleFactors,
-		IngestionStatusOk2: bucket.IngestionStatusOk2,
-	}
-	str, err, discard := a.handleSendSourceBucketAny(hctx, args2, bucket2)
+	str, err, discard := a.handleSendSourceBucket(hctx, args, bucket)
 	if rpc.IsHijackedResponse(err) {
 		return err
 	}
@@ -200,7 +184,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 	return nil
 }
 
-func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, bucket tlstatshouse.SourceBucket2Bytes) (string, error, bool) {
+func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket3Bytes, bucket tlstatshouse.SourceBucket3Bytes) (string, error, bool) {
 	a.configMu.RLock()
 	configR := a.configR
 	a.configMu.RUnlock()
@@ -215,7 +199,7 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 	hostTag := data_model.TagUnionBytes{I: hostId}
 	ownerTagId := a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
 	if ownerTagId == 0 {
-		ownerTagId = a.tagsMapper.mapOrFlood(now, args.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
+		ownerTagId = a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
 	}
 	aera := format.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
@@ -713,14 +697,6 @@ func (a *Aggregator) handleSendSourceBucketAny(hctx *rpc.HandlerContext, args tl
 		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus, 1,
 			[]int32{env, metricID, status}, aera).
 			Tail.AddCounterHost(rng, float64(value), hostTag)
-	}
-	for _, v := range bucket.IngestionStatusOk {
-		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
-		if v.Value > 0 {
-			ingestionStatus(0, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, v.Value)
-		} else {
-			ingestionStatus(0, v.Metric, format.TagValueIDSrcIngestionStatusOKUncached, -v.Value)
-		}
 	}
 	for _, v := range bucket.IngestionStatusOk2 {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
