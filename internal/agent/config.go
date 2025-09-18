@@ -57,7 +57,7 @@ type Config struct {
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
 
-	SendSourceBucket2 bool
+	SendSourceBucket2 bool // TODO - deprecate, remove
 }
 
 func DefaultConfig() Config {

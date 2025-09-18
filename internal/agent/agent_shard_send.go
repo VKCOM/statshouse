@@ -9,14 +9,11 @@ package agent
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/compress"
-	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -123,7 +120,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteBoxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
-	cbd := compressedBucketData{time: bucket.Time, data: compressed, version: 3}
+	cbd := compressedBucketData{time: bucket.Time, data: compressed}
 	s.sendToSenders(cbd)
 	return scratch
 }
@@ -313,47 +310,25 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 		return false
 	}
 
-	if cbd.version == 3 {
-		var respV3 tlstatshouse.SendSourceBucket3Response
-		err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV3)
-		if !spare {
-			shardReplica.recordSendResult(!isShardDeadError(err))
-		}
-		if err != nil {
-			shardReplica.stats.recentSendFailed.Add(1)
-			s.agent.logF("Send Error: %v, moving bucket %d to historic conveyor for shard %d",
-				err, cbd.time, s.ShardKey)
-			return false
-		}
-		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
-		if len(respV3.Warning) != 0 {
-			s.agent.logF("Send Warning: %s, moving bucket %d to historic conveyor for shard %d",
-				respV3.Warning, cbd.time, s.ShardKey)
-		}
-		if !respV3.IsSetDiscard() {
-			shardReplica.stats.recentSendKeep.Add(1)
-			return false
-		}
-		shardReplica.stats.recentSendSuccess.Add(1)
-		return true
-	}
-	var respV2 string
-	err := shardReplica.sendSourceBucket2Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV2)
+	var respV3 tlstatshouse.SendSourceBucket3Response
+	err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV3)
 	if !spare {
 		shardReplica.recordSendResult(!isShardDeadError(err))
 	}
 	if err != nil {
-		if !data_model.SilentRPCError(err) {
-			shardReplica.stats.recentSendFailed.Add(1)
-			s.agent.logF("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d",
-				err, cbd.time, s.ShardKey)
-		} else {
-			shardReplica.stats.recentSendKeep.Add(1)
-		}
+		shardReplica.stats.recentSendFailed.Add(1)
+		s.agent.logF("Send Error: %v, moving bucket %d to historic conveyor for shard %d",
+			err, cbd.time, s.ShardKey)
 		return false
 	}
-	if respV2 != "Dummy historic result" {
-		s.agent.logF("Send bucket returned: \"%s\"", respV2)
+	s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
+	if len(respV3.Warning) != 0 {
+		s.agent.logF("Send Warning: %s, moving bucket %d to historic conveyor for shard %d",
+			respV3.Warning, cbd.time, s.ShardKey)
+	}
+	if !respV3.IsSetDiscard() {
+		shardReplica.stats.recentSendKeep.Add(1)
+		return false
 	}
 	shardReplica.stats.recentSendSuccess.Add(1)
 	return true
@@ -405,23 +380,6 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				return
 			}
-			originalSize, compressedData, err := compress.DeFrame(cbd.data)
-			// TODO - remove most of this code after we remove version field
-			if err == nil && cbd.version == 0 { // from disk
-				var originalData []byte
-				originalData, err = compress.Decompress(originalSize, compressedData)
-				if err == nil {
-					tag, _ := basictl.NatPeekTag(originalData)
-					switch tag {
-					case (tlstatshouse.SourceBucket3{}).TLTag():
-						cbd.version = 3
-					case (tlstatshouse.SourceBucket2{}).TLTag():
-						cbd.version = 2
-					default:
-						err = fmt.Errorf("unknown source bucket tag 0x%08x", tag)
-					}
-				}
-			}
 			if err != nil {
 				s.agent.logF("Disk Error: diskCache.GetBucket returned compressed bucket data with too small size %d for shard %d bucket %d",
 					len(cbd.data), s.ShardKey, cbd.time)
@@ -442,51 +400,28 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		}
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
-		if cbd.version == 3 {
-			var respV3 tlstatshouse.SendSourceBucket3Response
-			err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, 0, true, spare, &respV3)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				shardReplica.stats.historicSendFailed.Add(1)
-				select {
-				case <-cancelCtx.Done():
-					return
-				case <-time.After(time.Second):
-					continue
-				}
-			}
-			if len(respV3.Warning) != 0 {
-				s.agent.logF("Send historic bucket returned: %s", respV3.Warning)
-			}
-			// we choose to use bucket time here, because we do not map new strings for historic buckets
-			// at the moment of sending, if they were not mapped at the moment of saving
-			s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
-			if !respV3.IsSetDiscard() {
-				shardReplica.stats.historicSendKeep.Add(1)
-				select {
-				case <-cancelCtx.Done():
-					return
-				case <-time.After(time.Second):
-					continue
-				}
-			}
-			shardReplica.stats.historicSendSuccess.Add(1)
-			s.diskCacheEraseWithLog(cbd.id, "after sending historic")
-			break
-		}
-		var resp string
-		err := shardReplica.sendSourceBucket2Compressed(cancelCtx, cbd, 0, true, spare, &resp)
+		var respV3 tlstatshouse.SendSourceBucket3Response
+		err := shardReplica.sendSourceBucket3Compressed(cancelCtx, cbd, 0, true, spare, &respV3)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return
 			}
-			if !data_model.SilentRPCError(err) {
-				shardReplica.stats.historicSendFailed.Add(1)
-			} else {
-				shardReplica.stats.historicSendKeep.Add(1)
+			shardReplica.stats.historicSendFailed.Add(1)
+			select {
+			case <-cancelCtx.Done():
+				return
+			case <-time.After(time.Second):
+				continue
 			}
+		}
+		if len(respV3.Warning) != 0 {
+			s.agent.logF("Send historic bucket returned: %s", respV3.Warning)
+		}
+		// we choose to use bucket time here, because we do not map new strings for historic buckets
+		// at the moment of sending, if they were not mapped at the moment of saving
+		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
+		if !respV3.IsSetDiscard() {
+			shardReplica.stats.historicSendKeep.Add(1)
 			select {
 			case <-cancelCtx.Done():
 				return
