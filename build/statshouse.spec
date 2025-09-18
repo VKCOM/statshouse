@@ -28,6 +28,13 @@ install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
 
+ADDR="$STATSHOUSE_AGG_ADDR"; \
+if [ -z "$ADDR" ]; then \
+    ADDR="localhost:13336,localhost:13336,localhost:13336"; \
+fi; \
+sed "s|__STATSHOUSE_AGG_ADDR__|$ADDR|g" %{_topdir}/cmd/statshouse/statshouse.service > %{buildroot}/usr/lib/systemd/system/statshouse.service
+
+
 %files
 /usr/share/engine/bin/statshouse
 /usr/lib/systemd/system/statshouse.service
