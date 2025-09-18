@@ -695,6 +695,10 @@ func RandomUint(rg *RandGenerator) uint32 {
 	return rg.r.Uint32() & bitMask
 }
 
+func RandomByte(rg *RandGenerator) byte {
+	return byte(rg.r.Uint32() & (1<<8 - 1))
+}
+
 func RandomInt(rg *RandGenerator) int32 {
 	return rg.r.Int31()
 }

@@ -214,6 +214,9 @@ statshouse.sendSourceBucket3Response#0e177acc
     sharding:fields_mask.5?int // deprecated because sharding is now configured for each metric separately
     = String;
 
+// sendSourceBucket and sendKeepAlive must share common response, because aggregator hijacks them into the same slice
+// we use string as a crude logging capability. Agents write to log what they receive from aggregators.
+// type of compressed_data should be checked by first 4 bytes (tag)
 @readwrite statshouse.sendSourceBucket3#0d04aa3f
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)

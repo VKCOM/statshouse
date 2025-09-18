@@ -20,7 +20,6 @@ type StatshouseGetMetrics3 struct {
 	From       int64
 	Limit      int64
 	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
-	// NewJournal (TrueType) // Conditional: item.FieldMask.15
 	// CompactJournal (TrueType) // Conditional: item.FieldMask.4
 }
 
@@ -35,15 +34,6 @@ func (item *StatshouseGetMetrics3) SetReturnIfEmpty(v bool) {
 	}
 }
 func (item StatshouseGetMetrics3) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
-
-func (item *StatshouseGetMetrics3) SetNewJournal(v bool) {
-	if v {
-		item.FieldMask |= 1 << 15
-	} else {
-		item.FieldMask &^= 1 << 15
-	}
-}
-func (item StatshouseGetMetrics3) IsSetNewJournal() bool { return item.FieldMask&(1<<15) != 0 }
 
 func (item *StatshouseGetMetrics3) SetCompactJournal(v bool) {
 	if v {
@@ -177,8 +167,6 @@ func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	var propLimitPresented bool
 	var trueTypeReturnIfEmptyPresented bool
 	var trueTypeReturnIfEmptyValue bool
-	var trueTypeNewJournalPresented bool
-	var trueTypeNewJournalValue bool
 	var trueTypeCompactJournalPresented bool
 	var trueTypeCompactJournalValue bool
 
@@ -239,14 +227,6 @@ func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.Js
 					return err
 				}
 				trueTypeReturnIfEmptyPresented = true
-			case "new_journal":
-				if trueTypeNewJournalPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "new_journal")
-				}
-				if err := Json2ReadBool(in, &trueTypeNewJournalValue); err != nil {
-					return err
-				}
-				trueTypeNewJournalPresented = true
 			case "compact_journal":
 				if trueTypeCompactJournalPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "compact_journal")
@@ -282,11 +262,6 @@ func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.Js
 			item.FieldMask |= 1 << 3
 		}
 	}
-	if trueTypeNewJournalPresented {
-		if trueTypeNewJournalValue {
-			item.FieldMask |= 1 << 15
-		}
-	}
 	if trueTypeCompactJournalPresented {
 		if trueTypeCompactJournalValue {
 			item.FieldMask |= 1 << 4
@@ -303,10 +278,6 @@ func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.Js
 
 	// tries to set bit to zero if it is 1
 	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
-	}
-	// tries to set bit to zero if it is 1
-	if trueTypeNewJournalPresented && !trueTypeNewJournalValue && (item.FieldMask&(1<<15) != 0) {
 		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
@@ -361,10 +332,6 @@ func (item *StatshouseGetMetrics3) WriteJSONOpt(newTypeNames bool, short bool, w
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_if_empty":true`...)
 	}
-	if item.FieldMask&(1<<15) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"new_journal":true`...)
-	}
 	if item.FieldMask&(1<<4) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"compact_journal":true`...)
@@ -390,7 +357,6 @@ type StatshouseGetMetrics3Bytes struct {
 	From       int64
 	Limit      int64
 	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
-	// NewJournal (TrueType) // Conditional: item.FieldMask.15
 	// CompactJournal (TrueType) // Conditional: item.FieldMask.4
 }
 
@@ -405,15 +371,6 @@ func (item *StatshouseGetMetrics3Bytes) SetReturnIfEmpty(v bool) {
 	}
 }
 func (item StatshouseGetMetrics3Bytes) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
-
-func (item *StatshouseGetMetrics3Bytes) SetNewJournal(v bool) {
-	if v {
-		item.FieldMask |= 1 << 15
-	} else {
-		item.FieldMask &^= 1 << 15
-	}
-}
-func (item StatshouseGetMetrics3Bytes) IsSetNewJournal() bool { return item.FieldMask&(1<<15) != 0 }
 
 func (item *StatshouseGetMetrics3Bytes) SetCompactJournal(v bool) {
 	if v {
@@ -547,8 +504,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basic
 	var propLimitPresented bool
 	var trueTypeReturnIfEmptyPresented bool
 	var trueTypeReturnIfEmptyValue bool
-	var trueTypeNewJournalPresented bool
-	var trueTypeNewJournalValue bool
 	var trueTypeCompactJournalPresented bool
 	var trueTypeCompactJournalValue bool
 
@@ -609,14 +564,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basic
 					return err
 				}
 				trueTypeReturnIfEmptyPresented = true
-			case "new_journal":
-				if trueTypeNewJournalPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "new_journal")
-				}
-				if err := Json2ReadBool(in, &trueTypeNewJournalValue); err != nil {
-					return err
-				}
-				trueTypeNewJournalPresented = true
 			case "compact_journal":
 				if trueTypeCompactJournalPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetrics3", "compact_journal")
@@ -652,11 +599,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basic
 			item.FieldMask |= 1 << 3
 		}
 	}
-	if trueTypeNewJournalPresented {
-		if trueTypeNewJournalValue {
-			item.FieldMask |= 1 << 15
-		}
-	}
 	if trueTypeCompactJournalPresented {
 		if trueTypeCompactJournalValue {
 			item.FieldMask |= 1 << 4
@@ -673,10 +615,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basic
 
 	// tries to set bit to zero if it is 1
 	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
-	}
-	// tries to set bit to zero if it is 1
-	if trueTypeNewJournalPresented && !trueTypeNewJournalValue && (item.FieldMask&(1<<15) != 0) {
 		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
@@ -730,10 +668,6 @@ func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(newTypeNames bool, short bo
 	if item.FieldMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"return_if_empty":true`...)
-	}
-	if item.FieldMask&(1<<15) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"new_journal":true`...)
 	}
 	if item.FieldMask&(1<<4) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
