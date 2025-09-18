@@ -58,20 +58,6 @@ statshouse.multi_item#0c803e07
     top: fields_mask.11?(vector (statshouse.top_element)) // most items are without string keys, so we save 4 bytes using fields_mask
     = statshouse.MultiItem;
 
-statshouse.sourceBucket2#3af6e822
-      metrics: (vector (statshouse.multi_item)) // must be sorted by metric (but for now order is not used)
-
-      sample_factors: (vector statshouse.sample_factor) // We need as compact representation as possible.
-      ingestion_status_ok: (vector statshouse.sample_factor) // legacy, never sent by 1.0 agents. TODO - rename to unused
-
-      missed_seconds: #
-      legacy_agent_env: int // used to fill key0 of many built-in stats. TODO - remove, er use bit in common header now
-
-      // fields below ere added before 1.0, not sent by legacy agents
-      ingestion_status_ok2: (vector statshouse.ingestion_status2) // We need as compact representation as possible.
-
-  = statshouse.SourceBucket2;
-
 statshouse.sourceBucket3#16c4dd7b
     fields_mask: #
     // TODO: check how it is used and maybe change to a new version
@@ -193,30 +179,6 @@ statshouse.sendSourceBucket3Response#0e177acc
 // sendSourceBucket and sendKeepAlive must share common response, because aggregator hijacks them into the same slice
 // we use string as a crude logging capability. Agents write to log what they receive from aggregators.
 // type of compressed_data should be checked by first 4 bytes (tag)
-@readwrite statshouse.sendSourceBucket2#44575940
-    fields_mask:#
-    header: (statshouse.commonProxyHeader fields_mask)
-    owner:fields_mask.4?string
-    time:#
-    historic:fields_mask.0?true
-    spare:fields_mask.1?true
-    build_commit:string
-    build_commit_date:int // deprecated, not sent by agents, not used by aggregators
-    build_commit_ts:#
-    queue_size_disk:int
-    queue_size_memory:int
-    queue_size_disk_sum:fields_mask.2?int   // for all shard-replicas. Helps detect situation where only subset of aggregators is accessible.
-    queue_size_memory_sum:fields_mask.2?int
-    queue_size_disk_unsent:fields_mask.3?int
-    queue_size_disk_sum_unsent:fields_mask.3?int
-    original_size:#
-    compressed_data:string
-    sharding:fields_mask.5?int // deprecated because sharding is now configured for each metric separately
-    = String;
-
-// sendSourceBucket and sendKeepAlive must share common response, because aggregator hijacks them into the same slice
-// we use string as a crude logging capability. Agents write to log what they receive from aggregators.
-// type of compressed_data should be checked by first 4 bytes (tag)
 @readwrite statshouse.sendSourceBucket3#0d04aa3f
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)
@@ -231,11 +193,6 @@ statshouse.sendSourceBucket3Response#0e177acc
     compressed_data:string
     send_more_bytes:string // send dummy zeroes to test network, according to send-more-data agent config value
     = statshouse.SendSourceBucket3Response;
-
-@readwrite statshouse.sendKeepAlive2#4285ff53
-    fields_mask:#
-    header: (statshouse.commonProxyHeader fields_mask)
-     = String;
 
 @readwrite statshouse.sendKeepAlive3#4285ff54
     fields_mask:#
