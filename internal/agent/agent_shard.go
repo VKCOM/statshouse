@@ -25,11 +25,10 @@ type (
 	// Shard gets data after initial hashing and shard number
 	Shard struct {
 		// Never change, so do not require protection
-		agent             *Agent
-		ShardNum          int
-		ShardKey          int32
-		rng               *rand.Rand
-		sendSourceBucket2 bool
+		agent    *Agent
+		ShardNum int
+		ShardKey int32
+		rng      *rand.Rand
 
 		mu                                   sync.Mutex
 		config                               Config       // can change if remotely updated
@@ -72,10 +71,9 @@ type (
 	}
 
 	compressedBucketData struct {
-		id      int64 // in disk queue, or 0 if working without disk
-		time    uint32
-		data    []byte // first 4 bytes are uncompressed size, rest is compressed data
-		version uint8  // 3 - SourceBucket3, 2 and everyting else - SourceBucket2
+		id   int64 // in disk queue, or 0 if working without disk
+		time uint32
+		data []byte // first 4 bytes are uncompressed size, rest is compressed data
 	}
 )
 

@@ -232,8 +232,7 @@ func run() int {
 		log.Printf,
 		main.beforeFlushBucket,
 		nil,
-		envLoader,
-		false)
+		envLoader)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
