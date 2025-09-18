@@ -28,11 +28,11 @@ install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
 
-if [ -z "$STATSHOUSE_AGG_ADDR" ]; then \
-	echo "ERROR: STATSHOUSE_AGG_ADDR environment variable is required but not set"; \
-	exit 1; \
-fi
-sed "s|__STATSHOUSE_AGG_ADDR__|$STATSHOUSE_AGG_ADDR|g" %{_topdir}/cmd/statshouse/statshouse.service > %{buildroot}/usr/lib/systemd/system/statshouse.service
+ADDR="$STATSHOUSE_AGG_ADDR"; \
+if [ -z "$ADDR" ]; then \
+    ADDR="localhost:13336,localhost:13336,localhost:13336"; \
+fi; \
+sed "s|__STATSHOUSE_AGG_ADDR__|$ADDR|g" %{_topdir}/cmd/statshouse/statshouse.service > %{buildroot}/usr/lib/systemd/system/statshouse.service
 
 
 %files

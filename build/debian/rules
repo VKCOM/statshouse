@@ -12,6 +12,12 @@ override_dh_auto_build:
 
 override_dh_install:
 	cp -u ../target/statshouse-grafana-plugin ../target/gpx_vk-statshouse_linux_amd64
+
+	ADDR="$$STATSHOUSE_AGG_ADDR"; \
+    if [ -z "$$ADDR" ]; then \
+   		ADDR="localhost:13336,localhost:13336,localhost:13336"; \
+    fi; \
+        sed -i "s|__STATSHOUSE_AGG_ADDR__|$$ADDR|g" ../cmd/statshouse/statshouse.service
 	dh_install
 
 override_dh_installdocs:
