@@ -143,7 +143,6 @@ var (
 		-124:                                    BuiltinMetricMetaApiHeapIdle,
 		-125:                                    BuiltinMetricMetaApiHeapInuse,
 		-126:                                    BuiltinMetricMetaClientWriteError,
-		-127:                                    BuiltinMetricMetaAgentTimingsLegacy,
 		-128:                                    BuiltinMetricMetaAggBucketInfo,
 		-129:                                    BuiltinMetricMetaBudgetOwner,
 		-130:                                    BuiltinMetricMetaMappingCacheElements,
