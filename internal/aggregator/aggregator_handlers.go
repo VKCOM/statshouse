@@ -198,9 +198,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	hostId := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
 	ownerTagId := a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
-	if ownerTagId == 0 {
-		ownerTagId = a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
-	}
 	aera := format.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -288,6 +285,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			if aggBucket == nil {
 				aggBucket = &aggregatorBucket{
 					time:                        args.Time,
+					contributors:                map[*rpc.HandlerContext]struct{}{},
 					contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 					historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
@@ -717,15 +715,23 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	return "", errHijack, false
 }
 
+func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {
+	var args tlstatshouse.SendKeepAlive2Bytes
+	if _, err := args.Read(hctx.Request); err != nil {
+		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
+	}
+	return a.handleSendKeepAliveAny(hctx, tlstatshouse.SendKeepAlive3Bytes(args), false)
+}
+
 func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.SendKeepAlive3Bytes
 	if _, err := args.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive3 request: %w", err)
 	}
-	return a.handleSendKeepAliveAny(hctx, args)
+	return a.handleSendKeepAliveAny(hctx, args, true)
 }
 
-func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes) error {
+func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes, version3 bool) error {
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -761,8 +767,12 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	defer aggBucket.sendMu.RUnlock()
 
 	aggBucket.mu.Lock()
-	aggBucket.contributors3[hctx] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
-	errHijack := hctx.HijackResponse(aggBucket)                              // must be under bucket lock
+	if version3 {
+		aggBucket.contributors3[hctx] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
+	} else {
+		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
+	}
+	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	aggBucket.mu.Unlock()
 	// Write meta statistics
 
