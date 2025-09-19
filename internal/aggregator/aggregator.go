@@ -122,6 +122,13 @@ type (
 
 		scrape     *scrapeServer
 		autoCreate *autoCreate
+
+		// migration stats
+		lastErrorTs    uint32
+		insertTimeEWMA float64 // exponential weighted moving average in seconds
+
+		// migration configuration
+		migrationConfig *MigrationConfig
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -233,6 +240,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
+		migrationConfig:             NewDefaultMigrationConfig(),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -346,6 +354,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
+	go a.goMigrate(a.cancelInsertsCtx)
 	go a.goInternalLog()
 
 	go func() { // before sh2.Run because agent will also connect to local aggregator
@@ -769,6 +778,17 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			settings = v3InsertSettings
 		}
 		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(writeToV3First), bodyStorage, settings)
+
+		if sendErr != nil {
+			a.lastErrorTs = nowUnix
+		}
+		// EWMA update: alpha=0.2
+		alpha := 0.2
+		if a.insertTimeEWMA == 0 {
+			a.insertTimeEWMA = dur.Seconds()
+		} else {
+			a.insertTimeEWMA = alpha*dur.Seconds() + (1-alpha)*a.insertTimeEWMA
+		}
 		// if we are mirriring that will happen after second ch write
 		if !mirrorChWrite {
 			cancelSendToCh()
