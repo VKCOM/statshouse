@@ -594,7 +594,7 @@ AS SELECT
 ;
 
 -- 1s buffer for older timestamps
--- 30s - 2m time window (max time must be consistent with API cache invalidation)
+-- 30s - 300s time window (max time must be consistent with API cache invalidation)
 -- 10_000 - 1_000_000 rows
 -- 10 MB - 100 MB size
 CREATE TABLE IF NOT EXISTS statshouse_v3_1s_history_buffer ON CLUSTER statlogs2 ENGINE = Buffer(default, statshouse_v3_1s, 1, 30, 300, 10_000, 1_000_000, 10_000_000, 100_000_000)

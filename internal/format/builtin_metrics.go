@@ -2431,44 +2431,6 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 	}},
 }
 
-// TODO - remove after all agents updated to v3
-var BuiltinMetricMetaAgentTimingsLegacy = &MetricMetaValue{
-	Name:                    "__src_timings_legacy",
-	Kind:                    MetricKindValue,
-	Description:             "Timings of agent operations",
-	MetricType:              MetricNanosecond,
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   true,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "group",
-		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDAgentTimingGroupPipeline: "pipeline",
-			TagValueIDAgentTimingGroupSend:     "send",
-		}),
-	}, {
-		Description: "measure",
-		ValueComments: convertToValueComments(map[int32]string{
-			// pipeline
-			TagValueIDAgentTimingMapping:     "mapping",
-			TagValueIDAgentTimingMappingSlow: "mapping_slow",
-			TagValueIDAgentTimingApplyMetric: "apply_metric",
-			TagValueIDAgentTimingFlush:       "flush",
-			TagValueIDAgentTimingPreprocess:  "preprocess",
-			// send
-			TagValueIDAgentTimingSendRecent:   "send_recent",
-			TagValueIDAgentTimingSendHistoric: "send_historic",
-		}),
-	}, {
-		Description: "commit_timestamp",
-		RawKind:     "timestamp",
-	}, {
-		Description: "commit_hash",
-		RawKind:     "hex",
-	}},
-}
-
 var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 	Name:                    "__agg_bucket_info",
 	Kind:                    MetricKindValue,
