@@ -31,6 +31,7 @@ func CreateObjectFromName(name string) meta.Object {
 }
 
 func init() {
+	// TL
 	meta.SetGlobalFactoryCreateForObject(0x92cbcbfa, func() meta.Object { var ret internal.BoolStat; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x402409cb, func() meta.Object { var ret internal.EngineAlreadyInMasterMode; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xebd80142, func() meta.Object { var ret internal.EngineAlreadyInReplicaMode; return &ret })
@@ -190,11 +191,9 @@ func init() {
 	meta.SetGlobalFactoryCreateForObject(0x4f7b7822, func() meta.Object { var ret internal.StatshouseSampleFactor; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x4285ff53, func() meta.Object { var ret internal.StatshouseSendKeepAlive2; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive2; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x4285ff54, func() meta.Object { var ret internal.StatshouseSendKeepAlive3; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive3; return &ret }, nil)
-	meta.SetGlobalFactoryCreateForFunction(0x44575940, func() meta.Object { var ret internal.StatshouseSendSourceBucket2; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket2; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x0d04aa3f, func() meta.Object { var ret internal.StatshouseSendSourceBucket3; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket3; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x0e177acc, func() meta.Object { var ret internal.StatshouseSendSourceBucket3Response; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x4124cf9c, func() meta.Object { var ret internal.StatshouseShutdownInfo; return &ret })
-	meta.SetGlobalFactoryCreateForObject(0x3af6e822, func() meta.Object { var ret internal.StatshouseSourceBucket2; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x16c4dd7b, func() meta.Object { var ret internal.StatshouseSourceBucket3; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x4285ff58, func() meta.Object { var ret internal.StatshouseTestConnection2; return &ret }, func() meta.Function { var ret internal.StatshouseTestConnection2; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x9ffdea42, func() meta.Object { var ret internal.StatshouseTopElement; return &ret })

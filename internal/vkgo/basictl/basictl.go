@@ -27,6 +27,19 @@ const (
 	hugeStringLen    = (1 << 56) - 1
 )
 
+type JSONWriteContext struct {
+	LegacyTypeNames bool
+	Short           bool
+
+	IsTL2 bool
+}
+
+type JSONReadContext struct {
+	LegacyTypeNames bool
+
+	IsTL2 bool
+}
+
 type JsonLexer = jlexer.Lexer
 
 var errBadPadding = fmt.Errorf("non-canonical non-zero string padding")

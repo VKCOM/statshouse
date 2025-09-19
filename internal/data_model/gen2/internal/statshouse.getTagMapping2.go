@@ -33,7 +33,7 @@ func (item *StatshouseGetTagMapping2) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item StatshouseGetTagMapping2) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseGetTagMapping2) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetTagMapping2) Reset() {
 	item.FieldsMask = 0
@@ -63,7 +63,6 @@ func (item *StatshouseGetTagMapping2) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.ClientEnv)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseGetTagMapping2) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -85,7 +84,6 @@ func (item *StatshouseGetTagMapping2) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseGetTagMapping2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -105,36 +103,29 @@ func (item *StatshouseGetTagMapping2) WriteResult(w []byte, ret StatshouseGetTag
 }
 
 func (item *StatshouseGetTagMapping2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingResult) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMapping2) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseGetTagMapping2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *StatshouseGetTagMapping2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetTagMappingResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseGetTagMappingResult
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -153,6 +144,11 @@ func (item StatshouseGetTagMapping2) String() string {
 }
 
 func (item *StatshouseGetTagMapping2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseGetTagMapping2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propMetricPresented bool
@@ -262,26 +258,27 @@ func (item *StatshouseGetTagMapping2) ReadJSON(legacyTypeNames bool, in *basictl
 	if rawHeader != nil {
 		inHeaderPointer = &inHeader
 	}
-	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+	if err := item.Header.ReadJSONGeneral(tctx, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
 
 	// tries to set bit to zero if it is 1
 	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetTagMapping2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseGetTagMapping2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseGetTagMapping2) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseGetTagMapping2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseGetTagMapping2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -292,7 +289,7 @@ func (item *StatshouseGetTagMapping2) WriteJSONOpt(newTypeNames bool, short bool
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
 	backupIndexMetric := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
@@ -359,7 +356,7 @@ func (item *StatshouseGetTagMapping2Bytes) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item StatshouseGetTagMapping2Bytes) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseGetTagMapping2Bytes) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetTagMapping2Bytes) Reset() {
 	item.FieldsMask = 0
@@ -389,7 +386,6 @@ func (item *StatshouseGetTagMapping2Bytes) Read(w []byte) (_ []byte, err error) 
 	return basictl.IntRead(w, &item.ClientEnv)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseGetTagMapping2Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -411,7 +407,6 @@ func (item *StatshouseGetTagMapping2Bytes) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseGetTagMapping2Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -431,36 +426,29 @@ func (item *StatshouseGetTagMapping2Bytes) WriteResult(w []byte, ret StatshouseG
 }
 
 func (item *StatshouseGetTagMapping2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetTagMappingResult) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseGetTagMapping2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *StatshouseGetTagMapping2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetTagMappingResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseGetTagMappingResult
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -479,6 +467,11 @@ func (item StatshouseGetTagMapping2Bytes) String() string {
 }
 
 func (item *StatshouseGetTagMapping2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseGetTagMapping2Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propMetricPresented bool
@@ -588,26 +581,27 @@ func (item *StatshouseGetTagMapping2Bytes) ReadJSON(legacyTypeNames bool, in *ba
 	if rawHeader != nil {
 		inHeaderPointer = &inHeader
 	}
-	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+	if err := item.Header.ReadJSONGeneral(tctx, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
 
 	// tries to set bit to zero if it is 1
 	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getTagMapping2", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetTagMapping2Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseGetTagMapping2Bytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -618,7 +612,7 @@ func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(newTypeNames bool, short
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
 	backupIndexMetric := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)

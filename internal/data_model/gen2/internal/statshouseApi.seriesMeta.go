@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseApiSeriesMetaWrite(w []byte, vec []StatshouseApiSeri
 	return w
 }
 
-func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
+func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basi
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames bool, in *basi
 }
 
 func BuiltinVectorStatshouseApiSeriesMetaWriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
-	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(true, false, w, vec, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(&tctx, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
+func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
+		w = elem.WriteJSONOpt(tctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -104,7 +105,7 @@ func (item *StatshouseApiSeriesMeta) ClearWhat() {
 	item.What.Reset()
 	item.FieldsMask &^= 1 << 1
 }
-func (item StatshouseApiSeriesMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseApiSeriesMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiSeriesMeta) SetName(v string, nat_query_fields_mask *uint32) {
 	item.Name = v
@@ -118,7 +119,7 @@ func (item *StatshouseApiSeriesMeta) ClearName(nat_query_fields_mask *uint32) {
 		*nat_query_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseApiSeriesMeta) IsSetName(nat_query_fields_mask uint32) bool {
+func (item *StatshouseApiSeriesMeta) IsSetName(nat_query_fields_mask uint32) bool {
 	return nat_query_fields_mask&(1<<4) != 0
 }
 
@@ -134,7 +135,7 @@ func (item *StatshouseApiSeriesMeta) ClearColor(nat_query_fields_mask *uint32) {
 		*nat_query_fields_mask &^= 1 << 5
 	}
 }
-func (item StatshouseApiSeriesMeta) IsSetColor(nat_query_fields_mask uint32) bool {
+func (item *StatshouseApiSeriesMeta) IsSetColor(nat_query_fields_mask uint32) bool {
 	return nat_query_fields_mask&(1<<5) != 0
 }
 
@@ -150,7 +151,7 @@ func (item *StatshouseApiSeriesMeta) ClearTotal(nat_query_fields_mask *uint32) {
 		*nat_query_fields_mask &^= 1 << 6
 	}
 }
-func (item StatshouseApiSeriesMeta) IsSetTotal(nat_query_fields_mask uint32) bool {
+func (item *StatshouseApiSeriesMeta) IsSetTotal(nat_query_fields_mask uint32) bool {
 	return nat_query_fields_mask&(1<<6) != 0
 }
 
@@ -166,7 +167,7 @@ func (item *StatshouseApiSeriesMeta) ClearMaxHosts(nat_query_fields_mask *uint32
 		*nat_query_fields_mask &^= 1 << 7
 	}
 }
-func (item StatshouseApiSeriesMeta) IsSetMaxHosts(nat_query_fields_mask uint32) bool {
+func (item *StatshouseApiSeriesMeta) IsSetMaxHosts(nat_query_fields_mask uint32) bool {
 	return nat_query_fields_mask&(1<<7) != 0
 }
 
@@ -229,7 +230,6 @@ func (item *StatshouseApiSeriesMeta) Read(w []byte, nat_query_fields_mask uint32
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiSeriesMeta) WriteGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_query_fields_mask), nil
 }
@@ -263,7 +263,6 @@ func (item *StatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_query_fields_mask u
 	return item.Read(w, nat_query_fields_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiSeriesMeta) WriteBoxedGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_query_fields_mask), nil
 }
@@ -273,7 +272,7 @@ func (item *StatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_query_fields_mask 
 	return item.Write(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
+func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
 	var propFieldsMaskPresented bool
 	var propTimeShiftPresented bool
 	var propTagsPresented bool
@@ -312,7 +311,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -320,7 +319,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propWhatPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "what")
 				}
-				if err := item.What.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.What.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propWhatPresented = true
@@ -364,7 +363,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.
 				if nat_query_fields_mask&(1<<7) == 0 {
 					return ErrorInvalidJSON("statshouseApi.seriesMeta", "field 'max_hosts' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.MaxHosts); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.MaxHosts); err != nil {
 					return err
 				}
 				propMaxHostsPresented = true
@@ -409,14 +408,15 @@ func (item *StatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiSeriesMeta) WriteJSONGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask), nil
+func (item *StatshouseApiSeriesMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_query_fields_mask), nil
 }
 
 func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) []byte {
+func (item *StatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -435,14 +435,14 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool,
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = item.What.WriteJSONOpt(newTypeNames, short, w)
+		w = item.What.WriteJSONOpt(tctx, w)
 	}
 	if nat_query_fields_mask&(1<<4) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -462,7 +462,7 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool,
 	if nat_query_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_hosts":`...)
-		w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.MaxHosts)
+		w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.MaxHosts)
 	}
 	return append(w, '}')
 }

@@ -32,7 +32,7 @@ func (item *EngineHttpQueryResponse) ClearReturnCode() {
 	item.ReturnCode = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item EngineHttpQueryResponse) IsSetReturnCode() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *EngineHttpQueryResponse) IsSetReturnCode() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineHttpQueryResponse) SetData(v string) {
 	item.Data = v
@@ -42,7 +42,7 @@ func (item *EngineHttpQueryResponse) ClearData() {
 	item.Data = ""
 	item.FieldsMask &^= 1 << 1
 }
-func (item EngineHttpQueryResponse) IsSetData() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *EngineHttpQueryResponse) IsSetData() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *EngineHttpQueryResponse) SetContentType(v string) {
 	item.ContentType = v
@@ -52,7 +52,7 @@ func (item *EngineHttpQueryResponse) ClearContentType() {
 	item.ContentType = ""
 	item.FieldsMask &^= 1 << 2
 }
-func (item EngineHttpQueryResponse) IsSetContentType() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *EngineHttpQueryResponse) IsSetContentType() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *EngineHttpQueryResponse) SetAdditionalHeaders(v map[string]string) {
 	item.AdditionalHeaders = v
@@ -62,7 +62,9 @@ func (item *EngineHttpQueryResponse) ClearAdditionalHeaders() {
 	BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
 	item.FieldsMask &^= 1 << 3
 }
-func (item EngineHttpQueryResponse) IsSetAdditionalHeaders() bool { return item.FieldsMask&(1<<3) != 0 }
+func (item *EngineHttpQueryResponse) IsSetAdditionalHeaders() bool {
+	return item.FieldsMask&(1<<3) != 0
+}
 
 func (item *EngineHttpQueryResponse) Reset() {
 	item.FieldsMask = 0
@@ -107,7 +109,6 @@ func (item *EngineHttpQueryResponse) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineHttpQueryResponse) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -136,7 +137,6 @@ func (item *EngineHttpQueryResponse) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineHttpQueryResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -151,6 +151,11 @@ func (item EngineHttpQueryResponse) String() string {
 }
 
 func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineHttpQueryResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propReturnCodePresented bool
 	var propDataPresented bool
@@ -202,7 +207,7 @@ func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propAdditionalHeadersPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "additional_headers")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.AdditionalHeaders); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.AdditionalHeaders); err != nil {
 					return err
 				}
 				propAdditionalHeadersPresented = true
@@ -247,14 +252,15 @@ func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineHttpQueryResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineHttpQueryResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineHttpQueryResponse) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineHttpQueryResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -281,7 +287,7 @@ func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"additional_headers":`...)
-		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.AdditionalHeaders)
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.AdditionalHeaders)
 	}
 	return append(w, '}')
 }

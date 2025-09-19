@@ -33,7 +33,6 @@ func (item *MetadataCreateMetricEvent) Read(w []byte) (_ []byte, err error) {
 	return item.Metric.Read(w, item.FieldsMask)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataCreateMetricEvent) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -51,7 +50,6 @@ func (item *MetadataCreateMetricEvent) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataCreateMetricEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -66,6 +64,11 @@ func (item MetadataCreateMetricEvent) String() string {
 }
 
 func (item *MetadataCreateMetricEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataCreateMetricEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawMetric []byte
 
@@ -112,7 +115,7 @@ func (item *MetadataCreateMetricEvent) ReadJSON(legacyTypeNames bool, in *basict
 	if rawMetric != nil {
 		inMetricPointer = &inMetric
 	}
-	if err := item.Metric.ReadJSON(legacyTypeNames, inMetricPointer, item.FieldsMask); err != nil {
+	if err := item.Metric.ReadJSONGeneral(tctx, inMetricPointer, item.FieldsMask); err != nil {
 		return err
 	}
 
@@ -120,14 +123,15 @@ func (item *MetadataCreateMetricEvent) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataCreateMetricEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataCreateMetricEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataCreateMetricEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataCreateMetricEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataCreateMetricEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -138,7 +142,7 @@ func (item *MetadataCreateMetricEvent) WriteJSONOpt(newTypeNames bool, short boo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	w = item.Metric.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	w = item.Metric.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return append(w, '}')
 }
 

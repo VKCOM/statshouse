@@ -33,7 +33,6 @@ func (item *EngineSetPersistentConfigArray) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorIntRead(w, &item.Values)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineSetPersistentConfigArray) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -51,7 +50,6 @@ func (item *EngineSetPersistentConfigArray) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineSetPersistentConfigArray) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -71,36 +69,29 @@ func (item *EngineSetPersistentConfigArray) WriteResult(w []byte, ret True) (_ [
 }
 
 func (item *EngineSetPersistentConfigArray) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigArray) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *EngineSetPersistentConfigArray) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *EngineSetPersistentConfigArray) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret True
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -119,6 +110,11 @@ func (item EngineSetPersistentConfigArray) String() string {
 }
 
 func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineSetPersistentConfigArray) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propNamePresented bool
 	var propValuesPresented bool
 
@@ -143,7 +139,7 @@ func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *b
 				if propValuesPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.setPersistentConfigArray", "values")
 				}
-				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Values); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Values); err != nil {
 					return err
 				}
 				propValuesPresented = true
@@ -167,14 +163,15 @@ func (item *EngineSetPersistentConfigArray) ReadJSON(legacyTypeNames bool, in *b
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSetPersistentConfigArray) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineSetPersistentConfigArray) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineSetPersistentConfigArray) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -186,7 +183,7 @@ func (item *EngineSetPersistentConfigArray) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexValues := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"values":`...)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Values)
+	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.Values)
 	if (len(item.Values) != 0) == false {
 		w = w[:backupIndexValues]
 	}
