@@ -56,8 +56,6 @@ type Config struct {
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
-
-	SendSourceBucket2 bool
 }
 
 func DefaultConfig() Config {
@@ -124,7 +122,6 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 	f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&c.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", d.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
-	f.BoolVar(&c.SendSourceBucket2, "send-source-bucket2", d.SendSourceBucket2, "Send metrics using sendSourceBucket2")
 }
 
 func (c *Config) updateFromRemoteDescription(description string) error {
