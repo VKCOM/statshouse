@@ -7,6 +7,11 @@
 ```
 If you don't have tmux or want more control use separate commands below.
 
+To gracefully stop tmux:
+```
+./stop-tmux.sh
+```
+
 ## Run clickhouse locally in docker
 
 We run cluster containing 1 clickhouse server plus 1 zookeeper instance.
