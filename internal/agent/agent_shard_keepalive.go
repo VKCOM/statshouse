@@ -63,14 +63,14 @@ func (s *ShardReplica) sendKeepLive() error {
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Second*60)) // Relatively large timeout here
 	defer cancel()
 
-	args := tlstatshouse.SendKeepAlive2{}
+	args := tlstatshouse.SendKeepAlive3{}
 	s.fillProxyHeader(&args.FieldsMask, &args.Header)
 	// It is important that keep alive will not be successful when shards are not configured correctly
 	// We do not use FailIfNoConnect:true, because we want exponential backoff to connection attempts in rpc Client.
 	// We do not want to implement yet another exponential backoff here.
-	var ret string
+	var ret tlstatshouse.SendSourceBucket3Response
 	client := s.client()
-	err := client.SendKeepAlive2(ctx, args, nil, &ret)
+	err := client.SendKeepAlive3(ctx, args, nil, &ret)
 	dur := time.Since(now)
 	s.recordKeepLiveResult(err, dur)
 	return err

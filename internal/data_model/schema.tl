@@ -194,6 +194,13 @@ statshouse.sendSourceBucket3Response#0e177acc
     send_more_bytes:string // send dummy zeroes to test network, according to send-more-data agent config value
     = statshouse.SendSourceBucket3Response;
 
+// agents with new conveyor still use this function.
+// remove from aggregators after all agents are at least this version
+@readwrite statshouse.sendKeepAlive2#4285ff53
+    fields_mask:#
+    header: (statshouse.commonProxyHeader fields_mask)
+     = String;
+
 @readwrite statshouse.sendKeepAlive3#4285ff54
     fields_mask:#
     header: (statshouse.commonProxyHeader fields_mask)
