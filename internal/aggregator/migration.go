@@ -145,6 +145,11 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		log.Printf("[migration] Skipping migration: replica key is %d, expected 1", a.replicaKey)
 		return // Only one replica should run migration per shard
 	}
+	// when shards are added we don't want to automatically migrate data into them
+	if a.shardKey > int32(a.migrationConfig.TotalShards) {
+		log.Printf("[migration] Skipping migration: shard key is %d, expected less than %d", a.shardKey, a.migrationConfig.TotalShards)
+		return
+	}
 
 	shardKey := a.shardKey
 	httpClient := makeHTTPClient()
