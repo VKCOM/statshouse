@@ -308,7 +308,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 		}
 	})
 	if a.autoCreate != nil {
-		a.autoCreate.storage = a.metricStorage
+		a.autoCreate.setStorage(a.metricStorage)
 	}
 	// we ignore errors because cache can be damaged
 	a.journalFast, _ = metajournal.LoadJournalFastFile(fj, data_model.JournalDDOSProtectionTimeout, false,
