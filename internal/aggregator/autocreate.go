@@ -53,11 +53,10 @@ func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAll
 	return ac
 }
 
-func (ac *autoCreate) run(storage *metajournal.MetricsStorage) {
+func (ac *autoCreate) run() {
 	if ac.running {
 		return
 	}
-	ac.storage = storage
 	go ac.goWork()
 	ac.running = true
 }
