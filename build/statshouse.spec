@@ -23,16 +23,19 @@ install -m 755 %{_topdir}/target/statshouse-metadata %{buildroot}/usr/share/engi
 install -m 755 %{_topdir}/target/statshouse-igp %{buildroot}/usr/share/engine/bin
 install -m 755 %{_topdir}/target/statshouse-agg %{buildroot}/usr/share/engine/bin
 cp -a %{_topdir}/statshouse-ui/build/* %{buildroot}/usr/lib/statshouse-api/statshouse-ui/
-install -m 444 %{_topdir}/cmd/statshouse-api/statshouse-api.service %{buildroot}/usr/lib/systemd/system/
-install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/
-install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
-install -m 444 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
+install -m 0644 %{_topdir}/cmd/statshouse-api/statshouse-api.service %{buildroot}/usr/lib/systemd/system/
+install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/
+install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
+install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
 
 ADDR="$STATSHOUSE_AGG_ADDR"; \
 if [ -z "$ADDR" ]; then \
     ADDR="localhost:13336,localhost:13336,localhost:13336"; \
 fi; \
-sed "s|__STATSHOUSE_AGG_ADDR__|$ADDR|g" %{_topdir}/cmd/statshouse/statshouse.service > %{buildroot}/usr/lib/systemd/system/statshouse.service
+sed -i "s|__STATSHOUSE_AGG_ADDR__|$ADDR|g" \
+    %{buildroot}/usr/lib/systemd/system/statshouse.service \
+    %{buildroot}/usr/lib/systemd/system/statshouse-igp.service \
+    %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
 
 
 %files
