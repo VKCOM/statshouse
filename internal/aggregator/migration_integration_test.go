@@ -92,6 +92,22 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+// executeQueryRequest is a helper to execute a ClickHouse query and close the response.
+func executeQueryRequest(query string) error {
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      query,
+	}
+	resp, err := req.Execute(context.Background())
+	if err != nil {
+		return err
+	}
+	return resp.Close()
+}
+
 // ensureTablesCreated creates the necessary tables if they haven't been created yet
 func ensureTablesCreated() error {
 	if tablesCreated {
@@ -99,31 +115,23 @@ func ensureTablesCreated() error {
 	}
 
 	// Create V2 table
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       clickHouseAddr,
-		User:       "default",
-		Password:   "secret",
-		Query:      createV2tableQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
+	if err := executeQueryRequest(createV2tableQuery); err != nil {
 		return fmt.Errorf("failed to create V2 table: %w", err)
-	}
-	err = resp.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close V2 table creation response: %w", err)
 	}
 
 	// Create V3 table
-	req.Query = createV3tableQuery
-	resp, err = req.Execute(context.Background())
-	if err != nil {
+	if err := executeQueryRequest(createV3tableQuery); err != nil {
 		return fmt.Errorf("failed to create V3 table: %w", err)
 	}
-	err = resp.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close V3 table creation response: %w", err)
+
+	// Create migration state table
+	if err := executeQueryRequest(createMigrationStateTableQuery); err != nil {
+		return fmt.Errorf("failed to create migration state table: %w", err)
+	}
+
+	// Create migration logs table
+	if err := executeQueryRequest(createMigrationLogsTableQuery); err != nil {
+		return fmt.Errorf("failed to create migration logs table: %w", err)
 	}
 
 	tablesCreated = true
@@ -213,6 +221,26 @@ const createV3tableQuery = `CREATE TABLE statshouse_v3_1h (
 		uniq_state AggregateFunction(uniq, Int64)
 	) ENGINE = AggregatingMergeTree()
 	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
+
+const createMigrationStateTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_migration_state (
+		shard_key Int32,
+		ts DateTime,
+		started DateTime,
+		ended Nullable(DateTime),
+		v2_rows UInt64,
+		v3_rows UInt64,
+		retry UInt32
+	) ENGINE = ReplacingMergeTree(retry)
+	ORDER BY (shard_key, ts, started)`
+
+const createMigrationLogsTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_migration_logs (
+		timestamp DateTime,
+		shard_key Int32,
+		ts DateTime,
+		retry UInt32,
+		message String
+	) ENGINE = MergeTree()
+	ORDER BY (timestamp, shard_key, ts, retry)`
 
 func TestV2DataParsingIntegration(t *testing.T) {
 	// Use shared container connection details
@@ -861,46 +889,6 @@ func parseV3Row(reader *bufio.Reader, t *testing.T) (*v3Row, error) {
 	return row, nil
 }
 
-func TestCreateMigrationTablesIntegration(t *testing.T) {
-	aggregator := &Aggregator{
-		config: ConfigAggregator{
-			KHAddr:     clickHouseAddr,
-			KHUser:     "default",
-			KHPassword: "secret",
-		},
-		migrationConfig: NewDefaultMigrationConfig(),
-	}
-
-	// Test creating migration tables
-	err := aggregator.createMigrationTables(httpClient)
-	require.NoError(t, err, "createMigrationTables should succeed")
-	err = aggregator.createMigrationTables(httpClient)
-	require.NoError(t, err, "createMigrationTables should succeed even if tables already exist")
-
-	// Verify tables were created by checking if they exist
-	checkTablesQuery := `
-		SELECT count() as cnt
-		FROM system.tables
-		WHERE database = 'default' AND (name = 'migration_state' OR name = 'migration_logs')`
-
-	req := &chutil.ClickHouseHttpRequest{
-		HttpClient: httpClient,
-		Addr:       clickHouseAddr,
-		User:       "default",
-		Password:   "secret",
-		Query:      checkTablesQuery,
-	}
-	resp, err := req.Execute(context.Background())
-	require.NoError(t, err)
-
-	var tablesCount uint64
-	_, err = fmt.Fscanf(resp, "%d", &tablesCount)
-	require.NoError(t, err)
-	resp.Close()
-
-	require.Equal(t, uint64(2), tablesCount, "migration_state and migration_logs tables should exist")
-}
-
 func TestUpdateMigrationStateIntegration(t *testing.T) {
 	aggregator := &Aggregator{
 		config: ConfigAggregator{
@@ -911,8 +899,7 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 		migrationConfig: NewDefaultMigrationConfig(),
 	}
 
-	err := aggregator.createMigrationTables(httpClient)
-	require.NoError(t, err)
+	cleanupMigrationTables(t)
 
 	// Test updating migration state
 	testShardKey := int32(1)
@@ -920,13 +907,13 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 	testStarted := time.Now()
 	testEnded := time.Now().Add(time.Minute)
 
-	err = aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, testStarted, &testEnded)
+	err := aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, testStarted, &testEnded)
 	require.NoError(t, err, "updateMigrationState should succeed")
 
 	// Verify the state was recorded correctly
 	verifyQuery := fmt.Sprintf(`
 		SELECT shard_key, ts, v2_rows, v3_rows, retry
-		FROM migration_state
+		FROM statshouse_migration_state
 		WHERE shard_key = %d AND ts = toDateTime(%d)
 		ORDER BY started DESC
 		LIMIT 1`, testShardKey, testTs.Unix())
@@ -941,7 +928,7 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
-		FROM migration_state
+		FROM statshouse_migration_state
 		WHERE shard_key = %d AND ts = toDateTime(%d)`, testShardKey, testTs.Unix())
 
 	req.Query = countQuery
@@ -969,9 +956,7 @@ func TestMigrationOrchestration(t *testing.T) {
 		},
 	}
 
-	// Step 1: Create migration tables
-	err := aggregator.createMigrationTables(httpClient)
-	require.NoError(t, err, "Step 1: createMigrationTables should succeed")
+	// Step 1: Clean up migration tables
 	cleanupMigrationTables(t)
 
 	// Step 2: Find first timestamp to migrate
@@ -998,7 +983,7 @@ func TestMigrationOrchestration(t *testing.T) {
 	// Step 6: Verify migration state records
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
-		FROM migration_state
+		FROM statshouse_migration_state
 		WHERE shard_key = %d`, testShardKey)
 
 	req := &chutil.ClickHouseHttpRequest{
@@ -1022,8 +1007,8 @@ func TestMigrationOrchestration(t *testing.T) {
 }
 
 func cleanupMigrationTables(t *testing.T) {
-	cleanupStateQuery := `TRUNCATE TABLE migration_state;`
-	cleanupLogsQuery := `TRUNCATE TABLE migration_logs;`
+	cleanupStateQuery := `TRUNCATE TABLE statshouse_migration_state;`
+	cleanupLogsQuery := `TRUNCATE TABLE statshouse_migration_logs;`
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
