@@ -111,8 +111,8 @@ func NewDefaultMigrationConfig() *MigrationConfig {
 	return &MigrationConfig{
 		V2TableName:    "statshouse_value_1h_dist",
 		V3TableName:    "statshouse_v3_1h",
-		StateTableName: "migration_state",
-		LogsTableName:  "migration_logs",
+		StateTableName: "statshouse_migration_state",
+		LogsTableName:  "statshouse_migration_logs",
 		StepDuration:   time.Hour,
 		TotalShards:    16,
 	}
@@ -155,15 +155,6 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 	httpClient := makeHTTPClient()
 
 	log.Printf("[migration] Starting migration routine for shard %d", shardKey)
-
-	// Initialize migration tables
-	if err := a.createMigrationTables(httpClient); err != nil {
-		log.Printf("[migration] Failed to create migration tables: %v", err)
-		return
-	}
-
-	log.Printf("[migration] Starting migration routine for shard %d", shardKey)
-
 	for {
 		// Check if we should continue migrating
 		select {
@@ -537,44 +528,6 @@ func convertRowV2ToV3(buf []byte, row *v2Row) []byte {
 	buf = row.uniq.MarshallAppend(buf)
 
 	return buf
-}
-
-// createMigrationTables creates the migration state and log tables if they don't exist
-func (a *Aggregator) createMigrationTables(httpClient *http.Client) error {
-	var config *MigrationConfig = a.migrationConfig
-	stateTableQuery := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			shard_key Int32,
-			ts DateTime,
-			started DateTime,
-			ended Nullable(DateTime),
-			v2_rows UInt64,
-			v3_rows UInt64,
-			retry UInt32
-		) ENGINE = ReplacingMergeTree(retry)
-		ORDER BY (shard_key, ts, started)`, config.StateTableName)
-	req := &chutil.ClickHouseHttpRequest{HttpClient: httpClient, Addr: a.config.KHAddr, User: a.config.KHUser, Password: a.config.KHPassword, Query: stateTableQuery}
-	resp, err := req.Execute(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to create migration_state table: %w", err)
-	}
-	resp.Close()
-	logTableQuery := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			timestamp DateTime,
-			shard_key Int32,
-			ts DateTime,
-			retry UInt32,
-			message String
-		) ENGINE = MergeTree()
-		ORDER BY (timestamp, shard_key, ts, retry)`, config.LogsTableName)
-	req.Query = logTableQuery
-	resp, err = req.Execute(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to create migration_logs table: %w", err)
-	}
-	resp.Close()
-	return nil
 }
 
 // findNextTimestampToMigrate finds the next timestamp that needs migration for this shard

@@ -26,6 +26,9 @@ services:
       - type: bind
         source: ./scripts/v3-cluster-init.sql
         target: /docker-entrypoint-initdb.d/v3-cluster-init.sql
+      - type: bind
+        source: ./scripts/migration.sql
+        target: /docker-entrypoint-initdb.d/migration.sql
     expose:
       - 8123
       - 9000
