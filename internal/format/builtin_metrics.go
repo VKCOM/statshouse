@@ -1251,25 +1251,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 }
 
 // const BuiltinMetricIDAgentHistoricQueueSizeSum = -69 // Removed, not needed after queue size metric is written by agents
-var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
-	Name:                    "__api_ch_source_select_rows",
-	Kind:                    MetricKindValue,
-	Description:             "Value of this metric number of rows was selected from DB or cache",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "source type",
-	}, {
-		Description: "metric",
-		BuiltinKind: BuiltinKindMetric,
-	}, {
-		Description: "table",
-	}, {
-		Description: "kind",
-	}},
-}
+// const BuiltinMetricIDAPISourceSelectRows = -70 // Removed, was not used
 
 var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
 	Name:                    "__system_metrics_duration",
