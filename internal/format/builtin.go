@@ -88,7 +88,6 @@ var (
 		-66:                                     BuiltinMetricMetaAPISelectBytes,
 		-67:                                     BuiltinMetricMetaAPISelectRows,
 		-68:                                     BuiltinMetricMetaAPISelectDuration,
-		-70:                                     BuiltinMetricMetaAPISourceSelectRows,
 		-71:                                     BuiltinMetricMetaSystemMetricScrapeDuration,
 		-72:                                     BuiltinMetricMetaMetaServiceTime,
 		-73:                                     BuiltinMetricMetaMetaClientWaits,
