@@ -930,8 +930,8 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	h.endpointStat.reportTiming("ch-select", info.QueryDuration)
 	h.endpointStat.reportTiming("wait-lock", info.WaitLockDuration)
 	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
-	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, info.Profile, err)
-	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, info.OSCPUVirtualTimeMicroseconds, err)
+	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.Profile, err)
+	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, err)
 	// TODO: add shard
 	ChRequestsMetric(0, info.Host, meta.Table, err == nil)
 
