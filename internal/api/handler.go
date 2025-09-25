@@ -1745,6 +1745,25 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	return &MetricsGroupInfo{Group: group, Metrics: info.Metrics}, nil
 }
 
+func (h *Handler) applyNamespaceShardOnCreate(metric *format.MetricMetaValue) error {
+	_, nsName := format.SplitNamespace(metric.Name)
+	if nsName == "" {
+		return nil
+	}
+	ns := h.metricsStorage.GetNamespaceByName(nsName)
+	if ns == nil || ns.ShardStrategy == "" {
+		return nil
+	}
+	if ns.ShardStrategy != "" && metric.ShardStrategy != "" {
+		return fmt.Errorf("both namespace and metric shard_strategy are set")
+	}
+	metric.ShardStrategy = ns.ShardStrategy
+	if ns.ShardStrategy == format.ShardFixed {
+		metric.ShardNum = ns.ShardNum
+	}
+	return nil
+}
+
 // TODO - remove metric name from request
 func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string, metric format.MetricMetaValue) (format.MetricMetaValue, error) {
 	create := metric.MetricID == 0
@@ -1764,20 +1783,12 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 				httpErr(http.StatusBadRequest, fmt.Errorf("invalid builtin metric: %w", err))
 		}
 	}
-	if create && metric.ShardStrategy == "" {
-		_, nsName := format.SplitNamespace(metric.Name)
-		if nsName != "" {
-			if ns := h.metricsStorage.GetNamespaceByName(nsName); ns != nil && ns.ShardStrategy != "" {
-				metric.ShardStrategy = ns.ShardStrategy
-				if ns.ShardStrategy == format.ShardFixed {
-					metric.ShardNum = ns.ShardNum
-				}
-			}
-		}
-	}
 	if create {
 		if !ai.CanEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
+		}
+		if err = h.applyNamespaceShardOnCreate(&metric); err != nil {
+			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, err)
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
