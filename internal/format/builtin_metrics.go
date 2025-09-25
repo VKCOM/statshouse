@@ -1171,6 +1171,21 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	}},
 }
 
+var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
+	Name: "__api_ch_select_os_cpu_virtual_time_us",
+	Kind: MetricKindValue,
+	// TODO replace with logs
+	StringTopDescription:    "error",
+	Description:             "OS CPU virtual time in microseconds reported by ClickHouse ProfileEvents for SELECT",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "query type",
+	}},
+}
+
 var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	Name:                    "__api_ch_select_duration",
 	Kind:                    MetricKindValue,

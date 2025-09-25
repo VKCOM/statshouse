@@ -55,11 +55,12 @@ type QueryMetaInto struct {
 }
 
 type QueryHandleInfo struct {
-	WaitLockDuration time.Duration
-	QueryDuration    time.Duration
-	Profile          proto.Profile
-	Host             string
-	Shard            int
+	WaitLockDuration             time.Duration
+	QueryDuration                time.Duration
+	Profile                      proto.Profile
+	OSCPUVirtualTimeMicroseconds uint64
+	Host                         string
+	Shard                        int
 }
 
 type ConnLimits struct {
@@ -243,6 +244,15 @@ func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
 func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
+		return nil
+	}
+	query.OnProfileEvents = func(_ context.Context, ev []proto.ProfileEvent) error {
+		for _, e := range ev {
+			if e.Name == "OSCPUVirtualTimeMicroseconds" {
+				info.OSCPUVirtualTimeMicroseconds = uint64(e.Value)
+				break
+			}
+		}
 		return nil
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)

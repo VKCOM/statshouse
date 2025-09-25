@@ -197,6 +197,15 @@ func ChSelectProfile(isFast, isLight, isHardware bool, info proto.Profile, err e
 	chSelectPushMetric(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), err)
 }
 
+func ChSelectProfileEvents(isFast, isLight, isHardware bool, osCPUVirtualTimeMicroseconds uint64, err error) {
+	chSelectPushMetric(
+		format.BuiltinMetricMetaAPISelectOSCPUVirtualTime.Name,
+		isFast, isLight, isHardware,
+		float64(osCPUVirtualTimeMicroseconds),
+		err,
+	)
+}
+
 func modeStr(isFast, isLight, isHardware bool) string {
 	mode := "slow"
 	if isFast {
