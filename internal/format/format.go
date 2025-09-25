@@ -203,6 +203,9 @@ type NamespaceMeta struct {
 	Weight  float64 `json:"weight"`
 	Disable bool    `json:"disable"`
 
+	ShardStrategy string `json:"shard_strategy,omitempty"`
+	ShardNum      uint32 `json:"shard_num,omitempty"`
+
 	EffectiveWeight int64 `json:"-"`
 }
 
