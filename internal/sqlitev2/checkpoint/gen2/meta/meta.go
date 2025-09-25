@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.1.13" }
+func SchemaGenerator() string { return "v1.2.19" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -27,24 +27,25 @@ type Object interface {
 
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
-	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
+	// like MarshalJSON, but appends to w and returns it
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
 }
 
 type Function interface {
 	Object
 
-	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
-
-	// For transcoding short-long version during Long ID and newTypeNames transition
-	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 }
 
 func GetAllTLItems() []TLItem {
@@ -129,6 +130,7 @@ type TLItem struct {
 	tag         uint32
 	annotations uint32
 	tlName      string
+	isTL2       bool
 
 	resultTypeContainsUnionTypes    bool
 	argumentsTypesContainUnionTypes bool
@@ -143,6 +145,7 @@ type TLItem struct {
 
 func (item TLItem) TLTag() uint32            { return item.tag }
 func (item TLItem) TLName() string           { return item.tlName }
+func (item TLItem) IsTL2() bool              { return item.isTL2 }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
@@ -155,6 +158,12 @@ func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLon
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
 
 // Annotations
+func (item TLItem) AnnotationAny() bool       { return item.annotations&0x1 != 0 }
+func (item TLItem) AnnotationInternal() bool  { return item.annotations&0x2 != 0 }
+func (item TLItem) AnnotationKphp() bool      { return item.annotations&0x4 != 0 }
+func (item TLItem) AnnotationRead() bool      { return item.annotations&0x8 != 0 }
+func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x10 != 0 }
+func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 0 }
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                                {}
@@ -183,7 +192,8 @@ func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
-func (item *TLItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+
+func (item *TLItem) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
 	return item.WriteJSON(w), nil
 }
 func (item *TLItem) WriteJSON(w []byte) []byte {
@@ -199,7 +209,6 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]
 }
@@ -230,6 +239,14 @@ func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object)
 	item.createObject = createObject
 }
 
+func SetGlobalFactoryCreateForObjectTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
+	}
+	item.createObject = createObject
+}
+
 func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item := itemsByTag[itemTag]
 	if item == nil {
@@ -252,6 +269,14 @@ func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Ob
 	item := itemsByTag[itemTag]
 	if item == nil {
 		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForObjectBytesTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
 	}
 	item.createObjectBytes = createObject
 }
@@ -292,6 +317,15 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
 }
 
+func fillObjectTL2(item *TLItem) {
+	itemsByName[item.tlName] = item
+	if item.tag != 0 {
+		itemsByTag[item.tag] = item
+	}
+	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
+}
+
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
@@ -299,8 +333,9 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	// TL
+	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

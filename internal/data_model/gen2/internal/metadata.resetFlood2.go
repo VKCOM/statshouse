@@ -30,7 +30,7 @@ func (item *MetadataResetFlood2) ClearValue() {
 	item.Value = 0
 	item.FieldMask &^= 1 << 1
 }
-func (item MetadataResetFlood2) IsSetValue() bool { return item.FieldMask&(1<<1) != 0 }
+func (item *MetadataResetFlood2) IsSetValue() bool { return item.FieldMask&(1<<1) != 0 }
 
 func (item *MetadataResetFlood2) Reset() {
 	item.FieldMask = 0
@@ -55,7 +55,6 @@ func (item *MetadataResetFlood2) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataResetFlood2) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -76,7 +75,6 @@ func (item *MetadataResetFlood2) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataResetFlood2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -96,36 +94,29 @@ func (item *MetadataResetFlood2) WriteResult(w []byte, ret MetadataResetFloodRes
 }
 
 func (item *MetadataResetFlood2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataResetFloodResponse2) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataResetFlood2) WriteResultJSON(w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *MetadataResetFlood2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *MetadataResetFlood2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *MetadataResetFlood2) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataResetFlood2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataResetFloodResponse2
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *MetadataResetFlood2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataResetFloodResponse2
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -144,6 +135,11 @@ func (item MetadataResetFlood2) String() string {
 }
 
 func (item *MetadataResetFlood2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataResetFlood2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propMetricPresented bool
 	var propValuePresented bool
@@ -207,14 +203,15 @@ func (item *MetadataResetFlood2) ReadJSON(legacyTypeNames bool, in *basictl.Json
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataResetFlood2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataResetFlood2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataResetFlood2) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataResetFlood2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataResetFlood2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

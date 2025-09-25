@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseMappingWrite(w []byte, vec []StatshouseMapping) []by
 	return w
 }
 
-func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMapping) error {
+func BuiltinVectorStatshouseMappingReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMapping) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.Js
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 func BuiltinVectorStatshouseMappingWriteJSON(w []byte, vec []StatshouseMapping) []byte {
-	return BuiltinVectorStatshouseMappingWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseMappingWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMapping) []byte {
+func BuiltinVectorStatshouseMappingWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMapping) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -111,7 +112,7 @@ func BuiltinVectorStatshouseMappingBytesWrite(w []byte, vec []StatshouseMappingB
 	return w
 }
 
-func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMappingBytes) error {
+func BuiltinVectorStatshouseMappingBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMappingBytes) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -125,7 +126,7 @@ func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basic
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -140,13 +141,14 @@ func BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames bool, in *basic
 }
 
 func BuiltinVectorStatshouseMappingBytesWriteJSON(w []byte, vec []StatshouseMappingBytes) []byte {
-	return BuiltinVectorStatshouseMappingBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseMappingBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMappingBytes) []byte {
+func BuiltinVectorStatshouseMappingBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMappingBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -171,7 +173,6 @@ func (item *StatshouseMapping) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Value)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMapping) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -189,7 +190,6 @@ func (item *StatshouseMapping) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMapping) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -204,6 +204,11 @@ func (item StatshouseMapping) String() string {
 }
 
 func (item *StatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseMapping) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propStrPresented bool
 	var propValuePresented bool
 
@@ -252,14 +257,15 @@ func (item *StatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMapping) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseMapping) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseMapping) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseMapping) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStr := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -309,7 +315,6 @@ func (item *StatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Value)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMappingBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -327,7 +332,6 @@ func (item *StatshouseMappingBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMappingBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -342,6 +346,11 @@ func (item StatshouseMappingBytes) String() string {
 }
 
 func (item *StatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseMappingBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propStrPresented bool
 	var propValuePresented bool
 
@@ -390,14 +399,15 @@ func (item *StatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMappingBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseMappingBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseMappingBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseMappingBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStr := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

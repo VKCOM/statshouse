@@ -46,7 +46,7 @@ func (item *StatshouseApiQuery) ClearPromql() {
 	item.Promql = ""
 	item.FieldsMask &^= 1 << 0
 }
-func (item StatshouseApiQuery) IsSetPromql() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseApiQuery) IsSetPromql() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseApiQuery) SetWhat(v []StatshouseApiFunction) {
 	item.What = v
@@ -56,7 +56,7 @@ func (item *StatshouseApiQuery) ClearWhat() {
 	item.What = item.What[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiQuery) SetExcessPointsFlag(v bool) {
 	if v {
@@ -65,7 +65,7 @@ func (item *StatshouseApiQuery) SetExcessPointsFlag(v bool) {
 		item.FieldsMask &^= 1 << 2
 	}
 }
-func (item StatshouseApiQuery) IsSetExcessPointsFlag() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *StatshouseApiQuery) IsSetExcessPointsFlag() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseApiQuery) SetWidthAgg(v string) {
 	item.WidthAgg = v
@@ -75,7 +75,7 @@ func (item *StatshouseApiQuery) ClearWidthAgg() {
 	item.WidthAgg = ""
 	item.FieldsMask &^= 1 << 3
 }
-func (item StatshouseApiQuery) IsSetWidthAgg() bool { return item.FieldsMask&(1<<3) != 0 }
+func (item *StatshouseApiQuery) IsSetWidthAgg() bool { return item.FieldsMask&(1<<3) != 0 }
 
 func (item *StatshouseApiQuery) SetNameFlag(v bool) {
 	if v {
@@ -84,7 +84,7 @@ func (item *StatshouseApiQuery) SetNameFlag(v bool) {
 		item.FieldsMask &^= 1 << 4
 	}
 }
-func (item StatshouseApiQuery) IsSetNameFlag() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item *StatshouseApiQuery) IsSetNameFlag() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseApiQuery) SetColorFlag(v bool) {
 	if v {
@@ -93,7 +93,7 @@ func (item *StatshouseApiQuery) SetColorFlag(v bool) {
 		item.FieldsMask &^= 1 << 5
 	}
 }
-func (item StatshouseApiQuery) IsSetColorFlag() bool { return item.FieldsMask&(1<<5) != 0 }
+func (item *StatshouseApiQuery) IsSetColorFlag() bool { return item.FieldsMask&(1<<5) != 0 }
 
 func (item *StatshouseApiQuery) SetTotalFlag(v bool) {
 	if v {
@@ -102,7 +102,7 @@ func (item *StatshouseApiQuery) SetTotalFlag(v bool) {
 		item.FieldsMask &^= 1 << 6
 	}
 }
-func (item StatshouseApiQuery) IsSetTotalFlag() bool { return item.FieldsMask&(1<<6) != 0 }
+func (item *StatshouseApiQuery) IsSetTotalFlag() bool { return item.FieldsMask&(1<<6) != 0 }
 
 func (item *StatshouseApiQuery) SetMaxHostFlag(v bool) {
 	if v {
@@ -111,7 +111,7 @@ func (item *StatshouseApiQuery) SetMaxHostFlag(v bool) {
 		item.FieldsMask &^= 1 << 7
 	}
 }
-func (item StatshouseApiQuery) IsSetMaxHostFlag() bool { return item.FieldsMask&(1<<7) != 0 }
+func (item *StatshouseApiQuery) IsSetMaxHostFlag() bool { return item.FieldsMask&(1<<7) != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0
@@ -188,7 +188,6 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiQuery) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -224,7 +223,6 @@ func (item *StatshouseApiQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -239,6 +237,11 @@ func (item StatshouseApiQuery) String() string {
 }
 
 func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propVersionPresented bool
 	var propTopNPresented bool
@@ -333,7 +336,7 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propFunctionPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "function")
 				}
-				if err := item.Function.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Function.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propFunctionPresented = true
@@ -341,7 +344,7 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propGroupByPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "group_by")
 				}
-				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.GroupBy); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.GroupBy); err != nil {
 					return err
 				}
 				propGroupByPresented = true
@@ -349,7 +352,7 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propFilterPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "filter")
 				}
-				if err := BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames, in, &item.Filter); err != nil {
+				if err := BuiltinVectorStatshouseApiFilterReadJSONGeneral(tctx, in, &item.Filter); err != nil {
 					return err
 				}
 				propFilterPresented = true
@@ -357,7 +360,7 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propTimeShiftPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "time_shift")
 				}
-				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.TimeShift); err != nil {
+				if err := BuiltinVectorLongReadJSONGeneral(tctx, in, &item.TimeShift); err != nil {
 					return err
 				}
 				propTimeShiftPresented = true
@@ -373,7 +376,7 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propWhatPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "what")
 				}
-				if err := BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames, in, &item.What); err != nil {
+				if err := BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx, in, &item.What); err != nil {
 					return err
 				}
 				propWhatPresented = true
@@ -513,36 +516,37 @@ func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeExcessPointsFlagPresented && !trueTypeExcessPointsFlagValue && (item.FieldsMask&(1<<2) != 0) {
-		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.2 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeNameFlagPresented && !trueTypeNameFlagValue && (item.FieldsMask&(1<<4) != 0) {
-		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.4 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeColorFlagPresented && !trueTypeColorFlagValue && (item.FieldsMask&(1<<5) != 0) {
-		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.5 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeTotalFlagPresented && !trueTypeTotalFlagValue && (item.FieldsMask&(1<<6) != 0) {
-		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.6 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeMaxHostFlagPresented && !trueTypeMaxHostFlagValue && (item.FieldsMask&(1<<7) != 0) {
-		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.7 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseApiQuery) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseApiQuery) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseApiQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -595,25 +599,25 @@ func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	w = item.Function.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Function.WriteJSONOpt(tctx, w)
 	backupIndexGroupBy := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"group_by":`...)
-	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GroupBy)
+	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.GroupBy)
 	if (len(item.GroupBy) != 0) == false {
 		w = w[:backupIndexGroupBy]
 	}
 	backupIndexFilter := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"filter":`...)
-	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, item.Filter)
+	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(tctx, w, item.Filter)
 	if (len(item.Filter) != 0) == false {
 		w = w[:backupIndexFilter]
 	}
 	backupIndexTimeShift := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time_shift":`...)
-	w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.TimeShift)
+	w = BuiltinVectorLongWriteJSONOpt(tctx, w, item.TimeShift)
 	if (len(item.TimeShift) != 0) == false {
 		w = w[:backupIndexTimeShift]
 	}
@@ -625,7 +629,7 @@ func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, item.What)
+		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(tctx, w, item.What)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

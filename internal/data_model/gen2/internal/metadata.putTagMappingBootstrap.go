@@ -33,7 +33,6 @@ func (item *MetadataPutTagMappingBootstrap) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataPutTagMappingBootstrap) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -51,7 +50,6 @@ func (item *MetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataPutTagMappingBootstrap) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -71,36 +69,29 @@ func (item *MetadataPutTagMappingBootstrap) WriteResult(w []byte, ret Statshouse
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshousePutTagMappingBootstrapResult) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *MetadataPutTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *MetadataPutTagMappingBootstrap) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshousePutTagMappingBootstrapResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshousePutTagMappingBootstrapResult
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -119,6 +110,11 @@ func (item MetadataPutTagMappingBootstrap) String() string {
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataPutTagMappingBootstrap) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propMappingsPresented bool
 
@@ -143,7 +139,7 @@ func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *b
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putTagMappingBootstrap", "mappings")
 				}
-				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
 				propMappingsPresented = true
@@ -167,14 +163,15 @@ func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *b
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataPutTagMappingBootstrap) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataPutTagMappingBootstrap) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -186,7 +183,7 @@ func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, item.Mappings)
 	if (len(item.Mappings) != 0) == false {
 		w = w[:backupIndexMappings]
 	}

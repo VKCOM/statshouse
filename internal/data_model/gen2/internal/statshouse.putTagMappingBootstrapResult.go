@@ -30,7 +30,6 @@ func (item *StatshousePutTagMappingBootstrapResult) Read(w []byte) (_ []byte, er
 	return basictl.IntRead(w, &item.CountInserted)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshousePutTagMappingBootstrapResult) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -47,7 +46,6 @@ func (item *StatshousePutTagMappingBootstrapResult) ReadBoxed(w []byte) (_ []byt
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshousePutTagMappingBootstrapResult) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -62,6 +60,11 @@ func (item StatshousePutTagMappingBootstrapResult) String() string {
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshousePutTagMappingBootstrapResult) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propCountInsertedPresented bool
 
 	if in != nil {
@@ -98,14 +101,15 @@ func (item *StatshousePutTagMappingBootstrapResult) ReadJSON(legacyTypeNames boo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePutTagMappingBootstrapResult) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshousePutTagMappingBootstrapResult) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshousePutTagMappingBootstrapResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshousePutTagMappingBootstrapResult) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexCountInserted := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
