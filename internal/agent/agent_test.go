@@ -126,12 +126,63 @@ func Test_SuperQueueLength(t *testing.T) {
 	t.Fail() // keep power of two for efficient % operation
 }
 
+type metaStorageMock struct {
+	version             func() int64
+	stateHash           func() string
+	getMetaMetric       func(metricID int32) *format.MetricMetaValue
+	getMetaMetricByName func(metricName string) *format.MetricMetaValue
+	getGroup            func(id int32) *format.MetricsGroup
+	getNamespace        func(id int32) *format.NamespaceMeta
+	getNamespaceByName  func(name string) *format.NamespaceMeta
+	getGroupByName      func(name string) *format.MetricsGroup
+}
+
+func (m metaStorageMock) Version() int64 {
+	return m.version()
+}
+
+func (m metaStorageMock) StateHash() string {
+	return m.stateHash()
+}
+
+func (m metaStorageMock) GetMetaMetric(metricID int32) *format.MetricMetaValue {
+	return m.getMetaMetric(metricID)
+}
+
+func (m metaStorageMock) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
+	return m.getMetaMetricByName(metricName)
+}
+
+func (m metaStorageMock) GetGroup(id int32) *format.MetricsGroup {
+	return m.getGroup(id)
+}
+
+func (m metaStorageMock) GetNamespace(id int32) *format.NamespaceMeta {
+	return m.getNamespace(id)
+}
+
+func (m metaStorageMock) GetNamespaceByName(name string) *format.NamespaceMeta {
+	return m.getNamespaceByName(name)
+}
+
+func (m metaStorageMock) GetGroupByName(name string) *format.MetricsGroup {
+	return m.getGroupByName(name)
+}
+
 func Test_AgentQueue(t *testing.T) {
 	config := Config{}
 	agent := &Agent{
-		config:                            config,
-		logF:                              func(f string, a ...any) { fmt.Printf(f, a...) },
-		mappingsCache:                     pcache.NewMappingsCache(1024*1024, 86400),
+		config:        config,
+		logF:          func(f string, a ...any) { fmt.Printf(f, a...) },
+		mappingsCache: pcache.NewMappingsCache(1024*1024, 86400),
+		metricStorage: metaStorageMock{
+			getNamespace: func(id int32) *format.NamespaceMeta {
+				return &format.NamespaceMeta{
+					ShardStrategy: format.ShardFixed,
+					ShardNum:      0,
+				}
+			},
+		},
 		shardByMetricCount:                1,
 		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
 		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
