@@ -171,7 +171,7 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 			5: ok,
 			6: getStatTokenName(user),
 			7: user,
-			8: strconv.Itoa(int(uint32(metricID) % 16)), // experimental to see load distribution if we shard data by metricID
+			8: strconv.Itoa(int(uint32(metricID)%16) + 1), // to see load distribution if we shard data by metricID
 		},
 		duration.Seconds())
 }

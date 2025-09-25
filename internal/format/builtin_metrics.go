@@ -1245,7 +1245,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	}, {
 		Description: "token-long",
 	}, {
-		Description: "shard", // metric % 16 for now, experimental
+		Description: "shard_key", // metric % 16 + 1 for now, experimental
 		RawKind:     "int",
 	}},
 }
