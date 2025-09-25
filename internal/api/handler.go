@@ -1764,6 +1764,17 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 				httpErr(http.StatusBadRequest, fmt.Errorf("invalid builtin metric: %w", err))
 		}
 	}
+	if create && metric.ShardStrategy == "" {
+		_, nsName := format.SplitNamespace(metric.Name)
+		if nsName != "" {
+			if ns := h.metricsStorage.GetNamespaceByName(nsName); ns != nil && ns.ShardStrategy != "" {
+				metric.ShardStrategy = ns.ShardStrategy
+				if ns.ShardStrategy == format.ShardFixed {
+					metric.ShardNum = ns.ShardNum
+				}
+			}
+		}
+	}
 	if create {
 		if !ai.CanEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
