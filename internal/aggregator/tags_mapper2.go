@@ -8,12 +8,14 @@ package aggregator
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/mapping"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache"
 )
@@ -24,19 +26,22 @@ type unknownTag struct { // fits well into cache line
 }
 
 type configTagsMapper2 struct {
-	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
-	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
-	MaxLoadTagsPerIteration   int // keep for low at first, then increase gradually
-	TagHitsToCreate           int // if used in 10 different seconds, then create
-	MaxUnknownTagsToKeep      int
-	MaxSendTagsToAgent        int
+	MaxUnknownTagsInBucket       int // keep for low at first, then increase gradually
+	MaxCreateTagsPerIteration    int // keep for low at first, then increase gradually
+	MaxLoadTagsPerIteration      int // keep for low at first, then increase gradually
+	TagHitsToCreate              int // if used in 10 different seconds, then create
+	MaxUnknownTagsToKeep         int
+	MaxSendTagsToAgent           int
+	DisableMappingReplicaReader  bool
+	DisableMappingReplicaUpdater bool
 }
 
 type tagsMapper2 struct {
-	agg           *Aggregator
-	sh2           *agent.Agent
-	metricStorage *metajournal.MetricsStorage
-	loader        *metajournal.MetricMetaLoader
+	agg            *Aggregator
+	sh2            *agent.Agent
+	metricStorage  *metajournal.MetricsStorage
+	loader         *metajournal.MetricMetaLoader
+	mappingStorage *mapping.DB
 
 	mu              sync.Mutex
 	unknownTags     map[string]unknownTag // collect statistics here
@@ -48,15 +53,16 @@ type tagsMapper2 struct {
 
 // TODO make unknownTagsList algo.CircularSlice[string]
 
-func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper2 {
+func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader, mappingStorage *mapping.DB) *tagsMapper2 {
 	ms := &tagsMapper2{
-		agg:           agg,
-		sh2:           sh2,
-		metricStorage: metricStorage,
-		loader:        loader,
-		unknownTags:   map[string]unknownTag{},
-		createTags:    map[string]format.CreateMappingExtra{},
-		config:        agg.configR.configTagsMapper2,
+		agg:            agg,
+		sh2:            sh2,
+		metricStorage:  metricStorage,
+		loader:         loader,
+		mappingStorage: mappingStorage,
+		unknownTags:    map[string]unknownTag{},
+		createTags:     map[string]format.CreateMappingExtra{},
+		config:         agg.configR.configTagsMapper2,
 	}
 	return ms
 }
@@ -116,8 +122,31 @@ func (ms *tagsMapper2) goRun() {
 	var pairs []pcache.MappingPair
 	for { // no reason for graceful shutdown
 		time.Sleep(500 * time.Millisecond) // arbitrary delay to reduce meta DDOS
+		ms.mu.Lock()
+		disableReplica := ms.config.DisableMappingReplicaReader
+		ms.mu.Unlock()
+
 		createTags, loadTags, maxCreateTagsPerIteration := ms.getTagsToCreateOrLoad()
 		pairs = pairs[:0]
+
+		if disableReplica {
+			for _, str := range loadTags {
+				tagValue := ms.createTag(str, format.CreateMappingExtra{
+					Create: false, // for documenting intent
+					Host:   ms.agg.aggregatorHost,
+				}) // tagValue might be 0 or -1, they are ignored by AddValues
+				pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
+			}
+		} else {
+			for _, str := range loadTags {
+				id, ok, _ := ms.mappingStorage.GetMappingByValue(context.Background(), str)
+				if !ok {
+					continue
+				}
+				delete(createTags, str)
+				pairs = append(pairs, pcache.MappingPair{Str: str, Value: id})
+			}
+		}
 		counter := 0
 		for str, extra := range createTags {
 			counter++
@@ -127,16 +156,31 @@ func (ms *tagsMapper2) goRun() {
 			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
 			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
 		}
-		for _, str := range loadTags { // also limited to maxCreateOrLoadTagsPerIteration
-			extra := format.CreateMappingExtra{
-				Create: false, // for documenting intent
-				Host:   ms.agg.aggregatorHost,
-			}
-			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
-			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-		}
 		nowUnix := uint32(time.Now().Unix())
 		ms.agg.mappingsCache.AddValues(nowUnix, pairs)
+	}
+}
+
+func (ms *tagsMapper2) goUpdateMappings() {
+	backoffTimeout := time.Duration(0)
+	for {
+		ms.mu.Lock()
+		disableReplica := ms.config.DisableMappingReplicaUpdater
+		ms.mu.Unlock()
+
+		if disableReplica {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		err := ms.updateMapping()
+		if err == nil {
+			backoffTimeout = 0
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
+		log.Printf("Failed to update mapping, will retry: %v", err)
+		time.Sleep(backoffTimeout)
 	}
 }
 
@@ -176,4 +220,28 @@ func (ms *tagsMapper2) getTagsToCreateOrLoad() (map[string]format.CreateMappingE
 	}
 	ms.unknownTagsList = ms.unknownTagsList[len(loadTags):]
 	return createTags, loadTags, ms.config.MaxCreateTagsPerIteration
+}
+
+func (ms *tagsMapper2) updateMapping() error {
+	ctx := context.Background()
+	curMaxID, err := ms.mappingStorage.GetMaxMappingID(ctx)
+	if err != nil {
+		return err
+	}
+
+	items, maxID, err := ms.loader.GetNewMappings(ctx, curMaxID)
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		return nil
+	}
+
+	for _, item := range items {
+		if err = ms.mappingStorage.CreateMapping(ctx, item.Value, item.Str); err != nil {
+			return err
+		}
+	}
+	log.Printf("[info] added %d mappings to storage, max id: %d", len(items), maxID)
+	return nil
 }
