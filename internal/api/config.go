@@ -200,7 +200,7 @@ func parseShardNumbers(shardsStr string) ([]uint32, error) {
 			continue
 		}
 		shard, err := strconv.Atoi(part)
-		if err != nil || shard < 0 {
+		if err != nil || shard <= 0 {
 			return nil, fmt.Errorf("invalid shard num %s", part)
 		}
 		shards = append(shards, uint32(shard))
