@@ -199,7 +199,7 @@ func parseShardNumbers(shardsStr string) ([]uint32, error) {
 		if part == "" {
 			continue
 		}
-		shard, err := strconv.Atoi(part)
+		shard, err := strconv.ParseUint(part, 10, 32)
 		if err != nil || shard <= 0 {
 			return nil, fmt.Errorf("invalid shard num %s", part)
 		}
