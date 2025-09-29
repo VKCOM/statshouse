@@ -62,7 +62,7 @@ func (s *HTTP) Serve(h Handler, ln net.Listener) error {
 		_, _ = w.Write([]byte("OK"))
 	})
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "To send events via HTTP, use /api/statshousev1 endpoint and send event is http body. All event formats (JSON, TL, Protobuf, etc.) supported via UDP also work via HTTP.", http.StatusNotFound)
+		http.Error(w, "To send events via HTTP, use /api/statshousev1 endpoint and send event in http body. All event formats (JSON, TL, Protobuf, etc.) supported via UDP/TCP also work via HTTP.", http.StatusNotFound)
 	})
 	server := http.Server{Handler: handler}
 	log.Printf("Serve HTTP on %s", ln.Addr())
