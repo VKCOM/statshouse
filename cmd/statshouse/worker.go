@@ -56,7 +56,7 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		w.printMetric("cached", *args.MetricBytes, h)
 	}
 	w.sh2.TimingsMapping.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
-	w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached, args.Scratch)
+	w.sh2.ApplyMetric(*args.MetricBytes, h, args.Scratch)
 	return h
 }
 

@@ -700,11 +700,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
 		if v.Value > 0 {
 			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, v.Value)
-		} else {
-			// clients before release used count < 0 for uncached status and count > 0 for cached
-			// but there is too little uncached statuses for such optimization, and we wanted
-			// to pass tag that caused uncached loading, so we removed this negative value tweak from agents
-			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKUncached, -v.Value)
 		}
 	}
 	for k, v := range clampedTimestampsMetrics {

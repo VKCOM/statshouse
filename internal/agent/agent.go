@@ -755,7 +755,7 @@ func (s *Agent) CreateBuiltInItemValue(metricInfo *format.MetricMetaValue, tags 
 	return result
 }
 
-func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, ingestionStatusOKTag int32, scratch *[]byte) {
+func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader, scratch *[]byte) {
 	start := time.Now()
 	// Simply writing everything we know about metric ingestion errors would easily double how much metrics data we write
 	// So below is basically a compromise. All info is stored in MappingMetricHeader, if needed we can easily write more
@@ -792,7 +792,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	}()
 	// now set ok status
 	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
-		[]int32{h.Key.Tags[0], h.Key.Metric, ingestionStatusOKTag, h.IngestionTagKey},
+		[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusOKCached, h.IngestionTagKey},
 		1)
 	// now set all warnings
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
