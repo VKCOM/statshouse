@@ -182,6 +182,15 @@ export function NamespacePage() {
       })
     );
   }, []);
+  const onChangeShards = useCallback((value: string) => {
+    setSelectMetricsNamespace(
+      produce((g) => {
+        if (g) {
+          g.namespace.shard_nums = value;
+        }
+      })
+    );
+  }, []);
 
   return (
     <div className="flex-grow-1 p-2">
@@ -266,6 +275,20 @@ export function NamespacePage() {
                   <div className="col-form-label ms-2" style={{ width: 80 }}>
                     [{selectMetricsNamespaceWeightPercent}%]
                   </div>
+                </div>
+              </div>
+              <div className="mb-3 row">
+                <label htmlFor="metricsNamespaceShards" className="col-sm-2 col-form-label">
+                  Shards
+                </label>
+                <div className="col-sm-10">
+                  <InputText
+                    type="text"
+                    className="form-control"
+                    id="metricsNamespaceShards"
+                    defaultValue={selectMetricsNamespace.namespace.shard_nums}
+                    onChange={onChangeShards}
+                  />
                 </div>
               </div>
               <div className="mb-3 d-flex flex-row justify-content-end">
