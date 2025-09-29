@@ -659,7 +659,7 @@ func massUpdateMetadata() int {
 	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
 	storage := metajournal.MakeMetricsStorage(nil)
 	storage2 := metajournal.MakeMetricsStorage(nil)
-	journal := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, true,
+	journal := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, false,
 		[]metajournal.ApplyEvent{storage.ApplyEvent})
 	journal.Start(nil, nil, loader.LoadJournal)
 	journalCompact := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, true,
@@ -714,6 +714,43 @@ func massUpdateMetadata() int {
 	//	//}
 	//	return
 	//}
+	for _, meta := range list {
+		//if !strings.HasPrefix(meta.Name, "gbuteyko") {
+		//	continue
+		//}
+		switch meta.ShardStrategy {
+		case format.ShardByMetric, "":
+			break
+		case format.ShardByTagsHash, format.ShardFixed, format.ShardBuiltin:
+			continue
+		default:
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) unexpected strategy %s shard %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum)
+			continue
+		}
+		if found >= argv.maxUpdates {
+			break
+		}
+		found++
+		shard := uint32(meta.MetricID) % 16
+		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) old strategy %s shard %d move to shard %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum, shard)
+		if argv.dryRun {
+			continue
+		}
+		meta2 := *meta
+		meta2.ShardNum = shard
+		meta2.ShardStrategy = format.ShardFixed
+		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
+		var err error
+		meta2, err = loader.SaveMetric(context.Background(), meta2, "")
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		err = storage.WaitVersion(context.Background(), meta.Version)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	for _, meta := range list {
 		meta2 := storage2.GetMetaMetric(meta.MetricID)
 		if meta2 != nil && format.SameCompactMetric(meta, meta2) {

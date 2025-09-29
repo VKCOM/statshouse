@@ -270,7 +270,7 @@ type MetricMetaValue struct {
 	MetricType           string                   `json:"metric_type,omitempty"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
-	ShardNum             uint32                   `json:"shard_num,omitempty"`
+	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
 	MetricTagID          uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
