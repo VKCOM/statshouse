@@ -78,7 +78,11 @@ func (argv *Config) ValidateConfig() error {
 	}
 	argv.AvailableShards = nil
 	if argv.AvailableShardsStr != "" {
-		argv.AvailableShards = parseShardNumbers(argv.AvailableShardsStr)
+		shards, err := parseShardNumbers(argv.AvailableShardsStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse available shards: %v", err)
+		}
+		argv.AvailableShards = shards
 	}
 	return nil
 }
@@ -109,7 +113,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", "", "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
 	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", "", "comma-separated list of metric prefixes that are blocked")
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
-	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of shards that are available")
+	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 }
 
 func DefaultConfig() *Config {
@@ -187,7 +191,7 @@ func (argv *HandlerOptions) Parse() error {
 	return nil
 }
 
-func parseShardNumbers(shardsStr string) []uint32 {
+func parseShardNumbers(shardsStr string) ([]uint32, error) {
 	var shards []uint32
 	parts := strings.Split(shardsStr, ",")
 	for _, part := range parts {
@@ -195,9 +199,11 @@ func parseShardNumbers(shardsStr string) []uint32 {
 		if part == "" {
 			continue
 		}
-		if shard, err := strconv.Atoi(part); err == nil && shard >= 0 {
-			shards = append(shards, uint32(shard))
+		shard, err := strconv.Atoi(part)
+		if err != nil || shard < 0 {
+			return nil, fmt.Errorf("invalid shard num %s", part)
 		}
+		shards = append(shards, uint32(shard))
 	}
-	return shards
+	return shards, nil
 }

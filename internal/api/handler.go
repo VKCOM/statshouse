@@ -1756,7 +1756,11 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 	if _, nsName := format.SplitNamespace(metric.Name); nsName != "" {
 		ns := h.metricsStorage.GetNamespaceByName(nsName)
 		if ns != nil && ns.ShardNums != "" {
-			shards = parseShardNumbers(ns.ShardNums)
+			items, err := parseShardNumbers(ns.ShardNums)
+			if err != nil {
+				return fmt.Errorf("cannot parse shard numbers: %v", err)
+			}
+			shards = items
 		}
 	}
 	if len(shards) == 0 {
@@ -1785,7 +1789,12 @@ func (h *Handler) validateMetricShard(metric *format.MetricMetaValue) error {
 	if metric.ShardStrategy != format.ShardFixed {
 		return fmt.Errorf("metric shard strategy %s, namespace strategy %s", metric.ShardStrategy, format.ShardFixed)
 	}
-	if nsShards := parseShardNumbers(ns.ShardNums); !slices.Contains(nsShards, metric.ShardNum) {
+	nsShards, err := parseShardNumbers(ns.ShardNums)
+	if err != nil {
+		return fmt.Errorf("cannot parse shard numbers: %v", err)
+	}
+
+	if !slices.Contains(nsShards, metric.ShardNum) {
 		return fmt.Errorf("metric shard_num %d not in namespace shards: %s", metric.ShardNum, ns.ShardNums)
 	}
 	return nil
