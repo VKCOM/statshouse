@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,8 @@ type Config struct {
 	BlockedMetricPrefixes  []string
 	BlockedUsersS          string
 	BlockedUsers           []string
+	AvailableShardsStr     string
+	AvailableShards        []uint32
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -73,6 +76,14 @@ func (argv *Config) ValidateConfig() error {
 	if argv.BlockedUsersS != "" {
 		argv.BlockedUsers = strings.Split(argv.BlockedUsersS, ",")
 	}
+	argv.AvailableShards = nil
+	if argv.AvailableShardsStr != "" {
+		shards, err := parseShardNumbers(argv.AvailableShardsStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse available shards: %v", err)
+		}
+		argv.AvailableShards = shards
+	}
 	return nil
 }
 
@@ -102,11 +113,13 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", "", "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
 	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", "", "comma-separated list of metric prefixes that are blocked")
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
+	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		ApproxCacheMaxSize: 1_000_000,
+		AvailableShardsStr: "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15",
 	}
 }
 
@@ -176,4 +189,21 @@ func (argv *HandlerOptions) Parse() error {
 	}
 	argv.utcOffset = calcUTCOffset(argv.location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
 	return nil
+}
+
+func parseShardNumbers(shardsStr string) ([]uint32, error) {
+	var shards []uint32
+	parts := strings.Split(shardsStr, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		shard, err := strconv.Atoi(part)
+		if err != nil || shard < 0 {
+			return nil, fmt.Errorf("invalid shard num %s", part)
+		}
+		shards = append(shards, uint32(shard))
+	}
+	return shards, nil
 }

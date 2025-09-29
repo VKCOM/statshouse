@@ -50,6 +50,8 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat(in *jlexer.Lex
 			out.Weight = float64(in.Float64())
 		case "disable":
 			out.Disable = bool(in.Bool())
+		case "shard_nums":
+			out.ShardNums = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -98,6 +100,11 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Disable))
+	}
+	if in.ShardNums != "" {
+		const prefix string = ",\"shard_nums\":"
+		out.RawString(prefix)
+		out.String(string(in.ShardNums))
 	}
 	out.RawByte('}')
 }

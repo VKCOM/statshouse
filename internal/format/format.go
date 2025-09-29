@@ -200,8 +200,9 @@ type NamespaceMeta struct {
 	UpdateTime uint32 `json:"update_time"`
 	DeleteTime uint32 `json:"delete_time"`
 
-	Weight  float64 `json:"weight"`
-	Disable bool    `json:"disable"`
+	Weight    float64 `json:"weight"`
+	Disable   bool    `json:"disable"`
+	ShardNums string  `json:"shard_nums,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }

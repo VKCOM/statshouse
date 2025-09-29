@@ -195,6 +195,7 @@ type (
 		selectSettings        string // cached ClickHouse SELECT settings string
 		blockedMetricPrefixes []string
 		blockedUsers          []string
+		availableShards       []uint32
 
 		HandlerOptions
 		showInvisible         bool
@@ -623,6 +624,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		selectSettings:        cfg.BuildSelectSettings(),
 		blockedMetricPrefixes: cfg.BlockedMetricPrefixes,
 		blockedUsers:          cfg.BlockedUsers,
+		availableShards:       cfg.AvailableShards,
 		tagValueCache: &pcache.Cache{
 			Loader: tagValueInverseLoader{
 				loadTimeout: metajournal.DefaultMetaTimeout,
@@ -693,6 +695,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.selectSettings = cfg.BuildSelectSettings()
 		h.blockedMetricPrefixes = cfg.BlockedMetricPrefixes
 		h.blockedUsers = cfg.BlockedUsers
+		h.availableShards = cfg.AvailableShards
 		h.ConfigMu.Unlock()
 	})
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
@@ -1746,6 +1749,58 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	return &MetricsGroupInfo{Group: group, Metrics: info.Metrics}, nil
 }
 
+func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
+	if metric.ShardStrategy != "" {
+		return h.validateMetricShard(metric)
+	}
+	var shards []uint32
+	if _, nsName := format.SplitNamespace(metric.Name); nsName != "" {
+		ns := h.metricsStorage.GetNamespaceByName(nsName)
+		if ns != nil && ns.ShardNums != "" {
+			items, err := parseShardNumbers(ns.ShardNums)
+			if err != nil {
+				return fmt.Errorf("cannot parse shard numbers: %v", err)
+			}
+			shards = items
+		}
+	}
+	if len(shards) == 0 {
+		h.ConfigMu.RLock()
+		shards = append(shards, h.availableShards...)
+		h.ConfigMu.RUnlock()
+	}
+	if len(shards) == 0 {
+		return nil
+	}
+
+	metric.ShardStrategy = format.ShardFixed
+	metric.ShardNum = shards[rand.Intn(len(shards))]
+	return nil
+}
+
+func (h *Handler) validateMetricShard(metric *format.MetricMetaValue) error {
+	_, nsName := format.SplitNamespace(metric.Name)
+	if nsName == "" {
+		return nil
+	}
+	ns := h.metricsStorage.GetNamespaceByName(nsName)
+	if ns == nil || ns.ShardNums == "" {
+		return nil
+	}
+	if metric.ShardStrategy != format.ShardFixed {
+		return fmt.Errorf("metric shard strategy %s, namespace strategy %s", metric.ShardStrategy, format.ShardFixed)
+	}
+	nsShards, err := parseShardNumbers(ns.ShardNums)
+	if err != nil {
+		return fmt.Errorf("cannot parse shard numbers: %v", err)
+	}
+
+	if !slices.Contains(nsShards, metric.ShardNum) {
+		return fmt.Errorf("metric shard_num %d not in namespace shards: %s", metric.ShardNum, ns.ShardNums)
+	}
+	return nil
+}
+
 // TODO - remove metric name from request
 func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string, metric format.MetricMetaValue) (format.MetricMetaValue, error) {
 	create := metric.MetricID == 0
@@ -1768,6 +1823,9 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	if create {
 		if !ai.CanEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
+		}
+		if err = h.applyShardsOnCreate(&metric); err != nil {
+			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, err)
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
