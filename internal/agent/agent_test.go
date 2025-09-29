@@ -256,7 +256,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	var scratch []byte
 	for i := 0; i < b.N; i++ {
 		h.Key = randKey(rng, nowUnix, 1)
-		agent.ApplyMetric(m, h, format.TagValueIDAggMappingStatusOKCached, &scratch)
+		agent.ApplyMetric(m, h, &scratch)
 	}
 }
 

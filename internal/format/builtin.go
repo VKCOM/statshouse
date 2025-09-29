@@ -42,7 +42,6 @@ var (
 	BuiltinMetrics = map[int32]*MetricMetaValue{
 		BuiltinMetricIDAgentSamplingFactor:      BuiltinMetricMetaAgentSamplingFactor,      // used for badges
 		BuiltinMetricIDAggBucketReceiveDelaySec: BuiltinMetricMetaAggBucketReceiveDelaySec, // used for badges
-		-3:                                      BuiltinMetricMetaAggInsertSizeLegacy,
 		-4:                                      BuiltinMetricMetaTLByteSizePerInflightType,
 		-5:                                      BuiltinMetricMetaAggKeepAlive,
 		-6:                                      BuiltinMetricMetaAggSizeCompressed,

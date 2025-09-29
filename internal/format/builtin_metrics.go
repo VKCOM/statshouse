@@ -61,28 +61,6 @@ Set by aggregator.`,
 	}, {}},
 }
 
-// If all contributors come on time, count will be 1 (per shard). If some come through historic conveyor, can be larger.
-var BuiltinMetricMetaAggInsertSizeLegacy = &MetricMetaValue{
-	Name:                    "__agg_insert_size_legacy",
-	Kind:                    MetricKindValue,
-	Description:             "Size of aggregated bucket inserted into clickhouse. Written when second is inserted, which can be much later.",
-	MetricType:              MetricByte,
-	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{}, {}, {}, {
-		Description:   "conveyor",
-		ValueComments: convertToValueComments(conveyorToValue),
-	}, {
-		Description:   "type",
-		ValueComments: convertToValueComments(insertKindToValue),
-	}, {}, {}, {
-		Description:   "table",
-		ValueComments: convertToValueComments(tableFormatToValue),
-	}},
-}
-
 var BuiltinMetricMetaTLByteSizePerInflightType = &MetricMetaValue{
 	Name:                    "__src_tl_byte_size_per_inflight_type",
 	Kind:                    MetricKindValue,
