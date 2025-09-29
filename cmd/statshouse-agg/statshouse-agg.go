@@ -261,7 +261,6 @@ func parseCommandLine() error {
 		if p, err := os.ReadFile(argv.KHPasswordFile); err == nil {
 			p = bytes.TrimSpace(p)
 			argv.KHPassword = string(p)
-			log.Printf("got dpassword '%s' from file %s", argv.KHPassword, argv.KHPasswordFile)
 		} else {
 			return fmt.Errorf("failed to open --kh-password-file %q: %v", argv.KHPasswordFile, err)
 		}

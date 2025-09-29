@@ -1142,10 +1142,8 @@ var BuiltinMetricMetaGroupSizeAfterSampling = &MetricMetaValue{
 }
 
 var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
-	Name: "__api_ch_select_bytes",
-	Kind: MetricKindValue,
-	// TODO replace with logs
-	StringTopDescription:    "error",
+	Name:                    "__api_ch_select_bytes",
+	Kind:                    MetricKindValue,
 	Description:             "Number of bytes was handled by ClickHouse SELECT query",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
@@ -1153,14 +1151,25 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}, {
+		Description: "status",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
 	}},
 }
 
 var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
-	Name: "__api_ch_select_rows",
-	Kind: MetricKindValue,
-	// TODO replace with logs
-	StringTopDescription:    "error",
+	Name:                    "__api_ch_select_rows",
+	Kind:                    MetricKindValue,
 	Description:             "Number of rows was handled by ClickHouse SELECT query",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
@@ -1168,6 +1177,46 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}, {
+		Description: "status",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
+	}},
+}
+
+var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
+	Name:                    "__api_ch_select_os_cpu_virtual_time",
+	Kind:                    MetricKindValue,
+	MetricType:              MetricSecond,
+	Description:             "OS CPU virtual time in seconds reported by ClickHouse ProfileEvents for SELECT",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "query type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}, {
+		Description: "status",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
 	}},
 }
 
@@ -1196,31 +1245,13 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	}, {
 		Description: "token-long",
 	}, {
-		Description: "shard", // metric % 16 for now, experimental
+		Description: "shard_key", // metric % 16 + 1 for now, experimental
 		RawKind:     "int",
 	}},
 }
 
 // const BuiltinMetricIDAgentHistoricQueueSizeSum = -69 // Removed, not needed after queue size metric is written by agents
-var BuiltinMetricMetaAPISourceSelectRows = &MetricMetaValue{
-	Name:                    "__api_ch_source_select_rows",
-	Kind:                    MetricKindValue,
-	Description:             "Value of this metric number of rows was selected from DB or cache",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "source type",
-	}, {
-		Description: "metric",
-		BuiltinKind: BuiltinKindMetric,
-	}, {
-		Description: "table",
-	}, {
-		Description: "kind",
-	}},
-}
+// const BuiltinMetricIDAPISourceSelectRows = -70 // Removed, was not used
 
 var BuiltinMetricMetaSystemMetricScrapeDuration = &MetricMetaValue{
 	Name:                    "__system_metrics_duration",

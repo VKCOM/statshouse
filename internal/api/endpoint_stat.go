@@ -171,7 +171,7 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 			5: ok,
 			6: getStatTokenName(user),
 			7: user,
-			8: strconv.Itoa(int(uint32(metricID) % 16)), // experimental to see load distribution if we shard data by metricID
+			8: strconv.Itoa(int(uint32(metricID)%16) + 1), // to see load distribution if we shard data by metricID
 		},
 		duration.Seconds())
 }
@@ -192,9 +192,19 @@ func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
 		}, 1)
 }
 
-func ChSelectProfile(isFast, isLight, isHardware bool, info proto.Profile, err error) {
-	chSelectPushMetric(format.BuiltinMetricMetaAPISelectBytes.Name, isFast, isLight, isHardware, float64(info.Bytes), err)
-	chSelectPushMetric(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), err)
+func ChSelectProfile(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, info proto.Profile, err error) {
+	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectBytes.Name, isFast, isLight, isHardware, float64(info.Bytes), metric, user, table, kind, err)
+	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), metric, user, table, kind, err)
+}
+
+func ChSelectProfileEvents(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, osCPUVirtualTimeMicroseconds uint64, err error) {
+	chSelectPushMetricFull(
+		format.BuiltinMetricMetaAPISelectOSCPUVirtualTime.Name,
+		isFast, isLight, isHardware,
+		float64(osCPUVirtualTimeMicroseconds)/1e6, // convert to seconds
+		metric, user, table, kind,
+		err,
+	)
 }
 
 func modeStr(isFast, isLight, isHardware bool) string {
@@ -213,17 +223,28 @@ func modeStr(isFast, isLight, isHardware bool) string {
 	return mode
 }
 
-func chSelectPushMetric(metric string, isFast, isLight, isHardware bool, data float64, err error) {
-	m := statshouse.GetMetricRef(
+func chSelectPushMetricFull(metric string, isFast, isLight, isHardware bool, data float64, mm *format.MetricMetaValue, user, table, kind string, err error) {
+	ok := "ok"
+	if err != nil {
+		ok = "error"
+	}
+	var metricID int32
+	if mm != nil {
+		metricID = mm.MetricID
+	}
+	statshouse.Value(
 		metric,
 		statshouse.Tags{
 			1: modeStr(isFast, isLight, isHardware),
+			2: strconv.Itoa(int(metricID)),
+			3: table,
+			4: kind,
+			5: ok,
+			6: getStatTokenName(user),
+			7: user,
 		},
+		data,
 	)
-	m.Value(data)
-	if err != nil {
-		m.StringTop(err.Error())
-	}
 }
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
