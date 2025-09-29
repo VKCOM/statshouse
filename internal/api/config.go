@@ -80,7 +80,7 @@ func (argv *Config) ValidateConfig() error {
 	if argv.AvailableShardsStr != "" {
 		shards, err := parseShardNumbers(argv.AvailableShardsStr)
 		if err != nil {
-			return fmt.Errorf("failed to parse available shards: %v", err)
+			return fmt.Errorf("failed to parse available shards: %w", err)
 		}
 		argv.AvailableShards = shards
 	}
@@ -119,7 +119,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 func DefaultConfig() *Config {
 	return &Config{
 		ApproxCacheMaxSize: 1_000_000,
-		AvailableShardsStr: "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15",
+		AvailableShardsStr: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
 	}
 }
 

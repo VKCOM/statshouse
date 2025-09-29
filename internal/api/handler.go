@@ -1759,7 +1759,7 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 		if ns != nil && ns.ShardNums != "" {
 			items, err := parseShardNumbers(ns.ShardNums)
 			if err != nil {
-				return fmt.Errorf("cannot parse shard numbers: %v", err)
+				return fmt.Errorf("cannot parse shard numbers: %w", err)
 			}
 			shards = items
 		}
@@ -1774,7 +1774,7 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 	}
 
 	metric.ShardStrategy = format.ShardFixed
-	metric.ShardNum = shards[rand.Intn(len(shards))]
+	metric.ShardNum = shards[rand.Intn(len(shards))] - 1
 	return nil
 }
 
@@ -1792,7 +1792,7 @@ func (h *Handler) validateMetricShard(metric *format.MetricMetaValue) error {
 	}
 	nsShards, err := parseShardNumbers(ns.ShardNums)
 	if err != nil {
-		return fmt.Errorf("cannot parse shard numbers: %v", err)
+		return fmt.Errorf("cannot parse shard numbers: %w", err)
 	}
 
 	if !slices.Contains(nsShards, metric.ShardNum) {
