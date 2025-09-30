@@ -29,21 +29,14 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
-const legacyMaxTags = 16
+const legacyMaxTags = 16 // TODO - remove after investigation why we still need it
 
-func getTableDesc(v3Format bool) string {
-	if v3Format {
-		keysFieldsNamesVec := make([]string, format.MaxTags)
-		for i := 0; i < format.MaxTags; i++ {
-			keysFieldsNamesVec[i] = fmt.Sprintf(`tag%d,stag%d`, i, i)
-		}
-		return `statshouse_v3_incoming(index_type,metric,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,min_host_legacy,max_host_legacy,min_host,max_host)`
+func getTableDesc() string {
+	keysFieldsNamesVec := make([]string, format.MaxTags)
+	for i := 0; i < format.MaxTags; i++ {
+		keysFieldsNamesVec[i] = fmt.Sprintf(`tag%d,stag%d`, i, i)
 	}
-	keysFieldsNamesVec := make([]string, legacyMaxTags)
-	for i := 0; i < legacyMaxTags; i++ {
-		keysFieldsNamesVec[i] = fmt.Sprintf(`key%d`, i)
-	}
-	return `statshouse_value_incoming_prekey3(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
+	return `statshouse_v3_incoming(index_type,metric,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,min_host_legacy,max_host_legacy,min_host,max_host)`
 }
 
 type lastMetricData struct {
