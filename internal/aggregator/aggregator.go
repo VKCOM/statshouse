@@ -767,29 +767,16 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			}
 		}
 		a.configMu.RLock()
-		mirrorChWrite := false
-		writeToV3First := true
-		v2InsertSettings := ""
 		v3InsertSettings := a.configR.V3InsertSettings
 		a.configMu.RUnlock()
-		insertErrTable := func(v3Format bool) string {
-			if v3Format {
-				return "insert_error_exp_table"
-			}
-			return "insert_error"
-		}
 
 		var marshalDur time.Duration
 		var stats insertStats
-		bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], writeToV3First)
+		bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], true)
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
-		settings := v2InsertSettings
-		if writeToV3First {
-			settings = v3InsertSettings
-		}
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(writeToV3First), bodyStorage, settings)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, v3InsertSettings)
 
 		if sendErr != nil {
 			a.lastErrorTs = nowUnix
@@ -801,10 +788,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		} else {
 			a.insertTimeEWMA = alpha*dur.Seconds() + (1-alpha)*a.insertTimeEWMA
 		}
-		// if we are mirriring that will happen after second ch write
-		if !mirrorChWrite {
-			cancelSendToCh()
-		}
+		cancelSendToCh()
 
 		a.mu.Lock()
 		if willInsertHistoric {
@@ -816,7 +800,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		if sendErr != nil {
 			comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
-			a.appendInternalLog(insertErrTable(writeToV3First), "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
+			a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 			log.Print(sendErr)
 			sendErr = &rpc.Error{
 				Code:        data_model.RPCErrorInsert,
@@ -848,21 +832,18 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
 			a.mu.Unlock()
 			is := stats.sizes[b.time]
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeValue, float64(is.values))
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeUnique, float64(is.uniques))
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, writeToV3First, format.TagValueIDSizeStringTop, float64(is.stringTops))
-			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, writeToV3First, 0, dur.Seconds())
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, format.TagValueIDSizeCounter, float64(is.counters))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, format.TagValueIDSizeValue, float64(is.values))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, format.TagValueIDSizePercentiles, float64(is.percentiles))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, format.TagValueIDSizeUnique, float64(is.uniques))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, format.TagValueIDSizeStringTop, float64(is.stringTops))
+			a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, 0, dur.Seconds())
 		}
 		// insert of all buckets is also accounted into single event at aggBucket.time second, so the graphic will be smoother
-		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, float64(len(bodyStorage)))
-		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, dur.Seconds())
-		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, writeToV3First, 0, marshalDur.Seconds())
-		tableTag := int32(format.TagValueIDAggInsertV2)
-		if writeToV3First {
-			tableTag = format.TagValueIDAggInsertV3
-		}
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, 0, float64(len(bodyStorage)))
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, 0, dur.Seconds())
+		a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, 0, marshalDur.Seconds())
+		tableTag := int32(format.TagValueIDAggInsertV3)
 		statusTag := int32(format.TagValueIDStatusOK)
 		if sendErr != nil {
 			statusTag = format.TagValueIDStatusError
@@ -885,66 +866,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeSampling, 1, a.aggregatorHostTag)
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
 		a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, stats.samplingEngineKeys, a.aggregatorHostTag)
-
-		if mirrorChWrite {
-			bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], !writeToV3First)
-			if writeToV3First {
-				settings = v2InsertSettings
-			} else {
-				settings = v3InsertSettings
-			}
-			status, exception, dur, sendErr = sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(!writeToV3First), bodyStorage, settings)
-			cancelSendToCh()
-			if sendErr != nil {
-				comment := fmt.Sprintf("time=%d (delta = %d), contributors (recent %v, historic %v) Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), recentContributors, historicContributors, senderID)
-				a.appendInternalLog(insertErrTable(!writeToV3First), "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
-				log.Print(sendErr)
-				sendErr = &rpc.Error{
-					Code:        data_model.RPCErrorInsert,
-					Description: sendErr.Error(),
-				}
-			}
-
-			for i, b := range aggBuckets {
-				is := stats.sizes[b.time]
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeCounter, float64(is.counters))
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeValue, float64(is.values))
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizePercentiles, float64(is.percentiles))
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeUnique, float64(is.uniques))
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertSize, i != 0, sendErr, status, exception, !writeToV3First, format.TagValueIDSizeStringTop, float64(is.stringTops))
-				a.reportInsertMetric(b.time, format.BuiltinMetricMetaAggInsertTime, i != 0, sendErr, status, exception, !writeToV3First, 0, dur.Seconds())
-			}
-			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertSizeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, float64(len(bodyStorage)))
-			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggInsertTimeReal, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, dur.Seconds())
-			a.reportInsertMetric(aggBucket.time, format.BuiltinMetricMetaAggSamplingTime, willInsertHistoric, sendErr, status, exception, !writeToV3First, 0, marshalDur.Seconds())
-			if writeToV3First {
-				tableTag = format.TagValueIDAggInsertV2
-			} else {
-				tableTag = format.TagValueIDAggInsertV3
-			}
-			statusTag = int32(format.TagValueIDStatusOK)
-			if sendErr != nil {
-				statusTag = format.TagValueIDStatusError
-			}
-			st = []int32{0, stats.historicTag, statusTag, tableTag}
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingMetricCount, st, float64(stats.samplingMetricCount), 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingBudget, st, float64(stats.samplingBudget), 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggContributors, []int32{0, statusTag, tableTag, format.AggHostTag: a.aggregatorHost, format.AggShardTag: a.shardKey, format.AggReplicaTag, a.replicaKey}, float64(stats.contributors), 1, a.aggregatorHostTag)
-			for sk, ss := range stats.sampling {
-				keepTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionKeep, sk.namespeceId, sk.groupId, 0, statusTag, tableTag}
-				discardTags := []int32{0, stats.historicTag, format.TagValueIDSamplingDecisionDiscard, sk.namespeceId, sk.groupId, 0, statusTag, tableTag}
-				groupBudgetTags := []int32{0, stats.historicTag, sk.namespeceId, sk.groupId, statusTag, tableTag}
-				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, keepTags, &ss.sampligSizeKeepBytes)
-				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingSizeBytes, discardTags, &ss.sampligSizeDiscardBytes)
-				a.sh2.MergeItemValue(stats.recentTs, format.BuiltinMetricMetaAggSamplingGroupBudget, groupBudgetTags, &ss.samplingGroupBudget)
-			}
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 1, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeAppend, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 2, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimePartition, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeSampling, 1, a.aggregatorHostTag)
-			a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
-			a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, stats.samplingEngineKeys, a.aggregatorHostTag)
-		}
 
 		sendErr = fmt.Errorf("simulated error")
 		aggBucket.mu.Lock()

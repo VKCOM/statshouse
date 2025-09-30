@@ -68,11 +68,7 @@ func (a *Aggregator) goInternalLog() {
 	}
 }
 
-func (a *Aggregator) reportInsertMetric(t uint32, metricInfo *format.MetricMetaValue, historic bool, err error, status int, exception int, v3Format bool, inflightType int32, value float64) {
-	v3FormatTag := int32(format.TagValueIDAggInsertV2)
-	if v3Format {
-		v3FormatTag = format.TagValueIDAggInsertV3
-	}
+func (a *Aggregator) reportInsertMetric(t uint32, metricInfo *format.MetricMetaValue, historic bool, err error, status int, exception int, inflightType int32, value float64) {
 	historicTag := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		historicTag = format.TagValueIDConveyorHistoric
@@ -82,6 +78,6 @@ func (a *Aggregator) reportInsertMetric(t uint32, metricInfo *format.MetricMetaV
 		statusTag = format.TagValueIDStatusError
 	}
 	a.sh2.AddValueCounter(t, metricInfo,
-		[]int32{0, 0, 0, 0, historicTag, statusTag, int32(status), int32(exception), v3FormatTag, inflightType},
+		[]int32{0, 0, 0, 0, historicTag, statusTag, int32(status), int32(exception), format.TagValueIDAggInsertV3, inflightType},
 		value, 1)
 }
