@@ -822,7 +822,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				}
 				resp.SetDiscard(sendErr == nil)
 				hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
-				hctx.SendHijackedResponse(nil)
+				hctx.SendHijackedResponse(sendErr)
 			}
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once

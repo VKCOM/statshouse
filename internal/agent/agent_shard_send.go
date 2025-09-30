@@ -19,8 +19,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
-
 	"pgregory.net/rand"
 )
 
@@ -313,7 +311,7 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 	var respV3 tlstatshouse.SendSourceBucket3Response
 	err := shardReplica.sendSourceBucket3Compressed(ctx, cbd, sendMoreBytes, false, spare, &respV3)
 	if !spare {
-		shardReplica.recordSendResult(!isShardDeadError(err))
+		shardReplica.recordSendResult(err == nil)
 	}
 	if err != nil {
 		shardReplica.stats.recentSendFailed.Add(1)
@@ -634,15 +632,4 @@ func (s *Shard) DisableNewSends() {
 	s.BucketsToSend = nil
 	s.mu.Unlock()
 	s.cond.Broadcast()
-}
-
-func isShardDeadError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var rpcError *rpc.Error
-	if !errors.As(err, &rpcError) {
-		return true
-	}
-	return rpcError.Code != data_model.RPCErrorMissedRecentConveyor
 }
