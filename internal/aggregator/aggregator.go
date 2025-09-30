@@ -772,7 +772,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		var marshalDur time.Duration
 		var stats insertStats
-		bodyStorage, buffers, stats, marshalDur = a.RowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0], true)
+		bodyStorage, buffers, stats, marshalDur = a.rowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0])
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
