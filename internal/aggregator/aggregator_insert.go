@@ -142,7 +142,7 @@ func appendKeys(res []byte, k *data_model.Key, metricCache *metricIndexCache, to
 		res = appendTag(res, k, ki)
 	}
 	// write string top
-	if top.I > 0 || len(top.S) == 0 { // if we have both I and S use prefer I (we keep S to v2 compat)
+	if top.I != 0 || len(top.S) == 0 { // if we have both I and S use prefer I (we keep S to v2 compat)
 		res = binary.LittleEndian.AppendUint32(res, uint32(top.I))
 		res = rowbinary.AppendString(res, "")
 	} else {
