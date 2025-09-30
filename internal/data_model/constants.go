@@ -92,23 +92,20 @@ const (
 
 	InternalLogInsertInterval = 5 * time.Second
 
-	RPCErrorMissedRecentConveyor = -5001 // just send again through historic
-	RPCErrorInsert               = -5002 // just send again through historic (for recent), or send again after delay (for historic)
-	RPCErrorNoAutoCreate         = -5004 // just live with it, this is normal
-	RPCErrorScrapeAgentIP        = -5006 // scrape agent must have IP address
+	RPCErrorInsert        = -5002 // just send again through historic (for recent), or send again after delay (for historic)
+	RPCErrorNoAutoCreate  = -5004 // just live with it, this is normal
+	RPCErrorScrapeAgentIP = -5006 // scrape agent must have IP address
 
 	JournalDiskNamespace        = "metric_journal_v5:"
 	TagValueDiskNamespace       = "tag_value_v3:"
 	TagValueInvertDiskNamespace = "tag_value_invert_v3:"
-	BootstrapDiskNamespace      = "bootstrap:"  // stored in aggregator only
-	AutoconfigDiskNamespace     = "autoconfig:" // stored in agents only
+	BootstrapDiskNamespace      = "bootstrap:" // stored in aggregator only
 
-	MappingMaxMetricsInQueue = 4000
-	MappingMaxMemCacheSize   = 1_000_000
-	MappingMaxDiskCacheSize  = 10_000_000
-	MappingCacheTTLMinimum   = 7 * 24 * time.Hour
-	MappingNegativeCacheTTL  = 5 * time.Second
-	MappingMinInterval       = 1 * time.Millisecond
+	MappingMaxMemCacheSize  = 1_000_000
+	MappingMaxDiskCacheSize = 10_000_000
+	MappingCacheTTLMinimum  = 7 * 24 * time.Hour
+	MappingNegativeCacheTTL = 5 * time.Second
+	MappingMinInterval      = 1 * time.Millisecond
 )
 
 var ErrEntityNotExists = &rpc.Error{
@@ -148,7 +145,7 @@ func SilentRPCError(err error) bool {
 		return false
 	}
 	switch rpcError.Code {
-	case RPCErrorMissedRecentConveyor, RPCErrorInsert,
+	case RPCErrorInsert,
 		RPCErrorNoAutoCreate:
 		return true
 	default:
