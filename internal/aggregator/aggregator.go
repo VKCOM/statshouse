@@ -767,9 +767,9 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			}
 		}
 		a.configMu.RLock()
-		mirrorChWrite := a.configR.MirrorChWrite
-		writeToV3First := a.configR.WriteToV3First
-		v2InsertSettings := a.configR.V2InsertSettings
+		mirrorChWrite := false
+		writeToV3First := true
+		v2InsertSettings := ""
 		v3InsertSettings := a.configR.V3InsertSettings
 		a.configMu.RUnlock()
 		insertErrTable := func(v3Format bool) string {
