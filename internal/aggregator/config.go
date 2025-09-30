@@ -23,9 +23,6 @@ type ConfigAggregatorRemote struct {
 	SampleGroups         bool
 	SampleKeys           bool
 	DenyOldAgents        bool
-	MirrorChWrite        bool
-	WriteToV3First       bool
-	V2InsertSettings     string
 	V3InsertSettings     string
 	MappingCacheSize     int64
 	MappingCacheTTL      int
@@ -91,8 +88,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 			SampleGroups:         false,
 			SampleKeys:           false,
 			DenyOldAgents:        true,
-			MirrorChWrite:        true,
-			WriteToV3First:       false,
 			MappingCacheSize:     1 << 30,
 			MappingCacheTTL:      86400 * 7,
 			MapStringTop:         false, // disabled by default because API doesn't support it yet
@@ -140,10 +135,13 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
-		f.BoolVar(&c.MirrorChWrite, "mirror-ch-writes", d.MirrorChWrite, "Write metrics into both v3 and v2 tables")
-		f.BoolVar(&c.WriteToV3First, "write-to-v3-first", d.WriteToV3First, "Write metrics into v3 table first")
-		f.StringVar(&c.V2InsertSettings, "v2-insert-settings", d.V2InsertSettings, "Settings when inserting into v2 table")
-		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v2 table")
+		var mirrorChWrite bool  // TODO - remove after deploying aggregators
+		var writeToV3First bool // TODO - remove after deploying aggregators
+		f.BoolVar(&mirrorChWrite, "mirror-ch-writes", false, "Write metrics into both v3 and v2 tables. Not used.")
+		f.BoolVar(&writeToV3First, "write-to-v3-first", false, "Write metrics into v3 table first. Not used.")
+		var v2InsertSettings string // TODO - remove after deploying aggregators
+		f.StringVar(&v2InsertSettings, "v2-insert-settings", "", "Settings when inserting into v2 table. Not used.")
+		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v3 table")
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
