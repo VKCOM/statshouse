@@ -420,7 +420,7 @@ var BuiltinMetricMetaAggMapping = &MetricMetaValue{
 	Name:                    "__agg_mapping_status",
 	Kind:                    MetricKindCounter,
 	Description:             "Status of mapping on aggregator side.",
-	NoSampleAgent:           false,
+	NoSampleAgent:           true, // fixed cardinality
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
