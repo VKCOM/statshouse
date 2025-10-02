@@ -295,8 +295,8 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
           <div className="row">
             <div className="col-sm-auto">
               <input
-                id="tagsSize"
-                name="tagsSize"
+                id="tagsNum"
+                name="tagsNum"
                 className="form-control"
                 type="number"
                 min="1"
@@ -304,6 +304,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
                 step="1"
                 value={values.tagsSize}
                 onChange={(e) => dispatch({ type: 'numTags', num: e.target.value })}
+                disabled={isReadonly}
               />
             </div>
           </div>
