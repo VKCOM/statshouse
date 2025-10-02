@@ -294,25 +294,18 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
         <div className="col-sm">
           <div className="row">
             <div className="col-sm-auto">
-              <select
+              <input
                 id="tagsNum"
                 name="tagsNum"
-                className="form-select"
+                className="form-control"
+                type="number"
+                min="1"
+                max={maxTagsSize}
+                step="1"
                 value={values.tagsSize}
                 onChange={(e) => dispatch({ type: 'numTags', num: e.target.value })}
                 disabled={isReadonly}
-              >
-                {new Array(maxTagsSize).fill(0).map(
-                  (
-                    _v,
-                    n // TODO - const
-                  ) => (
-                    <option key={n} value={n + 1}>
-                      {n + 1}
-                    </option>
-                  )
-                )}
-              </select>
+              />
             </div>
           </div>
           <div id="tagsHelpBlock" className="form-text">
