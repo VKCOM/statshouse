@@ -32,7 +32,11 @@ export function CreatePage(props: { yAxisSize: number }) {
 
 export function EditFormCreate() {
   const [name, setName] = React.useState('');
-  const { onSubmit, isRunning, error, success } = useSubmitCreate(name);
+  const [tagsSize, setSetTagsSize] = React.useState(10);
+  const { onSubmit, isRunning, error, success } = useSubmitCreate({
+    name,
+    tagsSize,
+  });
 
   return (
     <form>
@@ -57,6 +61,25 @@ export function EditFormCreate() {
         </div>
       </div>
 
+      <div className="row mb-3">
+        <label htmlFor="tagsSize" className="col-sm-2 col-form-label">
+          Tags size
+        </label>
+        <div className="col-sm-5">
+          <input
+            id="tagsSize"
+            name="tagsSize"
+            className="form-control"
+            type="number"
+            min="1"
+            max={maxTagsSize}
+            step="1"
+            value={tagsSize}
+            onChange={(e) => setSetTagsSize(parseInt(e.target.value))}
+          />
+        </div>
+      </div>
+
       <div>
         <button type="button" disabled={isRunning} className="btn btn-primary me-3" onClick={onSubmit}>
           {'Create'}
@@ -77,7 +100,7 @@ export function EditFormCreate() {
   );
 }
 
-function useSubmitCreate(name: string) {
+function useSubmitCreate({ name, tagsSize }: { name: string; tagsSize: number }) {
   const navigate = useNavigate();
   const [isRunning, setRunning] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -103,10 +126,10 @@ function useSubmitCreate(name: string) {
       disable: false,
       tags: [
         { name: '', alias: 'environment', customMapping: [] }, // env
-        ...new Array(maxTagsSize - 1).fill({}).map(() => getDefaultTag()),
+        ...new Array(tagsSize - 1).fill({}).map(() => getDefaultTag()),
       ],
       tags_draft: [],
-      tagsSize: maxTagsSize,
+      tagsSize: tagsSize,
     };
 
     createMetric(mapEditToMetric(values), {
@@ -123,7 +146,7 @@ function useSubmitCreate(name: string) {
         setRunning(false);
       },
     });
-  }, [createMetric, name, navigate]);
+  }, [createMetric, name, tagsSize, navigate]);
 
   return {
     isRunning,
