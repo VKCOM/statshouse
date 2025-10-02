@@ -95,12 +95,14 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MigrationDelaySec:    30,    // 30 seconds delay between migration steps
 
 			configTagsMapper2: configTagsMapper2{
-				MaxUnknownTagsInBucket:    1024,
-				MaxCreateTagsPerIteration: 128,
-				MaxLoadTagsPerIteration:   128,
-				TagHitsToCreate:           10,
-				MaxUnknownTagsToKeep:      1_000_000,
-				MaxSendTagsToAgent:        256,
+				MaxUnknownTagsInBucket:       1024,
+				MaxCreateTagsPerIteration:    128,
+				MaxLoadTagsPerIteration:      128,
+				TagHitsToCreate:              10,
+				MaxUnknownTagsToKeep:         1_000_000,
+				MaxSendTagsToAgent:           256,
+				DisableMappingReplicaReader:  false,
+				DisableMappingReplicaUpdater: false,
 			},
 		},
 	}
@@ -155,6 +157,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
+		f.BoolVar(&c.DisableMappingReplicaReader, "mapping-disable-replica-reader", d.DisableMappingReplicaReader, "Reader mapping replica will be disabled.")
+		f.BoolVar(&c.DisableMappingReplicaUpdater, "mapping-disable-replica-updater", d.DisableMappingReplicaUpdater, "Updater mapping replica will be disabled.")
 	}
 }
 
