@@ -32,7 +32,7 @@ export function CreatePage(props: { yAxisSize: number }) {
 
 export function EditFormCreate() {
   const [name, setName] = React.useState('');
-  const [tagsSize, setSetTagsSize] = React.useState(10);
+  const [tagsSize, setSetTagsSize] = React.useState(5);
   const { onSubmit, isRunning, error, success } = useSubmitCreate({
     name,
     tagsSize,
