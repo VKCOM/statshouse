@@ -41,8 +41,8 @@ export function EditFormCreate() {
   return (
     <form>
       <div className="col-sm-5 mb-3 form-text">
-        Metric will be created with all {maxTagsSize} keys visible. To hide excess keys, please use <b>Edit</b> button
-        above plot.
+        Metric will be created with {tagsSize} of {maxTagsSize} keys visible. To hide excess keys, please use{' '}
+        <b>Edit</b> button above plot.
       </div>
       <div className="row mb-3">
         <label htmlFor="name" className="col-sm-2 col-form-label">
@@ -77,6 +77,7 @@ export function EditFormCreate() {
             value={tagsSize}
             onChange={(e) => setSetTagsSize(parseInt(e.target.value))}
           />
+          <div className="form-text">Set visible tags, you can change this later</div>
         </div>
       </div>
 

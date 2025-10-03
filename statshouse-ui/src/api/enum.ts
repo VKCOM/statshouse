@@ -243,6 +243,25 @@ export type MetricMetaTagRawKind = Enum<typeof METRIC_META_TAG_RAW_KIND>;
 export const isMetricMetaTagRawKind = isEnum<MetricMetaTagRawKind>(METRIC_META_TAG_RAW_KIND);
 export const toMetricMetaTagRawKind = toEnum(isMetricMetaTagRawKind);
 
+export const METRIC_META_SHARED_STRATEGY = {
+  noStrategy: '',
+  tagsHash: 'tags_hash',
+  fixedShard: 'fixed_shard',
+  metricId: 'metric_id',
+  builtin: 'builtin',
+};
+export type MetricMetaSharedStrategy = Enum<typeof METRIC_META_SHARED_STRATEGY>;
+export const isMetricMetaSharedStrategy = isEnum<MetricMetaSharedStrategy>(METRIC_META_SHARED_STRATEGY);
+export const toMetricMetaSharedStrategy = toEnum(isMetricMetaSharedStrategy);
+
+export const METRIC_META_SHARED_STRATEGY_DESCRIPTION: Record<MetricMetaSharedStrategy, string> = {
+  [METRIC_META_SHARED_STRATEGY.noStrategy]: 'no strategy',
+  [METRIC_META_SHARED_STRATEGY.tagsHash]: 'tags_hash',
+  [METRIC_META_SHARED_STRATEGY.fixedShard]: 'fixed_shard',
+  [METRIC_META_SHARED_STRATEGY.metricId]: 'metric_id',
+  [METRIC_META_SHARED_STRATEGY.builtin]: 'builtin',
+};
+
 export const API_FETCH_OPT_METHODS = {
   get: 'GET',
   post: 'POST',

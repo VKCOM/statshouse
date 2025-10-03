@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GET_PARAMS, type MetricMetaKind, type MetricMetaTagRawKind } from './enum';
+import { GET_PARAMS, type MetricMetaKind, MetricMetaSharedStrategy, type MetricMetaTagRawKind } from './enum';
 import { apiFetch, type ApiFetchResponse, ExtendedError } from './api';
 import {
   type UndefinedInitialDataOptions,
@@ -82,6 +82,8 @@ export type MetricMetaValue = {
   metric_type?: string;
   group_id?: number;
   fair_key_tag_ids?: string[];
+  shard_strategy?: MetricMetaSharedStrategy;
+  shard_num?: number;
   [key: string]: unknown;
 };
 

@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { MetricMetaTagRawKind } from '@/api/enum';
+import { MetricMetaSharedStrategy, MetricMetaTagRawKind } from '@/api/enum';
 
 export interface ITag {
   readonly name: string;
@@ -56,4 +56,6 @@ export interface IMetric {
   readonly version?: number;
   readonly group_id?: number;
   readonly fair_key_tag_ids?: string[];
+  readonly shard_strategy?: MetricMetaSharedStrategy;
+  readonly shard_num?: number;
 }

@@ -11,11 +11,15 @@ import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/Me
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { IActions } from '../storages/MetricFormValues/reducer';
 import {
+  METRIC_META_SHARED_STRATEGY,
+  METRIC_META_SHARED_STRATEGY_DESCRIPTION,
   METRIC_META_TAG_RAW_KIND,
   METRIC_TYPE,
   METRIC_TYPE_DESCRIPTION,
+  MetricMetaSharedStrategy,
   type MetricMetaTagRawKind,
   type MetricType,
+  toMetricMetaSharedStrategy,
   toMetricMetaTagRawKind,
 } from '@/api/enum';
 import { maxTagsSize } from '@/common/settings';
@@ -37,6 +41,21 @@ import { useHistoricalMetricVersion } from '@/hooks/useHistoricalMetricVersion';
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE);
 const METRIC_META_TAG_RAW_KIND_KEYS: MetricMetaTagRawKind[] = Object.values(METRIC_META_TAG_RAW_KIND);
+const METRIC_META_SHARED_STRATEGY_KEYS: MetricMetaSharedStrategy[] = Object.values(METRIC_META_SHARED_STRATEGY);
+
+const kindConfig = [
+  { label: 'Counter', value: 'counter' },
+  { label: 'Value', value: 'value' },
+  { label: 'Unique', value: 'unique' },
+  { label: 'Mixed', value: 'mixed' },
+];
+
+const shardStrategyConfig = METRIC_META_SHARED_STRATEGY_KEYS.map((value) => ({
+  label: METRIC_META_SHARED_STRATEGY_DESCRIPTION[value],
+  value: value,
+}));
+
+const tagsConfig = new Array(maxTagsSize).fill(0).map((_v, n) => n + 1);
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { adminMode } = props;
@@ -83,13 +102,6 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
     </div>
   );
 }
-
-const kindConfig = [
-  { label: 'Counter', value: 'counter' },
-  { label: 'Value', value: 'value' },
-  { label: 'Unique', value: 'unique' },
-  { label: 'Mixed', value: 'mixed' },
-];
 
 export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHistoricalMetric: boolean }) {
   const { isReadonly, adminMode, isHistoricalMetric } = props;
@@ -294,18 +306,20 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
         <div className="col-sm">
           <div className="row">
             <div className="col-sm-auto">
-              <input
+              <select
                 id="tagsNum"
                 name="tagsNum"
-                className="form-control"
-                type="number"
-                min="1"
-                max={maxTagsSize}
-                step="1"
+                className="form-select"
                 value={values.tagsSize}
                 onChange={(e) => dispatch({ type: 'numTags', num: e.target.value })}
                 disabled={isReadonly}
-              />
+              >
+                {tagsConfig.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div id="tagsHelpBlock" className="form-text">
@@ -601,6 +615,49 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
           </div>
         </div>
         <div id="fair_key_tag_idsHelpBlock" className="form-text"></div>
+      </div>
+      <div className="row mb-3">
+        <label htmlFor="shard_strategy" className="col-sm-2 col-form-label">
+          Shared strategy
+        </label>
+        <div className="col-sm-auto">
+          <select
+            id="shard_strategy"
+            className="form-select"
+            value={values.shard_strategy}
+            onChange={(e) =>
+              dispatch({
+                shard_strategy: toMetricMetaSharedStrategy(e.target.value, METRIC_META_SHARED_STRATEGY.noStrategy),
+              })
+            }
+            disabled={isReadonly || !adminMode}
+          >
+            {shardStrategyConfig.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div id="shardStrategyHelpBlock" className="form-text"></div>
+      </div>
+      <div className="row mb-3">
+        <label htmlFor="shard_num" className="col-sm-2 col-form-label">
+          Shared num
+        </label>
+        <div className="col-sm-auto">
+          <input
+            id="shard_num"
+            type="number"
+            min={1}
+            step={1}
+            className="form-control"
+            value={toNumber(values.shard_num, 0) + 1}
+            onChange={(e) => dispatch({ shard_num: toNumber(e.target.value, 0) - 1 })}
+            disabled={isReadonly || !adminMode || values.shard_strategy !== 'fixed_shard'}
+          />
+        </div>
+        <div id="shardNumHelpBlock" className="form-text"></div>
       </div>
 
       <div>
