@@ -102,8 +102,9 @@ type (
 )
 
 var missingMetricMeta = format.MetricMetaValue{
-	GroupID:     format.BuiltinGroupIDMissing,
-	NamespaceID: format.BuiltinNamespaceIDMissing,
+	GroupID:         format.BuiltinGroupIDMissing,
+	NamespaceID:     format.BuiltinNamespaceIDMissing,
+	EffectiveWeight: 1,
 }
 
 func NewSampler(c SamplerConfig) sampler {
@@ -506,7 +507,7 @@ func partitionByMetric(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) samplerGroup {
 		return samplerGroup{
 			depth:         g.depth + 1,
-			weight:        items[0].getMetricWeight(),
+			weight:        items[0].metric.EffectiveWeight,
 			items:         items,
 			sumSize:       sumSize,
 			roundFactors:  items[0].metric.RoundSampleFactors,
@@ -576,7 +577,7 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 }
 
 func (h *sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
-	if h.Meta == nil {
+	if h.Meta == nil { // TODO - never work without access to meta info
 		return &missingMetricMeta
 	}
 	timeStart := time.Now()
@@ -588,14 +589,6 @@ func (h *sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 		return res
 	}
 	return &missingMetricMeta
-}
-
-func (p *SamplingMultiItemPair) getMetricWeight() int64 {
-	res := p.metric.EffectiveWeight * int64(p.Item.WeightMultiplier)
-	if res < 1 {
-		res = 1
-	}
-	return res
 }
 
 func (p *SamplingMultiItemPair) getGroupWeight(h *sampler) int64 {

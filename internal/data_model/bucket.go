@@ -69,7 +69,6 @@ type (
 		sampleFactorLog2 int
 		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
-		WeightMultiplier int // Temporary weight boost if all metric rows is written to single shard. Can be 1 or NumShards.
 	}
 
 	MetricsBucket struct {
@@ -233,7 +232,7 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, weightMul int, keyBytes []byte) (item *MultiItem, created bool) {
+func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
 	//if key.Timestamp == 0 { // TODO - remove check before merge to master
 	//	fmt.Printf("key: %v\n", *key)
 	//	panic("timestamp must be always set at this point of conveyor")
@@ -261,7 +260,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricM
 		b.keysBuffer = b.keysBuffer[:wasLen]
 		return
 	}
-	item = &MultiItem{Key: *key, SF: 1, MetricMeta: metricInfo, WeightMultiplier: weightMul}
+	item = &MultiItem{Key: *key, SF: 1, MetricMeta: metricInfo}
 	b.MultiItems[keyString] = item
 	return
 }
