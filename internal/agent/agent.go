@@ -683,10 +683,10 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	}
 	vKey.STags[9] = owner
 
-	vShardId, _, vWeightMul, vResolutionHash := s.shard(&vKey, &s.builtinMetricMetaHeartbeatVersion, nil)
+	vShardId, vWeightMul := s.shard(&vKey, &s.builtinMetricMetaHeartbeatVersion, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	vShard := s.Shards[vShardId]
-	vShard.AddValueCounterStringHost(&vKey, vResolutionHash, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
+	vShard.AddValueCounterStringHost(&vKey, 0, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion, vWeightMul)
 
 	aKey := data_model.Key{
 		Timestamp: nowUnix,
@@ -697,10 +697,10 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	aKey.Tags[3] = s.argsHash
 	aKey.Tags[9] = s.argsLen
 
-	aShardId, _, aWeightMul, aResolutionHash := s.shard(&aKey, &s.builtinMetricMetaHeartbeatArgs, nil)
+	aShardId, aWeightMul := s.shard(&aKey, &s.builtinMetricMetaHeartbeatArgs, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	aShard := s.Shards[aShardId]
-	aShard.AddValueCounterStringHost(&aKey, aResolutionHash, data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatArgs, aWeightMul)
+	aShard.AddValueCounterStringHost(&aKey, 0, data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatArgs, aWeightMul)
 }
 
 func (s *Agent) goFlushIteration(now time.Time) {
@@ -737,7 +737,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
-func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32, byMetric bool, weightMul int, legacyKeyHash uint64) {
+func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32, weightMul int) {
 	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, scratch)
 }
 
@@ -768,7 +768,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			h.InvalidString, 1)
 		return
 	}
-	shardId, byMetric, weightMul, resolutionHash := s.shard(&h.Key, h.MetricMeta, scratch)
+	shardId, weightMul := s.shard(&h.Key, h.MetricMeta, scratch)
 	if shardId >= uint32(len(s.Shards)) {
 		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
@@ -776,7 +776,8 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		return
 	}
 	shard := s.Shards[shardId]
-	if byMetric && h.MetricMeta.EffectiveResolution != 1 { // sharding by metric and need resolution hash
+	var resolutionHash uint64
+	if h.MetricMeta.EffectiveResolution != 1 { // sharding by metric and need resolution hash
 		var scr []byte
 		if scratch != nil {
 			scr = *scratch
@@ -884,10 +885,10 @@ func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue,
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	shardId, weightMul := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHost(&key, resolutionHash, count, hostTag, metricInfo, weightMul)
+	shard.AddCounterHost(&key, 0, count, hostTag, metricInfo, weightMul)
 }
 
 func (s *Agent) AddCounterStringBytes(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
@@ -912,10 +913,10 @@ func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.Metri
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	shardId, weightMul := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddCounterHostStringBytes(&key, resolutionHash, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo, weightMul)
+	shard.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo, weightMul)
 }
 
 // value should be not NaN.
@@ -943,10 +944,10 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	shardId, weightMul := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddValueCounterHost(&key, resolutionHash, value, counter, hostTag, metricInfo, weightMul)
+	shard.AddValueCounterHost(&key, 0, value, counter, hostTag, metricInfo, weightMul)
 }
 
 // value should be not NaN.
@@ -970,10 +971,10 @@ func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.Metri
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	shardId, weightMul := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.AddValueCounterStringHost(&key, resolutionHash, topValue, value, counter, hostTag, metricInfo, weightMul)
+	shard.AddValueCounterStringHost(&key, 0, topValue, value, counter, hostTag, metricInfo, weightMul)
 }
 
 func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
@@ -987,10 +988,10 @@ func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tag
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey
 		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardId, _, weightMul, resolutionHash := s.shard(&key, metricInfo, nil)
+	shardId, weightMul := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardId]
-	shard.MergeItemValue(&key, resolutionHash, item, metricInfo, weightMul)
+	shard.MergeItemValue(&key, 0, item, metricInfo, weightMul)
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
