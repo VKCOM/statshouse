@@ -205,6 +205,16 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValu
 	mv.AddCounterHost(s.rng, count, hostTag)
 }
 
+func (s *Shard) AddCounterHostSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64) {
+	if count <= 0 {
+		return
+	}
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	s.AddCounterHost(&key, 0, count, data_model.TagUnionBytes{}, metricInfo)
+}
+
 func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -214,6 +224,16 @@ func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count
 	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	item.Tail.AddCounterHost(s.rng, count, hostTag)
+}
+
+func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
+	if count <= 0 {
+		return
+	}
+	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
+	copy(key.Tags[:], tags)
+	// resolutionHash will be 0 for built-in metrics, we are OK with this
+	s.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, data_model.TagUnionBytes{}, metricInfo)
 }
 
 func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {

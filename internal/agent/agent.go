@@ -760,29 +760,29 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// Simply writing everything we know about metric ingestion errors would easily double how much metrics data we write
 	// So below is basically a compromise. All info is stored in MappingMetricHeader, if needed we can easily write more
 	// by changing code below
-	//var shardId uint32
-	//weightMul := 1
-	//if h.MetricMeta != nil {
-	//	ingestion statuses for unknown metric (metric not found) go to the first shard.
-	//	for known metric, go to shard together with metric
-	//shardId, weightMul = s.shard(&h.Key, h.MetricMeta, scratch)
-	//}
-	if h.IngestionStatus != 0 {
-		// h.InvalidString was validated before mapping attempt.
-		// In case of utf decoding error, it contains hex representation of original string
-		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
-			h.InvalidString, 1)
-		return
+	var shardId uint32
+	if h.MetricMeta != nil {
+		// ingestion statuses for unknown metric (metric not found) go to the first shard.
+		// for known metric with fixed shard, go to shard together with metric
+		// for known metric with hash_by_tags strategy, go to random shard together with metric
+		shardId = s.shard(&h.Key, h.MetricMeta, scratch)
 	}
-	shardId := s.shard(&h.Key, h.MetricMeta, scratch)
 	if shardId >= uint32(len(s.Shards)) {
-		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+		shard := s.Shards[0]
+		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
 			1)
 		return
 	}
 	shard := s.Shards[shardId]
+	if h.IngestionStatus != 0 {
+		// h.InvalidString was validated before mapping attempt.
+		// In case of utf decoding error, it contains hex representation of original string
+		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
+			h.InvalidString, 1)
+		return
+	}
 	var resolutionHash uint64
 	if h.MetricMeta.EffectiveResolution != 1 { // sharding by metric and need resolution hash
 		var scr []byte
@@ -799,36 +799,36 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 		s.TimingsApplyMetric.AddValueCounter(time.Since(start).Seconds(), 1)
 	}()
 	// now set ok status
-	s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+	shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 		[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusOKCached, h.IngestionTagKey},
 		1)
 	// now set all warnings
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
 			h.NotFoundTagName, 1)
 	}
 	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
 		// FoundDraftTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
-		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
 			h.FoundDraftTagName, 1)
 	}
 	if h.TagSetTwiceKey != 0 {
-		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
 			1)
 	}
 	if h.InvalidRawTagKey != 0 {
-		s.AddCounterStringBytes(0, format.BuiltinMetricMetaIngestionStatus,
+		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
 			h.InvalidRawValue, 1)
 	}
 	if h.LegacyCanonicalTagKey != 0 {
-		s.AddCounter(0, format.BuiltinMetricMetaIngestionStatus,
+		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
 			1)
 	}
