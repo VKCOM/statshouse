@@ -176,11 +176,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		SampleKeys:           config.SampleKeys,
 		Meta:                 s.agent.metricStorage,
 		Rand:                 rnd,
-		DiscardF: func(item *data_model.MultiItem, _ uint32) {
-			bucket.DeleteMultiItem(&item.Key)
-		},
-		KeepF:          func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
-		SamplerBuffers: buffers,
+		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
+		SamplerBuffers:       buffers,
 	})
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
@@ -208,9 +205,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 				accountMetric = item.Key.Tags[1]
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
-			if item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
-				sz = 3 * 4
-			}
 		}
 		sampler.Add(data_model.SamplingMultiItemPair{
 			Item:        item,
@@ -219,6 +213,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			MetricID:    accountMetric,
 		})
 	}
+	clear(bucket.MultiItemMap.MultiItems)
+
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
