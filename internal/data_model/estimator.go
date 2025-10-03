@@ -113,7 +113,7 @@ func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *Mu
 		// we cannot implement this, so we multiply by # of shards, expecting uniform load (which is wrong if skip shards option is given to agents)
 		// so avg() of this metric shows full estimate
 		key := AggKey((time/60)*60, format.BuiltinMetricIDAggHourCardinality, [format.MaxTags]int32{0, 0, 0, 0, k}, aggregatorHost, shardKey, replicaKey)
-		item, _ := miMap.GetOrCreateMultiItem(key, nil, 1, nil)
+		item, _ := miMap.GetOrCreateMultiItem(key, nil, nil)
 		item.Tail.AddValueCounterHost(rng, cardinality, 1, TagUnionBytes{I: aggregatorHost})
 	}
 }

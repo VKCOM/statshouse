@@ -6,19 +6,19 @@ import (
 )
 
 // legacyKeyHash will be 0 for all new sharding strategies
-func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, shardByMetricCount uint32, scratch *[]byte) (shardID uint32, weightMul int) {
+func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, shardByMetricCount uint32, scratch *[]byte) (shardID uint32) {
 	switch meta.ShardStrategy {
 	case format.ShardFixed:
-		return meta.ShardNum, numShards
+		return meta.ShardNum
 	case "", format.ShardByMetric:
 		shard := uint32(key.Metric) % shardByMetricCount
-		return shard, numShards
+		return shard
 	case format.ShardBuiltin:
 		tagId := meta.MetricTagID
 		// for builtin metrics we always use row values
 		metric := key.Tags[tagId]
 		shard := uint32(metric) % shardByMetricCount
-		return shard, numShards
+		return shard
 	default: // including format.ShardByTagsHsh
 		var scr []byte
 		if scratch != nil {
@@ -30,7 +30,7 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, sha
 			*scratch = scr
 		}
 		shard := shardByMappedTags(legacyKeyHash, numShards)
-		return shard, 1
+		return shard
 	}
 }
 

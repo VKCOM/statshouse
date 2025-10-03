@@ -4,7 +4,7 @@
     <working_directory value="$PROJECT_DIR$/localdebug" />
     <parameters value="-agent --hardware-metric-scrape-disable --cluster=statlogs2 --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356 --cache-dir=cache/agent" />
     <kind value="PACKAGE" />
-    <package value="github.com/vkcom/statshouse/cmd/statshouse" />
+    <package value="github.com/VKCOM/statshouse/cmd/statshouse" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/cmd/statshouse/statshouse.go" />
     <method v="2" />

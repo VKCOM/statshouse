@@ -42,16 +42,11 @@ type (
 	// Clients take reader lock, then check sending flag, if true, they were late
 	// If false, they take shard lock, then aggregate into shard
 
-	metricStat struct {
-		total       int
-		multipliers int
-	}
 	// When time tics, ticker takes writer lock, sets sending flag, then releases writer lock
 	// After that it can access shards and 100% know no one accesses them
 	aggregatorShard struct {
 		mu sync.Mutex // Protects items
 		data_model.MultiItemMap
-		metricStats map[int32]metricStat
 	}
 	aggregatorBucket struct {
 		time   uint32

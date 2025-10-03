@@ -472,19 +472,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		}
 		addSizes(bucketTs, is)
 	}
-	// aggregate per metric sharding data
-	// TODO: remove after we fully migrate to a new sharding
-	metricStats := make(map[int32]metricStat)
-	for _, b := range buckets {
-		for i := range b.shards {
-			for m := range b.shards[i].metricStats {
-				st := metricStats[m]
-				st.total += b.shards[i].metricStats[m].total
-				st.multipliers += b.shards[i].metricStats[m].multipliers
-				metricStats[m] = st
-			}
-		}
-	}
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		Meta:             a.metricStorage,
 		SampleNamespaces: configR.SampleNamespaces,
@@ -534,9 +521,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 					}
 				}
 				sz := item.RowBinarySizeEstimate()
-				if ms, ok := metricStats[accountMetric]; ok && ms.total > 0 {
-					item.WeightMultiplier = 1 + (a.config.ShardByMetricShards-1)*ms.multipliers/ms.total
-				}
 				sampler.Add(data_model.SamplingMultiItemPair{
 					Item:        item,
 					WhaleWeight: whaleWeight,

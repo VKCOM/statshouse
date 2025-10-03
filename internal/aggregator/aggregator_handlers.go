@@ -529,16 +529,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		keyBytes, hash = k.XXHash(keyBytes)
 		sID := int(hash % data_model.AggregationShardsPerSecond)
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
-		if s.metricStats == nil {
-			s.metricStats = make(map[int32]metricStat)
-		}
-		ms := s.metricStats[item.Metric]
-		ms.total++
-		if item.IsSetWeightMultiplier() {
-			ms.multipliers++
-		}
-		s.metricStats[item.Metric] = ms
-		mi, created := s.GetOrCreateMultiItem(&k, nil, 1, keyBytes)
+		mi, created := s.GetOrCreateMultiItem(&k, nil, keyBytes)
 		mi.MergeWithTLMultiItem(rng, data_model.AggregatorStringTopCapacity, &item, hostTag)
 		// we unlock shard to calculate hash and do other heavy operations not under lock
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
@@ -686,13 +677,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
-		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaAgentSamplingFactor, 1,
+		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaAgentSamplingFactor,
 			[]int32{0, v.Metric, format.AggShardTag: a.shardKey}, aera).
 			Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
 	}
 
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
-		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus, 1,
+		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{env, metricID, status}, aera).
 			Tail.AddCounterHost(rng, float64(value), hostTag)
 	}
@@ -775,7 +766,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	measurementLocks := 0
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	a.sh2.GetMultiItemAERA(&s.MultiItemMap, aggBucket.time, format.BuiltinMetricMetaAggKeepAlive, 1,
+	a.sh2.GetMultiItemAERA(&s.MultiItemMap, aggBucket.time, format.BuiltinMetricMetaAggKeepAlive,
 		[]int32{}, aera).Tail.
 		AddCounterHost(rng, 1, hostTag)
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
