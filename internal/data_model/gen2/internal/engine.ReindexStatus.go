@@ -187,7 +187,6 @@ func (item *EngineReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatus) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -214,18 +213,29 @@ func (item *EngineReindexStatus) WriteBoxed(w []byte) []byte {
 }
 
 func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_tag, _value, err := Json2ReadUnion("engine.ReindexStatus", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
-		if !legacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusNever" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusNever#7f6a89b9")
 		}
 		item.index = 0
 	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
-		if !legacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusRunningOld" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunningOld#ac530b46")
 		}
 		item.index = 1
@@ -234,11 +244,14 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueRunningOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueRunningOld.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
-		if !legacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusRunning" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunning#fa198b59")
 		}
 		item.index = 2
@@ -247,11 +260,14 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueRunning.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueRunning.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
-		if !legacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusFailed" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusFailed#10533721")
 		}
 		item.index = 3
@@ -260,11 +276,14 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueFailed.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueFailed.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
-		if !legacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusSignaled" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusSignaled#756e878b")
 		}
 		item.index = 4
@@ -273,11 +292,14 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueSignaled.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueSignaled.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
-		if !legacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusDoneOld" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDoneOld#afdbd505")
 		}
 		item.index = 5
@@ -286,11 +308,14 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueDoneOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueDoneOld.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
-		if !legacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
+		if tctx.IsTL2 && _tag != "engine.reindexStatusDone" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDone#0f67569a")
 		}
 		item.index = 6
@@ -299,7 +324,7 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueDone.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueDone.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	default:
@@ -309,75 +334,104 @@ func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.Json
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatus) WriteJSONGeneral(w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatus) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatus) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatus) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	switch item.index {
 	case 0:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusNever"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusNever"`...)
+			}
 		}
 		return append(w, '}')
 	case 1:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusRunningOld"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusRunningOld"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueRunningOld.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueRunningOld.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 2:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusRunning"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusRunning"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueRunning.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueRunning.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 3:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusFailed"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusFailed#10533721"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusFailed#10533721"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusFailed"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueFailed.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueFailed.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 4:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusSignaled"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusSignaled"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueSignaled.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueSignaled.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 5:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusDoneOld"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusDoneOld"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueDoneOld.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueDoneOld.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 6:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.reindexStatusDone"`...)
 		} else {
-			w = append(w, `{"type":"engine.reindexStatusDone#0f67569a"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.reindexStatusDone#0f67569a"`...)
+			} else {
+				w = append(w, `{"type":"engine.reindexStatusDone"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueDone.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueDone.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	default: // Impossible due to panic above
 		return w
@@ -425,7 +479,6 @@ func (item *EngineReindexStatusDone) Read(w []byte) (_ []byte, err error) {
 	return BoolReadBoxed(w, &item.NeedRestart)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusDone) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -443,7 +496,6 @@ func (item *EngineReindexStatusDone) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusDone) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -458,6 +510,11 @@ func (item EngineReindexStatusDone) String() string {
 }
 
 func (item *EngineReindexStatusDone) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusDone) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFinishTimePresented bool
 	var propNeedRestartPresented bool
 
@@ -506,14 +563,15 @@ func (item *EngineReindexStatusDone) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusDone) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusDone) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusDone) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusDone) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusDone) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFinishTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -564,7 +622,6 @@ func (item *EngineReindexStatusDoneOld) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.FinishTime)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusDoneOld) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -581,7 +638,6 @@ func (item *EngineReindexStatusDoneOld) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusDoneOld) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -596,6 +652,11 @@ func (item EngineReindexStatusDoneOld) String() string {
 }
 
 func (item *EngineReindexStatusDoneOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusDoneOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFinishTimePresented bool
 
 	if in != nil {
@@ -632,14 +693,15 @@ func (item *EngineReindexStatusDoneOld) ReadJSON(legacyTypeNames bool, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusDoneOld) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusDoneOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusDoneOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusDoneOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFinishTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -688,7 +750,6 @@ func (item *EngineReindexStatusFailed) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.FinishTime)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusFailed) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -706,7 +767,6 @@ func (item *EngineReindexStatusFailed) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusFailed) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -721,6 +781,11 @@ func (item EngineReindexStatusFailed) String() string {
 }
 
 func (item *EngineReindexStatusFailed) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusFailed) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propExitCodePresented bool
 	var propFinishTimePresented bool
 
@@ -769,14 +834,15 @@ func (item *EngineReindexStatusFailed) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusFailed) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusFailed) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusFailed) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusFailed) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusFailed) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexExitCode := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -822,7 +888,6 @@ func (item *EngineReindexStatusNever) Reset() {}
 
 func (item *EngineReindexStatusNever) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusNever) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -838,7 +903,6 @@ func (item *EngineReindexStatusNever) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusNever) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -853,6 +917,11 @@ func (item EngineReindexStatusNever) String() string {
 }
 
 func (item *EngineReindexStatusNever) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusNever) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -870,14 +939,15 @@ func (item *EngineReindexStatusNever) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusNever) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusNever) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusNever) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusNever) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusNever) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -919,7 +989,6 @@ func (item *EngineReindexStatusRunning) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.StartTime)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusRunning) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -937,7 +1006,6 @@ func (item *EngineReindexStatusRunning) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusRunning) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -952,6 +1020,11 @@ func (item EngineReindexStatusRunning) String() string {
 }
 
 func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusRunning) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPidsPresented bool
 	var propStartTimePresented bool
 
@@ -968,7 +1041,7 @@ func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basic
 				if propPidsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "pids")
 				}
-				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Pids); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Pids); err != nil {
 					return err
 				}
 				propPidsPresented = true
@@ -1000,19 +1073,20 @@ func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusRunning) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusRunning) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusRunning) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusRunning) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusRunning) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPids := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pids":`...)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Pids)
+	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.Pids)
 	if (len(item.Pids) != 0) == false {
 		w = w[:backupIndexPids]
 	}
@@ -1063,7 +1137,6 @@ func (item *EngineReindexStatusRunningOld) Read(w []byte) (_ []byte, err error) 
 	return basictl.IntRead(w, &item.StartTime)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusRunningOld) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1081,7 +1154,6 @@ func (item *EngineReindexStatusRunningOld) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusRunningOld) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1096,6 +1168,11 @@ func (item EngineReindexStatusRunningOld) String() string {
 }
 
 func (item *EngineReindexStatusRunningOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusRunningOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPidPresented bool
 	var propStartTimePresented bool
 
@@ -1144,14 +1221,15 @@ func (item *EngineReindexStatusRunningOld) ReadJSON(legacyTypeNames bool, in *ba
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusRunningOld) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusRunningOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusRunningOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusRunningOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPid := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1207,7 +1285,6 @@ func (item *EngineReindexStatusSignaled) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.FinishTime)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReindexStatusSignaled) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1225,7 +1302,6 @@ func (item *EngineReindexStatusSignaled) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReindexStatusSignaled) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1240,6 +1316,11 @@ func (item EngineReindexStatusSignaled) String() string {
 }
 
 func (item *EngineReindexStatusSignaled) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReindexStatusSignaled) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propSignalPresented bool
 	var propFinishTimePresented bool
 
@@ -1288,14 +1369,15 @@ func (item *EngineReindexStatusSignaled) ReadJSON(legacyTypeNames bool, in *basi
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusSignaled) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReindexStatusSignaled) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReindexStatusSignaled) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReindexStatusSignaled) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexSignal := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

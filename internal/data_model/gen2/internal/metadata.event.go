@@ -42,7 +42,7 @@ func BuiltinVectorMetadataEventWrite(w []byte, vec []MetadataEvent) []byte {
 	return w
 }
 
-func BuiltinVectorMetadataEventReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataEvent) error {
+func BuiltinVectorMetadataEventReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataEvent) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorMetadataEventReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorMetadataEventReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 func BuiltinVectorMetadataEventWriteJSON(w []byte, vec []MetadataEvent) []byte {
-	return BuiltinVectorMetadataEventWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorMetadataEventWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataEvent) []byte {
+func BuiltinVectorMetadataEventWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []MetadataEvent) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -111,7 +112,7 @@ func BuiltinVectorMetadataEventBytesWrite(w []byte, vec []MetadataEventBytes) []
 	return w
 }
 
-func BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataEventBytes) error {
+func BuiltinVectorMetadataEventBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataEventBytes) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -125,7 +126,7 @@ func BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames bool, in *basictl.J
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -140,13 +141,14 @@ func BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 func BuiltinVectorMetadataEventBytesWriteJSON(w []byte, vec []MetadataEventBytes) []byte {
-	return BuiltinVectorMetadataEventBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorMetadataEventBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataEventBytes) []byte {
+func BuiltinVectorMetadataEventBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []MetadataEventBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -175,7 +177,7 @@ func (item *MetadataEvent) ClearNamespaceId() {
 	item.NamespaceId = 0
 	item.FieldMask &^= 1 << 0
 }
-func (item MetadataEvent) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
+func (item *MetadataEvent) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
 
 func (item *MetadataEvent) SetMetadata(v string) {
 	item.Metadata = v
@@ -185,7 +187,7 @@ func (item *MetadataEvent) ClearMetadata() {
 	item.Metadata = ""
 	item.FieldMask &^= 1 << 1
 }
-func (item MetadataEvent) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
+func (item *MetadataEvent) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
 
 func (item *MetadataEvent) Reset() {
 	item.FieldMask = 0
@@ -242,7 +244,6 @@ func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataEvent) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -272,7 +273,6 @@ func (item *MetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -287,6 +287,11 @@ func (item MetadataEvent) String() string {
 }
 
 func (item *MetadataEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propIdPresented bool
 	var propNamePresented bool
@@ -437,14 +442,15 @@ func (item *MetadataEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer)
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -550,7 +556,7 @@ func (item *MetadataEventBytes) ClearNamespaceId() {
 	item.NamespaceId = 0
 	item.FieldMask &^= 1 << 0
 }
-func (item MetadataEventBytes) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
+func (item *MetadataEventBytes) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
 
 func (item *MetadataEventBytes) SetMetadata(v []byte) {
 	item.Metadata = v
@@ -560,7 +566,7 @@ func (item *MetadataEventBytes) ClearMetadata() {
 	item.Metadata = item.Metadata[:0]
 	item.FieldMask &^= 1 << 1
 }
-func (item MetadataEventBytes) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
+func (item *MetadataEventBytes) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
 
 func (item *MetadataEventBytes) Reset() {
 	item.FieldMask = 0
@@ -617,7 +623,6 @@ func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataEventBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -647,7 +652,6 @@ func (item *MetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataEventBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -662,6 +666,11 @@ func (item MetadataEventBytes) String() string {
 }
 
 func (item *MetadataEventBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataEventBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propIdPresented bool
 	var propNamePresented bool
@@ -812,14 +821,15 @@ func (item *MetadataEventBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataEventBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataEventBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataEventBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataEventBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataEventBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

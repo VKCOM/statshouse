@@ -32,7 +32,7 @@ func (item *StatshouseSendSourceBucket3Response) SetDiscard(v bool) {
 		item.FieldMask &^= 1 << 0
 	}
 }
-func (item StatshouseSendSourceBucket3Response) IsSetDiscard() bool {
+func (item *StatshouseSendSourceBucket3Response) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
@@ -52,7 +52,6 @@ func (item *StatshouseSendSourceBucket3Response) Read(w []byte) (_ []byte, err e
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseSendSourceBucket3Response) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -71,7 +70,6 @@ func (item *StatshouseSendSourceBucket3Response) ReadBoxed(w []byte) (_ []byte, 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseSendSourceBucket3Response) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -86,6 +84,11 @@ func (item StatshouseSendSourceBucket3Response) String() string {
 }
 
 func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var trueTypeDiscardPresented bool
 	var trueTypeDiscardValue bool
@@ -129,7 +132,7 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, 
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "mappings")
 				}
-				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
 				propMappingsPresented = true
@@ -159,20 +162,21 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSON(legacyTypeNames bool, 
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit item.FieldMask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseSendSourceBucket3Response) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseSendSourceBucket3Response) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseSendSourceBucket3Response) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -195,7 +199,7 @@ func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(newTypeNames bool,
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, item.Mappings)
 	if (len(item.Mappings) != 0) == false {
 		w = w[:backupIndexMappings]
 	}
@@ -232,7 +236,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) SetDiscard(v bool) {
 		item.FieldMask &^= 1 << 0
 	}
 }
-func (item StatshouseSendSourceBucket3ResponseBytes) IsSetDiscard() bool {
+func (item *StatshouseSendSourceBucket3ResponseBytes) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
@@ -252,7 +256,6 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) Read(w []byte) (_ []byte, 
 	return BuiltinVectorStatshouseMappingBytesRead(w, &item.Mappings)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseSendSourceBucket3ResponseBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -271,7 +274,6 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadBoxed(w []byte) (_ []b
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseSendSourceBucket3ResponseBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -286,6 +288,11 @@ func (item StatshouseSendSourceBucket3ResponseBytes) String() string {
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var trueTypeDiscardPresented bool
 	var trueTypeDiscardValue bool
@@ -329,7 +336,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames b
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "mappings")
 				}
-				if err := BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+				if err := BuiltinVectorStatshouseMappingBytesReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
 				propMappingsPresented = true
@@ -359,20 +366,21 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSON(legacyTypeNames b
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "fieldmask bit item.FieldMask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -395,7 +403,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(newTypeNames 
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	w = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames, short, w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(tctx, w, item.Mappings)
 	if (len(item.Mappings) != 0) == false {
 		w = w[:backupIndexMappings]
 	}

@@ -38,7 +38,6 @@ func (item *StatshouseApiGetQuery) Read(w []byte) (_ []byte, err error) {
 	return item.Query.Read(w)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiGetQuery) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -57,7 +56,6 @@ func (item *StatshouseApiGetQuery) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiGetQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -77,36 +75,29 @@ func (item *StatshouseApiGetQuery) WriteResult(w []byte, ret StatshouseApiGetQue
 }
 
 func (item *StatshouseApiGetQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetQueryResponse) error {
-	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseApiGetQuery) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+func (item *StatshouseApiGetQuery) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiGetQueryResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseApiGetQuery) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseApiGetQueryResponse
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -120,11 +111,52 @@ func (item *StatshouseApiGetQuery) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
+// Set field "name" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaName(value bool) {
+	if value {
+		item.FieldsMask |= 1 << 4
+	} else {
+		item.FieldsMask &^= 1 << 4
+	}
+}
+
+// Set field "color" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaColor(value bool) {
+	if value {
+		item.FieldsMask |= 1 << 5
+	} else {
+		item.FieldsMask &^= 1 << 5
+	}
+}
+
+// Set field "total" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaTotal(value bool) {
+	if value {
+		item.FieldsMask |= 1 << 6
+	} else {
+		item.FieldsMask &^= 1 << 6
+	}
+}
+
+// Set field "max_hosts" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaMaxHosts(value bool) {
+	if value {
+		item.FieldsMask |= 1 << 7
+	} else {
+		item.FieldsMask &^= 1 << 7
+	}
+}
+
 func (item StatshouseApiGetQuery) String() string {
 	return string(item.WriteJSON(nil))
 }
 
 func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propAccessTokenPresented bool
 	var propQueryPresented bool
@@ -158,7 +190,7 @@ func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propQueryPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "query")
 				}
-				if err := item.Query.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Query.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propQueryPresented = true
@@ -185,14 +217,15 @@ func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiGetQuery) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseApiGetQuery) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseApiGetQuery) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseApiGetQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseApiGetQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -210,7 +243,7 @@ func (item *StatshouseApiGetQuery) WriteJSONOpt(newTypeNames bool, short bool, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	w = item.Query.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Query.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

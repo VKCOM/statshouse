@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/agent"
@@ -728,8 +729,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			for _, b := range staleBuckets {
 				b.mu.Lock()
 				for hctx := range b.contributors {
-					var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
+					hctx.Response = basictl.NatWrite(hctx.Response, 0xb5286e24)
+					hctx.Response = basictl.StringWrite(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
 					hctx.SendHijackedResponse(nil)
 				}
 				for hctx, resp := range b.contributors3 {
@@ -811,8 +812,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		for i, b := range aggBuckets {
 			b.mu.Lock()
 			for hctx := range b.contributors {
-				var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-				hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
+				hctx.Response = basictl.NatWrite(hctx.Response, 0xb5286e24)
+				hctx.Response = basictl.StringWrite(hctx.Response, "Dummy historic result")
 				hctx.SendHijackedResponse(sendErr)
 			}
 			for hctx, resp := range b.contributors3 {

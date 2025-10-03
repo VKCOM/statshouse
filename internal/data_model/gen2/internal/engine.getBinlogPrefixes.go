@@ -23,7 +23,6 @@ func (item *EngineGetBinlogPrefixes) Reset() {}
 
 func (item *EngineGetBinlogPrefixes) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineGetBinlogPrefixes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -39,7 +38,6 @@ func (item *EngineGetBinlogPrefixes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineGetBinlogPrefixes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -63,36 +61,29 @@ func (item *EngineGetBinlogPrefixes) WriteResult(w []byte, ret []EngineBinlogPre
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]EngineBinlogPrefix) error {
-	if err := BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames, in, ret); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx, in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetBinlogPrefixes) WriteResultJSON(w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *EngineGetBinlogPrefixes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	w = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames, short, w, ret)
+func (item *EngineGetBinlogPrefixes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
+	w = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(tctx, w, ret)
 	return w, nil
 }
 
-func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []EngineBinlogPrefix
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret []EngineBinlogPrefix
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -111,6 +102,11 @@ func (item EngineGetBinlogPrefixes) String() string {
 }
 
 func (item *EngineGetBinlogPrefixes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineGetBinlogPrefixes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -128,14 +124,15 @@ func (item *EngineGetBinlogPrefixes) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineGetBinlogPrefixes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineGetBinlogPrefixes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineGetBinlogPrefixes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineGetBinlogPrefixes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineGetBinlogPrefixes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
