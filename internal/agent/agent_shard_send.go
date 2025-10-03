@@ -213,6 +213,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			MetricID:    accountMetric,
 		})
 	}
+	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
