@@ -268,6 +268,7 @@ const (
 	TagValueIDAutoConfigErrorSend      = 2
 	TagValueIDAutoConfigErrorKeepAlive = 3
 	TagValueIDAutoConfigWrongCluster   = 4
+	TagValueIDAutoConfigLongpoll       = 5
 
 	TagValueIDSizeCounter           = 1
 	TagValueIDSizeValue             = 2
