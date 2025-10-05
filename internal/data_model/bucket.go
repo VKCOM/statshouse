@@ -81,6 +81,24 @@ type (
 		MultiItems map[string]*MultiItem // string is unsafe and points to part of the keysBuffer
 		keysBuffer []byte
 	}
+
+	AgentEnvRouteArch struct {
+		AgentEnv  int32
+		Route     int32
+		BuildArch int32
+	}
+
+	// TODO - better place?
+	CreateMappingExtra struct {
+		Create    bool
+		Metric    string // set by old conveyor, TODO - remove?
+		MetricID  int32  // set by new conveyor
+		TagIDKey  int32
+		ClientEnv int32
+		Aera      AgentEnvRouteArch
+		HostName  string
+		Host      int32
+	}
 )
 
 func (t TagUnionBytes) Equal(rhs TagUnionBytes) bool {
@@ -102,6 +120,14 @@ func (k *Key) SetSTag(i int, s string) {
 
 func (k *Key) GetSTag(i int) string {
 	return k.STags[i]
+}
+
+func (k *Key) SetTagUnion(i int, tag TagUnion) {
+	if tag.I == 0 {
+		k.SetSTag(i, tag.S)
+	} else {
+		k.Tags[i] = tag.I
+	}
 }
 
 func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte) {

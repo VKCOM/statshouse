@@ -141,12 +141,6 @@ var (
 	apiCompatTagID = map[string]string{} // initialized in builtin.go due to dependency
 )
 
-type AgentEnvRouteArch struct {
-	AgentEnv  int32
-	Route     int32
-	BuildArch int32
-}
-
 type MetricKind int
 
 type MetaStorageInterface interface { // agent uses this to avoid circular dependencies
@@ -290,18 +284,6 @@ type MetricMetaValue struct {
 	BuiltinAllowedToReceive bool `json:"-"` // we allow only small subset of built-in metrics through agent receiver.
 	WithAgentEnvRouteArch   bool `json:"-"` // set for some built-in metrics to add common set of tags
 	WithAggregatorID        bool `json:"-"` // set for some built-in metrics to add common set of tags
-}
-
-// TODO - better place?
-type CreateMappingExtra struct {
-	Create    bool
-	Metric    string // set by old conveyor, TODO - remove?
-	MetricID  int32  // set by new conveyor
-	TagIDKey  int32
-	ClientEnv int32
-	Aera      AgentEnvRouteArch
-	HostName  string
-	Host      int32
 }
 
 func (m MetricMetaValue) MarshalBinary() ([]byte, error) { return easyjson.Marshal(m) }

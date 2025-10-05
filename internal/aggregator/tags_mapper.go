@@ -41,7 +41,7 @@ type TagsMapper struct {
 func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, dc pcache.DiskCache, loader *metajournal.MetricMetaLoader, suffix string) *TagsMapper {
 	ms := &TagsMapper{agg: agg, sh2: sh2, metricStorage: metricStorage, clientList: map[*rpc.HandlerContext]*bool{}}
 	ms.tagValue = mapping.NewTagsCache(func(ctx context.Context, askedKey string, extra2 interface{}) (pcache.Value, time.Duration, error) {
-		extra, _ := extra2.(format.CreateMappingExtra)
+		extra, _ := extra2.(data_model.CreateMappingExtra)
 		metricName := extra.Metric
 		metricID := int32(0)
 		if bm := format.BuiltinMetricByName[extra.Metric]; bm != nil {
@@ -81,12 +81,12 @@ func (ms *TagsMapper) getTagOr0LoadLater(now time.Time, str []byte, metricName s
 	}
 	r := ms.tagValue.GetCached(now, str)
 	if !r.Found() {
-		extra := format.CreateMappingExtra{
+		extra := data_model.CreateMappingExtra{
 			Create:    true,
 			Metric:    metricName,
 			TagIDKey:  format.TagIDShift, // tag for key 0
 			ClientEnv: 0,
-			Aera: format.AgentEnvRouteArch{
+			Aera: data_model.AgentEnvRouteArch{
 				AgentEnv:  format.TagValueIDProduction,
 				Route:     format.TagValueIDRouteDirect,
 				BuildArch: ms.agg.buildArchTag,
@@ -139,7 +139,7 @@ func (ms *TagsMapper) mapOrFlood(now time.Time, value []byte, metricName string,
 }
 
 // safe only to access fields mask in args, other fields point to reused memory
-func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, aera format.AgentEnvRouteArch, status int32) (err error) {
+func (ms *TagsMapper) sendCreateTagMappingResult(hctx *rpc.HandlerContext, args tlstatshouse.GetTagMapping2Bytes, r pcache.Result, aera data_model.AgentEnvRouteArch, status int32) (err error) {
 	if r.Err != nil {
 		status = format.TagValueIDAggMappingStatusErrUncached
 	}
@@ -162,7 +162,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	}
 	now := time.Now()
 	host := ms.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
-	aera := format.AgentEnvRouteArch{
+	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  ms.agg.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
 		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
@@ -173,7 +173,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	}
 	r := ms.tagValue.GetCached(now, args.Key)
 	if !r.Found() {
-		extra := format.CreateMappingExtra{
+		extra := data_model.CreateMappingExtra{
 			Create:    args.IsSetCreate(),
 			Metric:    string(args.Metric),
 			TagIDKey:  args.TagIdKey,

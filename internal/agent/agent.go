@@ -869,14 +869,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 
 // count should be > 0 and not NaN
 func (s *Agent) AddCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64) {
-	s.AddCounterHostAERA(t, metricInfo, tags, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	s.AddCounterHostAERA(t, metricInfo, tags, count, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
 }
 
 func (s *Agent) AddCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes) {
-	s.AddCounterHostAERA(t, metricInfo, tags, count, hostTag, format.AgentEnvRouteArch{})
+	s.AddCounterHostAERA(t, metricInfo, tags, count, hostTag, data_model.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
 	if count <= 0 {
 		return
 	}
@@ -899,12 +899,12 @@ func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue,
 }
 
 func (s *Agent) AddCounterStringBytes(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
-	s.AddCounterHostStringBytesAERA(t, metricInfo, tags, str, count, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	s.AddCounterHostStringBytesAERA(t, metricInfo, tags, str, count, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
 }
 
 // str should be reasonably short. Empty string will be undistinguishable from "the rest"
 // count should be > 0 and not NaN
-func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
 	if count <= 0 {
 		return
 	}
@@ -928,14 +928,14 @@ func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.Metri
 
 // value should be not NaN.
 func (s *Agent) AddValueCounter(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64) {
-	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
 }
 
 func (s *Agent) AddValueCounterHost(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes) {
-	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, hostTag, format.AgentEnvRouteArch{})
+	s.AddValueCounterHostAERA(t, metricInfo, tags, value, counter, hostTag, data_model.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, value float64, counter float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
 	if counter <= 0 {
 		return
 	}
@@ -959,10 +959,10 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 
 // value should be not NaN.
 func (s *Agent) AddValueCounterString(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str string, value float64, counter float64) {
-	s.AddValueCounterStringHostAERA(t, metricInfo, tags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, format.AgentEnvRouteArch{})
+	s.AddValueCounterStringHostAERA(t, metricInfo, tags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera format.AgentEnvRouteArch) {
+func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
 	if counter <= 0 {
 		return
 	}
@@ -1018,7 +1018,7 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 }
 
 // public for aggregator
-func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, tags []int32, aera format.AgentEnvRouteArch) *data_model.MultiItem {
+func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, tags []int32, aera data_model.AgentEnvRouteArch) *data_model.MultiItem {
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
 	copy(key.Tags[:], tags)
 	if metricInfo.WithAggregatorID {
