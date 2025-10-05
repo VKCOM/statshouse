@@ -143,7 +143,7 @@ func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 // aggregator is also run in this method
-func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
+func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
 	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	if len(localAddresses) != 1 {
@@ -205,7 +205,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	// we do not try several times, because admin must quickly learn aggregator exited
 	// if we try forever, admin might think aggregator is running, while it is not
 	// but for local run, we want to run in wrong order, aggregator first, metadata second
-	tagMappingBootstrapResponse, err := loadBoostrap(dc, metadataClient)
+	tagMappingBootstrapResponse, err := loadBoostrap(config.Cluster, cacheDir, metadataClient)
 	if err != nil {
 		if !withoutCluster {
 			// in prod, running without bootstrap is dangerous and can leave large gap in all metrics
@@ -426,21 +426,19 @@ func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.
 	return data_model.TagUnionBytes{I: keyValue}, nil
 }
 
-func loadBoostrap(dc pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
+func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
 	args := tlmetadata.GetTagMappingBootstrap{}
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 	if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
-		if dc == nil {
-			return nil, fmt.Errorf("bootstrap data failed to load, and no disk cache configured: %w", err)
+		cacheData, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to open boostrap cache: %w", err)
 		}
-		cacheData, _, _, errDiskCache, ok := dc.Get(data_model.BootstrapDiskNamespace, "")
-		if errDiskCache != nil {
-			return nil, fmt.Errorf("bootstrap data failed to load with error %v, and failed to get from disk cache: %w", err, errDiskCache)
-		}
-		if !ok {
-			return nil, fmt.Errorf("bootstrap data failed to load, and not in disk cache: %w", err)
+		_, err = args.ReadResult(cacheData, &ret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse boostrap cache: %w", err)
 		}
 		log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
 		return cacheData, nil // from cache
@@ -448,10 +446,10 @@ func loadBoostrap(dc pcache.DiskCache, client *tlmetadata.Client) ([]byte, error
 	cacheData, err := args.WriteResult(nil, ret)
 	if err != nil {
 		log.Printf("failed to serialize bootstrap of %d mappings", len(ret.Mappings))
-	} else if dc != nil {
-		if err := dc.Set(data_model.BootstrapDiskNamespace, "", cacheData, time.Now(), 0); err != nil {
-			log.Printf("failed to store bootstrap of %d mappings of size %d in disk cache", len(ret.Mappings), len(cacheData))
-		}
+	}
+	err = os.WriteFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)), cacheData, 0666)
+	if err != nil {
+		log.Printf("failed to store bootstrap of %d mappings of size %d in disk cache with err: %v", len(ret.Mappings), len(cacheData), err)
 	}
 	log.Printf("Loaded bootstrap of %d mappings of size %d", len(ret.Mappings), len(cacheData))
 	return cacheData, nil
