@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/agent"
-	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/constants"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -66,7 +65,6 @@ type ConfigIngressProxy struct {
 type ingressProxy struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	uniqueStartTime atomic.Uint32
-	hostnameID      atomic.Int32
 
 	ctx        context.Context
 	agent      *agent.Agent
@@ -167,7 +165,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 					vmSize = float64(st.Size)
 					vmRSS = float64(st.Res)
 				}
-				tags := []int32{1: p.hostnameID.Load()}
+				tags := []int32{} // aggregator fills host tag
 				s.AddValueCounter(nowUnix, format.BuiltinMetricMetaProxyVmSize,
 					tags, 1, vmSize)
 				// __igp_vm_rss
@@ -201,11 +199,6 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 	p.uniqueStartTime.Store(p.startTime)
 	rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.clientOpts)
 	rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups())(&p.serverOpts)
-	// resolve hostname ID
-	p.hostnameID.Store(format.TagValueIDMappingFlood)
-	go func() {
-		p.hostnameID.Store(p.getHostnameID(aesPwd))
-	}()
 	// listen on IPv4
 	tcp4 := p.newProxyServer("tcp4")
 	tcp6 := p.newProxyServer("tcp6")
@@ -271,39 +264,6 @@ func (p *ingressProxy) rareLog(format string, args ...any) {
 		p.rareLogLast = now
 		log.Printf(format, args...)
 	}
-}
-
-func (p *ingressProxy) getHostnameID(aesPwd string) int32 {
-	if len(p.agent.GetConfigResult.Addresses) == 0 {
-		return format.TagValueIDMappingFlood
-	}
-	client := rpc.NewClient(
-		rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
-		rpc.ClientWithCryptoKey(aesPwd),
-		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
-		rpc.ClientWithLogf(log.Printf))
-	defer client.Close()
-	agg := tlstatshouse.Client{
-		Client:  client,
-		Network: "tcp",
-		Address: p.agent.GetConfigResult.Addresses[0],
-	}
-	args := tlstatshouse.GetTagMapping2{
-		Metric: format.BuiltinMetricMetaBudgetAggregatorHost.Name,
-		Key:    srvfunc.HostnameForStatshouse(),
-		Header: tlstatshouse.CommonProxyHeader{
-			ShardReplicaTotal: int32(len(p.agent.GetConfigResult.Addresses)),
-			HostName:          srvfunc.HostnameForStatshouse(),
-			ComponentTag:      format.TagValueIDComponentIngressProxy,
-		},
-	}
-	args.SetCreate(true)
-	args.Header.SetIngressProxy(true, &args.FieldsMask)
-	res := tlstatshouse.GetTagMappingResult{}
-	if err := agg.GetTagMapping2(p.ctx, args, nil, &res); err != nil {
-		return format.TagValueIDMappingFlood
-	}
-	return res.Value
 }
 
 func (p *proxyServer) listen(addr string, externalAddr []string, version string) error {
@@ -594,7 +554,6 @@ func (p *proxyConn) reportRequestSize(req *proxyRequest) {
 			1: format.TagValueIDComponentIngressProxy,
 			2: int32(req.tag()),
 			6: p.clientCryptoKeyID,
-			7: p.hostnameID.Load(),
 			8: p.clientProtocolVersion,
 		}, float64(req.size), 1)
 }
@@ -717,18 +676,11 @@ func (req *proxyRequest) forwardAndFlush(p *proxyConn) error {
 }
 
 func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, status int32) {
-	p.agent.AddCounterHostAERA(
+	p.agent.AddCounter(
 		uint32(time.Now().Unix()),
 		format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, status},
-		1, // count
-		data_model.TagUnionBytes{I: p.hostnameID.Load()},
-		format.AgentEnvRouteArch{
-			AgentEnv:  format.TagValueIDProduction,
-			Route:     format.TagValueIDRouteIngressProxy,
-			BuildArch: format.FilterBuildArch(h.BuildArch),
-		})
-
+		1)
 }
 
 func (req *proxyRequest) setIngressProxy(p *proxyConn) {

@@ -107,7 +107,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	nowUnix := uint32(now.Unix())
 	hostId := a.tagsMapper.mapOrFlood(now, []byte(args.Header.HostName), format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
-	aera := format.AgentEnvRouteArch{
+	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
 		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
@@ -198,7 +198,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	hostId := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
 	ownerTagId := a.tagsMapper.mapOrFlood(now, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.Name, false)
-	aera := format.AgentEnvRouteArch{
+	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
 		BuildArch: format.FilterBuildArch(args.Header.BuildArch),
@@ -348,7 +348,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	measurementStringTops := 0
 	measurementIntTops := 0
 	measurementOutdatedRows := 0
-	unknownTags := map[string]format.CreateMappingExtra{}
+	unknownTags := map[string]data_model.CreateMappingExtra{}
 	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
 	mappingHits := 0
 	mappingMisses := 0
@@ -371,6 +371,41 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	clampedTimestampsMetrics := map[clampedKey]float32{}
 	oldMetricBuckets := map[int32][3]int{}
+
+	// If agents send lots of strings, this loop is non-trivial amount of work.
+	// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
+	mapStringTag := func(i int, str []byte, metricID int32, clientEnv int32) int32 {
+		if len(str) == 0 {
+			return 0
+		}
+		if mapped, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
+			mappingHits++
+			if len(sendMappings) < configR.MaxSendTagsToAgent {
+				sendMappings[string(str)] = mapped
+			}
+			return mapped
+		}
+		mappingMisses++
+		if len(unknownTags) < configR.MaxUnknownTagsInBucket {
+			tagId := int32(i + format.TagIDShift)
+			if _, ok := unknownTags[string(str)]; !ok {
+				unknownTags[string(str)] = data_model.CreateMappingExtra{
+					Create:    true, // passed as is to meta loader
+					MetricID:  metricID,
+					TagIDKey:  tagId,
+					ClientEnv: clientEnv,
+					Aera:      aera,
+					HostName:  hostName,
+					Host:      hostId,
+				}
+			}
+		}
+		return 0
+	}
+
+	// create mappings for host/owner and return mapping to agent
+	_ = mapStringTag(format.HostTagIndex, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.MetricID, 0)
+	_ = mapStringTag(format.HostTagIndex, args.Header.Owner, format.BuiltinMetricMetaBudgetOwner.MetricID, 0)
 
 	var resp tlstatshouse.SendSourceBucket3Response
 	// we will allocate if key won't fit into this buffer, but it is quite unlikely
@@ -408,6 +443,17 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
+		for i, str := range item.Skeys {
+			// in case agents sends more then 16 tags
+			if i >= format.MaxTags {
+				break
+			}
+			if m := mapStringTag(i, str, k.Metric, k.Tags[0]); m > 0 {
+				k.Tags[i] = m
+			} else {
+				k.SetSTag(i, string(str))
+			}
+		}
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
 			// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
 			// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
@@ -438,87 +484,53 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					k.Tags[9] = ownerTagId
 				}
 			case format.BuiltinMetricIDRPCRequests:
-				k.Tags[7] = hostId // agent cannot easily map its own host for now
-			}
-		}
-		// If agents send lots of strings, this loop is non-trivial amount of work.
-		// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
-		mapStringTag := func(i int, str []byte) int32 {
-			if len(str) == 0 {
-				return 0
-			}
-			if mapped, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
-				mappingHits++
-				if len(sendMappings) < configR.MaxSendTagsToAgent {
-					sendMappings[string(str)] = mapped
+				if k.Tags[7] == 0 {
+					k.Tags[7] = hostId // agent cannot easily map its own host for now
 				}
-				return mapped
-			}
-			mappingMisses++
-			if len(unknownTags) < configR.MaxUnknownTagsInBucket {
-				tagId := int32(i + format.TagIDShift)
-				if _, ok := unknownTags[string(str)]; !ok {
-					unknownTags[string(str)] = format.CreateMappingExtra{
-						Create:    true, // passed as is to meta loader
-						MetricID:  k.Metric,
-						TagIDKey:  tagId,
-						ClientEnv: k.Tags[0],
-						Aera:      aera,
-						HostName:  hostName,
-						Host:      hostId,
-					}
-				}
-			}
-			return 0
-		}
-		for i, str := range item.Skeys {
-			// in case agents sends more then 16 tags
-			if i >= format.MaxTags {
-				break
-			}
-			if m := mapStringTag(i, str); m > 0 {
-				k.Tags[i] = m
-			} else {
-				k.SetSTag(i, string(str))
+			case format.BuiltinMetricIDProxyVmSize, format.BuiltinMetricIDProxyVmRSS,
+				format.BuiltinMetricIDProxyHeapAlloc, format.BuiltinMetricIDProxyHeapSys,
+				format.BuiltinMetricIDProxyHeapIdle, format.BuiltinMetricIDProxyHeapInuse:
+				// Do not check for 0, Old ingress proxies may send "flood limit" as a value here
+				k.Tags[1] = hostId // agent cannot easily map its own host for now
 			}
 		}
 		if item.Tail.IsSetMaxHostStag(item.FieldsMask) {
-			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxHostStag); m > 0 {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMaxCounterHostStag(item.FieldsMask) {
-			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag); m > 0 {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxCounterHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxCounterHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMinHostStag(item.FieldsMask) {
-			if m := mapStringTag(format.HostTagIndex, item.Tail.MinHostStag); m > 0 {
+			if m := mapStringTag(format.HostTagIndex, item.Tail.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMinHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
 			}
 		}
 		if configR.MapStringTop {
 			for i, tb := range item.Top {
-				if m := mapStringTag(i, tb.Stag); m > 0 {
+				if m := mapStringTag(i, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
 					item.Top[i].Tag = m
 				}
 				if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag); m > 0 {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 						tb.Value.SetMaxHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMaxHostStag(&item.FieldsMask)
 					}
 				}
 				if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag); m > 0 {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 						tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
 					}
 				}
 				if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag); m > 0 {
+					if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 						tb.Value.SetMinHostTag(m, &item.FieldsMask)
 						tb.Value.ClearMinHostStag(&item.FieldsMask)
 					}
@@ -723,7 +735,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	hostId := a.tagsMapper.mapOrFlood(now, args.Header.HostName, format.BuiltinMetricMetaBudgetHost.Name, false)
 	hostTag := data_model.TagUnionBytes{I: hostId}
-	aera := format.AgentEnvRouteArch{
+	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
 		BuildArch: format.FilterBuildArch(args.Header.BuildArch),

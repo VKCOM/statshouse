@@ -2248,6 +2248,8 @@ var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	}},
 }
 
+const BuiltinMetricIDProxyVmSize = -114
+
 var BuiltinMetricMetaProxyVmSize = &MetricMetaValue{
 	Name:                    "__igp_vm_size",
 	Kind:                    MetricKindValue,
@@ -2255,12 +2257,14 @@ var BuiltinMetricMetaProxyVmSize = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
+
+const BuiltinMetricIDProxyVmRSS = -115
 
 var BuiltinMetricMetaProxyVmRSS = &MetricMetaValue{
 	Name:                    "__igp_vm_rss",
@@ -2269,12 +2273,14 @@ var BuiltinMetricMetaProxyVmRSS = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
+
+const BuiltinMetricIDProxyHeapAlloc = -116
 
 var BuiltinMetricMetaProxyHeapAlloc = &MetricMetaValue{
 	Name:                    "__igp_heap_alloc",
@@ -2283,12 +2289,14 @@ var BuiltinMetricMetaProxyHeapAlloc = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
+
+const BuiltinMetricIDProxyHeapSys = -117
 
 var BuiltinMetricMetaProxyHeapSys = &MetricMetaValue{
 	Name:                    "__igp_heap_sys",
@@ -2297,12 +2305,14 @@ var BuiltinMetricMetaProxyHeapSys = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
+
+const BuiltinMetricIDProxyHeapIdle = -118
 
 var BuiltinMetricMetaProxyHeapIdle = &MetricMetaValue{
 	Name:                    "__igp_heap_idle",
@@ -2311,12 +2321,14 @@ var BuiltinMetricMetaProxyHeapIdle = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
 	}},
 }
+
+const BuiltinMetricIDProxyHeapInuse = -119
 
 var BuiltinMetricMetaProxyHeapInuse = &MetricMetaValue{
 	Name:                    "__igp_heap_inuse",
@@ -2325,7 +2337,7 @@ var BuiltinMetricMetaProxyHeapInuse = &MetricMetaValue{
 	Resolution:              60,
 	NoSampleAgent:           true, // low cardinality
 	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
+	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "host",
