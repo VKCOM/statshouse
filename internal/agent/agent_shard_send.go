@@ -213,7 +213,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			MetricID:    accountMetric,
 		})
 	}
-	clear(bucket.MultiItemMap.MultiItems)
+	bucket.MultiItemMap.Reset()
 
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
