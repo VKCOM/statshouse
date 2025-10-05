@@ -54,7 +54,7 @@ type (
 
 		contributors       map[*rpc.HandlerContext]struct{}                               // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
 		contributors3      map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response // Protected by mu, can be removed if client disconnects.
-		historicHosts      [2][2]map[int32]int64                                          // [role][route] Protected by mu
+		historicHosts      [2][2]map[data_model.TagUnion]int64                            // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue                                     // [role][route] Not recorded for keep-alive, protected by aggregator mutex
 
 		usedMetrics map[int32]struct{}
@@ -71,8 +71,6 @@ type (
 		bucketsToSend     chan *aggregatorBucket
 		mu                sync.Mutex
 		server            *rpc.Server
-		hostName          []byte
-		aggregatorHost    int32
 		aggregatorHostTag data_model.TagUnionBytes
 		withoutCluster    bool
 		shardKey          int32 // never changes after start, can be used without lock
@@ -96,7 +94,7 @@ type (
 
 		// we potentially have 100+ buckets with 20000+ contributors each,
 		// so we have to maintain a sum of waiting hosts if we want accurate and fast metric.
-		historicHosts [2][2]map[int32]int64 // [role][route] Protected by mu
+		historicHosts [2][2]map[data_model.TagUnion]int64 // [role][route] Protected by mu
 
 		recentSenders   int
 		historicSenders int
@@ -112,7 +110,6 @@ type (
 		journalFast    *metajournal.JournalFast
 		journalCompact *metajournal.JournalFast
 		testConnection *TestConnection
-		tagsMapper     *TagsMapper
 		tagsMapper2    *tagsMapper2
 		mappingsCache  *pcache.MappingsCache
 
@@ -221,15 +218,16 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 
 	cancelInsertCtx, cancelInsertFunc := context.WithCancel(context.Background())
 
+	hostName = string(format.ForceValidStringValue(hostName)) // worse alternative is do not run at all
+
 	a := &Aggregator{
 		cancelInsertsCtx:            cancelInsertCtx,
 		cancelInsertsFunc:           cancelInsertFunc,
 		bucketsToSend:               make(chan *aggregatorBucket),
 		historicBuckets:             map[uint32]*aggregatorBucket{},
-		historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
+		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
 		configR:                     config.ConfigAggregatorRemote,
-		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
 		replicaKey:                  replicaKey,
@@ -245,9 +243,6 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 			return a.handleGetConfig3(ctx, hctx)
 		},
 		RawGetMetrics3: a.handleGetMetrics3,
-		RawGetTagMapping2: func(ctx context.Context, hctx *rpc.HandlerContext) error {
-			return a.tagsMapper.handleCreateTagMapping(ctx, hctx)
-		},
 		RawGetTagMappingBootstrap: func(_ context.Context, hctx *rpc.HandlerContext) error {
 			hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
 			return nil
@@ -269,7 +264,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 			}
 		},
 	}
-	if len(a.hostName) == 0 {
+	if len(hostName) == 0 {
 		return nil, fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
 	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
@@ -333,11 +328,12 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 	a.journalCompact.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 
 	a.testConnection = MakeTestConnection()
-	a.tagsMapper = NewTagsMapper(a, a.sh2, a.metricStorage, dc, metricMetaLoader, a.config.Cluster)
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
 
-	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricMetaBudgetAggregatorHost.Name)
-	a.aggregatorHostTag = data_model.TagUnionBytes{I: a.aggregatorHost}
+	a.aggregatorHostTag, err = loadAggregatorTag(mappingsCache, metricMetaLoader, hostName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map aggregator host tag: %v", err)
+	}
 
 	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
 
@@ -362,7 +358,7 @@ func MakeAggregator(dc pcache.DiskCache, fj *os.File, fjCompact *os.File, mappin
 		_ = a.server.ListenAndServe("tcp4", listenAddr)
 	}()
 
-	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
+	sh2.Run(a.aggregatorHostTag.I, a.shardKey, a.replicaKey)
 
 	mappingsCache.StartPeriodicSaving()
 
@@ -406,6 +402,28 @@ func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
 	if err := a.server.CloseWait(ctx); err != nil {
 		log.Printf("WaitRPCServer timeout after %v: %v", timeout, err)
 	}
+}
+
+// We always return mapped tag for historic reasons. If we cannot map, aggregator will not run.
+func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.MetricMetaLoader, hostName string) (data_model.TagUnionBytes, error) {
+	nowUnix := uint32(time.Now().Unix())
+	if mapped, ok := mappingsCache.GetValue(nowUnix, hostName); ok {
+		return data_model.TagUnionBytes{I: mapped}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
+	defer cancel()
+	keyValue, _, _, err := loader.GetTagMapping(ctx, string(hostName), format.BuiltinMetricMetaBudgetAggregatorHost.Name, true)
+	if err != nil {
+		return data_model.TagUnionBytes{}, err
+	}
+	if keyValue <= 0 {
+		return data_model.TagUnionBytes{}, fmt.Errorf("negative (%d) aggregator host mapping loaded (flood limit?)", keyValue)
+	}
+	mappingsCache.AddValues(nowUnix, []pcache.MappingPair{{
+		Str:   hostName,
+		Value: keyValue,
+	}})
+	return data_model.TagUnionBytes{I: keyValue}, nil
 }
 
 func loadBoostrap(dc pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
@@ -505,7 +523,8 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	for i, cc := range a.historicHosts {
 		for j, bb := range cc {
 			for h := range bb { // random sample host every second is very good for max_host combobox under plot
-				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, data_model.TagUnionBytes{I: h})
+				hb := data_model.TagUnionBytes{S: []byte(h.S), I: h.I} // few allocations here, because most hosts are mapped
+				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, hb)
 				break
 			}
 		}
@@ -652,7 +671,7 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr, khUser, khPassword 
 	return 0, 0, nil, fmt.Errorf("HTTP get from clickhouse %q for cluster %q returned body with no local replicas - %q", khAddr, cluster, string(body))
 }
 
-func (a *Aggregator) updateHistoricHostLocked(my map[int32]int64, del map[int32]int64) {
+func (a *Aggregator) updateHistoricHostLocked(my map[data_model.TagUnion]int64, del map[data_model.TagUnion]int64) {
 	for k, v := range del {
 		value := my[k] - v
 		if value == 0 {
@@ -663,7 +682,7 @@ func (a *Aggregator) updateHistoricHostLocked(my map[int32]int64, del map[int32]
 	}
 }
 
-func (a *Aggregator) updateHistoricHostsLocked(my [2][2]map[int32]int64, del [2][2]map[int32]int64) {
+func (a *Aggregator) updateHistoricHostsLocked(my [2][2]map[data_model.TagUnion]int64, del [2][2]map[data_model.TagUnion]int64) {
 	for i, m1 := range my {
 		for j, m2 := range m1 {
 			a.updateHistoricHostLocked(m2, del[i][j])
@@ -700,7 +719,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Unlock()
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
-		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -751,7 +770,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
-			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
+			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -923,7 +942,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
-			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
+			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -933,7 +952,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			contributors:                map[*rpc.HandlerContext]struct{}{},
 			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
 			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
-			historicHosts:               [2][2]map[int32]int64{{map[int32]int64{}, map[int32]int64{}}, {map[int32]int64{}, map[int32]int64{}}},
+			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
