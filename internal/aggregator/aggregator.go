@@ -568,27 +568,27 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 }
 
 func (a *Aggregator) checkShardConfigurationTotal(shardReplicaTotal int32) error {
-	if int(shardReplicaTotal) == len(a.addresses) {
+	if shardReplicaTotal == int32(len(a.addresses)) {
 		return nil
 	}
-	if a.config.PreviousNumShards != 0 && int(shardReplicaTotal) == a.config.PreviousNumShards {
+	if a.config.PreviousNumShards != 0 && shardReplicaTotal == int32(a.config.PreviousNumShards) {
 		return nil
 	}
 	return fmt.Errorf("statshouse misconfiguration! shard*replicas total sent by source (%d) does not match shard*replicas total of aggregator (%d) or --previous-shards (%d)", shardReplicaTotal, len(a.addresses), a.config.PreviousNumShards)
 }
 
-func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTotal int32) error {
+func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTotal int32) (int32, error) {
+	ourShardReplica := (a.shardKey-1)*3 + (a.replicaKey - 1) // shardKey is 1 for shard 0
 	if err := a.checkShardConfigurationTotal(shardReplicaTotal); err != nil {
-		return err
+		return ourShardReplica, err
 	}
 	if a.withoutCluster { // No checks for local testing, when config.Replica == ""
-		return nil
+		return ourShardReplica, nil
 	}
-	ourShardReplica := int((a.shardKey-1)*3 + (a.replicaKey - 1)) // shardKey is 1 for shard 0
-	if int(shardReplica) != ourShardReplica {
-		return fmt.Errorf("statshouse misconfiguration! shard*replica sent by source (%d) does not match shard*replica expected by aggregator (%d) with shard:replica %d:%d", shardReplica, ourShardReplica, a.shardKey, a.replicaKey)
+	if shardReplica != ourShardReplica {
+		return ourShardReplica, fmt.Errorf("statshouse misconfiguration! shard*replica sent by source (%d) does not match shard*replica expected by aggregator (%d) with shard:replica %d:%d", shardReplica, ourShardReplica, a.shardKey, a.replicaKey)
 	}
-	return nil
+	return ourShardReplica, nil
 }
 
 func selectShardReplica(khAddr, khUser, khPassword string, cluster string, listenPort string) (shardKey int32, replicaKey int32, addresses []string, err error) {

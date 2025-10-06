@@ -721,12 +721,19 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			TagValueIDAutoConfigErrorSend:      "err_send",
 			TagValueIDAutoConfigErrorKeepAlive: "err_keep_alive",
 			TagValueIDAutoConfigWrongCluster:   "err_config_cluster",
+			TagValueIDAutoConfigLongpoll:       "ok_longpoll",
 		}),
 	}, {
 		Description: "shard_replica",
 		RawKind:     "int",
 	}, {
 		Description: "total_shard_replicas",
+		RawKind:     "int",
+	}, {
+		Description: "our_shard_replica",
+		RawKind:     "int",
+	}, {
+		Description: "our_total_shard_replicas",
 		RawKind:     "int",
 	}},
 }
