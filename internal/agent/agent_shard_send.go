@@ -178,6 +178,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		Rand:                 rnd,
 		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
 		SamplerBuffers:       buffers,
+		DiscardF:             func(item *data_model.MultiItem, _ uint32) { bucket.DeleteMultiItem(&item.Key) },
 	})
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
