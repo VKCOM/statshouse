@@ -2,9 +2,9 @@
   <configuration default="false" name="aggregator" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="statshouse" />
     <working_directory value="$PROJECT_DIR$/localdebug" />
-    <parameters value="--auto-create --auto-create-default-namespace --agg-addr=127.0.0.1:13336  --cluster=statlogs2 --kh=127.0.0.1:8123 --metadata-addr &quot;127.0.0.1:2442&quot; --cache-dir=cache/aggregator" />
+    <parameters value="--deny-old-agents=false --auto-create --auto-create-default-namespace --agg-addr=127.0.0.1:13336  --cluster=statlogs2 --kh=127.0.0.1:8123 --metadata-addr &quot;127.0.0.1:2442&quot; --cache-dir=cache/aggregator" />
     <kind value="PACKAGE" />
-    <package value="github.com/vkcom/statshouse/cmd/statshouse-agg" />
+    <package value="github.com/VKCOM/statshouse/cmd/statshouse-agg" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/cmd/statshouse/statshouse.go" />
     <method v="2" />

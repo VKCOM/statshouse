@@ -129,8 +129,8 @@ func (ms *tagsMapper2) goRun() {
 		}
 		for _, str := range loadTags { // also limited to maxCreateOrLoadTagsPerIteration
 			extra := data_model.CreateMappingExtra{
-				Create: false, // for documenting intent
-				Host:   ms.agg.aggregatorHost,
+				Create:  false, // for documenting intent
+				HostTag: ms.agg.aggregatorHostTag,
 			}
 			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
 			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
@@ -161,7 +161,7 @@ func (ms *tagsMapper2) createTag(str string, extra data_model.CreateMappingExtra
 	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
 	ms.sh2.AddValueCounterHostAERA(0, format.BuiltinMetricMetaAggMappingCreated,
 		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
-		float64(keyValue), 1, data_model.TagUnionBytes{I: extra.Host}, extra.Aera)
+		float64(keyValue), 1, extra.HostTag, extra.Aera)
 	return keyValue
 }
 

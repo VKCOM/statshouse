@@ -96,8 +96,7 @@ type (
 		TagIDKey  int32
 		ClientEnv int32
 		Aera      AgentEnvRouteArch
-		HostName  string
-		Host      int32
+		HostTag   TagUnionBytes
 	}
 )
 
