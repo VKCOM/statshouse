@@ -2,7 +2,7 @@
 set -e
 
 mkdir -p cache/agent/
-../target/statshouse -agent --cluster=statlogs2 --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356 --cache-dir=cache/agent "$@"
+../target/statshouse -agent --cluster=statlogs2 --hostname=agent1 --pprof=127.0.0.1:6061 --agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356 --cache-dir=cache/agent "$@"
 # ../target/statshouse -agent --hardware-metric-scrape-disable --cluster=statlogs2 --hostname=agent1 --agg-addr=127.0.0.1:13336,127.0.0.1:13346,127.0.0.1:13356 --cache-dir=cache/agent "$@"
 
 # other useful options you sometimes want to add
