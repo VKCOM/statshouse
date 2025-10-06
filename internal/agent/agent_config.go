@@ -180,7 +180,7 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 	}
 	fp, err := os.OpenFile(filepath.Join(cacheDir, fmt.Sprintf("config-%s.cache", cluster)), os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		return res, fmt.Errorf("failed to open config cache: %v", err)
+		return res, fmt.Errorf("failed to open config cache: %w", err)
 	}
 	defer fp.Close()
 	_, _, r, fs := data_model.ChunkedStorageFile(fp)
@@ -188,7 +188,7 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 	loader.StartRead(fs, data_model.ChunkedMagicConfig)
 	chunk, _, err := loader.ReadNext()
 	if err != nil {
-		return res, fmt.Errorf("failed to read config cache: %v", err)
+		return res, fmt.Errorf("failed to read config cache: %w", err)
 	}
 	_, err = res.ReadBoxed(chunk)
 	if !validConfigResult(res) {

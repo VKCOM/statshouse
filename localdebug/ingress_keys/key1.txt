@@ -1,1 +1,1 @@
-first binary passphrase
+first long enough binary passphrase

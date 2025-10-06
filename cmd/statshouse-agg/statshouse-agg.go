@@ -27,7 +27,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/pcache"
-	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/platform"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
@@ -108,11 +107,6 @@ func mainAggregator() int {
 		return 1
 	}
 	_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
-	dc, err := sqlitecache.OpenSqliteDiskCache(filepath.Join(argv.cacheDir, "mapping_cache.sqlite3"), sqlitecache.DefaultTxDuration)
-	if err != nil {
-		log.Printf("failed to open disk cache: %v", err)
-		return 1
-	}
 	// we do not want to confuse mappings from different clusters, this would be a disaster
 	fpmc, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -136,7 +130,7 @@ func mainAggregator() int {
 
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
 	startDiscCacheTime := time.Now()                                                                    // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(dc, fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
