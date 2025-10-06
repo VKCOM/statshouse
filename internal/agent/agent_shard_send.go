@@ -130,6 +130,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	config := s.config
 	s.mu.Unlock()
 
+	sb.Metrics = make([]tlstatshouse.MultiItem, 0, len(bucket.MultiItems))
 	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		item.SetWeightMultiplier(v.WeightMultiplier > 1) // we do not need actual values, it is either 1 or numshards
@@ -149,7 +150,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			sizeCounter[sampling] += len(scratch)
 		}
 
-		var top []tlstatshouse.TopElement
+		var top = make([]tlstatshouse.TopElement, 0, len(v.Top))
 		for key, value := range v.Top {
 			el := tlstatshouse.TopElement{Stag: key.S}
 			if key.I != 0 {
@@ -178,7 +179,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		Rand:                 rnd,
 		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
 		SamplerBuffers:       buffers,
-		DiscardF:             func(item *data_model.MultiItem, _ uint32) { bucket.DeleteMultiItem(&item.Key) },
 	})
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
@@ -214,7 +214,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			MetricID:    accountMetric,
 		})
 	}
-	bucket.MultiItemMap.Reset()
+	clear(bucket.MultiItems)
 
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)

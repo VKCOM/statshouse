@@ -278,11 +278,6 @@ func (b *MultiItemMap) DeleteMultiItem(key *Key) {
 	// we do not clean keysBuffer, it has same lifetime as b and should be reused
 }
 
-func (b *MultiItemMap) Reset() {
-	clear(b.MultiItems)
-	b.keysBuffer = b.keysBuffer[:0]
-}
-
 func (s *MultiItem) MapStringTop(rng *rand.Rand, capacity int, tag TagUnion, count float64) *MultiValue {
 	if len(tag.S) == 0 && tag.I == 0 {
 		return &s.Tail
