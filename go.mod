@@ -1,6 +1,8 @@
 module github.com/VKCOM/statshouse
 
-go 1.22.9
+go 1.23.0
+
+toolchain go1.24.5
 
 require (
 	github.com/ClickHouse/ch-go v0.63.1
