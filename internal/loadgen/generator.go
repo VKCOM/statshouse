@@ -317,23 +317,7 @@ func (g *Generator) AddConstCounter(resolution int, idx int) {
 		tags:       statshouse.NamedTags{{mappedTag, fmt.Sprint(idx)}, {rawTag, fmt.Sprint(idx)}},
 		resolution: resolution,
 	}
-	g.metrics = append(append(g.metrics, &m), &countMetric{
-		name:       "ttest2:test4",
-		tags:       statshouse.NamedTags{},
-		resolution: resolution,
-	}, &countMetric{
-		name:       "ttest2:test3",
-		tags:       statshouse.NamedTags{},
-		resolution: resolution,
-	}, &countMetric{
-		name:       "ttest2:test2",
-		tags:       statshouse.NamedTags{},
-		resolution: resolution,
-	}, &countMetric{
-		name:       "ttest2:test",
-		tags:       statshouse.NamedTags{},
-		resolution: resolution,
-	})
+	g.metrics = append(g.metrics, &m)
 }
 
 func (g *Generator) AddConstValue(resolution int, idx int) {

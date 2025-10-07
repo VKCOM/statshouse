@@ -31,7 +31,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -60,7 +60,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -89,7 +89,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -119,7 +119,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -148,7 +148,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -177,7 +177,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -207,7 +207,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -236,7 +236,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -265,7 +265,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -297,7 +297,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -328,7 +328,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -359,7 +359,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -391,7 +391,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -422,7 +422,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -453,7 +453,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -485,7 +485,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -516,7 +516,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "sum_norm"
           ],
@@ -547,7 +547,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "p95",
             "p50"
@@ -579,7 +579,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -610,7 +610,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -641,7 +641,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "count_norm"
           ],
@@ -670,7 +670,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],
@@ -699,7 +699,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],
@@ -728,7 +728,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],
@@ -757,7 +757,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],
@@ -786,7 +786,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],
@@ -815,7 +815,7 @@
           "promQL": "",
           "totalLine": false,
           "type": 0,
-          "useV2": true,
+          "useV2": false,
           "what": [
             "avg"
           ],

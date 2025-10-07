@@ -675,7 +675,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	h.cache2 = newCache2(h, cfg.CacheChunkSize, loadPoints)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
-	cl.AddChangeCB(func(c config.Config) {
+	applyCfg := func(c config.Config) {
 		cfg := c.(*Config)
 		cache2 := h.setCache2ChunkSize(cfg.CacheChunkSize)
 		cache2.setLimits(cache2Limits{
@@ -697,7 +697,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.blockedUsers = cfg.BlockedUsers
 		h.availableShards = cfg.AvailableShards
 		h.ConfigMu.Unlock()
-	})
+	}
+	applyCfg(cfg)
+	cl.AddChangeCB(applyCfg)
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
