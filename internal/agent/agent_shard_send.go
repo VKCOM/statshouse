@@ -7,11 +7,9 @@
 package agent
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"log"
-	"slices"
 	"sync"
 	"time"
 
@@ -270,10 +268,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
 	scratch = sbSizeCalc.Write(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
-
-	slices.SortFunc(sb.Metrics, func(a, b tlstatshouse.MultiItem) int {
-		return cmp.Compare(a.Metric, b.Metric)
-	})
 
 	return sampler.SamplerBuffers, scratch
 }
