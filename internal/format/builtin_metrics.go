@@ -970,6 +970,8 @@ var BuiltinMetricMetaAPIActiveQueries = &MetricMetaValue{
 		}),
 	}, {
 		Description: "host",
+	}, {
+		Description: "semaphore_lane",
 	}},
 }
 

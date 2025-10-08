@@ -7,6 +7,7 @@
 package api
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,6 +175,16 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 			8: strconv.Itoa(int(uint32(metricID)%16) + 1), // to see load distribution if we shard data by metricID
 		},
 		duration.Seconds())
+}
+
+func ChSelectActiveQueries(client *statshouse.Client, versionTag string, tagLane int, generalCount int64, shardCounts map[int]int64) {
+	fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse(), 5: "general"})
+	fastHardware.Value(float64(generalCount))
+
+	for num, count := range shardCounts {
+		shardMetric := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse(), 5: fmt.Sprintf("shard_%d", num)})
+		shardMetric.Value(float64(count))
+	}
 }
 
 func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
