@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeebo/xxh3"
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/agent"
@@ -427,14 +428,25 @@ func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.
 }
 
 func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client) ([]byte, error) {
+	// we do not use chunked storage, because we do not want to split bootstrap into chunks
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
 	args := tlmetadata.GetTagMappingBootstrap{}
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 	if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
-		cacheData, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
+		cacheDataWithHash, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
 		if err != nil {
 			return nil, fmt.Errorf("failed to open boostrap cache: %w", err)
+		}
+		hashOffset := len(cacheDataWithHash) - 16
+		if hashOffset < 0 {
+			return nil, fmt.Errorf("failed to parse boostrap cache: to short (%d) bytes", len(cacheDataWithHash))
+		}
+		cacheData := cacheDataWithHash[:hashOffset]
+		h := xxh3.Hash128(cacheData)
+		if h.Hi != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset:]) ||
+			h.Lo != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset+8:]) {
+			return nil, fmt.Errorf("failed to parse boostrap cache: wrong hash")
 		}
 		_, err = args.ReadResult(cacheData, &ret)
 		if err != nil {
@@ -447,7 +459,11 @@ func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client) ([
 	if err != nil {
 		log.Printf("failed to serialize bootstrap of %d mappings", len(ret.Mappings))
 	}
-	err = os.WriteFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)), cacheData, 0666)
+	h := xxh3.Hash128(cacheData)
+	cacheDataWithHash := cacheData
+	cacheDataWithHash = binary.BigEndian.AppendUint64(cacheDataWithHash, h.Hi)
+	cacheDataWithHash = binary.BigEndian.AppendUint64(cacheDataWithHash, h.Lo)
+	err = os.WriteFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)), cacheDataWithHash, 0666)
 	if err != nil {
 		log.Printf("failed to store bootstrap of %d mappings of size %d in disk cache with err: %v", len(ret.Mappings), len(cacheData), err)
 	}
