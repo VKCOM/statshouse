@@ -525,7 +525,6 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			constants.StatshouseGetTagMapping2,
 			constants.StatshouseSendKeepAlive2,
 			constants.StatshouseSendKeepAlive3,
-			constants.StatshouseSendSourceBucket2,
 			constants.StatshouseSendSourceBucket3,
 			constants.StatshouseTestConnection2,
 			constants.StatshouseGetTargets2,

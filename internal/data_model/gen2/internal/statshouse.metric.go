@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseMetricWrite(w []byte, vec []StatshouseMetric) []byte
 	return w
 }
 
-func BuiltinVectorStatshouseMetricReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMetric) error {
+func BuiltinVectorStatshouseMetricReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetric) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseMetricReadJSON(legacyTypeNames bool, in *basictl.Jso
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseMetricReadJSON(legacyTypeNames bool, in *basictl.Jso
 }
 
 func BuiltinVectorStatshouseMetricWriteJSON(w []byte, vec []StatshouseMetric) []byte {
-	return BuiltinVectorStatshouseMetricWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseMetricWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseMetricWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMetric) []byte {
+func BuiltinVectorStatshouseMetricWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMetric) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -111,7 +112,7 @@ func BuiltinVectorStatshouseMetricBytesWrite(w []byte, vec []StatshouseMetricByt
 	return w
 }
 
-func BuiltinVectorStatshouseMetricBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseMetricBytes) error {
+func BuiltinVectorStatshouseMetricBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetricBytes) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -125,7 +126,7 @@ func BuiltinVectorStatshouseMetricBytesReadJSON(legacyTypeNames bool, in *basict
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -140,13 +141,14 @@ func BuiltinVectorStatshouseMetricBytesReadJSON(legacyTypeNames bool, in *basict
 }
 
 func BuiltinVectorStatshouseMetricBytesWriteJSON(w []byte, vec []StatshouseMetricBytes) []byte {
-	return BuiltinVectorStatshouseMetricBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseMetricBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseMetricBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseMetricBytes) []byte {
+func BuiltinVectorStatshouseMetricBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMetricBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -173,7 +175,7 @@ func (item *StatshouseMetric) ClearCounter() {
 	item.Counter = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item StatshouseMetric) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseMetric) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseMetric) SetTs(v uint32) {
 	item.Ts = v
@@ -183,7 +185,7 @@ func (item *StatshouseMetric) ClearTs() {
 	item.Ts = 0
 	item.FieldsMask &^= 1 << 4
 }
-func (item StatshouseMetric) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item *StatshouseMetric) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseMetric) SetValue(v []float64) {
 	item.Value = v
@@ -193,7 +195,7 @@ func (item *StatshouseMetric) ClearValue() {
 	item.Value = item.Value[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item StatshouseMetric) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseMetric) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseMetric) SetUnique(v []int64) {
 	item.Unique = v
@@ -203,7 +205,7 @@ func (item *StatshouseMetric) ClearUnique() {
 	item.Unique = item.Unique[:0]
 	item.FieldsMask &^= 1 << 2
 }
-func (item StatshouseMetric) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *StatshouseMetric) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseMetric) SetHistogram(v [][2]float64) {
 	item.Histogram = v
@@ -213,7 +215,7 @@ func (item *StatshouseMetric) ClearHistogram() {
 	item.Histogram = item.Histogram[:0]
 	item.FieldsMask &^= 1 << 3
 }
-func (item StatshouseMetric) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
+func (item *StatshouseMetric) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
 
 func (item *StatshouseMetric) Reset() {
 	item.FieldsMask = 0
@@ -274,7 +276,6 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMetric) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -308,7 +309,6 @@ func (item *StatshouseMetric) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMetric) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -323,6 +323,11 @@ func (item StatshouseMetric) String() string {
 }
 
 func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propNamePresented bool
 	var propTagsPresented bool
@@ -361,7 +366,7 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -385,7 +390,7 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 				if propValuePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "value")
 				}
-				if err := BuiltinVectorDoubleReadJSON(legacyTypeNames, in, &item.Value); err != nil {
+				if err := BuiltinVectorDoubleReadJSONGeneral(tctx, in, &item.Value); err != nil {
 					return err
 				}
 				propValuePresented = true
@@ -393,7 +398,7 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 				if propUniquePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "unique")
 				}
-				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.Unique); err != nil {
+				if err := BuiltinVectorLongReadJSONGeneral(tctx, in, &item.Unique); err != nil {
 					return err
 				}
 				propUniquePresented = true
@@ -401,7 +406,7 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 				if propHistogramPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "histogram")
 				}
-				if err := BuiltinVectorTupleDouble2ReadJSON(legacyTypeNames, in, &item.Histogram); err != nil {
+				if err := BuiltinVectorTupleDouble2ReadJSONGeneral(tctx, in, &item.Histogram); err != nil {
 					return err
 				}
 				propHistogramPresented = true
@@ -458,14 +463,15 @@ func (item *StatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMetric) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseMetric) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseMetric) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseMetric) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseMetric) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -484,7 +490,7 @@ func (item *StatshouseMetric) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
@@ -501,17 +507,17 @@ func (item *StatshouseMetric) WriteJSONOpt(newTypeNames bool, short bool, w []by
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"value":`...)
-		w = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.Value)
+		w = BuiltinVectorDoubleWriteJSONOpt(tctx, w, item.Value)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"unique":`...)
-		w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Unique)
+		w = BuiltinVectorLongWriteJSONOpt(tctx, w, item.Unique)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"histogram":`...)
-		w = BuiltinVectorTupleDouble2WriteJSONOpt(newTypeNames, short, w, item.Histogram)
+		w = BuiltinVectorTupleDouble2WriteJSONOpt(tctx, w, item.Histogram)
 	}
 	return append(w, '}')
 }
@@ -549,7 +555,7 @@ func (item *StatshouseMetricBytes) ClearCounter() {
 	item.Counter = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item StatshouseMetricBytes) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseMetricBytes) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseMetricBytes) SetTs(v uint32) {
 	item.Ts = v
@@ -559,7 +565,7 @@ func (item *StatshouseMetricBytes) ClearTs() {
 	item.Ts = 0
 	item.FieldsMask &^= 1 << 4
 }
-func (item StatshouseMetricBytes) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item *StatshouseMetricBytes) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseMetricBytes) SetValue(v []float64) {
 	item.Value = v
@@ -569,7 +575,7 @@ func (item *StatshouseMetricBytes) ClearValue() {
 	item.Value = item.Value[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item StatshouseMetricBytes) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseMetricBytes) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseMetricBytes) SetUnique(v []int64) {
 	item.Unique = v
@@ -579,7 +585,7 @@ func (item *StatshouseMetricBytes) ClearUnique() {
 	item.Unique = item.Unique[:0]
 	item.FieldsMask &^= 1 << 2
 }
-func (item StatshouseMetricBytes) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *StatshouseMetricBytes) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseMetricBytes) SetHistogram(v [][2]float64) {
 	item.Histogram = v
@@ -589,7 +595,7 @@ func (item *StatshouseMetricBytes) ClearHistogram() {
 	item.Histogram = item.Histogram[:0]
 	item.FieldsMask &^= 1 << 3
 }
-func (item StatshouseMetricBytes) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
+func (item *StatshouseMetricBytes) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
 
 func (item *StatshouseMetricBytes) Reset() {
 	item.FieldsMask = 0
@@ -650,7 +656,6 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMetricBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -684,7 +689,6 @@ func (item *StatshouseMetricBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMetricBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -699,6 +703,11 @@ func (item StatshouseMetricBytes) String() string {
 }
 
 func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propNamePresented bool
 	var propTagsPresented bool
@@ -737,7 +746,7 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -761,7 +770,7 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propValuePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "value")
 				}
-				if err := BuiltinVectorDoubleReadJSON(legacyTypeNames, in, &item.Value); err != nil {
+				if err := BuiltinVectorDoubleReadJSONGeneral(tctx, in, &item.Value); err != nil {
 					return err
 				}
 				propValuePresented = true
@@ -769,7 +778,7 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propUniquePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "unique")
 				}
-				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.Unique); err != nil {
+				if err := BuiltinVectorLongReadJSONGeneral(tctx, in, &item.Unique); err != nil {
 					return err
 				}
 				propUniquePresented = true
@@ -777,7 +786,7 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propHistogramPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "histogram")
 				}
-				if err := BuiltinVectorTupleDouble2ReadJSON(legacyTypeNames, in, &item.Histogram); err != nil {
+				if err := BuiltinVectorTupleDouble2ReadJSONGeneral(tctx, in, &item.Histogram); err != nil {
 					return err
 				}
 				propHistogramPresented = true
@@ -834,14 +843,15 @@ func (item *StatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMetricBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseMetricBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseMetricBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseMetricBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseMetricBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -860,7 +870,7 @@ func (item *StatshouseMetricBytes) WriteJSONOpt(newTypeNames bool, short bool, w
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(newTypeNames, short, w, item.Tags)
+	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
@@ -877,17 +887,17 @@ func (item *StatshouseMetricBytes) WriteJSONOpt(newTypeNames bool, short bool, w
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"value":`...)
-		w = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.Value)
+		w = BuiltinVectorDoubleWriteJSONOpt(tctx, w, item.Value)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"unique":`...)
-		w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Unique)
+		w = BuiltinVectorLongWriteJSONOpt(tctx, w, item.Unique)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"histogram":`...)
-		w = BuiltinVectorTupleDouble2WriteJSONOpt(newTypeNames, short, w, item.Histogram)
+		w = BuiltinVectorTupleDouble2WriteJSONOpt(tctx, w, item.Histogram)
 	}
 	return append(w, '}')
 }

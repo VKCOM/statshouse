@@ -42,7 +42,7 @@ func BuiltinVectorMetadataMetricOldWrite(w []byte, vec []MetadataMetricOld, nat_
 	return w
 }
 
-func BuiltinVectorMetadataMetricOldReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataMetricOld, nat_t uint32) error {
+func BuiltinVectorMetadataMetricOldReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataMetricOld, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorMetadataMetricOldReadJSON(legacyTypeNames bool, in *basictl.Js
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorMetadataMetricOldReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 func BuiltinVectorMetadataMetricOldWriteJSON(w []byte, vec []MetadataMetricOld, nat_t uint32) []byte {
-	return BuiltinVectorMetadataMetricOldWriteJSONOpt(true, false, w, vec, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorMetadataMetricOldWriteJSONOpt(&tctx, w, vec, nat_t)
 }
-func BuiltinVectorMetadataMetricOldWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataMetricOld, nat_t uint32) []byte {
+func BuiltinVectorMetadataMetricOldWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []MetadataMetricOld, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
+		w = elem.WriteJSONOpt(tctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -107,7 +108,7 @@ func (item *MetadataMetricOld) ClearEventType(nat_field_mask *uint32) {
 		*nat_field_mask &^= 1 << 2
 	}
 }
-func (item MetadataMetricOld) IsSetEventType(nat_field_mask uint32) bool {
+func (item *MetadataMetricOld) IsSetEventType(nat_field_mask uint32) bool {
 	return nat_field_mask&(1<<2) != 0
 }
 
@@ -123,7 +124,7 @@ func (item *MetadataMetricOld) ClearUnused(nat_field_mask *uint32) {
 		*nat_field_mask &^= 1 << 3
 	}
 }
-func (item MetadataMetricOld) IsSetUnused(nat_field_mask uint32) bool {
+func (item *MetadataMetricOld) IsSetUnused(nat_field_mask uint32) bool {
 	return nat_field_mask&(1<<3) != 0
 }
 
@@ -167,7 +168,6 @@ func (item *MetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, 
 	return basictl.StringRead(w, &item.Data)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataMetricOld) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_field_mask), nil
 }
@@ -194,7 +194,6 @@ func (item *MetadataMetricOld) ReadBoxed(w []byte, nat_field_mask uint32) (_ []b
 	return item.Read(w, nat_field_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataMetricOld) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_field_mask), nil
 }
@@ -204,7 +203,7 @@ func (item *MetadataMetricOld) WriteBoxed(w []byte, nat_field_mask uint32) []byt
 	return item.Write(w, nat_field_mask)
 }
 
-func (item *MetadataMetricOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataMetricOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propIdPresented bool
 	var propNamePresented bool
 	var propEventTypePresented bool
@@ -319,14 +318,15 @@ func (item *MetadataMetricOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataMetricOld) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+func (item *MetadataMetricOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
 }
-func (item *MetadataMetricOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataMetricOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

@@ -42,7 +42,7 @@ func BuiltinVectorStatshousePromTargetWrite(w []byte, vec []StatshousePromTarget
 	return w
 }
 
-func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
+func BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames bool, in *basictl
 }
 
 func BuiltinVectorStatshousePromTargetWriteJSON(w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
-	return BuiltinVectorStatshousePromTargetWriteJSONOpt(true, false, w, vec, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshousePromTargetWriteJSONOpt(&tctx, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
+func BuiltinVectorStatshousePromTargetWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
+		w = elem.WriteJSONOpt(tctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -111,7 +112,7 @@ func BuiltinVectorStatshousePromTargetBytesWrite(w []byte, vec []StatshousePromT
 	return w
 }
 
-func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
+func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -125,7 +126,7 @@ func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *ba
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -140,13 +141,14 @@ func BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames bool, in *ba
 }
 
 func BuiltinVectorStatshousePromTargetBytesWriteJSON(w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
-	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(true, false, w, vec, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(&tctx, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
+func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w, nat_t)
+		w = elem.WriteJSONOpt(tctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -178,7 +180,7 @@ func (item *StatshousePromTarget) SetHonorTimestamps(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item StatshousePromTarget) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshousePromTarget) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshousePromTarget) SetHonorLabels(v bool) {
 	if v {
@@ -187,7 +189,7 @@ func (item *StatshousePromTarget) SetHonorLabels(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item StatshousePromTarget) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshousePromTarget) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshousePromTarget) SetMetricRelabelConfigs(v string, nat_fields_mask_arg *uint32) {
 	item.MetricRelabelConfigs = v
@@ -201,7 +203,7 @@ func (item *StatshousePromTarget) ClearMetricRelabelConfigs(nat_fields_mask_arg 
 		*nat_fields_mask_arg &^= 1 << 1
 	}
 }
-func (item StatshousePromTarget) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
+func (item *StatshousePromTarget) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
 	return nat_fields_mask_arg&(1<<1) != 0
 }
 
@@ -264,7 +266,6 @@ func (item *StatshousePromTarget) Read(w []byte, nat_fields_mask_arg uint32) (_ 
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshousePromTarget) WriteGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	return item.Write(w, nat_fields_mask_arg), nil
 }
@@ -294,7 +295,6 @@ func (item *StatshousePromTarget) ReadBoxed(w []byte, nat_fields_mask_arg uint32
 	return item.Read(w, nat_fields_mask_arg)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshousePromTarget) WriteBoxedGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_fields_mask_arg), nil
 }
@@ -304,7 +304,7 @@ func (item *StatshousePromTarget) WriteBoxed(w []byte, nat_fields_mask_arg uint3
 	return item.Write(w, nat_fields_mask_arg)
 }
 
-func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
+func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -359,7 +359,7 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if propLabelsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Labels); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Labels); err != nil {
 					return err
 				}
 				propLabelsPresented = true
@@ -504,24 +504,25 @@ func (item *StatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeHonorTimestampsPresented && !trueTypeHonorTimestampsValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeHonorLabelsPresented && !trueTypeHonorLabelsValue && (item.FieldsMask&(1<<1) != 0) {
-		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTarget) WriteJSONGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg), nil
+func (item *StatshousePromTarget) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_fields_mask_arg), nil
 }
 
 func (item *StatshousePromTarget) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask_arg uint32) []byte {
+func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -547,7 +548,7 @@ func (item *StatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w 
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Labels)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Labels)
 	if (len(item.Labels) != 0) == false {
 		w = w[:backupIndexLabels]
 	}
@@ -643,7 +644,9 @@ func (item *StatshousePromTargetBytes) SetHonorTimestamps(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item StatshousePromTargetBytes) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshousePromTargetBytes) IsSetHonorTimestamps() bool {
+	return item.FieldsMask&(1<<0) != 0
+}
 
 func (item *StatshousePromTargetBytes) SetHonorLabels(v bool) {
 	if v {
@@ -652,7 +655,7 @@ func (item *StatshousePromTargetBytes) SetHonorLabels(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item StatshousePromTargetBytes) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshousePromTargetBytes) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshousePromTargetBytes) SetMetricRelabelConfigs(v []byte, nat_fields_mask_arg *uint32) {
 	item.MetricRelabelConfigs = v
@@ -666,7 +669,7 @@ func (item *StatshousePromTargetBytes) ClearMetricRelabelConfigs(nat_fields_mask
 		*nat_fields_mask_arg &^= 1 << 1
 	}
 }
-func (item StatshousePromTargetBytes) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
+func (item *StatshousePromTargetBytes) IsSetMetricRelabelConfigs(nat_fields_mask_arg uint32) bool {
 	return nat_fields_mask_arg&(1<<1) != 0
 }
 
@@ -729,7 +732,6 @@ func (item *StatshousePromTargetBytes) Read(w []byte, nat_fields_mask_arg uint32
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshousePromTargetBytes) WriteGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	return item.Write(w, nat_fields_mask_arg), nil
 }
@@ -759,7 +761,6 @@ func (item *StatshousePromTargetBytes) ReadBoxed(w []byte, nat_fields_mask_arg u
 	return item.Read(w, nat_fields_mask_arg)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshousePromTargetBytes) WriteBoxedGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_fields_mask_arg), nil
 }
@@ -769,7 +770,7 @@ func (item *StatshousePromTargetBytes) WriteBoxed(w []byte, nat_fields_mask_arg 
 	return item.Write(w, nat_fields_mask_arg)
 }
 
-func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
+func (item *StatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -824,7 +825,7 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if propLabelsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
-				if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(legacyTypeNames, in, &item.Labels); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Labels); err != nil {
 					return err
 				}
 				propLabelsPresented = true
@@ -969,24 +970,25 @@ func (item *StatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basict
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeHonorTimestampsPresented && !trueTypeHonorTimestampsValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeHonorLabelsPresented && !trueTypeHonorLabelsValue && (item.FieldsMask&(1<<1) != 0) {
-		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.promTarget", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTargetBytes) WriteJSONGeneral(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg), nil
+func (item *StatshousePromTargetBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_fields_mask_arg), nil
 }
 
 func (item *StatshousePromTargetBytes) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask_arg)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask_arg uint32) []byte {
+func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1012,7 +1014,7 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short boo
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(newTypeNames, short, w, item.Labels)
+	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Labels)
 	if (len(item.Labels) != 0) == false {
 		w = w[:backupIndexLabels]
 	}

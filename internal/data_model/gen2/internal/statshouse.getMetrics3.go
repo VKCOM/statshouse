@@ -33,7 +33,7 @@ func (item *StatshouseGetMetrics3) SetReturnIfEmpty(v bool) {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item StatshouseGetMetrics3) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item *StatshouseGetMetrics3) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *StatshouseGetMetrics3) SetCompactJournal(v bool) {
 	if v {
@@ -42,7 +42,7 @@ func (item *StatshouseGetMetrics3) SetCompactJournal(v bool) {
 		item.FieldMask &^= 1 << 4
 	}
 }
-func (item StatshouseGetMetrics3) IsSetCompactJournal() bool { return item.FieldMask&(1<<4) != 0 }
+func (item *StatshouseGetMetrics3) IsSetCompactJournal() bool { return item.FieldMask&(1<<4) != 0 }
 
 func (item *StatshouseGetMetrics3) Reset() {
 	item.FieldsMask = 0
@@ -71,7 +71,6 @@ func (item *StatshouseGetMetrics3) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseGetMetrics3) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -92,7 +91,6 @@ func (item *StatshouseGetMetrics3) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseGetMetrics3) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -112,36 +110,29 @@ func (item *StatshouseGetMetrics3) WriteResult(w []byte, ret MetadataGetJournalR
 }
 
 func (item *StatshouseGetMetrics3) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenew) error {
-	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseGetMetrics3) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+func (item *StatshouseGetMetrics3) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
 }
 
-func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenew
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetMetrics3) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenew
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -160,6 +151,11 @@ func (item StatshouseGetMetrics3) String() string {
 }
 
 func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseGetMetrics3) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propFieldMaskPresented bool
@@ -272,30 +268,31 @@ func (item *StatshouseGetMetrics3) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	if rawHeader != nil {
 		inHeaderPointer = &inHeader
 	}
-	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+	if err := item.Header.ReadJSONGeneral(tctx, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
 
 	// tries to set bit to zero if it is 1
 	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit item.FieldMask.3 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCompactJournalPresented && !trueTypeCompactJournalValue && (item.FieldMask&(1<<4) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit item.FieldMask.4 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetMetrics3) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseGetMetrics3) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseGetMetrics3) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseGetMetrics3) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseGetMetrics3) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -306,7 +303,7 @@ func (item *StatshouseGetMetrics3) WriteJSONOpt(newTypeNames bool, short bool, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"field_mask":`...)
@@ -370,7 +367,7 @@ func (item *StatshouseGetMetrics3Bytes) SetReturnIfEmpty(v bool) {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item StatshouseGetMetrics3Bytes) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item *StatshouseGetMetrics3Bytes) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *StatshouseGetMetrics3Bytes) SetCompactJournal(v bool) {
 	if v {
@@ -379,7 +376,7 @@ func (item *StatshouseGetMetrics3Bytes) SetCompactJournal(v bool) {
 		item.FieldMask &^= 1 << 4
 	}
 }
-func (item StatshouseGetMetrics3Bytes) IsSetCompactJournal() bool { return item.FieldMask&(1<<4) != 0 }
+func (item *StatshouseGetMetrics3Bytes) IsSetCompactJournal() bool { return item.FieldMask&(1<<4) != 0 }
 
 func (item *StatshouseGetMetrics3Bytes) Reset() {
 	item.FieldsMask = 0
@@ -408,7 +405,6 @@ func (item *StatshouseGetMetrics3Bytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseGetMetrics3Bytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -429,7 +425,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseGetMetrics3Bytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -449,36 +444,29 @@ func (item *StatshouseGetMetrics3Bytes) WriteResult(w []byte, ret MetadataGetJou
 }
 
 func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenewBytes) error {
-	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseGetMetrics3Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+func (item *StatshouseGetMetrics3Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
 }
 
-func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenewBytes
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenewBytes
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -497,6 +485,11 @@ func (item StatshouseGetMetrics3Bytes) String() string {
 }
 
 func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseGetMetrics3Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var rawHeader []byte
 	var propFieldMaskPresented bool
@@ -609,30 +602,31 @@ func (item *StatshouseGetMetrics3Bytes) ReadJSON(legacyTypeNames bool, in *basic
 	if rawHeader != nil {
 		inHeaderPointer = &inHeader
 	}
-	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
+	if err := item.Header.ReadJSONGeneral(tctx, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
 
 	// tries to set bit to zero if it is 1
 	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit item.FieldMask.3 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCompactJournalPresented && !trueTypeCompactJournalValue && (item.FieldMask&(1<<4) != 0) {
-		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit field_mask.2 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.getMetrics3", "fieldmask bit item.FieldMask.4 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetMetrics3Bytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseGetMetrics3Bytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -643,7 +637,7 @@ func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(newTypeNames bool, short bo
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"field_mask":`...)
