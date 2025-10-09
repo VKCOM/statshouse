@@ -346,18 +346,12 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 		}
 		shard = meta.Metric.Shard(shardCnt)
 	}
-	var (
-		servers     []*chpool.Pool
-		serverAddrs []string
-		sem         *queue.Queue
-		semName     string
-	)
+	sem := pool.sem
+	var servers []*chpool.Pool
+	var serverAddrs []string
 	if shard < 0 {
 		servers = append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
 		serverAddrs = append(make([]string, 0, len(pool.serverAddrs)), pool.serverAddrs...)
-
-		sem = pool.sem
-		semName = "general"
 	} else {
 		i := shard * 3
 		servers = append(make([]*chpool.Pool, 0, 3), pool.servers[i:i+3]...)
@@ -365,10 +359,6 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 
 		if shardSem, ok := pool.shardSems[shard]; ok {
 			sem = shardSem
-			semName = fmt.Sprintf("shard_%d", shard)
-		} else {
-			sem = pool.sem
-			semName = "general_fallback"
 		}
 	}
 	for safetyCounter := 0; safetyCounter < len(servers); safetyCounter++ {
@@ -383,7 +373,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			err = sem.Acquire(ctx, meta.User)
 			info.WaitLockDuration = time.Since(startTime)
 
-			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName, 4: semName}, info.WaitLockDuration.Seconds())
+			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName, 5: strconv.Itoa(shard + 1)}, info.WaitLockDuration.Seconds())
 			if err != nil {
 				return info, err
 			}
@@ -391,7 +381,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			err = servers[i].Do(ctx, query)
 			info.QueryDuration = time.Since(start)
 			info.Host = serverAddrs[i]
-			info.Shard = shard
+			info.Shard = shard + 1
 			sem.Release()
 			if err == nil {
 				return // succeeded
