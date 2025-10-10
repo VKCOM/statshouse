@@ -176,12 +176,12 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 		duration.Seconds())
 }
 
-func ChSelectActiveQueries(client *statshouse.Client, versionTag string, tagLane int, generalCount int64, shardCounts map[int]int64) {
+func ChSelectActiveQueries(client *statshouse.Client, versionTag string, tagLane int, generalCount int64, shardCounts []int64) {
 	fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse()})
 	fastHardware.Value(float64(generalCount))
 
-	for num, count := range shardCounts {
-		shardMetric := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse(), 5: strconv.Itoa(num + 1)})
+	for i, count := range shardCounts {
+		shardMetric := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse(), 5: strconv.Itoa(i + 1)})
 		shardMetric.Value(float64(count))
 	}
 }

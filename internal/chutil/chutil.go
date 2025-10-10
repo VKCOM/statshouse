@@ -34,7 +34,7 @@ type connPool struct {
 	servers        []*chpool.Pool
 	serverAddrs    []string
 	sem            *queue.Queue
-	shardSems      map[int]*queue.Queue // shard_id -> semaphore
+	shardSems      []*queue.Queue // shard_id -> semaphore
 }
 
 type ClickHouse struct {
@@ -95,12 +95,12 @@ const (
 	defaultUserName = "@default_user"
 )
 
-func newConnPool(poolName string, maxConn int) *connPool {
-	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), make([]string, 0), queue.NewQueue(int64(maxConn)), make(map[int]*queue.Queue)}
+func newConnPool(poolName string, maxConn int, shardCount int) *connPool {
+	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), make([]string, 0), queue.NewQueue(int64(maxConn)), make([]*queue.Queue, shardCount)}
 }
 
 func newConnPoolWithShards(poolName string, maxConn int, shardCount int, maxShardConnsRatio int) *connPool {
-	pool := newConnPool(poolName, maxConn)
+	pool := newConnPool(poolName, maxConn, shardCount)
 
 	shardMaxConn := max(maxConn*maxShardConnsRatio/100, 1)
 	for i := 0; i < shardCount; i++ {
@@ -220,68 +220,74 @@ func (ch1 *ClickHouse) SemaphoreCountSlowHardware() int64 {
 	return cur
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountSlowLight() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountSlowLight() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][slowLight].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][slowLight].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountSlowHeavy() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountSlowHeavy() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][slowHeavy].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][slowHeavy].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountFastLight() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountFastLight() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][fastLight].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][fastLight].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountFastHeavy() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountFastHeavy() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][fastHeavy].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][fastHeavy].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountFastHardware() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountFastHardware() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][fastHardware].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][fastHardware].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
 
-func (ch1 *ClickHouse) ShardSemaphoreCountSlowHardware() map[int]int64 {
+func (ch1 *ClickHouse) ShardSemaphoreCountSlowHardware() []int64 {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 
-	counts := make(map[int]int64)
-	for num, sem := range ch1.namedPools[defaultUserName][slowHardware].shardSems {
-		counts[num], _ = sem.Observe()
+	sems := ch1.namedPools[defaultUserName][slowHardware].shardSems
+	counts := make([]int64, len(sems))
+	for i, sem := range sems {
+		counts[i], _ = sem.Observe()
 	}
 	return counts
 }
@@ -357,8 +363,8 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 		servers = append(make([]*chpool.Pool, 0, 3), pool.servers[i:i+3]...)
 		serverAddrs = append(make([]string, 0, 3), pool.serverAddrs[i:i+3]...)
 
-		if shardSem, ok := pool.shardSems[shard]; ok {
-			sem = shardSem
+		if len(pool.shardSems) > shard {
+			sem = pool.shardSems[shard]
 		}
 	}
 	for safetyCounter := 0; safetyCounter < len(servers); safetyCounter++ {
