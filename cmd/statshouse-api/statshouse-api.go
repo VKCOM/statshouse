@@ -71,6 +71,7 @@ var argv struct {
 	chV2MaxLightSlowConns    int
 	chV2MaxHardwareFastConns int
 	chV2MaxHardwareSlowConns int
+	ShardByMetricShards      int
 
 	chV2Password             string
 	chV2PasswordFile         string
@@ -168,10 +169,12 @@ func run() int {
 	if len(argv.chV1Addrs) > 0 {
 		// argv.chV1MaxConns, argv.chV2MaxHeavyConns, argv.chV1Addrs, argv.chV1User, argv.chV1Password, argv.chV1Debug, chDialTimeout
 		chV1, err = chutil.OpenClickHouse(chutil.ChConnOptions{
-			Addrs:       argv.chV1Addrs,
-			User:        argv.chV1User,
-			Password:    argv.chV1Password,
-			DialTimeout: chDialTimeout,
+			Addrs:               argv.chV1Addrs,
+			User:                argv.chV1User,
+			Password:            argv.chV1Password,
+			ShardByMetricShards: argv.ShardByMetricShards,
+			MaxShardConnsRatio:  argv.CHMaxShardConnsRatio,
+			DialTimeout:         chDialTimeout,
 			ConnLimits: chutil.ConnLimits{
 				FastLightMaxConns: argv.chV1MaxConns,
 				FastHeavyMaxConns: argv.chV1MaxConns,
@@ -187,10 +190,12 @@ func run() int {
 	}
 	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
 	chV2, err := chutil.OpenClickHouse(chutil.ChConnOptions{
-		Addrs:       argv.chV2Addrs,
-		User:        argv.chV2User,
-		Password:    argv.chV2Password,
-		DialTimeout: chDialTimeout,
+		Addrs:               argv.chV2Addrs,
+		User:                argv.chV2User,
+		Password:            argv.chV2Password,
+		ShardByMetricShards: argv.ShardByMetricShards,
+		MaxShardConnsRatio:  argv.CHMaxShardConnsRatio,
+		DialTimeout:         chDialTimeout,
 		ConnLimits: chutil.ConnLimits{
 			FastLightMaxConns:    argv.chV2MaxLightFastConns,
 			FastHeavyMaxConns:    argv.chV2MaxHeavyFastConns,
@@ -499,6 +504,7 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")
 	flag.IntVar(&argv.chV2MaxHardwareFastConns, "clickhouse-v2-max-hardware-fast-conns", 8, "maximum number of ClickHouse-v2 connections (hardware fast)")
 	flag.IntVar(&argv.chV2MaxHardwareSlowConns, "clickhouse-v2-max-hardware-slow-conns", 4, "maximum number of ClickHouse-v2 connections (hardware slow)")
+	flag.IntVar(&argv.ShardByMetricShards, "shard-by-metric-shards", 16, "number of shards for by-metric shard strategy. A copy from aggregator's config")
 
 	flag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	flag.StringVar(&argv.chV2PasswordFile, "clickhouse-v2-password-file", "", "file with ClickHouse-v2 password")

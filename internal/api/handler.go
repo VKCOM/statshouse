@@ -686,7 +686,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		chV2.SetLimits(cfg.UserLimits)
+		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio)
 		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.ConfigMu.Lock()
 		h.DisableCHAddr = cfg.DisableCHAddr
@@ -733,23 +733,12 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 
 		writeActiveQuieries := func(ch *chutil.ClickHouse, versionTag string) {
 			if ch != nil {
-				fastLight := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastLight), 4: srvfunc.HostnameForStatshouse()})
-				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
-
-				fastHeavy := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), 4: srvfunc.HostnameForStatshouse()})
-				fastHeavy.Value(float64(ch.SemaphoreCountFastHeavy()))
-
-				slowLight := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), 4: srvfunc.HostnameForStatshouse()})
-				slowLight.Value(float64(ch.SemaphoreCountSlowLight()))
-
-				slowHeavy := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), 4: srvfunc.HostnameForStatshouse()})
-				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
-
-				slowHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneFastHardware), 4: srvfunc.HostnameForStatshouse()})
-				slowHardware.Value(float64(ch.SemaphoreCountFastHardware()))
-
-				fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(format.TagValueIDAPILaneSlowHardware), 4: srvfunc.HostnameForStatshouse()})
-				fastHardware.Value(float64(ch.SemaphoreCountSlowHardware()))
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneFastLight, ch.SemaphoreCountFastLight(), ch.ShardSemaphoreCountFastLight())
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneFastHeavy, ch.SemaphoreCountFastHeavy(), ch.ShardSemaphoreCountFastHeavy())
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneSlowLight, ch.SemaphoreCountSlowLight(), ch.ShardSemaphoreCountSlowLight())
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneSlowHeavy, ch.SemaphoreCountSlowHeavy(), ch.ShardSemaphoreCountSlowHeavy())
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneFastHardware, ch.SemaphoreCountFastHardware(), ch.ShardSemaphoreCountFastHardware())
+				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneSlowHardware, ch.SemaphoreCountSlowHardware(), ch.ShardSemaphoreCountSlowHardware())
 			}
 		}
 		writeActiveQuieries(chV1, "1")
@@ -937,8 +926,7 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.Profile, err)
 	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, err)
-	// TODO: add shard
-	ChRequestsMetric(0, info.Host, meta.Table, err == nil)
+	ChRequestsMetric(info.Shard, info.Host, meta.Table, err == nil)
 
 	return err
 }
