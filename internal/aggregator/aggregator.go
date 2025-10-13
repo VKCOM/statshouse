@@ -185,6 +185,12 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 			log.Printf("[warning] running with single-host cluster, probably demo")
 		}
 	}
+	if config.LocalShard > 0 {
+		shardKey = int32(config.LocalShard)
+	}
+	if len(config.LocalAggHosts) > 0 {
+		addresses = config.LocalAggHosts
+	}
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 	}

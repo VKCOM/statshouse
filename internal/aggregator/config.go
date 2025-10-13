@@ -61,7 +61,9 @@ type ConfigAggregator struct {
 	ShardByMetricShards int
 	ExternalPort        string
 
-	LocalReplica int
+	LocalReplica  int
+	LocalShard    int
+	LocalAggHosts []string
 
 	AutoCreate                 bool
 	AutoCreateDefaultNamespace bool
