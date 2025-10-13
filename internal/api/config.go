@@ -37,6 +37,7 @@ type Config struct {
 	BlockedUsers           []string
 	AvailableShardsStr     string
 	AvailableShards        []uint32
+	CHMaxShardConnsRatio   int
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -114,12 +115,14 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", "", "comma-separated list of metric prefixes that are blocked")
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
+	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		ApproxCacheMaxSize: 1_000_000,
-		AvailableShardsStr: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
+		ApproxCacheMaxSize:   1_000_000,
+		AvailableShardsStr:   "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
+		CHMaxShardConnsRatio: 20,
 	}
 }
 

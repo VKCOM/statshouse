@@ -970,6 +970,9 @@ var BuiltinMetricMetaAPIActiveQueries = &MetricMetaValue{
 		}),
 	}, {
 		Description: "host",
+	}, {
+		Description: "shard_num",
+		RawKind:     "int",
 	}},
 }
 
