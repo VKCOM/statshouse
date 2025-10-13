@@ -62,9 +62,18 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 }
 
 func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
+	a.configMu.RLock()
+	addrs := make([]string, len(a.configR.ClusterShardsAddrs))
+	copy(addrs, a.configR.ClusterShardsAddrs)
+	a.configMu.RUnlock()
+
+	if len(addrs) == 0 {
+		addrs = a.addresses
+	}
+	shardByMetricShards := min(a.config.ShardByMetricShards, len(addrs)/3)
 	return tlstatshouse.GetConfigResult3{
-		Addresses:          a.addresses,
-		ShardByMetricCount: uint32(a.config.ShardByMetricShards),
+		Addresses:          addrs,
+		ShardByMetricCount: uint32(shardByMetricShards),
 	}
 }
 
@@ -131,8 +140,8 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},
 			1, hostTagBytes, aera)
-		// longpoll forever until aggregator restarts
-		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
+		a.cfgNotifier.addClient(hctx)
+		return hctx.HijackResponse(a.cfgNotifier)
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
@@ -243,7 +252,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	a.mu.Lock()
-	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
+	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},
@@ -759,7 +768,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	a.mu.Lock()
-	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
+	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},

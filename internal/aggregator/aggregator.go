@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,9 +104,10 @@ type (
 		config ConfigAggregator
 
 		// Remote config
-		configR  ConfigAggregatorRemote
-		configS  string
-		configMu sync.RWMutex
+		configR     ConfigAggregatorRemote
+		configS     string
+		configMu    sync.RWMutex
+		cfgNotifier *ConfigChangeNotifier
 
 		metricStorage  *metajournal.MetricsStorage
 		journalFast    *metajournal.JournalFast
@@ -188,8 +190,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.LocalShard > 0 {
 		shardKey = int32(config.LocalShard)
 	}
-	if len(config.LocalAggHosts) > 0 {
-		addresses = config.LocalAggHosts
+	if len(config.ClusterShardsAddrs) > 0 {
+		addresses = config.ClusterShardsAddrs
 	}
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
@@ -235,6 +237,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
 		configR:                     config.ConfigAggregatorRemote,
+		cfgNotifier:                 NewConfigChangeNotifier(),
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
 		replicaKey:                  replicaKey,
@@ -589,22 +592,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	*/
 }
 
-func (a *Aggregator) checkShardConfigurationTotal(shardReplicaTotal int32) error {
-	if shardReplicaTotal == int32(len(a.addresses)) {
-		return nil
-	}
-	if a.config.PreviousNumShards != 0 && shardReplicaTotal == int32(a.config.PreviousNumShards) {
-		return nil
-	}
-	return fmt.Errorf("statshouse misconfiguration! shard*replicas total sent by source (%d) does not match shard*replicas total of aggregator (%d) or --previous-shards (%d)", shardReplicaTotal, len(a.addresses), a.config.PreviousNumShards)
-}
-
-func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTotal int32) (int32, error) {
+func (a *Aggregator) checkShardConfiguration(shardReplica int32) (int32, error) {
 	ourShardReplica := (a.shardKey-1)*3 + (a.replicaKey - 1) // shardKey is 1 for shard 0
-	if err := a.checkShardConfigurationTotal(shardReplicaTotal); err != nil {
-		return ourShardReplica, err
-	}
-	if a.withoutCluster { // No checks for local testing, when config.Replica == ""
+	if a.withoutCluster {                                    // No checks for local testing, when config.Replica == ""
 		return ourShardReplica, nil
 	}
 	if shardReplica != ourShardReplica {
@@ -1062,6 +1052,9 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	}
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
+	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
+		a.cfgNotifier.notifyConfigChange()
+	}
 	a.configR = config
 	a.configMu.Unlock()
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
