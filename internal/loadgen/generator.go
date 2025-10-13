@@ -80,6 +80,8 @@ func (m *manyTagsValueMetric) Ensure(ctx context.Context, c *api.Client) {
 	metric.Metric.Name = m.name
 	metric.Metric.Resolution = m.resolution
 	metric.Metric.Kind = format.MetricKindValue
+	metric.Metric.ShardStrategy = format.ShardFixed
+	metric.Metric.ShardNum = uint32(rand.Intn(2) + 1)
 	err = c.PostMetric(ctx, metric)
 	if err != nil {
 		log.Printf("error creating metric: %v", err)
