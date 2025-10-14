@@ -615,7 +615,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
 				} else {
 					if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
-						log.Printf("[INGRESS COMPAT] Returning legacy config for old client: %s", args.Header.HostName)
+						log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
 						p.config2.Addresses = p.config2.Addresses[:min(argv.LegacyAddrLimit, len(p.config2.Addresses))]
 					}
 					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
@@ -643,7 +643,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
 					} else {
 						if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
-							log.Printf("[INGRESS COMPAT] Returning legacy config for old client: %s", args.Header.HostName)
+							log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
 							p.config3.Addresses = p.config3.Addresses[:min(argv.LegacyAddrLimit, len(p.config3.Addresses))]
 						}
 						req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
@@ -697,18 +697,7 @@ func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, s
 }
 
 func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, isSetNewIngressVersion bool) bool {
-	if header.ComponentTag != format.TagValueIDComponentIngressProxy {
-		log.Printf("[INGRESS COMPAT] Agent: %s - full config", header.HostName)
-		return false
-	}
-	if isSetNewIngressVersion {
-		log.Printf("[INGRESS COMPAT] NEW ingress proxy: %s - full config",
-			header.HostName)
-		return false
-	}
-	log.Printf("[INGRESS COMPAT] OLD ingress proxy: %s - legacy config",
-		header.HostName)
-	return true
+	return !isSetNewIngressVersion && header.ComponentTag == format.TagValueIDComponentIngressProxy
 }
 
 func (req *proxyRequest) setIngressProxy(p *proxyConn) {
