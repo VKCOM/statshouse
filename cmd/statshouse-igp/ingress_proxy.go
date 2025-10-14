@@ -47,7 +47,6 @@ const (
 	// packetConn buffers - 24KB per connection
 	ingressRequestBufSize  = 16384 // 16 KB
 	ingressResponseBufSize = 8192  // 8 KB
-	compatVersion          = 1
 )
 
 type ConfigIngressProxy struct {
@@ -158,7 +157,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		var err error
 		p.agent, err = agent.MakeAgent(
 			"tcp", "", aesPwd, config.ConfigAgent, srvfunc.HostnameForStatshouse(),
-			format.TagValueIDComponentIngressProxy, compatVersion,
+			format.TagValueIDComponentIngressProxy,
 			nil, mappingsCache,
 			nil, nil,
 			log.Printf,
@@ -638,7 +637,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					if equalConfig {
 						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
 					} else {
-						if p.isLegacyIngressClient(&args.Header, args.FieldsMask) {
+						if p.isLegacyIngressClient(&args.Header, args) {
 							log.Printf("[INGRESS COMPAT] Returning legacy config for old client: %s", args.Header.HostName)
 							req.Response, _ = args.WriteResult(req.Response[:0], args.PreviousConfig)
 						} else {
@@ -694,18 +693,18 @@ func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, s
 		1)
 }
 
-func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, fieldsMask uint32) bool {
+func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, args tlstatshouse.GetConfig3) bool {
 	if header.ComponentTag != format.TagValueIDComponentIngressProxy {
 		log.Printf("[INGRESS COMPAT] Agent: %s - full config", header.HostName)
 		return false
 	}
-	if header.IsSetVersion(fieldsMask) && header.Version == compatVersion {
-		log.Printf("[INGRESS COMPAT] NEW ingress proxy: %s (Version=%d) - full config",
-			header.HostName, header.Version)
+	if args.IsSetNewIngressVersion() {
+		log.Printf("[INGRESS COMPAT] NEW ingress proxy: %s - full config",
+			header.HostName)
 		return false
 	}
-	log.Printf("[INGRESS COMPAT] OLD ingress proxy: %s (Version=%d, HasVersion=%v) - legacy config",
-		header.HostName, header.Version, header.IsSetVersion(fieldsMask))
+	log.Printf("[INGRESS COMPAT] OLD ingress proxy: %s - legacy config",
+		header.HostName)
 	return true
 }
 
@@ -715,7 +714,6 @@ func (req *proxyRequest) setIngressProxy(p *proxyConn) {
 	}
 	fieldsMask := binary.LittleEndian.Uint32(req.Request[4:])
 	fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
-	fieldsMask |= (1 << 27) // args.SetVersion(num)
 	binary.LittleEndian.PutUint32(req.Request[4:], fieldsMask)
 	binary.LittleEndian.PutUint32(req.Request[16:], p.clientAddr[0])
 	binary.LittleEndian.PutUint32(req.Request[20:], p.clientAddr[1])

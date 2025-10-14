@@ -98,7 +98,6 @@ statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     ingress_proxy:fields_mask.31?true     // simply set to 1 by ingress proxy for all passing requests
     agent_env_staging_0:fields_mask.30?true // set by test version of agents to help with debug
     agent_env_staging_1:fields_mask.29?true
-    version:fields_mask.27?int // version of ingress proxy for compatibility detection
 
     shard_replica:int // Aggregator will only accept correct shard/replica conbinations
     shard_replica_total:int
@@ -172,6 +171,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
     previousConfig: fields_mask.0?statshouse.getConfigResult3 // if sent, will long poll on it
+    newIngressVersion: fields_mask.1?true // ingress version without compat
      = statshouse.GetConfigResult3;
 
 // For ingress proxy, we pass shard_replica/shard_total immediately after fields mask
