@@ -79,7 +79,7 @@ func (e *Estimator) createEstimatorsLocked(time uint32) (map[int32]*ChUnique, ma
 	return ah, bh
 }
 
-func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *MultiItemMap, usedMetrics map[int32]struct{}, aggregatorHostTag TagUnionBytes, shardKey int32, replicaKey int32, numShards int) {
+func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *MultiItemMap, usedMetrics map[int32]struct{}, aggregatorHostTag TagUnionBytes, shardKey int32, replicaKey int32) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -108,10 +108,7 @@ func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *Mu
 		//	sf := cardinality / e.maxCardinality
 		//	sampleFactors[k] = sf
 		// }
-		cardinality *= float64(numShards)
-		// show full cardinality estimates in metrics. We need sum of average(all inserted per aggregator) over all aggregators
-		// we cannot implement this, so we multiply by # of shards, expecting uniform load (which is wrong if skip shards option is given to agents)
-		// so avg() of this metric shows full estimate
+		// we presume we have full view of metric, so those with "hash_by_tags" or "builtin" strategy will report wrong estimate
 		key := AggKey((time/60)*60, format.BuiltinMetricIDAggHourCardinality, [format.MaxTags]int32{0, 0, 0, 0, k}, aggregatorHostTag.I, shardKey, replicaKey)
 		item, _ := miMap.GetOrCreateMultiItem(key, nil, nil)
 		item.Tail.AddValueCounterHost(rng, cardinality, 1, aggregatorHostTag)

@@ -12,14 +12,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-
-	_ "net/http/pprof"
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/pcache"
@@ -134,7 +133,7 @@ main_loop:
 			case <-exit:
 			case <-time.After(5 * time.Second):
 			}
-			log.Println("Buy")
+			log.Println("Bye")
 		}
 	case err := <-exit:
 		log.Println(err)

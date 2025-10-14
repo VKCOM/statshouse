@@ -1181,33 +1181,6 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 	}},
 }
 
-var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
-	Name:                    "__api_ch_select_os_cpu_virtual_time",
-	Kind:                    MetricKindValue,
-	MetricType:              MetricSecond,
-	Description:             "OS CPU virtual time in seconds reported by ClickHouse ProfileEvents for SELECT",
-	NoSampleAgent:           false,
-	BuiltinAllowedToReceive: true,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        false,
-	Tags: []MetricMetaTag{{
-		Description: "query type",
-	}, {
-		Description: "metric",
-		BuiltinKind: BuiltinKindMetric,
-	}, {
-		Description: "table",
-	}, {
-		Description: "kind",
-	}, {
-		Description: "status",
-	}, {
-		Description: "token-short",
-	}, {
-		Description: "token-long",
-	}},
-}
-
 var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	Name:                    "__api_ch_select_duration",
 	Kind:                    MetricKindValue,
@@ -2756,5 +2729,32 @@ var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Description: "migration_timestamp",
 		RawKind:     "timestamp",
+	}},
+}
+
+var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
+	Name:                    "__api_ch_select_os_cpu_virtual_time",
+	Kind:                    MetricKindValue,
+	MetricType:              MetricSecond,
+	Description:             "OS CPU virtual time in seconds reported by ClickHouse ProfileEvents for SELECT",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "query type",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "table",
+	}, {
+		Description: "kind",
+	}, {
+		Description: "status",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
 	}},
 }
