@@ -134,8 +134,11 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 }
 
 func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd string, mappingsCache *pcache.MappingsCache) error {
+	proxyCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	p := ingressProxy{
-		ctx:             ctx,
+		ctx:             proxyCtx,
 		cluster:         config.ConfigAgent.Cluster,
 		clientOpts:      rpc.ClientOptions{CryptoKey: aesPwd},
 		serverKeys:      config.IngressKeys,
@@ -192,6 +195,7 @@ func RunIngressProxy(ctx context.Context, config ConfigIngressProxy, aesPwd stri
 		}
 		go func() {
 			p.agent.GoGetConfig() // if terminates, proxy must restart
+			cancel()
 			close(restart)
 		}()
 		p.agent.Run(0, 0, 0)
