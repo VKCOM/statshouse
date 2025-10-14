@@ -60,6 +60,7 @@ type ConfigIngressProxy struct {
 	Version               string
 	ConfigAgent           agent.Config
 	Debug                 bool
+	LegacyAddrLimit       int // max count of addresses for legacy ingress clients
 }
 
 type ingressProxy struct {
@@ -613,6 +614,10 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
 					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
 				} else {
+					if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
+						log.Printf("[INGRESS COMPAT] Returning legacy config for old client: %s", args.Header.HostName)
+						p.config2.Addresses = p.config2.Addresses[:min(argv.LegacyAddrLimit, len(p.config2.Addresses))]
+					}
 					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
 					autoConfigStatus = format.TagValueIDAutoConfigOK
 				}
@@ -637,13 +642,11 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					if equalConfig {
 						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
 					} else {
-						if p.isLegacyIngressClient(&args.Header, args) {
+						if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
 							log.Printf("[INGRESS COMPAT] Returning legacy config for old client: %s", args.Header.HostName)
-							req.Response, _ = args.WriteResult(req.Response[:0], args.PreviousConfig)
-						} else {
-							log.Printf("[INGRESS COMPAT] Returning current config for new client: %s", args.Header.HostName)
-							req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
+							p.config3.Addresses = p.config3.Addresses[:min(argv.LegacyAddrLimit, len(p.config3.Addresses))]
 						}
+						req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
 						autoConfigStatus = format.TagValueIDAutoConfigOK
 					}
 				}
@@ -693,12 +696,12 @@ func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, s
 		1)
 }
 
-func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, args tlstatshouse.GetConfig3) bool {
+func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, isSetNewIngressVersion bool) bool {
 	if header.ComponentTag != format.TagValueIDComponentIngressProxy {
 		log.Printf("[INGRESS COMPAT] Agent: %s - full config", header.HostName)
 		return false
 	}
-	if args.IsSetNewIngressVersion() {
+	if isSetNewIngressVersion {
 		log.Printf("[INGRESS COMPAT] NEW ingress proxy: %s - full config",
 			header.HostName)
 		return false

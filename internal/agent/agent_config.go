@@ -251,6 +251,9 @@ func clientGetConfig(network string, rpcClient rpc.Client, shardReplicaNum int, 
 			BuildArch:    archTag,
 		},
 	}
+	if componentTag == format.TagValueIDComponentIngressProxy {
+		args.SetNewIngressVersion(true)
+	}
 	args.SetTs(true)
 	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, stagingLevel)
 	var ret tlstatshouse.GetConfigResult

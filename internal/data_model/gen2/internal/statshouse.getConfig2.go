@@ -18,6 +18,7 @@ type StatshouseGetConfig2 struct {
 	Header     StatshouseCommonProxyHeader
 	Cluster    string
 	// Ts (TrueType) // Conditional: item.FieldsMask.0
+	// NewIngressVersion (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetConfig2) TLName() string { return "statshouse.getConfig2" }
@@ -31,6 +32,15 @@ func (item *StatshouseGetConfig2) SetTs(v bool) {
 	}
 }
 func (item StatshouseGetConfig2) IsSetTs() bool { return item.FieldsMask&(1<<0) != 0 }
+
+func (item *StatshouseGetConfig2) SetNewIngressVersion(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 1
+	} else {
+		item.FieldsMask &^= 1 << 1
+	}
+}
+func (item StatshouseGetConfig2) IsSetNewIngressVersion() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseGetConfig2) Reset() {
 	item.FieldsMask = 0
@@ -143,6 +153,8 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	var propClusterPresented bool
 	var trueTypeTsPresented bool
 	var trueTypeTsValue bool
+	var trueTypeNewIngressVersionPresented bool
+	var trueTypeNewIngressVersionValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -185,6 +197,14 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				trueTypeTsPresented = true
+			case "newIngressVersion":
+				if trueTypeNewIngressVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "newIngressVersion")
+				}
+				if err := Json2ReadBool(in, &trueTypeNewIngressVersionValue); err != nil {
+					return err
+				}
+				trueTypeNewIngressVersionPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
 			}
@@ -206,6 +226,11 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 			item.FieldsMask |= 1 << 0
 		}
 	}
+	if trueTypeNewIngressVersionPresented {
+		if trueTypeNewIngressVersionValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -217,6 +242,10 @@ func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 
 	// tries to set bit to zero if it is 1
 	if trueTypeTsPresented && !trueTypeTsValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeNewIngressVersionPresented && !trueTypeNewIngressVersionValue && (item.FieldsMask&(1<<1) != 0) {
 		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
@@ -253,6 +282,10 @@ func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w 
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ts":true`...)
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"newIngressVersion":true`...)
+	}
 	return append(w, '}')
 }
 
@@ -272,6 +305,7 @@ type StatshouseGetConfig2Bytes struct {
 	Header     StatshouseCommonProxyHeaderBytes
 	Cluster    []byte
 	// Ts (TrueType) // Conditional: item.FieldsMask.0
+	// NewIngressVersion (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetConfig2Bytes) TLName() string { return "statshouse.getConfig2" }
@@ -285,6 +319,17 @@ func (item *StatshouseGetConfig2Bytes) SetTs(v bool) {
 	}
 }
 func (item StatshouseGetConfig2Bytes) IsSetTs() bool { return item.FieldsMask&(1<<0) != 0 }
+
+func (item *StatshouseGetConfig2Bytes) SetNewIngressVersion(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 1
+	} else {
+		item.FieldsMask &^= 1 << 1
+	}
+}
+func (item StatshouseGetConfig2Bytes) IsSetNewIngressVersion() bool {
+	return item.FieldsMask&(1<<1) != 0
+}
 
 func (item *StatshouseGetConfig2Bytes) Reset() {
 	item.FieldsMask = 0
@@ -397,6 +442,8 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	var propClusterPresented bool
 	var trueTypeTsPresented bool
 	var trueTypeTsValue bool
+	var trueTypeNewIngressVersionPresented bool
+	var trueTypeNewIngressVersionValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -439,6 +486,14 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				trueTypeTsPresented = true
+			case "newIngressVersion":
+				if trueTypeNewIngressVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "newIngressVersion")
+				}
+				if err := Json2ReadBool(in, &trueTypeNewIngressVersionValue); err != nil {
+					return err
+				}
+				trueTypeNewIngressVersionPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
 			}
@@ -460,6 +515,11 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 			item.FieldsMask |= 1 << 0
 		}
 	}
+	if trueTypeNewIngressVersionPresented {
+		if trueTypeNewIngressVersionValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -471,6 +531,10 @@ func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basict
 
 	// tries to set bit to zero if it is 1
 	if trueTypeTsPresented && !trueTypeTsValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeNewIngressVersionPresented && !trueTypeNewIngressVersionValue && (item.FieldsMask&(1<<1) != 0) {
 		return ErrorInvalidJSON("statshouse.getConfig2", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
@@ -506,6 +570,10 @@ func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short boo
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ts":true`...)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"newIngressVersion":true`...)
 	}
 	return append(w, '}')
 }
