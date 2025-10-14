@@ -63,17 +63,10 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 
 func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
 	a.configMu.RLock()
-	addrs := make([]string, len(a.configR.ClusterShardsAddrs))
-	copy(addrs, a.configR.ClusterShardsAddrs)
-	a.configMu.RUnlock()
-
-	if len(addrs) == 0 {
-		addrs = a.addresses
-	}
-	shardByMetricShards := min(a.config.ShardByMetricShards, len(addrs)/3)
+	defer a.configMu.RUnlock()
 	return tlstatshouse.GetConfigResult3{
-		Addresses:          addrs,
-		ShardByMetricCount: uint32(shardByMetricShards),
+		Addresses:          a.configR.ClusterShardsAddrs,
+		ShardByMetricCount: uint32(a.config.ShardByMetricShards),
 	}
 }
 
@@ -255,7 +248,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(configR.ClusterShardsAddrs))},
 			1, hostTag, aera)
 		return err.Error(), nil, true
 	}
@@ -749,6 +742,10 @@ func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerCo
 }
 
 func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes, version3 bool) error {
+	a.configMu.RLock()
+	configR := a.configR
+	a.configMu.RUnlock()
+
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -771,7 +768,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(configR.ClusterShardsAddrs))},
 			1, hostTag, aera)
 		return err
 	}

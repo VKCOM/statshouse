@@ -79,7 +79,6 @@ type (
 		replicaKey        int32 // never changes after start, can be used without lock
 		buildArchTag      int32 // never changes after start, can be used without lock
 		startTimestamp    uint32
-		addresses         []string
 
 		cancelInsertsFunc context.CancelFunc
 		cancelInsertsCtx  context.Context
@@ -202,6 +201,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.ShardByMetricShards == 0 {
 		config.ShardByMetricShards = len(addresses) / 3
 	}
+	config.ClusterShardsAddrs = addresses
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
@@ -242,7 +242,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		shardKey:                    shardKey,
 		replicaKey:                  replicaKey,
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
-		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
 		migrationConfig:             NewDefaultMigrationConfig(),
@@ -345,12 +344,12 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		return nil, fmt.Errorf("failed to map aggregator host tag: %v", err)
 	}
 
-	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
+	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(a.config.ClusterShardsAddrs))
 
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
-	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(addresses, ","), "", "Started")
+	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.ClusterShardsAddrs, ","), "", "Started")
 
 	a.insertsSemaSize = int64(a.config.RecentInserters)
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
@@ -714,6 +713,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		aggBuckets = aggBuckets[:0]
 		bodyStorage = bodyStorage[:0]
 
+		a.configMu.RLock()
+		configR := a.configR
+		a.configMu.RUnlock()
+
 		nowUnix := uint32(time.Now().Unix())
 		a.mu.Lock()
 		oldestTime := a.recentBuckets[0].time
@@ -729,7 +732,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Unlock()
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
-		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
+		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(configR.ClusterShardsAddrs))
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -780,7 +783,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
-			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
+			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(configR.ClusterShardsAddrs))
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -790,9 +793,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				break
 			}
 		}
-		a.configMu.RLock()
-		v3InsertSettings := a.configR.V3InsertSettings
-		a.configMu.RUnlock()
 
 		var marshalDur time.Duration
 		var stats insertStats
@@ -800,7 +800,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, v3InsertSettings)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, configR.V3InsertSettings)
 
 		if sendErr != nil {
 			a.lastErrorTs = nowUnix
