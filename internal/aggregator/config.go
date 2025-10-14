@@ -24,22 +24,21 @@ type ConfigChangeNotifier struct {
 }
 
 type ConfigAggregatorRemote struct {
-	InsertBudget           int         // for single replica, in bytes per contributor, when many contributors
-	ShardInsertBudget      map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
-	StringTopCountInsert   int
-	SampleNamespaces       bool
-	SampleGroups           bool
-	SampleKeys             bool
-	DenyOldAgents          bool
-	V3InsertSettings       string
-	MappingCacheSize       int64
-	MappingCacheTTL        int
-	MapStringTop           bool
-	BufferedInsertAgeSec   int    // age in seconds of data that should be sent to buffer table
-	MigrationTimeRange     string // format: "{begin timestamp}-{end timestamp}"
-	MigrationDelaySec      int    // delay in seconds between migration steps
-	ClusterShardsAddrs     []string
-	SwapClusterShardsAddrs []string
+	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
+	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	StringTopCountInsert int
+	SampleNamespaces     bool
+	SampleGroups         bool
+	SampleKeys           bool
+	DenyOldAgents        bool
+	V3InsertSettings     string
+	MappingCacheSize     int64
+	MappingCacheTTL      int
+	MapStringTop         bool
+	BufferedInsertAgeSec int    // age in seconds of data that should be sent to buffer table
+	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
+	MigrationDelaySec    int    // delay in seconds between migration steps
+	ClusterShardsAddrs   []string
 
 	configTagsMapper2
 }
@@ -141,7 +140,7 @@ func (c *ConfigAggregatorRemote) setClusterShardsHosts(param string) error {
 	if len(replicas) != 3 {
 		return fmt.Errorf("invalid input format for --cluster-shards-hosts, expected {replica1},{replica2},{replica3}, got %v", param)
 	}
-	c.SwapClusterShardsAddrs = append(c.SwapClusterShardsAddrs, replicas...)
+	c.ClusterShardsAddrs = append(c.ClusterShardsAddrs, replicas...)
 	return nil
 }
 
@@ -244,9 +243,6 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	if c.MigrationDelaySec < 1 {
 		return fmt.Errorf("--migration-delay-sec (%d) must be >= 1", c.MigrationDelaySec)
 	}
-	if len(c.SwapClusterShardsAddrs) != 0 {
-		c.ClusterShardsAddrs = c.SwapClusterShardsAddrs
-	}
 
 	return nil
 }
@@ -255,7 +251,6 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 	var f flag.FlagSet
 	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
-	c.resetVars()
 	c.Bind(&f, *c, false)
 	s := strings.Split(description, "\n")
 	for i := 0; i < len(s); i++ {
@@ -266,10 +261,6 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 		_ = f.Parse([]string{t})
 	}
 	return c.Validate()
-}
-
-func (c *ConfigAggregatorRemote) resetVars() {
-	c.SwapClusterShardsAddrs = []string{}
 }
 
 func NewConfigChangeNotifier() *ConfigChangeNotifier {
@@ -286,12 +277,6 @@ func (c *ConfigChangeNotifier) notifyConfigChange() {
 		delete(c.clients, hctx)
 		hctx.SendHijackedResponse(nil)
 	}
-}
-
-func (c *ConfigChangeNotifier) addClient(hctx *rpc.HandlerContext) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.clients[hctx] = struct{}{}
 }
 
 func (c *ConfigChangeNotifier) CancelHijack(hctx *rpc.HandlerContext) {

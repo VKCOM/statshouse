@@ -1046,12 +1046,16 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.configS = description
 	log.Printf("Remote config:\n%s", description)
 	config := a.config.ConfigAggregatorRemote
+	config.ClusterShardsAddrs = nil
 	if err := config.updateFromRemoteDescription(description); err != nil {
 		log.Printf("[error] Remote config: error updating config from metric %q: %v", format.StatshouseAggregatorRemoteConfigMetric, err)
 		return
 	}
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
+	if len(config.ClusterShardsAddrs) == 0 {
+		config.ClusterShardsAddrs = a.config.ClusterShardsAddrs
+	}
 	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
 		a.cfgNotifier.notifyConfigChange()
 	}
