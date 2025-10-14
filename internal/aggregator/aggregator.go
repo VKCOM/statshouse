@@ -321,7 +321,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult3() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator,
+		format.TagValueIDComponentAggregator, 0,
 		a.metricStorage, mappingsCache,
 		a.journalFast.VersionHash, a.journalCompact.VersionHash,
 		log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult, nil)

@@ -135,6 +135,7 @@ func (s *Agent) clientGetAndSaveConfig(ctxParent context.Context, client *tlstat
 			HostName:     string(s.hostName),
 			ComponentTag: s.componentTag,
 			BuildArch:    s.buildArchTag,
+			Version:      s.compatVersion,
 		},
 	}
 	if previousConfig != nil {

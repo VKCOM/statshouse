@@ -98,6 +98,7 @@ statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     ingress_proxy:fields_mask.31?true     // simply set to 1 by ingress proxy for all passing requests
     agent_env_staging_0:fields_mask.30?true // set by test version of agents to help with debug
     agent_env_staging_1:fields_mask.29?true
+    version:fields_mask.27?int // version of ingress proxy for compatibility detection
 
     shard_replica:int // Aggregator will only accept correct shard/replica conbinations
     shard_replica_total:int
