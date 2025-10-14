@@ -178,6 +178,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
 	flag.StringVar(&argv.UpstreamAddr, "ingress-upstream-addr", "", "Upstream server address (for debug purpose, do not use in production).")
 	flag.BoolVar(&argv.Debug, "debug", false, "enable debug logging")
+	flag.IntVar(&argv.LegacyAddrLimit, "max-address-count", 48, "Maximum number of addresses allowed for legacy ingress clients.")
 	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	build.FlagParseShowVersionHelp()
 
