@@ -83,9 +83,10 @@ type Agent struct {
 	journalFastHV    func() (int64, string)
 	journalCompactHV func() (int64, string)
 
-	componentTag int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
-	stagingLevel int
-	buildArchTag int32
+	componentTag  int32 // agent or ingress proxy or aggregator (they have agents for built-in metrics)
+	stagingLevel  int
+	buildArchTag  int32
+	compatVersion int32
 	// Used for builtin metrics when running inside aggregator
 	AggregatorShardKey   int32
 	AggregatorReplicaKey int32
@@ -142,7 +143,7 @@ func stagingLevel(statsHouseEnv string) int {
 }
 
 // All shard aggregators must be on the same network
-func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
+func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, compatVersion int32, metricStorage format.MetaStorageInterface,
 	mappingsCache *pcache.MappingsCache,
 	journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
@@ -168,6 +169,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		cancelFlushFunc:                   cancelFlushFunc,
 		hostName:                          format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		componentTag:                      componentTag,
+		compatVersion:                     compatVersion,
 		heartBeatEventType:                format.TagValueIDHeartbeatEventStart,
 		heartBeatSecondBucket:             uint32(rnd.Intn(60)),
 		config:                            config,

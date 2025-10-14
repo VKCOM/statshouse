@@ -226,7 +226,7 @@ func run() int {
 		aesPwd,
 		argv.Config,
 		argv.customHostName,
-		format.TagValueIDComponentAgent,
+		format.TagValueIDComponentAgent, 0,
 		metricStorage, mappingsCache,
 		nil, journalFast.VersionHash,
 		log.Printf,

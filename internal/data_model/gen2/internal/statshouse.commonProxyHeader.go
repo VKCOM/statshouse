@@ -17,6 +17,7 @@ type StatshouseCommonProxyHeader struct {
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
 	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
 	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
+	Version           int32 // Conditional: nat_fields_mask.27
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -68,6 +69,22 @@ func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging1(nat_fields_mask ui
 	return nat_fields_mask&(1<<29) != 0
 }
 
+func (item *StatshouseCommonProxyHeader) SetVersion(v int32, nat_fields_mask *uint32) {
+	item.Version = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 27
+	}
+}
+func (item *StatshouseCommonProxyHeader) ClearVersion(nat_fields_mask *uint32) {
+	item.Version = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 27
+	}
+}
+func (item StatshouseCommonProxyHeader) IsSetVersion(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<27) != 0
+}
+
 func (item *StatshouseCommonProxyHeader) SetOwner(v string, nat_fields_mask *uint32) {
 	item.Owner = v
 	if nat_fields_mask != nil {
@@ -85,6 +102,7 @@ func (item StatshouseCommonProxyHeader) IsSetOwner(nat_fields_mask uint32) bool 
 }
 
 func (item *StatshouseCommonProxyHeader) Reset() {
+	item.Version = 0
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
 	BuiltinTuple4IntReset(&item.AgentIp)
@@ -95,6 +113,13 @@ func (item *StatshouseCommonProxyHeader) Reset() {
 }
 
 func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	if nat_fields_mask&(1<<27) != 0 {
+		if w, err = basictl.IntRead(w, &item.Version); err != nil {
+			return w, err
+		}
+	} else {
+		item.Version = 0
+	}
 	if w, err = basictl.IntRead(w, &item.ShardReplica); err != nil {
 		return w, err
 	}
@@ -129,6 +154,9 @@ func (item *StatshouseCommonProxyHeader) WriteGeneral(w []byte, nat_fields_mask 
 }
 
 func (item *StatshouseCommonProxyHeader) Write(w []byte, nat_fields_mask uint32) []byte {
+	if nat_fields_mask&(1<<27) != 0 {
+		w = basictl.IntWrite(w, item.Version)
+	}
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
 	w = BuiltinTuple4IntWrite(w, &item.AgentIp)
@@ -159,6 +187,7 @@ func (item *StatshouseCommonProxyHeader) WriteBoxed(w []byte, nat_fields_mask ui
 }
 
 func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propVersionPresented bool
 	var propShardReplicaPresented bool
 	var propShardReplicaTotalPresented bool
 	var propAgentIpPresented bool
@@ -182,6 +211,17 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_0' cannot be defined, set fieldmask instead")
 			case "agent_env_staging_1":
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_1' cannot be defined, set fieldmask instead")
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "version")
+				}
+				if nat_fields_mask&(1<<27) == 0 {
+					return ErrorInvalidJSON("statshouse.commonProxyHeader", "field 'version' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
 			case "shard_replica":
 				if propShardReplicaPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "shard_replica")
@@ -251,6 +291,9 @@ func (item *StatshouseCommonProxyHeader) ReadJSON(legacyTypeNames bool, in *basi
 			return in.Error()
 		}
 	}
+	if !propVersionPresented {
+		item.Version = 0
+	}
 	if !propShardReplicaPresented {
 		item.ShardReplica = 0
 	}
@@ -285,6 +328,11 @@ func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uin
 }
 func (item *StatshouseCommonProxyHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
+	if nat_fields_mask&(1<<27) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"version":`...)
+		w = basictl.JSONWriteInt32(w, item.Version)
+	}
 	backupIndexShardReplica := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"shard_replica":`...)
@@ -335,6 +383,7 @@ type StatshouseCommonProxyHeaderBytes struct {
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
 	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
 	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
+	Version           int32 // Conditional: nat_fields_mask.27
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -386,6 +435,22 @@ func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging1(nat_fields_ma
 	return nat_fields_mask&(1<<29) != 0
 }
 
+func (item *StatshouseCommonProxyHeaderBytes) SetVersion(v int32, nat_fields_mask *uint32) {
+	item.Version = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 27
+	}
+}
+func (item *StatshouseCommonProxyHeaderBytes) ClearVersion(nat_fields_mask *uint32) {
+	item.Version = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 27
+	}
+}
+func (item StatshouseCommonProxyHeaderBytes) IsSetVersion(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<27) != 0
+}
+
 func (item *StatshouseCommonProxyHeaderBytes) SetOwner(v []byte, nat_fields_mask *uint32) {
 	item.Owner = v
 	if nat_fields_mask != nil {
@@ -403,6 +468,7 @@ func (item StatshouseCommonProxyHeaderBytes) IsSetOwner(nat_fields_mask uint32) 
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Reset() {
+	item.Version = 0
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
 	BuiltinTuple4IntReset(&item.AgentIp)
@@ -413,6 +479,13 @@ func (item *StatshouseCommonProxyHeaderBytes) Reset() {
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	if nat_fields_mask&(1<<27) != 0 {
+		if w, err = basictl.IntRead(w, &item.Version); err != nil {
+			return w, err
+		}
+	} else {
+		item.Version = 0
+	}
 	if w, err = basictl.IntRead(w, &item.ShardReplica); err != nil {
 		return w, err
 	}
@@ -447,6 +520,9 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteGeneral(w []byte, nat_fields_
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Write(w []byte, nat_fields_mask uint32) []byte {
+	if nat_fields_mask&(1<<27) != 0 {
+		w = basictl.IntWrite(w, item.Version)
+	}
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
 	w = BuiltinTuple4IntWrite(w, &item.AgentIp)
@@ -477,6 +553,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteBoxed(w []byte, nat_fields_ma
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propVersionPresented bool
 	var propShardReplicaPresented bool
 	var propShardReplicaTotalPresented bool
 	var propAgentIpPresented bool
@@ -500,6 +577,17 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_0' cannot be defined, set fieldmask instead")
 			case "agent_env_staging_1":
 				return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging_1' cannot be defined, set fieldmask instead")
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "version")
+				}
+				if nat_fields_mask&(1<<27) == 0 {
+					return ErrorInvalidJSON("statshouse.commonProxyHeader", "field 'version' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
 			case "shard_replica":
 				if propShardReplicaPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "shard_replica")
@@ -569,6 +657,9 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSON(legacyTypeNames bool, in 
 			return in.Error()
 		}
 	}
+	if !propVersionPresented {
+		item.Version = 0
+	}
 	if !propShardReplicaPresented {
 		item.ShardReplica = 0
 	}
@@ -603,6 +694,11 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mas
 }
 func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
+	if nat_fields_mask&(1<<27) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"version":`...)
+		w = basictl.JSONWriteInt32(w, item.Version)
+	}
 	backupIndexShardReplica := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"shard_replica":`...)

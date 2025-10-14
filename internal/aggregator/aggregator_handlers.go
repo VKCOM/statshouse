@@ -133,7 +133,9 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},
 			1, hostTagBytes, aera)
-		a.cfgNotifier.addClient(hctx)
+		a.cfgNotifier.mu.Lock()
+		defer a.cfgNotifier.mu.Unlock()
+		a.cfgNotifier.clients[hctx] = struct{}{}
 		return hctx.HijackResponse(a.cfgNotifier)
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
