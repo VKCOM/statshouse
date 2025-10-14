@@ -62,8 +62,10 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 }
 
 func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
+	a.configMu.RLock()
+	defer a.configMu.RUnlock()
 	return tlstatshouse.GetConfigResult3{
-		Addresses:          a.addresses,
+		Addresses:          a.configR.ClusterShardsAddrs,
 		ShardByMetricCount: uint32(a.config.ShardByMetricShards),
 	}
 }
@@ -131,8 +133,8 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},
 			1, hostTagBytes, aera)
-		// longpoll forever until aggregator restarts
-		return hctx.HijackResponse(a.testConnection) // those hctx are never added there so cancelling is NOP
+		a.cfgNotifier.addClient(hctx)
+		return hctx.HijackResponse(a.cfgNotifier)
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
@@ -243,10 +245,10 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	a.mu.Lock()
-	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
+	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(configR.ClusterShardsAddrs))},
 			1, hostTag, aera)
 		return err.Error(), nil, true
 	}
@@ -740,6 +742,10 @@ func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerCo
 }
 
 func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive3Bytes, version3 bool) error {
+	a.configMu.RLock()
+	configR := a.configR
+	a.configMu.RUnlock()
+
 	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -759,10 +765,10 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	a.mu.Lock()
-	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica, args.Header.ShardReplicaTotal); err != nil {
+	if ourShardReplica, err := a.checkShardConfiguration(args.Header.ShardReplica); err != nil {
 		a.mu.Unlock()
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
-			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(a.addresses))},
+			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.Header.ShardReplica, args.Header.ShardReplicaTotal, ourShardReplica, int32(len(configR.ClusterShardsAddrs))},
 			1, hostTag, aera)
 		return err
 	}

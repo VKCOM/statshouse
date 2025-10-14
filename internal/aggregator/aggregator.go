@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,7 +79,6 @@ type (
 		replicaKey        int32 // never changes after start, can be used without lock
 		buildArchTag      int32 // never changes after start, can be used without lock
 		startTimestamp    uint32
-		addresses         []string
 
 		cancelInsertsFunc context.CancelFunc
 		cancelInsertsCtx  context.Context
@@ -103,9 +103,10 @@ type (
 		config ConfigAggregator
 
 		// Remote config
-		configR  ConfigAggregatorRemote
-		configS  string
-		configMu sync.RWMutex
+		configR     ConfigAggregatorRemote
+		configS     string
+		configMu    sync.RWMutex
+		cfgNotifier *ConfigChangeNotifier
 
 		metricStorage  *metajournal.MetricsStorage
 		journalFast    *metajournal.JournalFast
@@ -185,6 +186,12 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 			log.Printf("[warning] running with single-host cluster, probably demo")
 		}
 	}
+	if config.LocalShard > 0 {
+		shardKey = int32(config.LocalShard)
+	}
+	if len(config.ClusterShardsAddrs) > 0 {
+		addresses = config.ClusterShardsAddrs
+	}
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
 	}
@@ -194,6 +201,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.ShardByMetricShards == 0 {
 		config.ShardByMetricShards = len(addresses) / 3
 	}
+	config.ClusterShardsAddrs = addresses
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
@@ -229,11 +237,11 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
 		configR:                     config.ConfigAggregatorRemote,
+		cfgNotifier:                 NewConfigChangeNotifier(),
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
 		replicaKey:                  replicaKey,
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
-		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
 		migrationConfig:             NewDefaultMigrationConfig(),
@@ -336,12 +344,12 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		return nil, fmt.Errorf("failed to map aggregator host tag: %v", err)
 	}
 
-	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
+	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(a.config.ClusterShardsAddrs))
 
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
-	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(addresses, ","), "", "Started")
+	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.ClusterShardsAddrs, ","), "", "Started")
 
 	a.insertsSemaSize = int64(a.config.RecentInserters)
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
@@ -583,22 +591,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	*/
 }
 
-func (a *Aggregator) checkShardConfigurationTotal(shardReplicaTotal int32) error {
-	if shardReplicaTotal == int32(len(a.addresses)) {
-		return nil
-	}
-	if a.config.PreviousNumShards != 0 && shardReplicaTotal == int32(a.config.PreviousNumShards) {
-		return nil
-	}
-	return fmt.Errorf("statshouse misconfiguration! shard*replicas total sent by source (%d) does not match shard*replicas total of aggregator (%d) or --previous-shards (%d)", shardReplicaTotal, len(a.addresses), a.config.PreviousNumShards)
-}
-
-func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTotal int32) (int32, error) {
+func (a *Aggregator) checkShardConfiguration(shardReplica int32) (int32, error) {
 	ourShardReplica := (a.shardKey-1)*3 + (a.replicaKey - 1) // shardKey is 1 for shard 0
-	if err := a.checkShardConfigurationTotal(shardReplicaTotal); err != nil {
-		return ourShardReplica, err
-	}
-	if a.withoutCluster { // No checks for local testing, when config.Replica == ""
+	if a.withoutCluster {                                    // No checks for local testing, when config.Replica == ""
 		return ourShardReplica, nil
 	}
 	if shardReplica != ourShardReplica {
@@ -718,6 +713,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		aggBuckets = aggBuckets[:0]
 		bodyStorage = bodyStorage[:0]
 
+		a.configMu.RLock()
+		configR := a.configR
+		a.configMu.RUnlock()
+
 		nowUnix := uint32(time.Now().Unix())
 		a.mu.Lock()
 		oldestTime := a.recentBuckets[0].time
@@ -733,7 +732,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Unlock()
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
-		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
+		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(configR.ClusterShardsAddrs))
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -784,7 +783,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicContributors += historicBucket.contributorsCount()
 
 			aggBuckets = append(aggBuckets, historicBucket)
-			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(a.addresses))
+			a.estimator.ReportHourCardinality(rnd, historicBucket.time, &historicBucket.shards[0].MultiItemMap, historicBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey, len(configR.ClusterShardsAddrs))
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -794,9 +793,6 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				break
 			}
 		}
-		a.configMu.RLock()
-		v3InsertSettings := a.configR.V3InsertSettings
-		a.configMu.RUnlock()
 
 		var marshalDur time.Duration
 		var stats insertStats
@@ -804,7 +800,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
-		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, v3InsertSettings)
+		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, configR.V3InsertSettings)
 
 		if sendErr != nil {
 			a.lastErrorTs = nowUnix
@@ -1056,6 +1052,9 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	}
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
+	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
+		a.cfgNotifier.notifyConfigChange()
+	}
 	a.configR = config
 	a.configMu.Unlock()
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)

@@ -11,25 +11,35 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
+// ConfigChangeNotifier notify getConfigResult3 if ConfigAggregatorRemote.ClusterShardsAddrs was updated
+type ConfigChangeNotifier struct {
+	mu      sync.Mutex
+	clients map[*rpc.HandlerContext]struct{}
+}
+
 type ConfigAggregatorRemote struct {
-	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
-	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
-	StringTopCountInsert int
-	SampleNamespaces     bool
-	SampleGroups         bool
-	SampleKeys           bool
-	DenyOldAgents        bool
-	V3InsertSettings     string
-	MappingCacheSize     int64
-	MappingCacheTTL      int
-	MapStringTop         bool
-	BufferedInsertAgeSec int    // age in seconds of data that should be sent to buffer table
-	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
-	MigrationDelaySec    int    // delay in seconds between migration steps
+	InsertBudget           int         // for single replica, in bytes per contributor, when many contributors
+	ShardInsertBudget      map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	StringTopCountInsert   int
+	SampleNamespaces       bool
+	SampleGroups           bool
+	SampleKeys             bool
+	DenyOldAgents          bool
+	V3InsertSettings       string
+	MappingCacheSize       int64
+	MappingCacheTTL        int
+	MapStringTop           bool
+	BufferedInsertAgeSec   int    // age in seconds of data that should be sent to buffer table
+	MigrationTimeRange     string // format: "{begin timestamp}-{end timestamp}"
+	MigrationDelaySec      int    // delay in seconds between migration steps
+	ClusterShardsAddrs     []string
+	SwapClusterShardsAddrs []string
 
 	configTagsMapper2
 }
@@ -57,11 +67,11 @@ type ConfigAggregator struct {
 	MetadataActorID int64
 
 	Cluster             string
-	PreviousNumShards   int // if agents come with this # of shards, do not error as misconfiguration
 	ShardByMetricShards int
 	ExternalPort        string
 
 	LocalReplica int
+	LocalShard   int
 
 	AutoCreate                 bool
 	AutoCreateDefaultNamespace bool
@@ -126,6 +136,15 @@ func (c *ConfigAggregatorRemote) setShardBudget(param string) error {
 	return nil
 }
 
+func (c *ConfigAggregatorRemote) setClusterShardsHosts(param string) error {
+	replicas := strings.Split(param, ",")
+	if len(replicas) != 3 {
+		return fmt.Errorf("invalid input format for --cluster-shards-hosts, expected {replica1},{replica2},{replica3}, got %v", param)
+	}
+	c.SwapClusterShardsAddrs = append(c.SwapClusterShardsAddrs, replicas...)
+	return nil
+}
+
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
 	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
@@ -155,10 +174,11 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
+		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 	}
 }
 
-func ValidateConfigAggregator(c ConfigAggregator) error {
+func ValidateConfigAggregator(c *ConfigAggregator) error {
 	if c.ShortWindow > data_model.MaxShortWindow {
 		return fmt.Errorf("short-window (%d) cannot be > %d", c.ShortWindow, data_model.MaxShortWindow)
 	}
@@ -224,6 +244,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	if c.MigrationDelaySec < 1 {
 		return fmt.Errorf("--migration-delay-sec (%d) must be >= 1", c.MigrationDelaySec)
 	}
+	if len(c.SwapClusterShardsAddrs) != 0 {
+		c.ClusterShardsAddrs = c.SwapClusterShardsAddrs
+	}
 
 	return nil
 }
@@ -232,6 +255,7 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 	var f flag.FlagSet
 	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
+	c.resetVars()
 	c.Bind(&f, *c, false)
 	s := strings.Split(description, "\n")
 	for i := 0; i < len(s); i++ {
@@ -242,4 +266,36 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 		_ = f.Parse([]string{t})
 	}
 	return c.Validate()
+}
+
+func (c *ConfigAggregatorRemote) resetVars() {
+	c.SwapClusterShardsAddrs = []string{}
+}
+
+func NewConfigChangeNotifier() *ConfigChangeNotifier {
+	return &ConfigChangeNotifier{
+		mu:      sync.Mutex{},
+		clients: make(map[*rpc.HandlerContext]struct{}),
+	}
+}
+
+func (c *ConfigChangeNotifier) notifyConfigChange() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for hctx := range c.clients {
+		delete(c.clients, hctx)
+		hctx.SendHijackedResponse(nil)
+	}
+}
+
+func (c *ConfigChangeNotifier) addClient(hctx *rpc.HandlerContext) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.clients[hctx] = struct{}{}
+}
+
+func (c *ConfigChangeNotifier) CancelHijack(hctx *rpc.HandlerContext) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.clients, hctx)
 }
