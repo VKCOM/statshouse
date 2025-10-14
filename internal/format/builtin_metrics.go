@@ -30,9 +30,7 @@ Set only if greater than 1.`,
 		Description: "agent_shard",
 		RawKind:     "int",
 	}},
-	PreKeyTagID:   "1",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metric it describes
-	MetricTagID:   1,
+	PreKeyTagID: "1",
 }
 
 const BuiltinMetricIDAggBucketReceiveDelaySec = -2 // Also approximates insert delay, interesting for historic buckets
