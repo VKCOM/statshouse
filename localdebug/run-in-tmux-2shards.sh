@@ -55,16 +55,27 @@ tmux send-keys -t "$SESSION_NAME:8" "./run-api.sh" C-m
 tmux new-window -t "$SESSION_NAME:9" -n "agent" -k
 tmux send-keys -t "$SESSION_NAME:9" "./run-agent.sh" C-m
 
-# 10-11: Ingress and second ingress
-#tmux new-window -t "$SESSION_NAME:10" -n "ingress1" -k
-#tmux send-keys -t "$SESSION_NAME:10" "./run-ingress.sh" C-m
-#
-#tmux new-window -t "$SESSION_NAME:11" -n "ingress2" -k
-#tmux send-keys -t "$SESSION_NAME:11" "./run-ingress2.sh" C-m
+# 11: second ingress
+tmux new-window -t "$SESSION_NAME:11" -n "ingress2" -k
+tmux send-keys -t "$SESSION_NAME:11" "./run-ingress2.sh" C-m
 
-# Window 12: Load generator (only started if API is healthy)
-tmux new-window -t "$SESSION_NAME:12" -n "loadgen" -k
-tmux send-keys -t "$SESSION_NAME:12" "cd .. && go run ./cmd/loadgen client" C-m
+# 12-14: Agents through ingress
+tmux new-window -t "$SESSION_NAME:12" -n "agent-ingress1" -k
+tmux send-keys -t "$SESSION_NAME:12" "./run-agent-ingress-key1.sh" C-m
+
+tmux new-window -t "$SESSION_NAME:13" -n "agent-ingress2" -k
+tmux send-keys -t "$SESSION_NAME:13" "./run-agent-ingress-key2.sh" C-m
+
+tmux new-window -t "$SESSION_NAME:14" -n "agent-ingress2-key3" -k
+tmux send-keys -t "$SESSION_NAME:14" "./run-agent-ingress2-key3.sh" C-m
+
+# 10: Ingress
+tmux new-window -t "$SESSION_NAME:10" -n "ingress1" -k
+tmux send-keys -t "$SESSION_NAME:10" "./run-ingress.sh" C-m
+
+# Window 15: Load generator (only started if API is healthy)
+tmux new-window -t "$SESSION_NAME:15" -n "loadgen" -k
+tmux send-keys -t "$SESSION_NAME:15" "cd .. && go run ./cmd/loadgen client" C-m
 
 echo -n "Waiting for API" && until curl --output /dev/null --silent --head --fail http://localhost:10888/; do echo -n .; sleep 1; done
 
