@@ -178,7 +178,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 	}
 }
 
-func ValidateConfigAggregator(c ConfigAggregator) error {
+func ValidateConfigAggregator(c *ConfigAggregator) error {
 	if c.ShortWindow > data_model.MaxShortWindow {
 		return fmt.Errorf("short-window (%d) cannot be > %d", c.ShortWindow, data_model.MaxShortWindow)
 	}

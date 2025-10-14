@@ -260,7 +260,7 @@ func parseCommandLine() error {
 		}
 	}
 
-	return aggregator.ValidateConfigAggregator(argv.ConfigAggregator)
+	return aggregator.ValidateConfigAggregator(&argv.ConfigAggregator)
 }
 
 func runPprof() {
