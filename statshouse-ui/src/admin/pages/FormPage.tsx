@@ -180,7 +180,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
             name="description"
             className="form-control"
             value={values.description}
-            onChange={(e) => dispatch({ description: e.target.value.slice(0, 1024) })}
+            onChange={(e) => dispatch({ description: e.target.value.slice(0, 2048) })}
             disabled={isReadonly}
           />
         </div>
