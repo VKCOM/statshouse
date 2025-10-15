@@ -93,15 +93,15 @@ func DefaultConfigAggregator() ConfigAggregator {
 		ConfigAggregatorRemote: ConfigAggregatorRemote{
 			InsertBudget:         400,
 			StringTopCountInsert: 20,
-			SampleNamespaces:     false,
-			SampleGroups:         false,
-			SampleKeys:           false,
+			SampleNamespaces:     true,
+			SampleGroups:         true,
+			SampleKeys:           true,
 			DenyOldAgents:        true,
 			MappingCacheSize:     1 << 30,
 			MappingCacheTTL:      86400 * 7,
-			MapStringTop:         false, // disabled by default because API doesn't support it yet
-			MigrationTimeRange:   "",    // empty means migration disabled
-			MigrationDelaySec:    30,    // 30 seconds delay between migration steps
+			MapStringTop:         true,
+			MigrationTimeRange:   "", // empty means migration disabled
+			MigrationDelaySec:    30, // 30 seconds delay between migration steps
 
 			configTagsMapper2: configTagsMapper2{
 				MaxUnknownTagsInBucket:    1024,
