@@ -17,6 +17,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"pgregory.net/rand"
 )
@@ -140,6 +141,9 @@ func (s *Agent) clientGetAndSaveConfig(ctxParent context.Context, client *tlstat
 	if previousConfig != nil {
 		args.SetPreviousConfig(*previousConfig)
 	}
+	if s.componentTag == format.TagValueIDComponentIngressProxy {
+		args.SetNewIngressVersion(true)
+	}
 	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, s.stagingLevel)
 	var ret tlstatshouse.GetConfigResult3
 	ctx, cancel := context.WithTimeout(ctxParent, data_model.AutoConfigTimeout)
@@ -246,6 +250,9 @@ func clientGetConfig(network string, rpcClient rpc.Client, shardReplicaNum int, 
 			ComponentTag: componentTag,
 			BuildArch:    archTag,
 		},
+	}
+	if componentTag == format.TagValueIDComponentIngressProxy {
+		args.SetNewIngressVersion(true)
 	}
 	args.SetTs(true)
 	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, stagingLevel)

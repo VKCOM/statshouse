@@ -164,6 +164,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
     ts: fields_mask.0?true
+    newIngressVersion: fields_mask.1?true // for ingress version without compat
      = statshouse.GetConfigResult fields_mask;
 
 @readwrite statshouse.getConfig3#7d7b4991
@@ -171,6 +172,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     header: (statshouse.commonProxyHeader fields_mask) // the only request not passed through proxy. But we make it with common header anyway.
     cluster:string // prevent wrong configuration
     previousConfig: fields_mask.0?statshouse.getConfigResult3 // if sent, will long poll on it
+    newIngressVersion: fields_mask.1?true // for ingress version without compat
      = statshouse.GetConfigResult3;
 
 // For ingress proxy, we pass shard_replica/shard_total immediately after fields mask

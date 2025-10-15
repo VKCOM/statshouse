@@ -60,6 +60,7 @@ type ConfigIngressProxy struct {
 	Version               string
 	ConfigAgent           agent.Config
 	Debug                 bool
+	LegacyAddrLimit       int // max count of addresses for legacy ingress clients
 }
 
 type ingressProxy struct {
@@ -613,7 +614,15 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
 					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
 				} else {
-					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
+					if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
+						log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
+
+						config := p.config2
+						config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
+						req.Response, _ = args.WriteResult(req.Response[:0], config)
+					} else {
+						req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
+					}
 					autoConfigStatus = format.TagValueIDAutoConfigOK
 				}
 				p.sendAutoConfigStatus(&args.Header, autoConfigStatus)
@@ -637,7 +646,15 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					if equalConfig {
 						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
 					} else {
-						req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
+						if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
+							log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
+
+							config := p.config3
+							config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
+							req.Response, _ = args.WriteResult(req.Response[:0], config)
+						} else {
+							req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
+						}
 						autoConfigStatus = format.TagValueIDAutoConfigOK
 					}
 				}
@@ -685,6 +702,10 @@ func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, s
 		format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, status},
 		1)
+}
+
+func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, isSetNewIngressVersion bool) bool {
+	return !isSetNewIngressVersion && header.ComponentTag == format.TagValueIDComponentIngressProxy
 }
 
 func (req *proxyRequest) setIngressProxy(p *proxyConn) {

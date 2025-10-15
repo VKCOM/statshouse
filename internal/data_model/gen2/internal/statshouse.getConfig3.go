@@ -18,6 +18,7 @@ type StatshouseGetConfig3 struct {
 	Header         StatshouseCommonProxyHeader
 	Cluster        string
 	PreviousConfig StatshouseGetConfigResult3 // Conditional: item.FieldsMask.0
+	// NewIngressVersion (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetConfig3) TLName() string { return "statshouse.getConfig3" }
@@ -32,6 +33,15 @@ func (item *StatshouseGetConfig3) ClearPreviousConfig() {
 	item.FieldsMask &^= 1 << 0
 }
 func (item StatshouseGetConfig3) IsSetPreviousConfig() bool { return item.FieldsMask&(1<<0) != 0 }
+
+func (item *StatshouseGetConfig3) SetNewIngressVersion(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 1
+	} else {
+		item.FieldsMask &^= 1 << 1
+	}
+}
+func (item StatshouseGetConfig3) IsSetNewIngressVersion() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseGetConfig3) Reset() {
 	item.FieldsMask = 0
@@ -154,6 +164,8 @@ func (item *StatshouseGetConfig3) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	var rawHeader []byte
 	var propClusterPresented bool
 	var propPreviousConfigPresented bool
+	var trueTypeNewIngressVersionPresented bool
+	var trueTypeNewIngressVersionValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -196,6 +208,14 @@ func (item *StatshouseGetConfig3) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 					return err
 				}
 				propPreviousConfigPresented = true
+			case "newIngressVersion":
+				if trueTypeNewIngressVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig3", "newIngressVersion")
+				}
+				if err := Json2ReadBool(in, &trueTypeNewIngressVersionValue); err != nil {
+					return err
+				}
+				trueTypeNewIngressVersionPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig3", key)
 			}
@@ -218,6 +238,11 @@ func (item *StatshouseGetConfig3) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 	if propPreviousConfigPresented {
 		item.FieldsMask |= 1 << 0
 	}
+	if trueTypeNewIngressVersionPresented {
+		if trueTypeNewIngressVersionValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -227,6 +252,10 @@ func (item *StatshouseGetConfig3) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeNewIngressVersionPresented && !trueTypeNewIngressVersionValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig3", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -262,6 +291,10 @@ func (item *StatshouseGetConfig3) WriteJSONOpt(newTypeNames bool, short bool, w 
 		w = append(w, `"previousConfig":`...)
 		w = item.PreviousConfig.WriteJSONOpt(newTypeNames, short, w)
 	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"newIngressVersion":true`...)
+	}
 	return append(w, '}')
 }
 
@@ -281,6 +314,7 @@ type StatshouseGetConfig3Bytes struct {
 	Header         StatshouseCommonProxyHeaderBytes
 	Cluster        []byte
 	PreviousConfig StatshouseGetConfigResult3Bytes // Conditional: item.FieldsMask.0
+	// NewIngressVersion (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseGetConfig3Bytes) TLName() string { return "statshouse.getConfig3" }
@@ -295,6 +329,17 @@ func (item *StatshouseGetConfig3Bytes) ClearPreviousConfig() {
 	item.FieldsMask &^= 1 << 0
 }
 func (item StatshouseGetConfig3Bytes) IsSetPreviousConfig() bool { return item.FieldsMask&(1<<0) != 0 }
+
+func (item *StatshouseGetConfig3Bytes) SetNewIngressVersion(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 1
+	} else {
+		item.FieldsMask &^= 1 << 1
+	}
+}
+func (item StatshouseGetConfig3Bytes) IsSetNewIngressVersion() bool {
+	return item.FieldsMask&(1<<1) != 0
+}
 
 func (item *StatshouseGetConfig3Bytes) Reset() {
 	item.FieldsMask = 0
@@ -417,6 +462,8 @@ func (item *StatshouseGetConfig3Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	var rawHeader []byte
 	var propClusterPresented bool
 	var propPreviousConfigPresented bool
+	var trueTypeNewIngressVersionPresented bool
+	var trueTypeNewIngressVersionValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -459,6 +506,14 @@ func (item *StatshouseGetConfig3Bytes) ReadJSON(legacyTypeNames bool, in *basict
 					return err
 				}
 				propPreviousConfigPresented = true
+			case "newIngressVersion":
+				if trueTypeNewIngressVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig3", "newIngressVersion")
+				}
+				if err := Json2ReadBool(in, &trueTypeNewIngressVersionValue); err != nil {
+					return err
+				}
+				trueTypeNewIngressVersionPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.getConfig3", key)
 			}
@@ -481,6 +536,11 @@ func (item *StatshouseGetConfig3Bytes) ReadJSON(legacyTypeNames bool, in *basict
 	if propPreviousConfigPresented {
 		item.FieldsMask |= 1 << 0
 	}
+	if trueTypeNewIngressVersionPresented {
+		if trueTypeNewIngressVersionValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
 	var inHeaderPointer *basictl.JsonLexer
 	inHeader := basictl.JsonLexer{Data: rawHeader}
 	if rawHeader != nil {
@@ -490,6 +550,10 @@ func (item *StatshouseGetConfig3Bytes) ReadJSON(legacyTypeNames bool, in *basict
 		return err
 	}
 
+	// tries to set bit to zero if it is 1
+	if trueTypeNewIngressVersionPresented && !trueTypeNewIngressVersionValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("statshouse.getConfig3", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
 	return nil
 }
 
@@ -524,6 +588,10 @@ func (item *StatshouseGetConfig3Bytes) WriteJSONOpt(newTypeNames bool, short boo
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"previousConfig":`...)
 		w = item.PreviousConfig.WriteJSONOpt(newTypeNames, short, w)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"newIngressVersion":true`...)
 	}
 	return append(w, '}')
 }
