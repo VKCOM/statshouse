@@ -344,7 +344,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		return nil, fmt.Errorf("failed to map aggregator host tag: %v", err)
 	}
 
-	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(a.config.ClusterShardsAddrs))
+	a.estimator.Init()
 
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
