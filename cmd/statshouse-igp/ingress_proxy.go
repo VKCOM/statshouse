@@ -616,9 +616,13 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 				} else {
 					if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
 						log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
-						p.config2.Addresses = p.config2.Addresses[:min(argv.LegacyAddrLimit, len(p.config2.Addresses))]
+
+						config := p.config2
+						config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
+						req.Response, _ = args.WriteResult(req.Response[:0], config)
+					} else {
+						req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
 					}
-					req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
 					autoConfigStatus = format.TagValueIDAutoConfigOK
 				}
 				p.sendAutoConfigStatus(&args.Header, autoConfigStatus)
@@ -644,9 +648,13 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					} else {
 						if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
 							log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
-							p.config3.Addresses = p.config3.Addresses[:min(argv.LegacyAddrLimit, len(p.config3.Addresses))]
+
+							config := p.config3
+							config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
+							req.Response, _ = args.WriteResult(req.Response[:0], config)
+						} else {
+							req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
 						}
-						req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
 						autoConfigStatus = format.TagValueIDAutoConfigOK
 					}
 				}
