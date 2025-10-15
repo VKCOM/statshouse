@@ -54,9 +54,6 @@ type ConfigAggregator struct {
 	KHPassword     string
 	KHPasswordFile string
 
-	CardinalityWindow int
-	MaxCardinality    int
-
 	ConfigAggregatorRemote
 
 	SimulateRandomErrors float64
@@ -83,8 +80,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 		RecentInserters:      4,
 		HistoricInserters:    1,
 		InsertHistoricWhen:   2,
-		CardinalityWindow:    3600,
-		MaxCardinality:       50000, // will be divided by NumShardReplicas on each aggregator
 		SimulateRandomErrors: 0,
 		Cluster:              "statlogs2",
 		MetadataNet:          "tcp4",
@@ -183,13 +178,6 @@ func ValidateConfigAggregator(c *ConfigAggregator) error {
 	}
 	if c.ShortWindow < 2 {
 		return fmt.Errorf("short-window (%d) cannot be < 2", c.ShortWindow)
-	}
-
-	if c.CardinalityWindow < data_model.MinCardinalityWindow {
-		return fmt.Errorf("--cardinality-window (%d) must be >= %d", c.CardinalityWindow, data_model.MinCardinalityWindow)
-	}
-	if c.MaxCardinality < data_model.MinMaxCardinality {
-		return fmt.Errorf("--max-cardinality (%d) must be >= %d", c.MaxCardinality, data_model.MinMaxCardinality)
 	}
 
 	if c.InsertHistoricWhen < 1 {

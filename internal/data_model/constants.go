@@ -58,9 +58,6 @@ const (
 	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
 
-	MinCardinalityWindow = 300 // Our estimators GC depends on this not being too small
-	MinMaxCardinality    = 100
-
 	InsertBudgetFixed = 300000
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors
 	// Also helps when # of contributors is very small

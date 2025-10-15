@@ -221,8 +221,10 @@ func parseCommandLine() error {
 	flag.IntVar(&argv.RecentInserters, "recent-inserters", aggregator.DefaultConfigAggregator().RecentInserters, "How many parallel inserts to make for recent data")
 	flag.IntVar(&argv.HistoricInserters, "historic-inserters", aggregator.DefaultConfigAggregator().HistoricInserters, "How many parallel inserts to make for historic data")
 	flag.IntVar(&argv.InsertHistoricWhen, "insert-historic-when", aggregator.DefaultConfigAggregator().InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")
-	flag.IntVar(&argv.CardinalityWindow, "cardinality-window", aggregator.DefaultConfigAggregator().CardinalityWindow, "Aggregator will use this window (seconds) to estimate cardinality")
-	flag.IntVar(&argv.MaxCardinality, "max-cardinality", aggregator.DefaultConfigAggregator().MaxCardinality, "Aggregator will sample metrics which cardinality estimates are higher")
+	var cardinalityWindow int
+	flag.IntVar(&cardinalityWindow, "cardinality-window", 0, "Depecated, not used.") // TODO - remove
+	var maxCardinality int
+	flag.IntVar(&maxCardinality, "max-cardinality", 0, "Deprecated, not used.") // TODO - remove
 	argv.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().ConfigAggregatorRemote, false)
 	flag.Float64Var(&argv.SimulateRandomErrors, "simulate-errors-random", aggregator.DefaultConfigAggregator().SimulateRandomErrors, "Probability of errors for recent buckets from 0.0 (no errors) to 1.0 (all errors)")
 	flag.BoolVar(&argv.AutoCreate, "auto-create", aggregator.DefaultConfigAggregator().AutoCreate, "Enable metric auto-create.")
