@@ -123,12 +123,13 @@ func (arg *ArgMinMaxStringFloat32) MarshallAppend(buf []byte) []byte {
 		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
 		buf = append(buf, 1) // string marker
 		buf = append(buf, []byte(arg.AsString)...)
-		buf = append(buf, 0) // for some reason ClickHouse likes to add string terminator
+		buf = append(buf, 0) // ClickHouse string format for arg* requires string terminator
 	} else {
-		dataLen := uint32(5) // sizeof(int32) + 1
+		dataLen := uint32(6) // sizeof(int32) + 2
 		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
 		buf = append(buf, 0) // int marker
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(arg.AsInt32))
+		buf = append(buf, 0) // ClickHouse string format for arg* requires string terminator
 	}
 	buf = append(buf, 1) // has value flag
 	buf = binary.LittleEndian.AppendUint32(buf, math.Float32bits(arg.Val))
