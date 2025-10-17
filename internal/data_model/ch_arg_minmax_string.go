@@ -8,6 +8,7 @@ package data_model
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"slices"
@@ -41,25 +42,30 @@ func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.ByteReader, buf []byte) ([]byte
 			return buf, err
 		}
 		if strFlag == 1 {
-			buf = slices.Grow(buf, int(len-1))[:len-1]
-			lastNonNull := 0
-			for i := 0; i < int(len-1); i++ {
+			len -= 2 // strFlag we read above plus terminator we read below
+			buf = slices.Grow(buf, int(len))[:len]
+			for i := 0; i < int(len); i++ {
 				buf[i], err = r.ReadByte()
 				if err != nil {
 					return buf, err
 				}
-				if buf[i] != 0 {
-					lastNonNull = i
-				}
 			}
-			arg.AsString = string(buf[:lastNonNull+1])
+			term, err := r.ReadByte()
+			if err != nil {
+				return buf, err
+			}
+			if term != 0 { // there must be null terminator
+				return buf, fmt.Errorf("expected 0-termintator")
+			}
+			arg.AsString = string(buf[:len])
 		} else {
 			arg.AsInt32, err = readInt32LE(r)
 			if err != nil {
 				return buf, err
 			}
-			// ClickHouse might add extra bytes to string (null terminator) for compatibility with old versions
-			// so we need to skip them
+			// We forgot to add terminator for int initially, so we actually stored 3 bytes of int plus
+			// terminator for ints ending with 0 (for ints ending with !0 clickhouse would add its own terminator).
+			// so we need to skip actual terminator sometimes.
 			for i := uint32(5); i < len; i++ { // 5 is the size of int32 + 1 for string flag
 				_, _ = r.ReadByte()
 			}
