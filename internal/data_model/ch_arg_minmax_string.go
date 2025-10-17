@@ -8,6 +8,7 @@ package data_model
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"slices"
@@ -41,25 +42,30 @@ func (arg *ArgMinMaxStringFloat32) ReadFrom(r io.ByteReader, buf []byte) ([]byte
 			return buf, err
 		}
 		if strFlag == 1 {
-			buf = slices.Grow(buf, int(len-1))[:len-1]
-			lastNonNull := 0
-			for i := 0; i < int(len-1); i++ {
+			len -= 2 // strFlag we read above plus terminator we read below
+			buf = slices.Grow(buf, int(len))[:len]
+			for i := 0; i < int(len); i++ {
 				buf[i], err = r.ReadByte()
 				if err != nil {
 					return buf, err
 				}
-				if buf[i] != 0 {
-					lastNonNull = i
-				}
 			}
-			arg.AsString = string(buf[:lastNonNull+1])
+			term, err := r.ReadByte()
+			if err != nil {
+				return buf, err
+			}
+			if term != 0 { // there must be null terminator
+				return buf, fmt.Errorf("expected 0-termintator")
+			}
+			arg.AsString = string(buf[:len])
 		} else {
 			arg.AsInt32, err = readInt32LE(r)
 			if err != nil {
 				return buf, err
 			}
-			// ClickHouse might add extra bytes to string (null terminator) for compatibility with old versions
-			// so we need to skip them
+			// We forgot to add terminator for int initially, so we actually stored 3 bytes of int plus
+			// terminator for ints ending with 0 (for ints ending with !0 clickhouse would add its own terminator).
+			// so we need to skip actual terminator sometimes.
 			for i := uint32(5); i < len; i++ { // 5 is the size of int32 + 1 for string flag
 				_, _ = r.ReadByte()
 			}
@@ -123,12 +129,13 @@ func (arg *ArgMinMaxStringFloat32) MarshallAppend(buf []byte) []byte {
 		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
 		buf = append(buf, 1) // string marker
 		buf = append(buf, []byte(arg.AsString)...)
-		buf = append(buf, 0) // for some reason ClickHouse likes to add string terminator
+		buf = append(buf, 0) // ClickHouse string format for arg* requires string terminator
 	} else {
-		dataLen := uint32(5) // sizeof(int32) + 1
+		dataLen := uint32(6) // sizeof(int32) + 2
 		buf = binary.LittleEndian.AppendUint32(buf, dataLen)
 		buf = append(buf, 0) // int marker
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(arg.AsInt32))
+		buf = append(buf, 0) // ClickHouse string format for arg* requires string terminator
 	}
 	buf = append(buf, 1) // has value flag
 	buf = binary.LittleEndian.AppendUint32(buf, math.Float32bits(arg.Val))
