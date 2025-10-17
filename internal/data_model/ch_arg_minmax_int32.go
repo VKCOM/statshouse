@@ -84,8 +84,5 @@ func (arg *ArgMinMaxInt32Float32) MarshalAppend(buf []byte) []byte {
 
 func readInt32LE(r io.ByteReader) (int32, error) {
 	bits, err := readUint32LE(r)
-	if err != nil {
-		return 0, err
-	}
-	return int32(bits), nil
+	return int32(bits), err
 }
