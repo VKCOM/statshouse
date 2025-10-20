@@ -41,7 +41,7 @@ build-sh-metadata:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
 
 build-igp:
-	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-igp ./cmd/statshouse-igp
+	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-igp ./cmd/statshouse-igp
 
 build-agg:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-agg ./cmd/statshouse-agg
