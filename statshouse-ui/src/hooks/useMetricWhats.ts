@@ -6,22 +6,13 @@
 
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { useCallback, useMemo } from 'react';
-import { isPromQL } from '@/store2/helpers';
+import { getMetricWhats } from '@/store2/helpers';
 import { usePlotsDataStore } from '@/store2/plotDataStore';
+import type { QueryWhat } from '@/api/enum';
 
 export function useMetricWhats() {
   const { plot } = useWidgetPlotContext();
-  const { what } = plot;
-  const isProm = isPromQL(plot);
   const whats = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plot.id]?.whats, [plot.id]));
 
-  return useMemo(() => {
-    if (!isProm) {
-      return [...what];
-    }
-    if (whats) {
-      return whats;
-    }
-    return [];
-  }, [isProm, what, whats]);
+  return useMemo<QueryWhat[]>(() => getMetricWhats(plot, whats), [plot, whats]);
 }

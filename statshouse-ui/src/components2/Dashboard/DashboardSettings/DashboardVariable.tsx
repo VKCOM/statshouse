@@ -17,8 +17,7 @@ import { Button } from '@/components/UI';
 import { useStatsHouseShallow } from '@/store2';
 import { getNewVariable, VariableKey, VariableParams } from '@/url2';
 import { ProduceUpdate } from '@/store2/helpers';
-import { GET_PARAMS } from '@/api/enum';
-import { getNextVariableKey } from '@/store2/urlStore/updateParamsPlotStruct';
+import { getNextVariableKey, getNextVariableName } from '@/store2/urlStore/updateParamsPlotStruct';
 
 export type DashboardVariableProps = {};
 export function DashboardVariable() {
@@ -73,7 +72,8 @@ export function DashboardVariable() {
       produce((v) => {
         const variable = getNewVariable();
         variable.id = getNextVariableKey(v);
-        variable.name = `${GET_PARAMS.variableNamePrefix}${variable.id}`;
+        variable.name = getNextVariableName(v, variable.id);
+
         v.variables[variable.id] = variable;
         v.orderVariables.push(variable.id);
       })

@@ -8,23 +8,26 @@ import { type PlotParams, promQLMetric } from '@/url2';
 import type { PlotData } from '../plotDataStore';
 import { MetricMeta } from '../metricsMetaStore';
 import { whatToWhatDesc } from '@/view/whatToWhatDesc';
+import { QueryWhat } from '@/api/enum';
 
-export function getMetricName(plot?: PlotParams, plotData?: Pick<PlotData, 'metricName'>) {
+export function getMetricName(plot?: PlotParams, plotDataMetricName?: Pick<PlotData, 'metricName'>['metricName']) {
   if (!plot) {
     return '';
   }
-  return (plot.metricName !== promQLMetric ? plot.metricName : plotData?.metricName) || `plot#${plot.id}`;
+  return (plot.metricName !== promQLMetric ? plot.metricName : plotDataMetricName) || `plot#${plot.id}`;
 }
 
-export function getMetricWhat(plot?: PlotParams, plotData?: Pick<PlotData, 'whats'>) {
+export function getMetricWhats(plot?: PlotParams, plotDataWhats?: Pick<PlotData, 'whats'>['whats']): QueryWhat[] {
   if (!plot) {
-    return '';
+    return [];
   }
-  return (
-    (plot.metricName === promQLMetric
-      ? plotData?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
-      : plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')) || ''
-  );
+  return (plot.metricName === promQLMetric ? plotDataWhats : plot.what) || [];
+}
+
+export function getMetricWhat(plot?: PlotParams, plotDataWhats?: Pick<PlotData, 'whats'>['whats']) {
+  return getMetricWhats(plot, plotDataWhats)
+    .map((qw) => whatToWhatDesc(qw))
+    .join(', ');
 }
 
 export function getMetricFullName(plot?: PlotParams, plotData?: Pick<PlotData, 'metricName' | 'whats'>) {
@@ -34,8 +37,8 @@ export function getMetricFullName(plot?: PlotParams, plotData?: Pick<PlotData, '
   if (plot.customName) {
     return plot.customName;
   }
-  const metricName = getMetricName(plot, plotData);
-  const metricWhat = getMetricWhat(plot, plotData);
+  const metricName = getMetricName(plot, plotData?.metricName);
+  const metricWhat = getMetricWhat(plot, plotData?.whats);
   return metricName ? `${metricName}${metricWhat ? ': ' + metricWhat : ''}` : '';
 }
 
