@@ -217,7 +217,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
 		remainingBudget = int64(budget)
 	} else {
-		numShards := s.agent.NumShards()
+		numShards := int(s.agent.shardByMetricCount)
 		remainingBudget = int64((config.SampleBudget + numShards - 1) / numShards)
 	}
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
