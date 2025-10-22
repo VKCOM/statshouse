@@ -59,7 +59,6 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 		journal:             journal,
 		ingestionStatusData: lastMetricData{lastMetricPrekey: -1},
 		lastMetric:          lastMetricData{lastMetricPrekey: -1}, // so if somehow 0 metricID is inserted first, will have no prekey
-
 	}
 	bm := format.BuiltinMetricMetaIngestionStatus
 	result.ingestionStatusData.lastMetricPrekeyOnly = bm.PreKeyOnly

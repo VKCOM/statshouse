@@ -14,9 +14,9 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, numShards int, sha
 		shard := uint32(key.Metric) % shardByMetricCount
 		return shard
 	case format.ShardBuiltin:
-		tagId := meta.MetricTagID
+		tagIndex := meta.MetricTagIndex
 		// for builtin metrics we always use row values
-		metric := key.Tags[tagId]
+		metric := key.Tags[tagIndex]
 		shard := uint32(metric) % shardByMetricCount
 		return shard
 	default: // including format.ShardByTagsHsh

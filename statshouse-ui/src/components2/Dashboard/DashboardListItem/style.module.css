@@ -1,0 +1,9 @@
+.btnFavorite{
+  visibility: hidden;
+}
+
+.item:hover .btnFavorite,
+.favorite .btnFavorite
+{
+  visibility: visible;
+}
