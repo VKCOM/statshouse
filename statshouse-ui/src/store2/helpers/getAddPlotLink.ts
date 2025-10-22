@@ -7,12 +7,12 @@
 import { getNewMetric, type QueryParams, urlEncode } from '@/url2';
 
 import { fixMessageTrouble } from '@/url/fixMessageTrouble';
-import { addPlot } from '@/store2/helpers/addPlot';
 import { selectorOrderPlot } from '@/store2/selectors';
+import { addPlots } from '@/store2/helpers/addPlots';
 
 export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): string {
   const orderPlot = selectorOrderPlot({ params });
   const tabNum = params.plots[params.tabNum] ? params.tabNum : orderPlot.slice(-1)[0];
-  const nextParams = addPlot(params.plots[tabNum] ?? getNewMetric(), params);
+  const nextParams = addPlots([params.plots[tabNum] ?? getNewMetric()], params);
   return fixMessageTrouble('?' + new URLSearchParams(urlEncode(nextParams, saveParams)).toString());
 }
