@@ -9,6 +9,7 @@ import cn from 'classnames';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { useMetricName } from '@/hooks/useMetricName';
 import { useMetricWhats } from '@/hooks/useMetricWhats';
+import { whatToWhatDesc } from '@/view/whatToWhatDesc';
 
 export type PlotNameProps = {
   className?: string;
@@ -19,7 +20,7 @@ export const PlotName = memo(function PlotName({ className }: PlotNameProps) {
   } = useWidgetPlotContext();
   const metricName = useMetricName();
   const whats = useMetricWhats();
-  const what = useMemo(() => whats.join(', '), [whats]);
+  const what = useMemo(() => whats.map((qw) => whatToWhatDesc(qw)).join(', '), [whats]);
 
   if (customName) {
     return <span className={cn(className, 'text-body text-truncate')}>{customName}</span>;

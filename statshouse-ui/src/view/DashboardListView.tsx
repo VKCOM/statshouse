@@ -5,18 +5,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { useStateInput } from '../hooks';
-import { ErrorMessages } from '../components/ErrorMessages';
+import { useStateInput } from '@/hooks';
+import { ErrorMessages } from '@/components/ErrorMessages';
 import cn from 'classnames';
-import { emptyArray, SearchFabric } from '../common/helpers';
+import { emptyArray, SearchFabric } from '@/common/helpers';
 import { useWindowSize } from '@/hooks/useWindowSize';
-import { toggleDashboardsFavorite, useFavoriteStore } from '@/store2/favoriteStore';
-import { ReactComponent as SVGStar } from 'bootstrap-icons/icons/star.svg';
-import { ReactComponent as SVGStarFill } from 'bootstrap-icons/icons/star-fill.svg';
-import { Tooltip } from '../components/UI';
-import { selectApiDashboardList, useApiDashboardList } from '../api/dashboardsList';
-import { useDebounceValue } from '../hooks/useDebounceValue';
+import { useFavoriteStore } from '@/store2/favoriteStore';
+import { selectApiDashboardList, useApiDashboardList } from '@/api/dashboardsList';
+import { useDebounceValue } from '@/hooks/useDebounceValue';
+import { DashboardListItem } from '@/components2';
 
 export type DashboardListViewProps = {};
 
@@ -63,50 +60,12 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
       <ErrorMessages />
       <ul className="list-group mb-2">
         {filterListFavorite.map((item) => (
-          <li key={item.id} className="list-group-item">
-            <Link to={`/view?id=${item.id}`} className="text-body text-decoration-none">
-              <h6 className="m-0 d-flex align-items-center gap-1">
-                <span className="flex-grow-1">{item.name}</span>
-                <Tooltip title={dashboardsFavorite[item.id] ? 'remove favorite' : 'add favorite'}>
-                  <span
-                    className="text-primary"
-                    onClick={(e) => {
-                      toggleDashboardsFavorite(item.id);
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                  >
-                    {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
-                  </span>
-                </Tooltip>
-              </h6>
-              {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
-            </Link>
-          </li>
+          <DashboardListItem key={item.id} item={item} />
         ))}
       </ul>
       <ul className="list-group">
         {filterList.map((item) => (
-          <li key={item.id} className="list-group-item">
-            <Link to={`/view?id=${item.id}`} className="text-body text-decoration-none">
-              <h6 className="m-0 d-flex gap-1">
-                <span className="flex-grow-1">{item.name}</span>
-                <Tooltip title={dashboardsFavorite[item.id] ? 'remove favorite' : 'add favorite'}>
-                  <span
-                    className="text-primary"
-                    onClick={(e) => {
-                      toggleDashboardsFavorite(item.id);
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                  >
-                    {dashboardsFavorite[item.id] ? <SVGStarFill /> : <SVGStar />}
-                  </span>
-                </Tooltip>
-              </h6>
-              {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
-            </Link>
-          </li>
+          <DashboardListItem key={item.id} item={item} />
         ))}
       </ul>
     </div>

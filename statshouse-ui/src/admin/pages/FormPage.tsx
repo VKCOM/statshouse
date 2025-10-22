@@ -185,7 +185,11 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
           />
         </div>
         <div id="descriptionHelpBlock" className="form-text">
-          Description is for UI only. New lines are respected, no other formatting supported yet.
+          Description is for UI only.{' '}
+          <a href="https://commonmark.org/help/" target="_blank" rel="noreferrer">
+            Standard Markdown formatting
+          </a>{' '}
+          is supported.
         </div>
       </div>
       <div className="row align-items-baseline mb-3">
