@@ -96,8 +96,6 @@ var BuiltinMetricMetaAggKeepAlive = &MetricMetaValue{
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
 	Tags:                    []MetricMetaTag{{}, {}, {}, {}},
-	ShardStrategy:           ShardBuiltin, // generated on aggregators, stay own shard
-	MetricTagIndex:          AggShardTag,  // not suppose to use. But shardNum%total=shardNum will be ok
 }
 
 var BuiltinMetricMetaAggSizeCompressed = &MetricMetaValue{
