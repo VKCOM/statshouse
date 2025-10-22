@@ -39,12 +39,11 @@ func getBuiltinShardingMetrics() map[int32]int {
 
 	for metricID, metric := range format.BuiltinMetrics {
 		if metric.ShardStrategy == format.ShardBuiltin {
-			// For metrics with MetricTagID > 0, use the specified tag
-			// For metrics with MetricTagID = 0 (like contributors_log), they appear in all shards
-			if metric.MetricTagID > 0 {
-				shardingMetrics[metricID] = int(metric.MetricTagID)
+			// For metrics with MetricTagIndex > 0, use the specified tag
+			// For metrics with MetricTagIndex = 0 (like contributors_log), they appear in all shards
+			if metric.MetricTagIndex > 0 {
+				shardingMetrics[metricID] = int(metric.MetricTagIndex)
 			} else {
-				// Special case: metrics with MetricTagID = 0 appear in all shards
 				shardingMetrics[metricID] = -1 // Use -1 to indicate "appears in all shards"
 			}
 		}

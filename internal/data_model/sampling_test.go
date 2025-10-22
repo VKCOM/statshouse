@@ -232,7 +232,7 @@ func TestFairKeySampling(t *testing.T) {
 			Meta: metaStorageMock{
 				getMetaMetric: func(metricID int32) *format.MetricMetaValue {
 					return &format.MetricMetaValue{
-						FairKey:         []int{0},
+						FairKeyIndex:    []int{0},
 						EffectiveWeight: 1,
 					}
 				},

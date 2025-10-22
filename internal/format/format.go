@@ -267,11 +267,11 @@ type MetricMetaValue struct {
 	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
 	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
-	MetricTagID          uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
+	MetricTagIndex       uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
-	FairKey              []int                     `json:"-"`
+	FairKeyIndex         []int                     `json:"-"`
 	EffectiveWeight      int64                     `json:"-"`
 	HasPercentiles       bool                      `json:"-"`
 	RoundSampleFactors   bool                      `json:"-"` // Experimental, set if magic word in description is found
@@ -586,10 +586,10 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	// restore fair key index
 	if len(m.FairKeyTagIDs) != 0 {
-		m.FairKey = make([]int, 0, len(m.FairKeyTagIDs))
+		m.FairKeyIndex = make([]int, 0, len(m.FairKeyTagIDs))
 		for _, v := range m.FairKeyTagIDs {
 			if tag := m.Name2Tag(v); tag != nil {
-				m.FairKey = append(m.FairKey, int(tag.Index))
+				m.FairKeyIndex = append(m.FairKeyIndex, int(tag.Index))
 			}
 		}
 	}
@@ -1252,7 +1252,7 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.Disable != b.Disable ||
 		a.EffectiveWeight != b.EffectiveWeight ||
 		a.EffectiveResolution != b.EffectiveResolution ||
-		!slices.Equal(a.FairKey, b.FairKey) ||
+		!slices.Equal(a.FairKeyIndex, b.FairKeyIndex) ||
 		a.ShardStrategy != b.ShardStrategy ||
 		a.ShardNum != b.ShardNum ||
 		a.PipelineVersion != b.PipelineVersion ||
