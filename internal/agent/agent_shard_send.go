@@ -214,7 +214,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 	var remainingBudget int64
-	if budget, ok := config.ShardSampleBudget[s.ShardNum]; ok {
+	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
 		remainingBudget = int64(budget)
 	} else {
 		numShards := s.agent.NumShards()

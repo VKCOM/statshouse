@@ -99,9 +99,15 @@ func (c *Config) setShardBudget(param string) error {
 	if err != nil {
 		return fmt.Errorf("invalid shard value in --shard-sample-budget, expected integer, got %s: %v", parts[0], err)
 	}
+	if shard <= 0 {
+		return fmt.Errorf("shard value must be greater than 0, got %d", shard)
+	}
 	budget, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return fmt.Errorf("invalid budget value in --shard-sample-budget, expected integer, got %s: %v", parts[1], err)
+	}
+	if budget <= 0 {
+		return fmt.Errorf("budget value must be greater than 0, got %d", budget)
 	}
 	if c.ShardSampleBudget == nil {
 		c.ShardSampleBudget = make(map[int]int)
