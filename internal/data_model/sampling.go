@@ -166,13 +166,13 @@ func (h *sampler) Run(budget int64) {
 				h.items[i].metric = h.getMetricMeta(h.items[i].MetricID)
 			}
 		}
-		if h.SampleKeys && len(h.items[i].metric.FairKey) != 0 {
-			n := len(h.items[i].metric.FairKey)
+		if h.SampleKeys && len(h.items[i].metric.FairKeyIndex) != 0 {
+			n := len(h.items[i].metric.FairKeyIndex)
 			if n > maxFairKeyLen {
 				n = maxFairKeyLen
 			}
 			for j := 0; j < n; j++ {
-				if x := h.items[i].metric.FairKey[j]; 0 <= x && x < len(h.items[i].Item.Key.Tags) {
+				if x := h.items[i].metric.FairKeyIndex[j]; 0 <= x && x < len(h.items[i].Item.Key.Tags) {
 					h.items[i].fairKey[j] = h.items[i].Item.Key.Tags[x]
 				}
 			}
