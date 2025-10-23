@@ -265,7 +265,6 @@ type MetricMetaValue struct {
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
 	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
-	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
 	MetricTagIndex       uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
@@ -593,9 +592,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			}
 		}
 	}
-	if m.PipelineVersion != 3 { // PipelineVersion 0 is good default for JSON
-		m.PipelineVersion = 0
-	}
 
 	if slowHostMetricID[m.MetricID] {
 		m.IsHardwareSlowMetric = true
@@ -648,7 +644,7 @@ func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 }
 
 func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bool {
-	if metric == nil {
+	if metric == nil { // TODO - remove this check, make sure metric != nil always
 		return false
 	}
 	switch metric.ShardStrategy {
@@ -660,7 +656,7 @@ func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bo
 }
 
 func (m *MetricMetaValue) Shard(numShards int) int {
-	if m == nil {
+	if m == nil { // TODO - remove this check, make sure metric != nil always
 		return -1
 	}
 	switch m.ShardStrategy {
@@ -1255,7 +1251,6 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		!slices.Equal(a.FairKeyIndex, b.FairKeyIndex) ||
 		a.ShardStrategy != b.ShardStrategy ||
 		a.ShardNum != b.ShardNum ||
-		a.PipelineVersion != b.PipelineVersion ||
 		a.HasPercentiles != b.HasPercentiles ||
 		a.WhalesOff != b.WhalesOff ||
 		a.RoundSampleFactors != b.RoundSampleFactors {

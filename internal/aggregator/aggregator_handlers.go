@@ -748,7 +748,6 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	configR := a.configR
 	a.configMu.RUnlock()
 
-	rng := rand.New()
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
@@ -793,16 +792,10 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	}
 	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	aggBucket.mu.Unlock()
-	// Write meta statistics
 
-	lockedShard := -1
-	measurementLocks := 0
-	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
-	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	a.sh2.GetMultiItemAERA(&s.MultiItemMap, aggBucket.time, format.BuiltinMetricMetaAggKeepAlive,
-		[]int32{}, aera).Tail.
-		AddCounterHost(rng, 1, hostTag)
-	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
+	a.sh2.AddCounterHostAERA(aggBucket.time, format.BuiltinMetricMetaAggKeepAlive,
+		[]int32{},
+		1, hostTag, aera)
 
 	return errHijack
 }

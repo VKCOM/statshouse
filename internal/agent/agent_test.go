@@ -246,7 +246,6 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	h := data_model.MappedMetricHeader{
 		MetricMeta: &format.MetricMetaValue{
 			EffectiveResolution: 1,
-			PipelineVersion:     3,
 		},
 	}
 
