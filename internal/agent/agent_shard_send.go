@@ -213,8 +213,13 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		})
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
-	numShards := s.agent.NumShards()
-	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
+	var remainingBudget int64
+	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
+		remainingBudget = int64(budget)
+	} else {
+		numShards := int(s.agent.shardByMetricCount)
+		remainingBudget = int64((config.SampleBudget + numShards - 1) / numShards)
+	}
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}

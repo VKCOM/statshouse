@@ -640,21 +640,18 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					p.logClientError("GetConfig3", err, rpc.PacketHeaderCircularBuffer{})
 					autoConfigStatus = format.TagValueIDAutoConfigWrongCluster
 				} else {
+					config := p.config3
+					if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
+						log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
+						config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
+					}
 					equalConfig := args.IsSetPreviousConfig() &&
-						slices.Equal(p.config3.Addresses, args.PreviousConfig.Addresses) &&
-						p.config3.ShardByMetricCount == args.PreviousConfig.ShardByMetricCount
+						slices.Equal(config.Addresses, args.PreviousConfig.Addresses) &&
+						config.ShardByMetricCount == args.PreviousConfig.ShardByMetricCount
 					if equalConfig {
 						autoConfigStatus = format.TagValueIDAutoConfigErrorKeepAlive
 					} else {
-						if p.isLegacyIngressClient(&args.Header, args.IsSetNewIngressVersion()) {
-							log.Printf("[INGRESS COMPAT] Returning addresses with limit: %d, for old client: %s", argv.LegacyAddrLimit, args.Header.HostName)
-
-							config := p.config3
-							config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
-							req.Response, _ = args.WriteResult(req.Response[:0], config)
-						} else {
-							req.Response, _ = args.WriteResult(req.Response[:0], p.config3)
-						}
+						req.Response, _ = args.WriteResult(req.Response[:0], config)
 						autoConfigStatus = format.TagValueIDAutoConfigOK
 					}
 				}
