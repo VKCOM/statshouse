@@ -738,7 +738,7 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 }
 
 func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardID uint32) {
-	return sharding.Shard(key, metricInfo, s.NumShards(), s.shardByMetricCount, scratch)
+	return sharding.Shard(key, metricInfo, s.shardByMetricCount, scratch)
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket

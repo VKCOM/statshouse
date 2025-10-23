@@ -374,7 +374,7 @@ var BuiltinMetricMetaTimingErrors = &MetricMetaValue{
 	Description: `Timing errors - sending data too early or too late.
 Set by either agent or aggregator, depending on status.`,
 	NoSampleAgent:           true,
-	BuiltinAllowedToReceive: true,
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
@@ -1633,10 +1633,11 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	}},
 }
 
+// TODO - remove this metric (?)
 var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 	Name:                    "__statshouse_errors",
 	Kind:                    MetricKindCounter,
-	Description:             `Always empty metric because SH don't have errors'`,
+	Description:             "Always empty metric because SH has no errors'",
 	StringTopDescription:    "error_string",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
@@ -2218,7 +2219,7 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	Name:                    "__igp_accept_handshake_error",
 	Kind:                    MetricKindCounter,
-	Description:             "Proxy refused to accept incoming connection because of failed  handshake.",
+	Description:             "Proxy refused to accept incoming connection because of failed handshake.",
 	StringTopDescription:    "remote_ip",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
