@@ -66,7 +66,7 @@ func TestShard(t *testing.T) {
 	scratch := make([]byte, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotShard := Shard(&tt.args.key, tt.args.meta, uint32(tt.args.numShards), &scratch)
+			gotShard, _ := Shard(&tt.args.key, tt.args.meta, uint32(tt.args.numShards), &scratch)
 			if gotShard != tt.expectedShard {
 				t.Errorf("Sharding() = %v, want %v", gotShard, tt.expectedShard)
 			}
