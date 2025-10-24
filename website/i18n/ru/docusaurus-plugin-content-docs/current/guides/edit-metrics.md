@@ -43,7 +43,7 @@ import FairKey from '../img/fair-key.png'
   * [Драфт-теги](#драфт-теги)
 * [Отключение метрики](#отключение-метрики)
 * [Настройки для администраторов](#настройки-для-администраторов)
-  * [Fair key tags](#fair-key-tags)
+  * [Fair tags](#fair-key-tags)
 <!-- TOC -->
 
 ## Какие параметры метрики можно редактировать
@@ -258,13 +258,13 @@ StatsHouse извлекает "неизвестные" названия тего
 
 * _Weight_
 * _Mapping Flood Counter_
-* _Presort key_
-* _Presort key only_
+* _Presort tag_
+* _Presort tag only_
 * _Enable max host_
 * _Enable min host_
 * _Enable sum square_
 
-### Fair key tags
+### Fair tags
 
 Чтобы [включить бюджетирование на уровне тега](../overview/concepts.md#бюджетирование-на-уровне-тегов-fair-key-tags),
 выберите нужный тег из списка:

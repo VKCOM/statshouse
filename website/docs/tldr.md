@@ -111,7 +111,7 @@ Categorize hosts by a _datacenter_, a _cluster_, etc. — not by their names.
    specific metrics (as well as groups and namespaces). Use this option sparingly. 
 
 :::tip
-You can [enable the "Fair key tags" feature](./guides/edit-metrics.md#fair-key-tags) to share the budget fairly 
+You can [enable the "Fair tags" feature](./guides/edit-metrics.md#fair-key-tags) to share the budget fairly 
 between the services sending data to the same metric.
 Read more about [tag-level budgeting](./overview/concepts.md#tag-level-budgeting-fair-key-tags).
 :::

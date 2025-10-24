@@ -104,6 +104,6 @@ This option is for administrators only.
 
 ## Enabling tag-level budgeting
 
-[Enable the "Fair key tags" feature](../guides/edit-metrics.md#fair-key-tags) for a tag to allocate metric resources 
+[Enable the "Fair tags" feature](../guides/edit-metrics.md#fair-key-tags) for a tag to allocate metric resources 
 fairly accordingly to the tag values, e.g., different services writing data to the same metric.
 Read more about [tag-level budgeting](../overview/concepts.md#tag-level-budgeting-fair-key-tags).

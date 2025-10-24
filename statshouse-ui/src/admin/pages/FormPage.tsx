@@ -471,7 +471,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
       </div>
       <div className="row mb-3">
         <label htmlFor="resolution" className="col-sm-2 col-form-label">
-          Presort key
+          Presort tag
         </label>
         <div className="col-sm-auto d-flex align-items-center">
           <select
@@ -496,7 +496,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
       </div>
       <div className="row align-items-baseline mb-3">
         <label htmlFor="pre_key_only" className="col-sm-2 col-form-label">
-          Presort key only
+          Presort tag only
         </label>
         <div className="col-sm-auto pt-1">
           <div className="form-check form-switch">
@@ -584,7 +584,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
       </div>
       <div className="row align-items-baseline mb-3">
         <label htmlFor="fair_key_tag_ids" className="col-sm-2 col-form-label">
-          Fair key tags
+          Fair tags
         </label>
         <div className="col-sm-auto pt-1">
           {
