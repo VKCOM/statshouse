@@ -38,7 +38,7 @@ func getBuiltinShardingMetrics() map[int32]int {
 	shardingMetrics := make(map[int32]int)
 
 	for metricID, metric := range format.BuiltinMetrics {
-		if metric.ShardStrategy == format.ShardBuiltin {
+		if metric.ShardStrategy == format.ShardBuiltinDist {
 			// For metrics with MetricTagIndex > 0, use the specified tag
 			// For metrics with MetricTagIndex = 0 (like contributors_log), they appear in all shards
 			if metric.MetricTagIndex > 0 {
@@ -53,7 +53,7 @@ func getBuiltinShardingMetrics() map[int32]int {
 }
 
 // getConditionForSelect returns the complete condition for SELECT queries
-// This handles both regular metrics and ShardBuiltin metrics in a single query
+// This handles both regular metrics and ShardBuiltinDist metrics in a single query
 func getConditionForSelect(totalShards int, shardKey int32, tagPrefix string) string {
 	// Get all builtin metrics with special sharding
 	shardingMetrics := getBuiltinShardingMetrics()
@@ -84,13 +84,13 @@ func getConditionForSelect(totalShards int, shardKey int32, tagPrefix string) st
 }
 
 // getConditionForSelectV2 returns the complete condition for SELECT queries on V2 tables
-// This handles both regular metrics and ShardBuiltin metrics in a single query
+// This handles both regular metrics and ShardBuiltinDist metrics in a single query
 func getConditionForSelectV2(totalShards int, shardKey int32) string {
 	return getConditionForSelect(totalShards, shardKey, "key")
 }
 
 // getConditionForSelectV3 returns the complete condition for SELECT queries on V3 tables
-// This handles both regular metrics and ShardBuiltin metrics in a single query
+// This handles both regular metrics and ShardBuiltinDist metrics in a single query
 func getConditionForSelectV3(totalShards int, shardKey int32) string {
 	return getConditionForSelect(totalShards, shardKey, "tag")
 }
@@ -232,7 +232,7 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 
 	// Step 1: Select data from V2 table for the given timestamp and shard
 	// Include all aggregate fields - our parsers handle ClickHouse internal format correctly
-	// For ShardBuiltin metrics, we need special sharding conditions
+	// For ShardBuiltinDist metrics, we need special sharding conditions
 	shardingCondition := getConditionForSelectV2(config.TotalShards, shardKey)
 	selectQuery := fmt.Sprintf(`
 		SELECT metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey,

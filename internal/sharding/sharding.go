@@ -10,10 +10,10 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, shardByMetricCount
 	switch meta.ShardStrategy {
 	case format.ShardFixed:
 		return meta.ShardNum
-	case "", format.ShardByMetric:
+	case "", format.ShardByMetricID:
 		shard := uint32(key.Metric) % shardByMetricCount
 		return shard
-	case format.ShardBuiltin:
+	case format.ShardBuiltinDist:
 		tagIndex := meta.MetricTagIndex
 		// for builtin metrics we always use row values
 		metric := key.Tags[tagIndex]

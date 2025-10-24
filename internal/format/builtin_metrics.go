@@ -31,7 +31,7 @@ Set only if greater than 1.`,
 		RawKind:     "int",
 	}},
 	PreKeyTagID:    "1",
-	ShardStrategy:  ShardBuiltin, // sharded the same way as metric it describes
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
 	MetricTagIndex: 1,
 }
 
@@ -154,7 +154,7 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		BuiltinKind: BuiltinKindMetric,
 	}},
 	PreKeyTagID:    "4",
-	ShardStrategy:  ShardBuiltin, // sharded the same way as metric it describes
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
 	MetricTagIndex: 4,
 }
 
@@ -180,7 +180,7 @@ Set only if greater than 1.`,
 		}),
 	}},
 	PreKeyTagID:    "4",
-	ShardStrategy:  ShardBuiltin, // sharded the same way as metrtic it describes
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
 	MetricTagIndex: 4,
 }
 
@@ -243,7 +243,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 		Description: "tag_id",
 	}},
 	PreKeyTagID:    "1",
-	ShardStrategy:  ShardBuiltin, // sharded the same way as metrtic it describes
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
 	MetricTagIndex: 1,
 }
 
@@ -702,7 +702,7 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		BuiltinKind: BuiltinKindMetric,
 	}},
 	PreKeyTagID:    "2",
-	ShardStrategy:  ShardBuiltin, // sharded the same way as metrtic it describes
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
 	MetricTagIndex: 2,
 }
 
@@ -1062,7 +1062,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		Description: "timestamp",
 		RawKind:     "timestamp",
 	}},
-	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
+	ShardStrategy: ShardBuiltinDist, // marshalled by aggregator but does not have metric tag
 }
 
 const BuiltinMetricIDContributorsLogRev = -62
@@ -1081,7 +1081,7 @@ Value is delta between second value and time it was inserted.`,
 		Description: "insert_timestamp",
 		RawKind:     "timestamp",
 	}},
-	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
+	ShardStrategy: ShardBuiltinDist, // marshalled by aggregator but does not have metric tag
 }
 
 var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{

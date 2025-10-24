@@ -718,10 +718,10 @@ func massUpdateMetadata() int {
 		//if !strings.HasPrefix(meta.Name, "gbuteyko") {
 		//	continue
 		//}
-		if meta.ShardStrategy == format.ShardByTagsHash || meta.ShardStrategy == format.ShardFixed || meta.ShardStrategy == format.ShardBuiltin {
+		if meta.ShardStrategy == format.ShardByTagsHash || meta.ShardStrategy == format.ShardFixed || meta.ShardStrategy == format.ShardBuiltinDist {
 			continue
 		}
-		if meta.ShardStrategy != format.ShardByMetric && meta.ShardStrategy != "" {
+		if meta.ShardStrategy != format.ShardByMetricID && meta.ShardStrategy != "" {
 			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) unexpected strategy %s shard %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum)
 			continue
 		}
