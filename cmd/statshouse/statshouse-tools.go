@@ -718,28 +718,31 @@ func massUpdateMetadata() int {
 		//if !strings.HasPrefix(meta.Name, "gbuteyko") {
 		//	continue
 		//}
+		shardNum := uint32(meta.MetricID) % 16
 		switch meta.ShardStrategy {
 		case format.ShardFixed: // great, our favorite
+			if meta.ShardNum != shardNum { // all new metrics assigned randomly
+				_, _ = fmt.Fprintf(os.Stderr, "info: Metric %d (%q) fixed shard_key (%d) != automatic fixed shard_key (%d)\n", meta.MetricID, meta.Name, meta.ShardNum+1, shardNum+1)
+			}
 			continue
 		case format.ShardByTagsHash, format.ShardBuiltinDist:
-			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) uncommon strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+			_, _ = fmt.Fprintf(os.Stderr, "warning: Metric %d (%q) uncommon strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
 			continue
 		case "": // break to code below
 		default:
-			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) unknown strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+			_, _ = fmt.Fprintf(os.Stderr, "alarm: Metric %d (%q) unknown strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
 			continue
 		}
 		if found >= argv.maxUpdates {
 			break
 		}
 		found++
-		shard := uint32(meta.MetricID) % 16
-		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) old strategy %s shard %d move to shard %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum, shard)
+		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) old strategy %s shard_key %d move to shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1, shardNum+1)
 		if argv.dryRun {
 			continue
 		}
 		meta2 := *meta
-		meta2.ShardNum = shard
+		meta2.ShardNum = shardNum
 		meta2.ShardStrategy = format.ShardFixed
 		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
 		var err error
