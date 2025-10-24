@@ -38,7 +38,7 @@ To understand StatsHouse deeply, learn the basic metric-related concepts:
   * [Fair resource sharing](#fair-resource-sharing)
   * [Sampling "mainstays"](#sampling-mainstays)
   * [User-guided sampling](#user-guided-sampling)
-  * [Tag-level budgeting ("Fair key tags")](#tag-level-budgeting-fair-key-tags)
+  * [Tag-level budgeting ("Fair tags")](#tag-level-budgeting-fair-key-tags)
     * [Tag-level budgeting: disabled](#tag-level-budgeting-disabled)
     * [Tag-level budgeting: enabled](#tag-level-budgeting-enabled)
 <!-- TOC -->
@@ -412,10 +412,10 @@ In this case, you can explicitly specify `counter` for the `value` metric:
 This means that the number of events is 6, and the values are sampled—as if the original `value`
 was `[1, 1, 2, 2, 3, 3]`
 
-### Tag-level budgeting ("Fair key tags")
+### Tag-level budgeting ("Fair tags")
 
-Tag-level budgeting ("Fair key tags") is for communal metrics that receive data from many services.
-The ["Fair key tags" feature](../guides/edit-metrics.md#fair-key-tags) allows you to allocate metric resources 
+Tag-level budgeting ("Fair tags") is for communal metrics that receive data from many services.
+The ["Fair tags" feature](../guides/edit-metrics.md#fair-key-tags) allows you to allocate metric resources 
 fairly — accordingly to the tag values, e.g., services.
 
 #### Tag-level budgeting: disabled
@@ -448,7 +448,7 @@ Let's have a sampling factor (SF) = 10. It means that only one row out of 10 rem
 You can assign the `service_id` tag to be a "fair key" — to fairly share the metric budget between two services.
 :::
 
-See how to [enable the "Fair key tags" feature](../guides/edit-metrics.md#fair-key-tags) for a tag. The metric budget 
+See how to [enable the "Fair tags" feature](../guides/edit-metrics.md#fair-key-tags) for a tag. The metric budget 
 will be fairly shared between the services:
 * the rare events from the Service B improve their chances to appear on a StatsHouse graph;
 * the intensively-generating Service A gets the reduced budget.

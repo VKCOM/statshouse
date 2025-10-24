@@ -121,12 +121,12 @@ func TestAccessInfo(t *testing.T) {
 			ai := accessInfo{
 				bitEditPrefix: map[string]bool{"foo_": true},
 			}
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar"}))
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}) == nil)
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}) == nil)
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar"}) == nil)
 			ai.bitAdmin = true
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}) == nil)
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}) == nil)
 		})
 	})
 }
@@ -141,5 +141,5 @@ func canViewMetricNamespaced(ai *accessInfo, metric, namespace string) bool {
 }
 
 func canBasicEdit(ai *accessInfo, metric string, create bool) bool {
-	return ai.CanEditMetric(create, format.MetricMetaValue{Name: metric}, format.MetricMetaValue{Name: metric})
+	return ai.CanEditMetric(create, format.MetricMetaValue{Name: metric}, format.MetricMetaValue{Name: metric}) == nil
 }

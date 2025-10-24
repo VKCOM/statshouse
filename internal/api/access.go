@@ -150,35 +150,46 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
 }
 
-func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
-	if ai.canChangeMetricByName(create, old, new_) {
-		if ai.bitAdmin {
-			return true
-		}
-		if old.Weight != new_.Weight && !(old.Weight == 0 && new_.Weight == 1) {
-			return false
-		}
-		if preKey(old) != preKey(new_) {
-			return false
-		}
-		if preKeyOnly(old) != preKeyOnly(new_) {
-			return false
-		}
-		if skips(old) != skips(new_) {
-			return false
-		}
-
-		return true
+func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) error {
+	if !ai.canChangeMetricByName(create, old, new_) {
+		return fmt.Errorf("access forbidden")
 	}
-	return false
-}
-
-func preKey(m format.MetricMetaValue) uint32 {
-	return m.PreKeyFrom
-}
-
-func preKeyOnly(m format.MetricMetaValue) bool {
-	return m.PreKeyOnly
+	if ai.bitAdmin {
+		return nil
+	}
+	if old.Weight != new_.Weight && !(old.Weight == 0 && new_.Weight == 1) {
+		return fmt.Errorf("access control prevents changing weight")
+	}
+	if old.PreKeyFrom != new_.PreKeyFrom {
+		return fmt.Errorf("access control prevents changing 'presort tag'")
+	}
+	if old.PreKeyOnly != new_.PreKeyOnly {
+		return fmt.Errorf("access control prevents changing 'presort tag only'")
+	}
+	if skips(old) != skips(new_) {
+		return fmt.Errorf("access control prevents changing 'max host', 'min host' or 'sum square'")
+	}
+	if old.ShardStrategy != new_.ShardStrategy {
+		return fmt.Errorf("access control prevents changing sharding strategy")
+	}
+	if old.ShardNum != new_.ShardNum {
+		return fmt.Errorf("access control prevents changing sharding strategy shard")
+	}
+	for i := 0; i < max(len(old.Tags), len(new_.Tags)); i++ {
+		// reducing # of tags implicitly clears RawKind
+		newRaw := false
+		if i < len(new_.Tags) {
+			newRaw = new_.Tags[i].RawKind != ""
+		}
+		oldRaw := false
+		if i < len(old.Tags) {
+			oldRaw = old.Tags[i].RawKind != ""
+		}
+		if newRaw != oldRaw {
+			return fmt.Errorf("access control prevents modifying Raw Tag attribute")
+		}
+	}
+	return nil
 }
 
 func skips(m format.MetricMetaValue) [3]bool {
