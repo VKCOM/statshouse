@@ -718,11 +718,15 @@ func massUpdateMetadata() int {
 		//if !strings.HasPrefix(meta.Name, "gbuteyko") {
 		//	continue
 		//}
-		if meta.ShardStrategy == format.ShardByTagsHash || meta.ShardStrategy == format.ShardFixed || meta.ShardStrategy == format.ShardBuiltinDist {
+		switch meta.ShardStrategy {
+		case format.ShardFixed: // great, our favorite
 			continue
-		}
-		if meta.ShardStrategy != format.ShardByMetricID && meta.ShardStrategy != "" {
-			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) unexpected strategy %s shard %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum)
+		case format.ShardByTagsHash, format.ShardBuiltinDist:
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) uncommon strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+			continue
+		case "": // break to code below
+		default:
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) unknown strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
 			continue
 		}
 		if found >= argv.maxUpdates {

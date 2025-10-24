@@ -5,21 +5,15 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 )
 
-// legacyKeyHash will be 0 for all new sharding strategies
-func Shard(key *data_model.Key, meta *format.MetricMetaValue, shardByMetricCount uint32, scratch *[]byte) (shardID uint32) {
+// shard overflow is checked by the caller
+func Shard(key *data_model.Key, meta *format.MetricMetaValue, shardByMetricCount uint32, scratch *[]byte) (shardNum uint32, ok bool) {
 	switch meta.ShardStrategy {
 	case format.ShardFixed:
-		return meta.ShardNum
-	case "", format.ShardByMetricID:
+		return meta.ShardNum, true
+	case format.ShardByMetricID:
 		shard := uint32(key.Metric) % shardByMetricCount
-		return shard
-	case format.ShardBuiltinDist:
-		tagIndex := meta.MetricTagIndex
-		// for builtin metrics we always use row values
-		metric := key.Tags[tagIndex]
-		shard := uint32(metric) % shardByMetricCount
-		return shard
-	default: // including format.ShardByTagsHsh
+		return shard, true
+	case format.ShardByTagsHash:
 		var scr []byte
 		if scratch != nil {
 			scr = *scratch
@@ -30,7 +24,9 @@ func Shard(key *data_model.Key, meta *format.MetricMetaValue, shardByMetricCount
 			*scratch = scr
 		}
 		shard := shardByMappedTags(legacyKeyHash, shardByMetricCount)
-		return shard
+		return shard, true
+	default: // including format.ShardBuiltinDist, which should be written directly into insert batch data, so never by this function
+		return 0, false
 	}
 }
 
