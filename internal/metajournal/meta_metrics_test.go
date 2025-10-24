@@ -1091,7 +1091,7 @@ func genMetricMetaValue() *rapid.Generator[format.MetricMetaValue] {
 			PreKeyOnly:           rapid.Bool().Draw(t, "preKeyOnly"),
 			MetricType:           rapid.String().Draw(t, "metricType"),
 			FairKeyTagIDs:        rapid.SliceOf(rapid.String()).Draw(t, "fairKeyTagIDs"),
-			ShardStrategy:        rapid.StringMatching("^tags_hash$|^fixed_shard$|^metric_id$|^$").Draw(t, "shardStrategy"),
+			ShardStrategy:        rapid.StringMatching("^tags_hash$|^fixed_shard$|^$").Draw(t, "shardStrategy"),
 			ShardNum:             rapid.Uint32Max(16).Draw(t, "shardNum"),
 		}
 	})
