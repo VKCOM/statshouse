@@ -52,7 +52,7 @@ func TestShard(t *testing.T) {
 
 		{"ok-by-metric-id", args{
 			key:       metric1,
-			meta:      &format.MetricMetaValue{Name: "a", ShardStrategy: format.ShardByMetric},
+			meta:      &format.MetricMetaValue{Name: "a", ShardStrategy: format.ShardByMetricID},
 			numShards: 16,
 		}, 1},
 

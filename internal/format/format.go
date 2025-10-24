@@ -230,10 +230,10 @@ type MetricsGroup struct {
 
 // possible sharding strategies
 const (
-	ShardByTagsHash = "tags_hash"
-	ShardFixed      = "fixed_shard"
-	ShardByMetric   = "metric_id" // shard = metric_id % num_shards
-	ShardBuiltin    = "builtin"   // for special builtin metrics that are written in all shards (only dist)
+	ShardByTagsHash  = "tags_hash"   // TODO: remove after nginx metrics are moved out to its own shard
+	ShardFixed       = "fixed_shard" // should be the only strategy for all user metrics
+	ShardByMetricID  = "metric_id"   // shard = metric_id % shardByMetricCount, for most built-in and hardware metrics.
+	ShardBuiltinDist = "builtin"     // for several builtin metrics which are written by aggregator into the same shard with the metrics they describe
 )
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -648,7 +648,7 @@ func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bo
 		return false
 	}
 	switch metric.ShardStrategy {
-	case ShardFixed, ShardByMetric, "":
+	case ShardFixed, ShardByMetricID, "":
 		return newShardingStart != 0 && timestamp >= newShardingStart
 	default:
 		return false
@@ -662,7 +662,7 @@ func (m *MetricMetaValue) Shard(numShards int) int {
 	switch m.ShardStrategy {
 	case ShardFixed:
 		return int(m.ShardNum)
-	case ShardByMetric, "":
+	case ShardByMetricID, "":
 		return int(uint32(m.MetricID) % uint32(numShards))
 	default:
 		return -1
