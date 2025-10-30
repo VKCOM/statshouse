@@ -686,7 +686,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Start.Store(cfg.Version3Start)
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
-		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio)
+		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig)
 		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.ConfigMu.Lock()
 		h.DisableCHAddr = cfg.DisableCHAddr
@@ -739,6 +739,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneSlowHeavy, ch.SemaphoreCountSlowHeavy(), ch.ShardSemaphoreCountSlowHeavy())
 				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneFastHardware, ch.SemaphoreCountFastHardware(), ch.ShardSemaphoreCountFastHardware())
 				ChSelectActiveQueries(client, versionTag, format.TagValueIDAPILaneSlowHardware, ch.SemaphoreCountSlowHardware(), ch.ShardSemaphoreCountSlowHardware())
+				ChRateLimit(client, versionTag, ch.RateLimitStatistics())
 			}
 		}
 		writeActiveQuieries(chV1, "1")
@@ -1852,7 +1853,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 }
 
 func HandleGetMetricTagValues(r *httpRequestHandler) {
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -2110,7 +2111,7 @@ func HandleGetTable(r *httpRequestHandler) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 
 	if req.numResults <= 0 || maxTableRowsPage < req.numResults {
@@ -2160,7 +2161,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 	query := promql.Query{
 		Start: req.from.Unix(),
@@ -2364,7 +2365,7 @@ func HandlePointQuery(r *httpRequestHandler) {
 }
 
 func HandleGetRender(r *httpRequestHandler) {
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 	s, err := r.parseSeriesRequestS(12)
 	if err != nil {
@@ -2611,7 +2612,7 @@ func (h *requestHandler) handleSeriesRequestS(ctx context.Context, req seriesReq
 	var cancelT func()
 	var freeBadges func()
 	var freeRes func()
-	ctx, cancelT = context.WithTimeout(ctx, h.querySelectTimeout)
+	ctx, cancelT = context.WithTimeout(ctx, h.QuerySelectTimeout)
 	cancel := func() {
 		cancelT()
 		if freeBadges != nil {

@@ -186,6 +186,17 @@ func ChSelectActiveQueries(client *statshouse.Client, versionTag string, tagLane
 	}
 }
 
+func ChRateLimit(client *statshouse.Client, versionTag string, stats []chutil.RateLimitMetric) {
+	for _, stat := range stats {
+		metric := client.MetricRef("statshouse_api_rate_limit", statshouse.Tags{ //TODO builtin
+			1: strconv.Itoa(stat.ShardKey),
+			2: strconv.Itoa(stat.ReplicaKey),
+			3: stat.Stage,
+			4: strconv.FormatUint(stat.InflightWeight, 10)})
+		metric.Value(float64(stat.InflightCnt))
+	}
+}
+
 func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
 	status := "1"
 	if !ok {

@@ -158,3 +158,9 @@ func (q *Queue) Observe() (int64, error) {
 	defer q.mx.Unlock()
 	return q.activeQuery, nil
 }
+
+func (q *Queue) AdjustCapacity(cap uint64) {
+	q.mx.Lock()
+	defer q.mx.Unlock()
+	q.maxActiveQuery = int64(cap)
+}

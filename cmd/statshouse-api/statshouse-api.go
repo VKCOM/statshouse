@@ -175,6 +175,8 @@ func run() int {
 			ShardByMetricShards: argv.ShardByMetricShards,
 			MaxShardConnsRatio:  argv.CHMaxShardConnsRatio,
 			DialTimeout:         chDialTimeout,
+			SelectTimeout:       argv.QuerySelectTimeout,
+			RateLimitConfig:     argv.RateLimitConfig,
 			ConnLimits: chutil.ConnLimits{
 				FastLightMaxConns: argv.chV1MaxConns,
 				FastHeavyMaxConns: argv.chV1MaxConns,
@@ -196,6 +198,8 @@ func run() int {
 		ShardByMetricShards: argv.ShardByMetricShards,
 		MaxShardConnsRatio:  argv.CHMaxShardConnsRatio,
 		DialTimeout:         chDialTimeout,
+		SelectTimeout:       argv.QuerySelectTimeout,
+		RateLimitConfig:     argv.RateLimitConfig,
 		ConnLimits: chutil.ConnLimits{
 			FastLightMaxConns:    argv.chV2MaxLightFastConns,
 			FastHeavyMaxConns:    argv.chV2MaxHeavyFastConns,

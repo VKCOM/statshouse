@@ -62,7 +62,7 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	}
 	q.End = q.Start + 1 // handler expects half open interval [start, end)
 	// execute query
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 	res, dispose, err := r.promEngine.Exec(ctx, r, q)
 	if err != nil {
@@ -103,7 +103,7 @@ func HandleRangeQuery(r *httpRequestHandler) {
 		return
 	}
 	// execute query
-	ctx, cancel := context.WithTimeout(r.Context(), r.querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), r.QuerySelectTimeout)
 	defer cancel()
 	res, dispose, err := r.promEngine.Exec(ctx, r, q)
 	if err != nil {
