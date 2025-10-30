@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-var UncommitedItemsFound = fmt.Errorf("you must commit all items")
+var ErrUncommitedFound = fmt.Errorf("error: you must commit all items")
 
 type doubleIndex struct {
 	i  int
@@ -66,7 +66,7 @@ func (b *DoubleRingBuffer[v]) PopF(f func(item v) bool) error {
 
 	if b.head.v1 && b.head.i < len(b.v1) ||
 		!b.head.v1 && b.head.i < len(b.v2) {
-		return UncommitedItemsFound
+		return ErrUncommitedFound
 	}
 	if b.tail.v1 && b.tail.i >= len(b.v1) {
 		b.tail.Swap()

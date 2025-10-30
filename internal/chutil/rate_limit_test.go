@@ -22,12 +22,6 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	require.FailNow(t, "timeout waiting for condition")
 }
 
-func isHealthy(rl *RateLimit) bool {
-	rl.mu.RLock()
-	defer rl.mu.RUnlock()
-	return rl.stage == StageHealth
-}
-
 func newCfg() RateLimitConfig {
 	return RateLimitConfig{
 		WindowDuration:     5 * time.Second,
@@ -50,7 +44,10 @@ func TestRateLimit_BasicFlow(t *testing.T) {
 
 	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 10 * time.Millisecond})
-	waitFor(t, 500*time.Millisecond, func() bool { return isHealthy(rl) })
+	waitFor(t, 500*time.Millisecond, func() bool {
+		_, ok := rl.GetInflightCount()
+		return ok
+	})
 }
 
 func TestRateLimit_SleepOnHighError(t *testing.T) {
@@ -68,7 +65,10 @@ func TestRateLimit_SleepOnHighError(t *testing.T) {
 		rl.RecordEvent(Event{Timestamp: time.Now(), Status: st, Duration: 20 * time.Millisecond})
 	}
 
-	waitFor(t, time.Second, func() bool { return !isHealthy(rl) && !rl.ShouldCheck() })
+	waitFor(t, time.Second, func() bool {
+		_, ok := rl.GetInflightCount()
+		return !ok && !rl.ShouldCheck()
+	})
 }
 
 func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
@@ -84,8 +84,11 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 30 * time.Millisecond})
 
+	rl.mu.RLock()
+	weight := rl.healthState.InflightWeight
+	rl.mu.RUnlock()
 	time.Sleep(2 * cfg.RecalcInterval)
-	require.Equal(t, cfg.MaxInflightWeight/2, rl.healthState.InflightWeight)
+	require.Equal(t, cfg.MaxInflightWeight/2, weight)
 
 	for i := 0; i < 10; i++ {
 		rl.AddInflightCount()
@@ -94,8 +97,11 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 60 * time.Millisecond})
 
+	rl.mu.RLock()
+	weight = rl.healthState.InflightWeight
+	rl.mu.RUnlock()
 	time.Sleep(2 * cfg.RecalcInterval)
-	require.LessOrEqual(t, cfg.MaxInflightWeight-1, rl.healthState.InflightWeight)
+	require.LessOrEqual(t, cfg.MaxInflightWeight-1, weight)
 
 }
 
@@ -124,7 +130,10 @@ func TestRateLimit_WeightRecovery(t *testing.T) {
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 20 * time.Millisecond})
 
 	waitFor(t, 6*time.Second, func() bool {
-		return rl.healthState.InflightWeight == 1
+		rl.mu.RLock()
+		weight := rl.healthState.InflightWeight
+		rl.mu.RUnlock()
+		return weight == 1
 	})
 }
 
@@ -146,7 +155,10 @@ func TestRateLimit_CheckFlowToHealth(t *testing.T) {
 		rl.RecordCheck(func() Event { return Event{Timestamp: time.Now(), Status: StatusSuccess} })
 		time.Sleep(20 * time.Millisecond)
 	}
-	waitFor(t, 2*time.Second, func() bool { return isHealthy(rl) })
+	waitFor(t, 2*time.Second, func() bool {
+		_, ok := rl.GetInflightCount()
+		return ok
+	})
 }
 
 func TestRateLimit_InflightCounterSafety(t *testing.T) {
@@ -170,7 +182,8 @@ func TestRateLimit_InflightCounterSafety(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.True(t, isHealthy(rl))
+	_, ok := rl.GetInflightCount()
+	require.True(t, ok)
 }
 
 func TestRateLimit_HighLoadRace(t *testing.T) {
@@ -228,11 +241,13 @@ func TestRateLimit_HighLoadRace(t *testing.T) {
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 50 * time.Millisecond})
 	time.Sleep(12 * cfg.RecoverGapDuration)
 
-	require.Equal(t, uint64(0), rl.healthState.InflightCnt)
-	require.Equal(t, uint64(1), rl.healthState.InflightWeight)
 	rl.mu.RLock()
 	st := rl.stage
+	weight := rl.healthState.InflightWeight
+	count := rl.healthState.InflightCnt
 	rl.mu.RUnlock()
+	require.Equal(t, uint64(0), count)
+	require.Equal(t, uint64(1), weight)
 	require.True(t, st == StageHealth)
 }
 

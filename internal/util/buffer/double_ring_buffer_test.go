@@ -73,7 +73,7 @@ func TestDoubleRingBuffer_UncommitedItems(t *testing.T) {
 	err := b.PopF(func(item int) bool {
 		return true
 	})
-	require.ErrorIs(t, err, UncommitedItemsFound)
+	require.ErrorIs(t, err, ErrUncommitedFound)
 }
 
 func TestDoubleRingBuffer_BufferSwitch(t *testing.T) {
