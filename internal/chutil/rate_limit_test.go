@@ -84,10 +84,10 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 30 * time.Millisecond})
 
+	time.Sleep(2 * cfg.RecalcInterval)
 	rl.mu.RLock()
 	weight := rl.healthState.InflightWeight
 	rl.mu.RUnlock()
-	time.Sleep(2 * cfg.RecalcInterval)
 	require.Equal(t, cfg.MaxInflightWeight/2, weight)
 
 	for i := 0; i < 10; i++ {
@@ -97,10 +97,10 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 60 * time.Millisecond})
 
+	time.Sleep(2 * cfg.RecalcInterval)
 	rl.mu.RLock()
 	weight = rl.healthState.InflightWeight
 	rl.mu.RUnlock()
-	time.Sleep(2 * cfg.RecalcInterval)
 	require.LessOrEqual(t, cfg.MaxInflightWeight-1, weight)
 
 }
@@ -291,10 +291,9 @@ func TestRateLimit_StrategyComparison(t *testing.T) {
 		}
 	}()
 
-	rng := rand.New()
-
 	rateLimiterPickHealthServer := func(ss []*server) int {
 		// mirror pickHealthServer logic over test servers
+		rng := rand.New()
 		i1, i2 := -1, -1
 		var minInflight = ^uint64(0)
 		for i, item := range ss {
@@ -322,6 +321,7 @@ func TestRateLimit_StrategyComparison(t *testing.T) {
 
 	rateLimiterPickCheckServer := func(ss []*server, f func(s *server) Event) {
 		// mirror pickCheckServer but without pool: just trigger RecordCheck on a random ShouldCheck server
+		rng := rand.New()
 		var checks []*server
 		for i := 0; i < len(ss); i++ {
 			if ss[i].rl.ShouldCheck() {
@@ -409,10 +409,8 @@ func TestRateLimit_StrategyComparison(t *testing.T) {
 
 					i1, i2 := -1, -1
 					var minInflight = ^uint64(0)
-					healthy := make([]int, 0, nServers)
 					for i := range srv {
 						if count, ok := srv[i].rl.GetInflightCount(); ok {
-							healthy = append(healthy, i)
 							if minInflight > count {
 								minInflight = count
 								i1 = i
