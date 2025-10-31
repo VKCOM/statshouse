@@ -355,6 +355,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
 	_ = a.insertsSema.Acquire(context.Background(), a.insertsSemaSize)
 
+	a.updateConfigRemotelyExperimental()
 	go a.tagsMapper2.goRun()
 	go a.goTicker()
 	for i := 0; i < a.config.RecentInserters; i++ {

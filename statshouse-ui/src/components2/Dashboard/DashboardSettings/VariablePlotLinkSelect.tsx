@@ -8,7 +8,7 @@ import React, { useCallback, useMemo } from 'react';
 import { TAG_KEY, TagKey, toTagKey } from '@/api/enum';
 import { PlotKey, promQLMetric } from '@/url2';
 import { getMetricFullName, getMetricName } from '@/store2/helpers';
-import { getTagDescription, isTagEnabled } from '@/view/utils2';
+import { clearOuterInfo, getTagDescription, isTagEnabled } from '@/view/utils2';
 import { useMetricMeta } from '@/hooks/useMetricMeta';
 import { useStatsHouse } from '@/store2';
 import { usePlotsDataStore } from '@/store2/plotDataStore';
@@ -21,7 +21,7 @@ export type VariablePlotLinkSelectProps = {
 export function VariablePlotLinkSelect({ plotKey, selectTag, onChange }: VariablePlotLinkSelectProps) {
   const plot = useStatsHouse(useCallback(({ params: { plots } }) => plots[plotKey], [plotKey]));
   const plotData = usePlotsDataStore(useCallback(({ plotsData }) => plotsData[plotKey], [plotKey]));
-  const metricName = useMemo(() => getMetricName(plot, plotData), [plot, plotData]);
+  const metricName = useMemo(() => getMetricName(plot, plotData?.metricName), [plot, plotData]);
   const metricMeta = useMetricMeta(metricName, true);
 
   const changeTag = useCallback(
@@ -50,7 +50,7 @@ export function VariablePlotLinkSelect({ plotKey, selectTag, onChange }: Variabl
                 keyTag != null &&
                 isTagEnabled(metricMeta, keyTag) && (
                   <option key={indexTag} value={keyTag}>
-                    {getTagDescription(metricMeta, keyTag)}
+                    {clearOuterInfo(getTagDescription(metricMeta, keyTag))}
                   </option>
                 )
               );

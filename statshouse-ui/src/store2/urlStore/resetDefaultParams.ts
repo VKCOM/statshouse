@@ -8,13 +8,13 @@ import { getHomePlot, QueryParams, readTimeRange } from '@/url2';
 import { produce } from 'immer';
 import { globalSettings } from '@/common/settings';
 import { METRIC_VALUE_BACKEND_VERSION, TIME_RANGE_KEYS_TO } from '@/api/enum';
-import { addPlot, timeRangeAbbrevExpand } from '../helpers';
+import { addPlots, timeRangeAbbrevExpand } from '../helpers';
 import { defaultBaseRange } from '@/store2';
 
 export function resetDefaultParams(params: QueryParams) {
   let reset = false;
   if (Object.keys(params.plots).length === 0) {
-    params = addPlot(getHomePlot(), params);
+    params = addPlots([getHomePlot()], params);
     reset = true;
   }
   params = produce(params, (p) => {

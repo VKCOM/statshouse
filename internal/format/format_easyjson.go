@@ -337,8 +337,6 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat2(in *jlexer.Le
 			out.ShardStrategy = string(in.String())
 		case "shard_num":
 			out.ShardNum = uint32(in.Uint32())
-		case "pipeline_version":
-			out.PipelineVersion = uint8(in.Uint8())
 		default:
 			in.SkipRecursive()
 		}
@@ -610,16 +608,6 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat2(out *jwriter.
 			out.RawString(prefix)
 		}
 		out.Uint32(uint32(in.ShardNum))
-	}
-	if in.PipelineVersion != 0 {
-		const prefix string = ",\"pipeline_version\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint8(uint8(in.PipelineVersion))
 	}
 	out.RawByte('}')
 }

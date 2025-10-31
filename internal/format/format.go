@@ -230,10 +230,10 @@ type MetricsGroup struct {
 
 // possible sharding strategies
 const (
-	ShardByTagsHash = "tags_hash"
-	ShardFixed      = "fixed_shard"
-	ShardByMetric   = "metric_id" // shard = metric_id % num_shards
-	ShardBuiltin    = "builtin"   // for special builtin metrics that are written in all shards (only dist)
+	ShardByTagsHash  = "tags_hash"   // TODO: remove after nginx metrics are moved out to its own shard
+	ShardFixed       = "fixed_shard" // should be the only strategy for all user metrics
+	ShardByMetricID  = ""            // shard = metric_id % shardByMetricCount, for most built-in and hardware metrics.
+	ShardBuiltinDist = "builtin"     // for several builtin metrics which are written by aggregator into the same shard with the metrics they describe
 )
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -265,13 +265,12 @@ type MetricMetaValue struct {
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
 	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
 	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
-	PipelineVersion      uint8                    `json:"pipeline_version,omitempty"`
 
-	MetricTagID          uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
+	MetricTagIndex       uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
-	FairKey              []int                     `json:"-"`
+	FairKeyIndex         []int                     `json:"-"`
 	EffectiveWeight      int64                     `json:"-"`
 	HasPercentiles       bool                      `json:"-"`
 	RoundSampleFactors   bool                      `json:"-"` // Experimental, set if magic word in description is found
@@ -586,15 +585,12 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	// restore fair key index
 	if len(m.FairKeyTagIDs) != 0 {
-		m.FairKey = make([]int, 0, len(m.FairKeyTagIDs))
+		m.FairKeyIndex = make([]int, 0, len(m.FairKeyTagIDs))
 		for _, v := range m.FairKeyTagIDs {
 			if tag := m.Name2Tag(v); tag != nil {
-				m.FairKey = append(m.FairKey, int(tag.Index))
+				m.FairKeyIndex = append(m.FairKeyIndex, int(tag.Index))
 			}
 		}
-	}
-	if m.PipelineVersion != 3 { // PipelineVersion 0 is good default for JSON
-		m.PipelineVersion = 0
 	}
 
 	if slowHostMetricID[m.MetricID] {
@@ -648,11 +644,11 @@ func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 }
 
 func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bool {
-	if metric == nil {
+	if metric == nil { // TODO - remove this check, make sure metric != nil always
 		return false
 	}
 	switch metric.ShardStrategy {
-	case ShardFixed, ShardByMetric, "":
+	case ShardFixed, ShardByMetricID:
 		return newShardingStart != 0 && timestamp >= newShardingStart
 	default:
 		return false
@@ -660,13 +656,13 @@ func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bo
 }
 
 func (m *MetricMetaValue) Shard(numShards int) int {
-	if m == nil {
+	if m == nil { // TODO - remove this check, make sure metric != nil always
 		return -1
 	}
 	switch m.ShardStrategy {
 	case ShardFixed:
 		return int(m.ShardNum)
-	case ShardByMetric, "":
+	case ShardByMetricID:
 		return int(uint32(m.MetricID) % uint32(numShards))
 	default:
 		return -1
@@ -1252,10 +1248,9 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		a.Disable != b.Disable ||
 		a.EffectiveWeight != b.EffectiveWeight ||
 		a.EffectiveResolution != b.EffectiveResolution ||
-		!slices.Equal(a.FairKey, b.FairKey) ||
+		!slices.Equal(a.FairKeyIndex, b.FairKeyIndex) ||
 		a.ShardStrategy != b.ShardStrategy ||
 		a.ShardNum != b.ShardNum ||
-		a.PipelineVersion != b.PipelineVersion ||
 		a.HasPercentiles != b.HasPercentiles ||
 		a.WhalesOff != b.WhalesOff ||
 		a.RoundSampleFactors != b.RoundSampleFactors {

@@ -1812,8 +1812,8 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 	}
 	if create {
-		if !ai.CanEditMetric(true, metric, metric) {
-			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
+		if err := ai.CanEditMetric(true, metric, metric); err != nil {
+			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q: %v", metric.Name, err))
 		}
 		if err = h.applyShardsOnCreate(&metric); err != nil {
 			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, err)
@@ -1836,9 +1836,9 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{},
 				httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
 		}
-		if !ai.CanEditMetric(false, *old, metric) {
+		if err := ai.CanEditMetric(false, *old, metric); err != nil {
 			return format.MetricMetaValue{},
-				httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
+				httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q: %v", old.Name, err))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {

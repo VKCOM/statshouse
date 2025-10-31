@@ -555,7 +555,7 @@ func (lod LOD) IsFast() bool {
 }
 
 func (lod LOD) Table(newSharding bool) string {
-	if newSharding {
+	if lod.Version == Version3 && newSharding {
 		switch {
 		case lod.StepSec < _1m:
 			return "statshouse_v3_1s"

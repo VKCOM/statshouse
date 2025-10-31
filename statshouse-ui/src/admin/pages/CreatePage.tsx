@@ -63,7 +63,7 @@ export function EditFormCreate() {
 
       <div className="row mb-3">
         <label htmlFor="tagsSize" className="col-sm-2 col-form-label">
-          Tags size
+          Tags count
         </label>
         <div className="col-sm-5">
           <input

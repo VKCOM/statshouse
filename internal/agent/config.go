@@ -9,6 +9,7 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,8 +20,9 @@ import (
 type Config struct {
 	AggregatorAddresses []string
 	// Sampling Algorithm
-	SampleBudget        int   // for all shards, in bytes
-	MaxHistoricDiskSize int64 // for all shards, in bytes
+	SampleBudget        int         // for all shards, in bytes
+	ShardSampleBudget   map[int]int // pre shard overrides, if not set buget is equal to SampleBudget
+	MaxHistoricDiskSize int64       // for all shards, in bytes
 	SampleKeepSingle    bool
 	SampleNamespaces    bool
 	SampleGroups        bool
@@ -88,8 +90,35 @@ func DefaultConfig() Config {
 	}
 }
 
+func (c *Config) setShardBudget(param string) error {
+	parts := strings.Split(param, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid input format for --shard-sample-budget, expected {shard}:{budget}, got %s", param)
+	}
+	shard, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return fmt.Errorf("invalid shard value in --shard-sample-budget, expected integer, got %s: %v", parts[0], err)
+	}
+	if shard < 1 {
+		return fmt.Errorf("shard value must be >= 0, got %d", shard)
+	}
+	budget, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf("invalid budget value in --shard-sample-budget, expected integer, got %s: %v", parts[1], err)
+	}
+	if budget < 1 {
+		return fmt.Errorf("budget value must be >= 0, got %d", budget)
+	}
+	if c.ShardSampleBudget == nil {
+		c.ShardSampleBudget = make(map[int]int)
+	}
+	c.ShardSampleBudget[shard] = budget
+	return nil
+}
+
 func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.IntVar(&c.SampleBudget, "sample-budget", d.SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
+	f.Func("shard-sample-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.Int64Var(&c.MaxHistoricDiskSize, "max-disk-size", d.MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
 	f.IntVar(&c.SkipShards, "skip-shards", d.SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
 

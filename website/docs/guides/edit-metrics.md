@@ -41,7 +41,7 @@ Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options
   * [Map the draft tag names to the tag IDs](#map-the-draft-tag-names-to-the-tag-ids)
 * [Disabling a metric](#disabling-a-metric)
 * [Admin settings](#admin-settings)
-  * [Fair key tags](#fair-key-tags)
+  * [Fair tags](#fair-key-tags)
 <!-- TOC -->
 
 ## How to edit a metric
@@ -254,13 +254,13 @@ These settings are for administrators only:
 
 * _Weight_
 * _Mapping Flood Counter_
-* _Presort key_
-* _Presort key only_
+* _Presort tag_
+* _Presort tag only_
 * _Enable max host_
 * _Enable min host_
 * _Enable sum square_
 
-### Fair key tags
+### Fair tags
 
 Choose the tag to [enable the tag-level budgeting](../overview/concepts.md#tag-level-budgeting-fair-key-tags) for it:
 

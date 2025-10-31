@@ -14,7 +14,7 @@ import { PLOT_TYPE } from '@/api/enum';
 import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import { globalSettings } from '@/common/settings';
 import { arrToObj, type PlotKey, type PlotParams, toPlotKey, toTreeObj, urlDecode } from '@/url2';
-import { addPlot, getMetricFullName } from '@/store2/helpers';
+import { addPlots, getMetricFullName } from '@/store2/helpers';
 import { useWidgetPlotContext } from '@/contexts/useWidgetPlotContext';
 import { StatsHouseStore, useStatsHouse } from '@/store2';
 import { setParams } from '@/store2/methods';
@@ -76,7 +76,7 @@ export const PlotControlEventOverlay = memo(function PlotControlEventOverlay({
       setParams((param) => {
         const saveTabNum = param.tabNum;
         valuesEventPreset.forEach((preset) => {
-          param = addPlot(preset, param, undefined);
+          param = addPlots([preset], param, undefined);
           valuesEvent.push(param.tabNum);
         });
         param = produce(param, (p) => {

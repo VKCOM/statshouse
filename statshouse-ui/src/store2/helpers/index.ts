@@ -10,7 +10,7 @@ export * from './getPlotLink';
 export * from './lib';
 export * from './produceUpdate';
 export { getUrl } from './getUrl';
-export { addPlot } from './addPlot';
+export { addPlots } from './addPlots';
 export { addPlotByUrl } from './addPlotByUrl';
 export { getAddPlotLink } from './getAddPlotLink';
 export { getPlotByUrl } from './getPlotByUrl';

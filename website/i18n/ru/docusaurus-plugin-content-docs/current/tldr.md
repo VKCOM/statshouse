@@ -100,7 +100,7 @@ _count_, _sum_, _min_, _max_) за временной интервал.
 
 :::tip
 Чтобы поровну распределить бюджет между сервисами, которые отправляют данные в одну и ту же метрику, можно 
-[включить опцию "Fair key tags"](./guides/edit-metrics.md#fair-key-tags).
+[включить опцию "Fair tags"](./guides/edit-metrics.md#fair-key-tags).
 Узнайте больше о [бюджетировании на уровне тегов](./overview/concepts.md#бюджетирование-на-уровне-тегов-fair-key-tags).
 :::
 

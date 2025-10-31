@@ -30,9 +30,9 @@ Set only if greater than 1.`,
 		Description: "agent_shard",
 		RawKind:     "int",
 	}},
-	PreKeyTagID:   "1",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metric it describes
-	MetricTagID:   1,
+	PreKeyTagID:    "1",
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
+	MetricTagIndex: 1,
 }
 
 const BuiltinMetricIDAggBucketReceiveDelaySec = -2 // Also approximates insert delay, interesting for historic buckets
@@ -153,9 +153,9 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID:   "4",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metric it describes
-	MetricTagID:   4,
+	PreKeyTagID:    "4",
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
+	MetricTagIndex: 4,
 }
 
 const BuiltinMetricIDAggSamplingFactor = -10
@@ -179,9 +179,9 @@ Set only if greater than 1.`,
 			TagValueIDAggSamplingFactorReasonInsertSize: "insert_size",
 		}),
 	}},
-	PreKeyTagID:   "4",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
-	MetricTagID:   4,
+	PreKeyTagID:    "4",
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
+	MetricTagIndex: 4,
 }
 
 const BuiltinMetricIDIngestionStatus = -11
@@ -242,9 +242,9 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 	}, {
 		Description: "tag_id",
 	}},
-	PreKeyTagID:   "1",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
-	MetricTagID:   1,
+	PreKeyTagID:    "1",
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
+	MetricTagIndex: 1,
 }
 
 var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
@@ -374,7 +374,7 @@ var BuiltinMetricMetaTimingErrors = &MetricMetaValue{
 	Description: `Timing errors - sending data too early or too late.
 Set by either agent or aggregator, depending on status.`,
 	NoSampleAgent:           true,
-	BuiltinAllowedToReceive: true,
+	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   true,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
@@ -701,9 +701,9 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID:   "2",
-	ShardStrategy: ShardBuiltin, // sharded the same way as metrtic it describes
-	MetricTagID:   2,
+	PreKeyTagID:    "2",
+	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
+	MetricTagIndex: 2,
 }
 
 var BuiltinMetricMetaAutoConfig = &MetricMetaValue{
@@ -1062,7 +1062,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		Description: "timestamp",
 		RawKind:     "timestamp",
 	}},
-	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
+	ShardStrategy: ShardBuiltinDist, // marshalled by aggregator but does not have metric tag
 }
 
 const BuiltinMetricIDContributorsLogRev = -62
@@ -1081,7 +1081,7 @@ Value is delta between second value and time it was inserted.`,
 		Description: "insert_timestamp",
 		RawKind:     "timestamp",
 	}},
-	ShardStrategy: ShardBuiltin, // marshalled by aggregator but does not have metric tag
+	ShardStrategy: ShardBuiltinDist, // marshalled by aggregator but does not have metric tag
 }
 
 var BuiltinMetricMetaGroupSizeBeforeSampling = &MetricMetaValue{
@@ -1633,10 +1633,11 @@ var BuiltinMetricMetaUIErrors = &MetricMetaValue{
 	}},
 }
 
+// TODO - remove this metric (?)
 var BuiltinMetricMetaStatsHouseErrors = &MetricMetaValue{
 	Name:                    "__statshouse_errors",
 	Kind:                    MetricKindCounter,
-	Description:             `Always empty metric because SH don't have errors'`,
+	Description:             "Always empty metric because SH has no errors'",
 	StringTopDescription:    "error_string",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
@@ -2218,7 +2219,7 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	Name:                    "__igp_accept_handshake_error",
 	Kind:                    MetricKindCounter,
-	Description:             "Proxy refused to accept incoming connection because of failed  handshake.",
+	Description:             "Proxy refused to accept incoming connection because of failed handshake.",
 	StringTopDescription:    "remote_ip",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
