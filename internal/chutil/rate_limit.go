@@ -24,9 +24,10 @@ const (
 type Stage string
 
 const (
-	StageHealth Stage = "health"
-	StageCheck  Stage = "check"
-	StageSleep  Stage = "sleep"
+	StageHealth  Stage = "health"
+	StageCheck   Stage = "check"
+	StageSleep   Stage = "sleep"
+	StageDisable Stage = "disable"
 )
 
 type HealthState struct {
@@ -51,6 +52,7 @@ type CheckState struct {
 }
 
 type RateLimitConfig struct {
+	RateLimitDisable   bool
 	WindowDuration     time.Duration
 	MaxErrorRate       uint64
 	MaxInflightWeight  uint64
@@ -104,6 +106,12 @@ func (r *RateLimit) SetConfig(config RateLimitConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.config = config
+	if config.RateLimitDisable {
+		r.stage = StageDisable
+	} else if r.stage == StageDisable {
+		r.stage = StageHealth
+		r.healthState.InflightWeight = 1
+	}
 }
 
 func (r *RateLimit) GetMetrics() RateLimitMetric {
@@ -166,6 +174,9 @@ func (r *RateLimit) RecordEvent(event Event) {
 	defer func() {
 		r.healthState.InflightCnt--
 	}()
+	if r.stage == StageDisable {
+		return
+	}
 	r.healthState.Events.PushUncommited(event)
 }
 
@@ -308,7 +319,6 @@ func (s *HealthState) reset(cfg RateLimitConfig) {
 	s.SuccessCnt = 0
 	s.ErrorCnt = 0
 	s.TotalDuration = 0
-	s.InflightCnt = 0
 	s.InflightWeight = cfg.MaxInflightWeight
 	s.Events.Reset()
 }

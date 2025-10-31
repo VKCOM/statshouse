@@ -118,6 +118,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
 
+	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", false, "disable rate limiting")
 	f.DurationVar(&argv.WindowDuration, "rate-limit-window-duration", default_.WindowDuration, "time window for analyzing ClickHouse requests")
 	f.Uint64Var(&argv.MaxErrorRate, "rate-limit-max-error-rate", default_.MaxErrorRate, "error rate threshold (%) to trigger sleep stage")
 	f.Uint64Var(&argv.MaxInflightWeight, "rate-limit-max-inflight-weight", default_.MaxInflightWeight, "maximum weight per inflight request (%)")
