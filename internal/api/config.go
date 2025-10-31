@@ -146,7 +146,7 @@ func DefaultConfig() *Config {
 			MaxSleepDuration:   2 * time.Minute,
 			MinSleepDuration:   30 * time.Second,
 			CheckCount:         9,
-			RecalcInterval:     2 * time.Second,
+			RecalcInterval:     1 * time.Second,
 		},
 	}
 }
