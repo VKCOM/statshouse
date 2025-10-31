@@ -2764,11 +2764,13 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 var BuiltinMetricMetaAPIRateLimit = &MetricMetaValue{
 	Name:                    "__api_rate_limit",
 	Kind:                    MetricKindValue,
-	Description:             "rate limit",
+	Description:             "Number of inflight requests to ClickHouse tracked for rate limiting.\nWritten by API.",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        false,
+	ShardStrategy:           ShardFixed,
+	ShardNum:                0,
 	Tags: []MetricMetaTag{{ // if we need another component
 	}, {
 		Description: "version",
