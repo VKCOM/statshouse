@@ -2761,3 +2761,30 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-long",
 	}},
 }
+
+var BuiltinMetricMetaAPIRateLimit = &MetricMetaValue{
+	Name:                    "__api_rate_limit",
+	Kind:                    MetricKindValue,
+	Description:             "Number of inflight requests to ClickHouse tracked for rate limiting.\nWritten by API.",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	ShardStrategy:           ShardFixed,
+	ShardNum:                0,
+	Tags: []MetricMetaTag{{ // if we need another component
+	}, {
+		Description: "version",
+	}, {
+		Description: "stage",
+	}, {
+		Description: "inflight_weight",
+		RawKind:     "int",
+	}, {
+		Description: "shard_key",
+		RawKind:     "int",
+	}, {
+		Description: "replica_key",
+		RawKind:     "int",
+	}},
+}

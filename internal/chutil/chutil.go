@@ -28,19 +28,26 @@ import (
 )
 
 type connPool struct {
-	poolName       string
-	rnd            *rand.Rand
-	maxActiveQuery int
-	servers        []*chpool.Pool
-	serverAddrs    []string
-	sem            *queue.Queue
-	shardSems      []*queue.Queue // shard_id -> semaphore
+	poolName            string
+	rnd                 *rand.Rand
+	maxActiveQuery      int
+	maxShardActiveQuery int
+	servers             []serverCH
+	sem                 *queue.Queue
+	shardSems           []*queue.Queue // shard_id -> semaphore
+}
+
+type serverCH struct {
+	addr string
+	pool *chpool.Pool
+	rate *RateLimit
 }
 
 type ClickHouse struct {
 	opt        ChConnOptions
 	mx         sync.RWMutex
 	namedPools map[string][6]*connPool
+	rateLimits []*RateLimit
 }
 
 type QueryMetaInto struct {
@@ -77,10 +84,12 @@ type ConnLimits struct {
 
 type ChConnOptions struct {
 	ConnLimits
+	RateLimitConfig
 	Addrs               []string
 	User                string
 	Password            string
 	DialTimeout         time.Duration
+	SelectTimeout       time.Duration
 	ShardByMetricShards int
 	MaxShardConnsRatio  int
 }
@@ -95,14 +104,13 @@ const (
 	defaultUserName = "@default_user"
 )
 
-func newConnPool(poolName string, maxConn int, shardCount int) *connPool {
-	return &connPool{poolName, rand.New(), maxConn, make([]*chpool.Pool, 0), make([]string, 0), queue.NewQueue(int64(maxConn)), make([]*queue.Queue, shardCount)}
+func newConnPool(poolName string, maxConn int, maxShardConn, shardCount int) *connPool {
+	return &connPool{poolName, rand.New(), maxConn, maxShardConn, make([]serverCH, 0), queue.NewQueue(int64(maxConn)), make([]*queue.Queue, shardCount)}
 }
 
 func newConnPoolWithShards(poolName string, maxConn int, shardCount int, maxShardConnsRatio int) *connPool {
-	pool := newConnPool(poolName, maxConn, shardCount)
-
 	shardMaxConn := max(maxConn*maxShardConnsRatio/100, 1)
+	pool := newConnPool(poolName, maxConn, shardMaxConn, shardCount)
 	for i := 0; i < shardCount; i++ {
 		pool.shardSems[i] = queue.NewQueue(int64(shardMaxConn))
 	}
@@ -117,12 +125,17 @@ func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 	result := &ClickHouse{
 		opt:        opt,
 		namedPools: map[string][6]*connPool{},
+		rateLimits: make([]*RateLimit, 0, len(opt.Addrs)),
 	}
-	err := result.SetLimits(nil, opt.MaxShardConnsRatio)
+	for i := 0; i < len(opt.Addrs); i++ {
+		result.rateLimits = append(result.rateLimits, NewRateLimit(opt.RateLimitConfig, i/3+1, i%3+1))
+		result.rateLimits[i].Start()
+	}
+	err := result.SetLimits(nil, opt.MaxShardConnsRatio, opt.RateLimitConfig)
 	return result, err
 }
 
-func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int) error {
+func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rtCfg RateLimitConfig) error {
 	ch1.mx.Lock()
 	defer ch1.mx.Unlock()
 	ch1.namedPools = map[string][6]*connPool{}
@@ -130,6 +143,9 @@ func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int) er
 
 	shardCount := len(ch1.opt.Addrs) / 3
 	ch1.opt.MaxShardConnsRatio = maxShardConnsRatio
+	for i := 0; i < len(ch1.opt.Addrs); i++ {
+		ch1.rateLimits[i].SetConfig(rtCfg)
+	}
 	for _, limit := range limits {
 		user := limit.User
 		ch1.namedPools[user] = [6]*connPool{
@@ -141,7 +157,7 @@ func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int) er
 			newConnPoolWithShards(user, limit.FastHardwareMaxConns, shardCount, maxShardConnsRatio),
 		}
 
-		for _, addr := range ch1.opt.Addrs {
+		for i, addr := range ch1.opt.Addrs {
 			for _, pool := range ch1.namedPools[user] {
 				server, err := chpool.New(context.Background(), chpool.Options{
 					MaxConns: int32(pool.maxActiveQuery),
@@ -154,11 +170,14 @@ func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int) er
 						HandshakeTimeout: 10 * time.Second,
 					}})
 				if err != nil {
-					ch1.Close()
+					ch1.Close() //TODO: Deadlock?
 					return err
 				}
-				pool.servers = append(pool.servers, server)
-				pool.serverAddrs = append(pool.serverAddrs, addr)
+				pool.servers = append(pool.servers, serverCH{
+					addr: addr,
+					pool: server,
+					rate: ch1.rateLimits[i],
+				})
 			}
 		}
 	}
@@ -172,9 +191,12 @@ func (ch1 *ClickHouse) Close() {
 	for _, pool := range ch1.namedPools {
 		for _, lane := range pool {
 			for _, b := range lane.servers {
-				b.Close()
+				b.pool.Close()
 			}
 		}
+	}
+	for _, rl := range ch1.rateLimits {
+		rl.Close()
 	}
 }
 
@@ -292,6 +314,14 @@ func (ch1 *ClickHouse) ShardSemaphoreCountSlowHardware() []int64 {
 	return counts
 }
 
+func (ch1 *ClickHouse) RateLimitStatistics() []RateLimitMetric {
+	items := make([]RateLimitMetric, 0, len(ch1.rateLimits))
+	for _, limit := range ch1.rateLimits {
+		items = append(items, limit.GetMetrics())
+	}
+	return items
+}
+
 func QueryKind(isFast, isLight, isHardware bool) int {
 	if isHardware {
 		if isFast {
@@ -353,27 +383,22 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 		shard = meta.Metric.Shard(shardCnt)
 	}
 	sem := pool.sem
-	var servers []*chpool.Pool
-	var serverAddrs []string
+	var servers []serverCH
 	if shard < 0 {
-		servers = append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
-		serverAddrs = append(make([]string, 0, len(pool.serverAddrs)), pool.serverAddrs...)
+		servers = append(make([]serverCH, 0, len(pool.servers)), pool.servers...)
 	} else {
 		i := shard * 3
-		servers = append(make([]*chpool.Pool, 0, 3), pool.servers[i:i+3]...)
-		serverAddrs = append(make([]string, 0, 3), pool.serverAddrs[i:i+3]...)
-
-		if len(pool.shardSems) > shard {
-			sem = pool.shardSems[shard]
-		}
+		servers = append(make([]serverCH, 0, 3), pool.servers[i:i+3]...)
+		sem = pool.shardSems[shard]
+		adjustSemCapacity(servers, sem, pool.maxShardActiveQuery)
 	}
 	for safetyCounter := 0; safetyCounter < len(servers); safetyCounter++ {
 		var i int
-		i, err = pickRandomServer(servers, pool.rnd)
+		i, err = pickHealthServer(servers, pool.rnd)
 		if err != nil {
 			return info, err
 		}
-		if !slices.Contains(meta.DisableCHAddrs, serverAddrs[i]) {
+		if !slices.Contains(meta.DisableCHAddrs, servers[i].addr) {
 			startTime := time.Now()
 
 			err = sem.Acquire(ctx, meta.User)
@@ -384,27 +409,42 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				return info, err
 			}
 			start := time.Now()
-			err = servers[i].Do(ctx, query)
+			servers[i].rate.AddInflightCount()
+			err = servers[i].pool.Do(ctx, query)
 			info.QueryDuration = time.Since(start)
-			info.Host = serverAddrs[i]
+			info.Host = servers[i].addr
 			info.Shard = shard + 1
 			sem.Release()
 			if err == nil {
-				return // succeeded
+				servers[i].rate.RecordEvent(Event{
+					Timestamp: start,
+					Status:    StatusSuccess,
+					Duration:  info.QueryDuration,
+				})
+				servers = slices.Delete(servers, i, i+1)
+				break // succeeded
 			}
 			if ctx.Err() != nil {
 				return // failed
 			}
+			servers[i].rate.RecordEvent(Event{
+				Timestamp: start,
+				Status:    StatusError,
+				Duration:  info.QueryDuration,
+			})
 			log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		}
 		// keep searching alive server
 		servers = slices.Delete(servers, i, i+1)
-		serverAddrs = slices.Delete(serverAddrs, i, i+1)
 	}
-	return info, err
+	if err != nil {
+		return info, err
+	}
+	pickCheckServer(servers, query, pool.rnd, ch.opt.SelectTimeout)
+	return info, nil
 }
 
-func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {
+func pickRandomServer(s []serverCH, r *rand.Rand) (int, error) {
 	if len(s) == 0 {
 		return 0, fmt.Errorf("all ClickHouse servers are dead")
 	}
@@ -416,11 +456,81 @@ func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {
 	if i2 >= i1 {
 		i2++
 	}
-	if s[i1].Stat().AcquiredResources() < s[i2].Stat().AcquiredResources() {
+	if s[i1].pool.Stat().AcquiredResources() < s[i2].pool.Stat().AcquiredResources() {
 		return i1, nil
 	} else {
 		return i2, nil
 	}
+}
+
+func pickHealthServer(s []serverCH, r *rand.Rand) (int, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("all ClickHouse servers are dead")
+	}
+	if len(s) == 1 {
+		return 0, nil
+	}
+	i1 := -1
+	i2 := -1
+	var minInflight = ^uint64(0)
+	for i, item := range s {
+		if count, ok := item.rate.GetInflightCount(); ok {
+			if minInflight > count {
+				minInflight = count
+				i1 = i
+				i2 = -1
+			} else if minInflight == count {
+				i2 = i
+			}
+		}
+	}
+	if i1 == -1 {
+		return pickRandomServer(s, r)
+	}
+	if i2 == -1 {
+		return i1, nil
+	}
+	if r.Intn(2) == 0 {
+		return i1, nil
+	}
+	return i2, nil
+}
+
+func pickCheckServer(s []serverCH, query ch.Query, r *rand.Rand, timeout time.Duration) {
+	var checks []serverCH
+	for i := 0; i < len(s); i++ {
+		if s[i].rate.ShouldCheck() {
+			checks = append(checks, s[i])
+		}
+	}
+	ind, err := pickRandomServer(checks, r)
+	if err != nil {
+		return
+	}
+	checks[ind].rate.RecordCheck(func() Event {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if err := checks[ind].pool.Do(ctx, query); err != nil {
+			return Event{Status: StatusError}
+		}
+		return Event{Status: StatusSuccess}
+	})
+}
+
+// shardLoadReductionRatio 25% reduction step per failed shard host (3 hosts total, 25% load remains if all fail)
+const shardLoadReductionRatio = 25
+
+func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
+	if len(s) != 3 {
+		return
+	}
+	loadFactor := 100
+	for i := 0; i < len(s); i++ {
+		if _, ok := s[i].rate.GetInflightCount(); !ok {
+			loadFactor -= shardLoadReductionRatio
+		}
+	}
+	sem.AdjustCapacity(uint64(maxSize * loadFactor / 100))
 }
 
 func BindQuery(query string, args ...any) (string, error) {
