@@ -26,6 +26,7 @@ import (
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const longPollTimeout = time.Hour
+const mappingCacheSize = 100
 
 type Handler struct {
 	db *DBV2
@@ -33,6 +34,10 @@ type Handler struct {
 	getJournalMx      sync.Mutex
 	getJournalClients map[*rpc.HandlerContext]tlmetadata.GetJournalnew // by getJournalMx
 	minVersion        int64                                            // by getJournalMx
+
+	mappingCacheMx    sync.RWMutex
+	mappingCircleList [mappingCacheSize]tlstatshouse.Mapping // by mappingCacheMx, ASC
+	mappingHead       int                                    // by mappingCacheMx
 
 	host string
 	log  func(s string, args ...interface{})
@@ -44,6 +49,9 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		getJournalMx:      sync.Mutex{},
 		getJournalClients: map[*rpc.HandlerContext]tlmetadata.GetJournalnew{},
 		minVersion:        math.MaxInt64,
+		mappingCacheMx:    sync.RWMutex{},
+		mappingCircleList: [mappingCacheSize]tlstatshouse.Mapping{},
+		mappingHead:       -1,
 		log:               log,
 		host:              host,
 	}
@@ -56,6 +64,10 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		}
 	}()
 	h.initStats()
+
+	h.mappingCacheMx.Lock()
+	defer h.mappingCacheMx.Unlock()
+	h.bootStrapMappingCacheUnlocked(context.Background())
 	return h
 }
 
@@ -162,6 +174,53 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	return "", hctx.HijackResponse(h)
 }
 
+func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetNewMappings
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetNewMappings request: %w", err)
+	}
+
+	m, ok := func() (m []tlstatshouse.Mapping, ok bool) {
+		h.mappingCacheMx.RLock()
+		defer h.mappingCacheMx.RUnlock()
+
+		// Fallback to DB when cache is empty OR
+		// Requested version is older than our oldest cached version
+		if h.mappingHead == -1 || h.mappingCircleList[h.mappingHead].Value > args.From+1 {
+			return
+		}
+		for i := 0; i < mappingCacheSize; i++ {
+			ind := normalizeCircleIndex(h.mappingHead+i, mappingCacheSize)
+
+			if h.mappingCircleList[ind].Value > args.From {
+				if ind < h.mappingHead {
+					m = append(m, h.mappingCircleList[ind:h.mappingHead]...)
+					break
+				}
+				m = append(append(m, h.mappingCircleList[ind:]...), h.mappingCircleList[:h.mappingHead]...)
+				break
+			}
+		}
+		return m, true
+	}()
+	if !ok {
+		m, err = h.db.GetNewMappings(ctx, args.From, args.Limit)
+		if err != nil {
+			return "", fmt.Errorf("failed to get mappings update: %w", err)
+		}
+	}
+	if len(m) == 0 {
+		hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.GetNewMappingsResponseNotExists{}.AsUnion())
+		return "", err
+	}
+	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.GetNewMappingsResponse0{
+		CurrentVersion: m[len(m)-1].Value,
+		Pairs:          m,
+	}.AsUnion())
+	return "", err
+}
+
 func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.GetHistoryShortInfo
 	_, err := args.Read(hctx.Request)
@@ -238,13 +297,15 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 		mapping = tlmetadata.GetMappingResponseKeyNotExists{}.AsUnion()
 	}
 	status := "load_mapping"
-	if mapping.IsCreated() {
+	if m, ok := mapping.AsCreated(); ok {
 		status = "create_mapping"
+		h.updateMappingCache(ctx, tlstatshouse.Mapping{Str: args.Key, Value: m.Id})
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, mapping)
 	return status, err
 }
 
+// RawPutMapping Agent cache, Aggregator cache and Aggregator mapping replica DB will not know about changes!
 func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.PutMapping
 	_, err := args.Read(hctx.Request)
@@ -255,8 +316,43 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", err
 	}
+
+	// force bootstrap
+	h.updateMappingCache(ctx, tlstatshouse.Mapping{Value: math.MaxInt32})
 	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.PutMappingResponse{})
 	return "", err
+}
+
+func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapping) {
+	h.mappingCacheMx.Lock()
+	defer h.mappingCacheMx.Unlock()
+
+	if h.mappingHead == -1 {
+		h.bootStrapMappingCacheUnlocked(ctx)
+		return
+	}
+	tail := normalizeCircleIndex(h.mappingHead-1, mappingCacheSize)
+	if h.mappingCircleList[tail].Value >= pair.Value {
+		return
+	}
+
+	if h.mappingCircleList[tail].Value == pair.Value-1 {
+		h.mappingCircleList[h.mappingHead] = pair
+		h.mappingHead = normalizeCircleIndex(h.mappingHead+1, mappingCacheSize)
+		return
+	}
+	h.bootStrapMappingCacheUnlocked(ctx)
+}
+
+func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
+	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
+	if err != nil || len(mappings) != mappingCacheSize {
+		h.mappingHead = -1
+		h.log("[err] failed to bootstrap mapping cache: %v", err)
+		return
+	}
+	copy(h.mappingCircleList[:], mappings)
+	h.mappingHead = 0
 }
 
 func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
@@ -363,4 +459,12 @@ func filterResponse(ms []tlmetadata.Event, buffer []tlmetadata.Event, filter fun
 	result.CurrentVersion = currentVersion
 	result.Events = buffer
 	return result
+}
+
+func normalizeCircleIndex(ind, len int) int {
+	ind %= len
+	if ind >= 0 {
+		return ind
+	}
+	return len + ind
 }

@@ -7,6 +7,7 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -16,8 +17,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
-
-	"context"
 )
 
 type DBV2 struct {
@@ -157,6 +156,7 @@ const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
 const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
+const mappingCountReadLimit int64 = 10000
 
 func OpenDB(
 	path string,
@@ -278,6 +278,55 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 			if int64(len(result)) >= limit {
 				break
 			}
+		}
+		return cache, nil
+	})
+	return result, err
+}
+
+func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([]tlstatshouse.Mapping, error) {
+	limit := mappingCountReadLimit
+	if int64(page) < limit {
+		limit = int64(page)
+	}
+	result := make([]tlstatshouse.Mapping, 0)
+	err := db.eng.Do(ctx, "get_new_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("select_mapping", "SELECT id, name FROM mappings WHERE id > $id ORDER BY id asc LIMIT $limit;",
+			sqlite.Int64("id", int64(fromID)),
+			sqlite.Int64("$limit", limit))
+		for rows.Next() {
+			id, _ := rows.ColumnInt64(0)
+			name, err := rows.ColumnBlobString(1)
+			if err != nil {
+				return cache, err
+			}
+
+			result = append(result, tlstatshouse.Mapping{
+				Value: int32(id),
+				Str:   name,
+			})
+		}
+		return cache, nil
+	})
+	return result, err
+}
+
+func (db *DBV2) GetLastNMappings(ctx context.Context, n int) ([]tlstatshouse.Mapping, error) {
+	result := make([]tlstatshouse.Mapping, 0, n)
+	err := db.eng.Do(ctx, "get_last_n_mappings", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("select_mappings", "SELECT * FROM (SELECT id, name FROM mappings ORDER BY id desc LIMIT $limit) ORDER BY id asc;",
+			sqlite.Int64("$limit", int64(n)))
+		for rows.Next() {
+			id, _ := rows.ColumnInt64(0)
+			name, err := rows.ColumnBlobString(1)
+			if err != nil {
+				return cache, err
+			}
+
+			result = append(result, tlstatshouse.Mapping{
+				Value: int32(id),
+				Str:   name,
+			})
 		}
 		return cache, nil
 	})

@@ -106,6 +106,7 @@ func init() {
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x93ba92f8, func() meta.Object { var ret internal.MetadataGetJournalnew; return &ret }, func() meta.Function { var ret internal.MetadataGetJournalnew; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x9dfa7a83, func() meta.Object { var ret internal.MetadataGetMapping; return &ret }, func() meta.Function { var ret internal.MetadataGetMapping; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x93ba92f5, func() meta.Object { var ret internal.MetadataGetMetrics; return &ret }, func() meta.Function { var ret internal.MetadataGetMetrics; return &ret }, nil)
+	meta.SetGlobalFactoryCreateForFunctionBytes(0x93ba92f7, func() meta.Object { var ret internal.MetadataGetNewMappings; return &ret }, func() meta.Function { var ret internal.MetadataGetNewMappings; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x5fc81a9b, func() meta.Object { var ret internal.MetadataGetTagMappingBootstrap; return &ret }, func() meta.Function { var ret internal.MetadataGetTagMappingBootstrap; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObjectBytes(0x5854dfaf, func() meta.Object { var ret internal.MetadataPutBootstrapEvent; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x9faf5281, func() meta.Object { var ret internal.MetadataPutMapping; return &ret }, func() meta.Function { var ret internal.MetadataPutMapping; return &ret }, nil)
