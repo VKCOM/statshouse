@@ -100,12 +100,13 @@ func (h *Handler) broadcastCancel() {
 func (h *Handler) broadcastJournal() {
 	h.getJournalMx.Lock()
 	qLength := len(h.getJournalClients)
+	minVersion := h.minVersion
 	h.getJournalMx.Unlock()
 	if qLength == 0 {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	journalNew, err := h.db.JournalEvents(ctx, h.minVersion, 100)
+	journalNew, err := h.db.JournalEvents(ctx, minVersion, 100)
 	cancel()
 	if err != nil {
 		return
