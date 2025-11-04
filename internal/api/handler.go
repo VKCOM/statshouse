@@ -1112,9 +1112,12 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 			continue // we only support production tables for v1
 		}
 		if k == format.StringTopTagID {
-			stringTop := &m.Tags[format.StringTopTagIndexV3]
-			for _, val := range values {
-				stringTop.Values = append(stringTop.Values, data_model.NewTagValueS(val))
+			for _, v := range values {
+				if f, err := h.GetTagFilter(metricMeta, format.StringTopTagIndexV3, v); err != nil {
+					return data_model.TagFilters{}, err
+				} else {
+					m.Append(format.StringTopTagIndexV3, f)
+				}
 			}
 		} else if tag := metricMeta.Name2Tag(k); tag != nil {
 			for _, v := range values {
