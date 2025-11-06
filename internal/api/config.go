@@ -38,6 +38,7 @@ type Config struct {
 	AvailableShardsStr     string
 	AvailableShards        []uint32
 	CHMaxShardConnsRatio   int
+	chutil.RateLimitConfig
 }
 
 func (argv *Config) ValidateConfig() error {
@@ -116,6 +117,18 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
+
+	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", false, "disable rate limiting")
+	f.DurationVar(&argv.WindowDuration, "rate-limit-window-duration", default_.WindowDuration, "time window for analyzing ClickHouse requests")
+	f.Uint64Var(&argv.MaxErrorRate, "rate-limit-max-error-rate", default_.MaxErrorRate, "error rate threshold (%) to trigger sleep stage")
+	f.Uint64Var(&argv.MaxInflightWeight, "rate-limit-max-inflight-weight", default_.MaxInflightWeight, "maximum weight per inflight request (%)")
+	f.Uint64Var(&argv.RecoverWeightStep, "rate-limit-recover-weight-step", default_.RecoverWeightStep, "recover weight step (%) per recovery cycle")
+	f.DurationVar(&argv.RecoverGapDuration, "rate-limit-recover-gap-duration", default_.RecoverGapDuration, "recover time gap per recovery cycle")
+	f.Float64Var(&argv.SleepMultiplier, "rate-limit-sleep-multiplier", default_.SleepMultiplier, "sleep duration multiplier after failed check")
+	f.DurationVar(&argv.MaxSleepDuration, "rate-limit-max-sleep-duration", default_.MaxSleepDuration, "maximum sleep duration limit")
+	f.DurationVar(&argv.MinSleepDuration, "rate-limit-min-sleep-duration", default_.MinSleepDuration, "minimum sleep duration when entering sleep")
+	f.Uint64Var(&argv.CheckCount, "rate-limit-check-count", default_.CheckCount, "successful checks needed to exit check stage")
+	f.DurationVar(&argv.RecalcInterval, "recalc-interval-sleep-duration", default_.RecalcInterval, "rate limit state recalculation interval")
 }
 
 func DefaultConfig() *Config {
@@ -123,6 +136,18 @@ func DefaultConfig() *Config {
 		ApproxCacheMaxSize:   1_000_000,
 		AvailableShardsStr:   "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
 		CHMaxShardConnsRatio: 20,
+		RateLimitConfig: chutil.RateLimitConfig{
+			WindowDuration:     2 * time.Minute,
+			MaxErrorRate:       20,
+			MaxInflightWeight:  10,
+			RecoverWeightStep:  1,
+			RecoverGapDuration: 6 * time.Second,
+			SleepMultiplier:    1.5,
+			MaxSleepDuration:   2 * time.Minute,
+			MinSleepDuration:   30 * time.Second,
+			CheckCount:         9,
+			RecalcInterval:     1 * time.Second,
+		},
 	}
 }
 
@@ -154,7 +179,7 @@ type HandlerOptions struct {
 	timezone                 string
 	protectedMetricPrefixesS string
 	protectedMetricPrefixes  []string
-	querySelectTimeout       time.Duration
+	QuerySelectTimeout       time.Duration
 	weekStartAt              int
 	location                 *time.Location
 	utcOffset                int64
@@ -167,7 +192,7 @@ func (argv *HandlerOptions) Bind(f *flag.FlagSet) {
 	f.BoolVar(&argv.querySequential, "query-sequential", false, "disables query parallel execution")
 	f.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
 	f.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
-	f.DurationVar(&argv.querySelectTimeout, "query-select-timeout", QuerySelectTimeoutDefault, "query select timeout")
+	f.DurationVar(&argv.QuerySelectTimeout, "query-select-timeout", QuerySelectTimeoutDefault, "query select timeout")
 	f.StringVar(&argv.protectedMetricPrefixesS, "protected-metric-prefixes", "", "comma-separated list of metric prefixes that require access bits set")
 	f.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
 	f.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
