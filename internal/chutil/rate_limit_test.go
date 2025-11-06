@@ -42,7 +42,6 @@ func TestRateLimit_BasicFlow(t *testing.T) {
 	rl.Start()
 	defer rl.Close()
 
-	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 10 * time.Millisecond})
 	waitFor(t, 500*time.Millisecond, func() bool {
 		_, ok := rl.GetInflightCount()
@@ -57,7 +56,6 @@ func TestRateLimit_SleepOnHighError(t *testing.T) {
 	defer rl.Close()
 
 	for i := 0; i < 50; i++ {
-		rl.AddInflightCount()
 		st := StatusError
 		if i%10 == 0 {
 			st = StatusSuccess
@@ -78,10 +76,8 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	defer rl.Close()
 
 	for i := 0; i < 10; i++ {
-		rl.AddInflightCount()
 		rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 30 * time.Millisecond})
 	}
-	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 30 * time.Millisecond})
 
 	time.Sleep(2 * cfg.RecalcInterval)
@@ -91,10 +87,8 @@ func TestRateLimit_WeightIncreasesWithErrorsAndLatency(t *testing.T) {
 	require.Equal(t, cfg.MaxInflightWeight/2, weight)
 
 	for i := 0; i < 10; i++ {
-		rl.AddInflightCount()
 		rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 60 * time.Millisecond})
 	}
-	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 60 * time.Millisecond})
 
 	time.Sleep(2 * cfg.RecalcInterval)
@@ -112,7 +106,6 @@ func TestRateLimit_WeightRecovery(t *testing.T) {
 	defer rl.Close()
 
 	for i := 0; i < 30; i++ {
-		rl.AddInflightCount()
 		rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 20 * time.Millisecond})
 	}
 	waitFor(t, 3*time.Second, func() bool { return rl.ShouldCheck() })
@@ -126,7 +119,6 @@ func TestRateLimit_WeightRecovery(t *testing.T) {
 		_, ok := rl.GetInflightCount()
 		return ok
 	})
-	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 20 * time.Millisecond})
 
 	waitFor(t, 6*time.Second, func() bool {
@@ -146,7 +138,6 @@ func TestRateLimit_CheckFlowToHealth(t *testing.T) {
 	defer rl.Close()
 
 	for i := 0; i < 20; i++ {
-		rl.AddInflightCount()
 		rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: 10 * time.Millisecond})
 	}
 	waitFor(t, 3*time.Second, func() bool { return rl.ShouldCheck() })
@@ -176,7 +167,6 @@ func TestRateLimit_InflightCounterSafety(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < loops; j++ {
-				rl.AddInflightCount()
 				rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 0})
 			}
 		}()
@@ -209,13 +199,10 @@ func TestRateLimit_HighLoadRace(t *testing.T) {
 				op := (id + j) % 100
 				switch {
 				case op < 55:
-					rl.AddInflightCount()
 					rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: time.Duration(5+op%20) * time.Millisecond})
 				case op < 80:
-					rl.AddInflightCount()
 					rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusError, Duration: time.Duration(10+op%30) * time.Millisecond})
 				case op < 90:
-					rl.AddInflightCount()
 					rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: time.Duration(100+op%100) * time.Millisecond})
 				default:
 					if rl.ShouldCheck() {
@@ -237,7 +224,6 @@ func TestRateLimit_HighLoadRace(t *testing.T) {
 		}
 	}
 	time.Sleep(2 * cfg.RecalcInterval)
-	rl.AddInflightCount()
 	rl.RecordEvent(Event{Timestamp: time.Now(), Status: StatusSuccess, Duration: 50 * time.Millisecond})
 	time.Sleep(12 * cfg.RecoverGapDuration)
 
@@ -421,8 +407,11 @@ func TestRateLimit_StrategyComparison(t *testing.T) {
 						}
 					}
 					s := srv[idx]
-					s.rl.AddInflightCount()
-					eventRes := doQuery(s, seed)
+					var eventRes Event
+					s.rl.DoInflight(func() error {
+						eventRes = doQuery(s, seed)
+						return nil
+					})
 					s.rl.RecordEvent(eventRes)
 
 					if useShadow {
