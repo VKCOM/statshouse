@@ -38,10 +38,10 @@ export function ViewPage() {
     );
   }
   return (
-    <div ref={setRefPage} className="d-flex flex-column flex-md-row dashLayout w-100">
+    <div className="d-flex flex-column flex-md-row dashLayout w-100">
       <div className="flex-grow-1">
         {tvModeEnable && <TvModePanel className="position-fixed z-1000 top-0 end-0 pt-1 pe-1" />}
-        <div className="position-relative">
+        <div ref={setRefPage} className="position-relative">
           <Dashboard />
           {isPlot && <PlotLayout className="py-3" plotKey={tabNum} isEmbed={isEmbed} />}
         </div>

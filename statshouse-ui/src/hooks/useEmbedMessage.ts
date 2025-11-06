@@ -11,7 +11,7 @@ export function useEmbedMessage(refPage: Element | null, embed?: boolean) {
   const [{ width, height }] = useRectObserver(refPage, true, embed, false);
   useEffect(() => {
     if (embed) {
-      window.top?.postMessage({ source: 'statshouse', payload: { width, height } }, '*');
+      window.top?.postMessage({ source: 'statshouse', name: window.name, payload: { width, height } }, '*');
     }
   }, [embed, height, width]);
 }
