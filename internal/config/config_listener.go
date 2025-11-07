@@ -11,7 +11,7 @@ import (
 )
 
 type Config interface {
-	Bind(_ *flag.FlagSet, default_ Config)
+	Bind(f *flag.FlagSet, default_ Config)
 	ValidateConfig() error
 	Copy() Config
 }
@@ -33,6 +33,7 @@ func NewConfigListener[a Config](configMetric string, config a) *ConfigListener 
 func (l *ConfigListener) ValidateConfig(cfg string) error {
 	return l.parseConfig(cfg, true)
 }
+
 func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	l.mx.Lock()
 	defer l.mx.Unlock()
