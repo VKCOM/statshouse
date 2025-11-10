@@ -100,25 +100,26 @@ func (argv *Config) Copy() config.Config {
 func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
 	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
-	f.Int64Var(&argv.Version3Start, "version3-start", 0, "timestamp of schema version 3 start, zero means not set")
-	f.Float64Var(&argv.Version3Prob, "version3-prob", 0, "the probability of choosing version 3 when version was set to 2 or empty")
-	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", false, "disable string comparision for schema version 3")
-	f.IntVar(&argv.MaxCacheSize, "max-cache-size", 5*1024*1024*1024, "cache hard memory limit (in bytes)")
-	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", 0, "cache soft memory limit (in bytes)")
-	f.IntVar(&argv.MaxCacheAge, "max-cache-age", 60, "maximum cache age in seconds")
-	f.IntVar(&argv.CacheChunkSize, "cache-chunk-size", 5, "cache chunk size")
+	f.Int64Var(&argv.Version3Start, "version3-start", default_.Version3Start, "timestamp of schema version 3 start, zero means not set")
+	f.Float64Var(&argv.Version3Prob, "version3-prob", default_.Version3Prob, "the probability of choosing version 3 when version was set to 2 or empty")
+	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", default_.Version3StrcmpOff, "disable string comparision for schema version 3")
+	f.IntVar(&argv.MaxCacheSize, "max-cache-size", default_.MaxCacheSize, "cache hard memory limit (in bytes)")
+	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", default_.MaxCacheSizeSoft, "cache soft memory limit (in bytes)")
+	f.IntVar(&argv.MaxCacheAge, "max-cache-age", default_.MaxCacheAge, "maximum cache age in seconds")
+	f.IntVar(&argv.CacheChunkSize, "cache-chunk-size", default_.CacheChunkSize, "cache chunk size")
+	// TODO - check how those StringSliceVar are merged with previous config
 	config.StringSliceVar(f, &argv.CacheBlacklist, "cache-blacklist", "", "user(s) with cache disabled")
 	config.StringSliceVar(f, &argv.CacheWhitelist, "cache-whitelist", "", "user(s) with cache enabled")
-	f.StringVar(&argv.UserLimitsStr, "user-limits", "", "array of ConnLimits encoded to json")
+	f.StringVar(&argv.UserLimitsStr, "user-limits", default_.UserLimitsStr, "array of ConnLimits encoded to json")
 	config.StringSliceVar(f, &argv.DisableCHAddr, "disable-clickhouse-addrs", "", "disable clickhouse addresses")
-	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", 0, "timestamp of new sharding start, zero means not set")
-	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", "", "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
-	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", "", "comma-separated list of metric prefixes that are blocked")
-	f.StringVar(&argv.BlockedUsersS, "blocked-users", "", "comma-separated list of users that are blocked")
+	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", default_.NewShardingStart, "timestamp of new sharding start, zero means not set")
+	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", default_.CHSelectSettingsStr, "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
+	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", default_.BlockedMetricPrefixesS, "comma-separated list of metric prefixes that are blocked")
+	f.StringVar(&argv.BlockedUsersS, "blocked-users", default_.BlockedUsersS, "comma-separated list of users that are blocked")
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
 
-	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", false, "disable rate limiting")
+	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", default_.RateLimitDisable, "disable rate limiting")
 	f.DurationVar(&argv.WindowDuration, "rate-limit-window-duration", default_.WindowDuration, "time window for analyzing ClickHouse requests")
 	f.Uint64Var(&argv.MaxErrorRate, "rate-limit-max-error-rate", default_.MaxErrorRate, "error rate threshold (%) to trigger sleep stage")
 	f.Uint64Var(&argv.MaxInflightWeight, "rate-limit-max-inflight-weight", default_.MaxInflightWeight, "maximum weight per inflight request (%)")
@@ -134,6 +135,10 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 func DefaultConfig() *Config {
 	return &Config{
 		ApproxCacheMaxSize:   1_000_000,
+		MaxCacheSize:         5 * 1024 * 1024 * 1024,
+		MaxCacheSizeSoft:     0,
+		MaxCacheAge:          60,
+		CacheChunkSize:       5,
 		AvailableShardsStr:   "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
 		CHMaxShardConnsRatio: 20,
 		RateLimitConfig: chutil.RateLimitConfig{

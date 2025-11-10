@@ -61,9 +61,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	return err
 }
 
-func (a *Aggregator) getConfigResult3() tlstatshouse.GetConfigResult3 {
-	a.configMu.RLock()
-	defer a.configMu.RUnlock()
+func (a *Aggregator) getConfigResult3Locked() tlstatshouse.GetConfigResult3 {
 	return tlstatshouse.GetConfigResult3{
 		Addresses:          a.configR.ClusterShardsAddrs,
 		ShardByMetricCount: uint32(a.config.ShardByMetricShards),
@@ -128,7 +126,9 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 			1, hostTagBytes, aera)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
-	cc := a.getConfigResult3()
+	a.configMu.RLock()
+	defer a.configMu.RUnlock()
+	cc := a.getConfigResult3Locked()
 	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},

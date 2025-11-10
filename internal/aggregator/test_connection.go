@@ -29,13 +29,18 @@ func init() {
 	_, _ = rand.New().Read(testResponse)
 }
 
+type testConnectionClient struct {
+	requestTime time.Time
+	args        tlstatshouse.TestConnection2Bytes
+}
+
 type TestConnection struct {
 	clientsMu             sync.Mutex // Always taken after mu
-	testConnectionClients map[*rpc.HandlerContext]tlstatshouse.TestConnection2Bytes
+	testConnectionClients map[*rpc.HandlerContext]testConnectionClient
 }
 
 func MakeTestConnection() *TestConnection {
-	result := &TestConnection{testConnectionClients: map[*rpc.HandlerContext]tlstatshouse.TestConnection2Bytes{}}
+	result := &TestConnection{testConnectionClients: map[*rpc.HandlerContext]testConnectionClient{}}
 	go result.goRun()
 	return result
 }
@@ -57,38 +62,39 @@ func (ms *TestConnection) broadcastResponses() {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
 	now := time.Now()
-	for hctx, args := range ms.testConnectionClients {
-		if now.Sub(hctx.RequestTime) < time.Duration(args.ResponseTimeoutSec)*time.Second { // still waiting, copy to start of array
+	for hctx, tcc := range ms.testConnectionClients {
+		if now.Sub(tcc.requestTime) < time.Duration(tcc.args.ResponseTimeoutSec)*time.Second { // still waiting, copy to start of array
 			continue
 		}
 		delete(ms.testConnectionClients, hctx)
 		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize]) // size checked in handler
+		hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
 		hctx.SendHijackedResponse(err)
 	}
 }
 
 func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext) error {
-	var args tlstatshouse.TestConnection2Bytes
-	_, err := args.Read(hctx.Request)
+	var tcc testConnectionClient
+	tcc.requestTime = hctx.RequestTime
+	_, err := tcc.args.Read(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
 	}
-	if args.ResponseSize > MaxTestResponseSize {
+	if tcc.args.ResponseSize > MaxTestResponseSize {
 		return fmt.Errorf("max supported response_size is %d", MaxTestResponseSize)
 	}
-	if args.ResponseTimeoutSec > MaxTestResponseTimeoutSec {
+	if tcc.args.ResponseTimeoutSec > MaxTestResponseTimeoutSec {
 		return fmt.Errorf("max supported response_timeout_sec is %d", MaxTestResponseTimeoutSec)
 	}
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime.UnixNano()))
-	hctx.Response, _ = args.WriteResult(hctx.Response, buf[:])
-	if args.ResponseTimeoutSec <= 0 {
-		hctx.Response = append(hctx.Response, testResponse[:args.ResponseSize]...) // approximate
+	hctx.Response, _ = tcc.args.WriteResult(hctx.Response, buf[:])
+	if tcc.args.ResponseTimeoutSec <= 0 {
+		hctx.Response = append(hctx.Response, testResponse[:tcc.args.ResponseSize]...) // approximate
 		return nil
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.testConnectionClients[hctx] = args
+	ms.testConnectionClients[hctx] = tcc
 	return hctx.HijackResponse(ms)
 }

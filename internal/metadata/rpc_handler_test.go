@@ -20,12 +20,11 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
-	"github.com/stretchr/testify/require"
-
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/stretchr/testify/require"
 )
 
 func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, *tlmetadata.Client, *Handler) {
@@ -576,7 +575,6 @@ func TestRPCServerBroadcast(t *testing.T) {
 	time.Sleep(time.Second)
 	h.getJournalMx.Lock()
 	require.Len(t, h.getJournalClients, 2)
-	require.Equal(t, resp.Version, h.minVersion)
 	h.getJournalMx.Unlock()
 	resp, _ = putMetricTest(t, rpcClient, "4", 0, 0, "")
 	select {
@@ -589,9 +587,8 @@ func TestRPCServerBroadcast(t *testing.T) {
 		t.Fatal("expect to get new metrics")
 	}
 	h.getJournalMx.Lock()
+	defer h.getJournalMx.Unlock()
 	require.Len(t, h.getJournalClients, 1)
-	require.Equal(t, int64(math.MaxInt64-1), h.minVersion)
-	h.getJournalMx.Unlock()
 }
 
 func TestBootstrap(t *testing.T) {

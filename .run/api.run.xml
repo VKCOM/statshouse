@@ -1,16 +1,12 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="api" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="statshouse" />
-    <working_directory value="$PROJECT_DIR$" />
-    <go_parameters value="-ldflags &quot;-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0&quot;" />
-    <parameters value="--verbose --local-mode --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=:10888 --metadata-addr=localhost:2442 --statshouse-addr=localhost:13337 --disk-cache=target/run/cache/api/mapping_cache.sqlite3 --static-dir=statshouse-ui/build" />
-    <kind value="DIRECTORY" />
-    <package value="github.com/vkcom/statshouse/cmd/statshouse-api" />
+    <working_directory value="$PROJECT_DIR$/localdebug" />
+    <parameters value="--local-mode --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --verbose --listen-addr localhost:10888 --static-dir ../statshouse-ui/build/ --metadata-addr &quot;127.0.0.1:2442&quot; --available-shards &quot;1&quot; --disk-cache=cache/api/mapping_cache.sqlite3 --version3-prob=1 --version3-start=1629320400" />
+    <kind value="PACKAGE" />
+    <package value="github.com/VKCOM/statshouse/cmd/statshouse-api" />
     <directory value="$PROJECT_DIR$/cmd/statshouse-api" />
     <filePath value="$PROJECT_DIR$/cmd/statshouse-api/statshouse-api.go" />
-    <output_directory value="$PROJECT_DIR$/target" />
-    <method v="2">
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="reset-cache" run_configuration_type="ShConfigurationType" />
-    </method>
+    <method v="2" />
   </configuration>
 </component>

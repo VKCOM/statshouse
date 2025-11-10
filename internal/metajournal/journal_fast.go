@@ -49,8 +49,7 @@ type JournalFast struct {
 	metaLoader MetricsStorageLoader
 	applyEvent []ApplyEvent
 
-	metricsDead         bool      // together with this bool
-	lastUpdateTime      time.Time // we no more use this information for logic
+	metricsDead         bool // together with this bool
 	stateHash           xxh3.Uint128
 	stateHashStr        string
 	currentVersion      int64
@@ -118,7 +117,6 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent
 		order:                  btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
-		lastUpdateTime:         time.Now(),
 		compact:                compact,
 		writeAt:                func(offset int64, data []byte) error { return nil },
 		truncate:               func(offset int64) error { return nil },
@@ -390,7 +388,6 @@ func (ms *JournalFast) finishUpdateLocked() {
 	hb := ms.stateHash.Bytes()
 	stateHashStr := hex.EncodeToString(hb[:])
 	ms.stateHashStr = stateHashStr
-	ms.lastUpdateTime = time.Now()
 	ms.metricsDead = false
 }
 
@@ -426,6 +423,17 @@ func (ms *JournalFast) updateJournalIsFinished(aggLog AggLog) (bool, error) {
 		return false, err
 	}
 	loaderFinished := len(src) == 0
+	if isDead && loaderFinished {
+		ms.modifyMu.Lock()
+		defer ms.modifyMu.Unlock()
+		ms.mu.Lock()
+		defer ms.mu.Unlock()
+		ms.metricsDead = false
+		// We only need to set metricsDead here, we have exactly 0 long poll clients waiting,
+		// because we respond with error when metricsDead true, forcing agents to try random
+		// aggregator until one with metricsDead false is found
+		return loaderFinished, nil
+	}
 	dump := false
 	for i, e := range src {
 		if e.EventType == format.MetricEvent && e.Name == format.StatshouseJournalDump {
