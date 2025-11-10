@@ -249,7 +249,7 @@ type MetricMetaValue struct {
 	Description          string                   `json:"description,omitempty"`
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
 	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
-	Disable              bool                     `json:"disable,omitempty"` // TODO - finish migration from visible flag to this flag
+	Disable              bool                     `json:"disable,omitempty"`
 	Kind                 string                   `json:"kind,omitempty"`
 	Weight               float64                  `json:"weight,omitempty"`
 	Resolution           int                      `json:"resolution,omitempty"`             // no invariants
