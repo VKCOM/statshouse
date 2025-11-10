@@ -76,9 +76,9 @@ type Response struct {
 	failIfNoConnection bool // set in setupCall call and never changes. Allows to quickly try multiple servers without waiting timeout
 	readonly           bool // set in setupCall call and never changes. TODO - implement logic
 	bodyFormatTL2      bool
-
-	sent  bool // Request was sent.
-	stale bool // Request was cancelled before sending. Instead of removing from the write queue which is O(N), we set the flag  and check before sending
+	req                *Request // If empty, request was sent (moved to goSend local writeQ)
+	stale              bool     // Request was cancelled before sending. Instead of removing from the write queue which is O(N), we set the flag  and check before sending
+	deadline           time.Time
 
 	singleResult chan *Response // channel for single caller is reused here
 	result       chan *Response // can point to singleResult or multiResult if used by MultiClient
@@ -203,9 +203,8 @@ func NewClient(options ...ClientOptionsFunc) Client {
 
 type ClientHooks interface {
 	Reset()
-	BeforeSend(req *Request)
+	BeforeSend(ctx context.Context, addr NetAddr, req *Request) error
 	AfterReceive(resp *Response, err error)
-	NeedToDropRequest(ctx context.Context, address NetAddr, req *Request) bool
 }
 
 type TracingInjectFunc func(ctx context.Context, tc *TraceContext)
@@ -223,7 +222,7 @@ func (c *ClientImpl) Close() error {
 	c.mu.Unlock()
 
 	for na, pc := range c.conns { // Exclusive ownership here, due to c.closed check in setupCall, removeConnection
-		_ = pc.close()
+		pc.close()
 		delete(c.conns, na)
 	}
 
@@ -249,6 +248,7 @@ func (c *ClientImpl) Do(ctx context.Context, network string, address string, req
 	}
 	select {
 	case <-ctx.Done():
+		// TODO - if ctx.Err() is deadline, do not send cancelReq (optimization)
 		_ = pc.cancelCall(cctx.queryID, nil) // do not unblock, reuse normally
 		return nil, ctx.Err()
 	case r := <-cctx.result: // got ownership of cctx
@@ -289,8 +289,13 @@ func (c *ClientImpl) CancelDoCallback(cc CallbackContext) (cancelled bool) {
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
 func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, *Response, error) {
-	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
-		return nil, nil, ErrClientDropRequest
+	var err error
+	if req.hookState != nil {
+		err = req.hookState.BeforeSend(ctx, address, req)
+	}
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if req.Extra.IsSetNoResult() {
@@ -299,17 +304,17 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 	}
 	hctx := GetHandlerContext(ctx)
 	if hctx != nil {
-		if !req.Extra.IsSetExecutionContext() && hctx.RequestExtra.ExecutionContext != "" {
+		if req.ActorID > 0 && !req.Extra.IsSetExecutionContext() && hctx.RequestExtra.ExecutionContext != "" {
 			req.Extra.SetExecutionContext(hctx.RequestExtra.ExecutionContext)
 		}
 	}
 
-	if c.opts.TracingInject != nil {
+	if req.ActorID > 0 && c.opts.TracingInject != nil {
 		c.opts.TracingInject(ctx, &req.Extra.TraceContext)
 		if req.Extra.TraceContext.TraceId.Hi != 0 || req.Extra.TraceContext.TraceId.Lo != 0 {
 			req.Extra.Flags |= 1 << 29
 		}
-	} else if hctx != nil {
+	} else if req.ActorID > 0 && hctx != nil {
 		if !req.Extra.IsSetTraceContext() && hctx.RequestExtra.IsSetTraceContext() {
 			req.Extra.SetTraceContext(hctx.RequestExtra.TraceContext)
 		}
@@ -467,7 +472,7 @@ func (c *ClientImpl) GetRequest() *Request {
 	req := c.getRequest()
 	for {
 		req.queryID = int64(c.lastQueryID.Add(1) & math.MaxInt64)
-		// We like positive query IDs, but not 0, so users can user QueryID as a flag
+		// We like positive query IDs, but not 0, so users can use QueryID as a flag
 		if req.queryID != 0 {
 			break
 		}
@@ -514,7 +519,7 @@ func (c *ClientImpl) getResponse() *Response {
 		return v.(*Response)
 	}
 	cctx := &Response{
-		singleResult: make(chan *Response, 1),
+		singleResult: make(chan *Response, 1), // TODO - reuse channel by tracking empty/nonEmpty channel
 		hookState:    c.opts.Hooks(),
 	}
 	cctx.result = cctx.singleResult
@@ -528,6 +533,9 @@ func (c *ClientImpl) PutResponse(cctx *Response) {
 	}
 	if cctx.hookState != nil {
 		cctx.hookState.Reset()
+	}
+	if cctx.req != nil {
+		c.putRequest(cctx.req)
 	}
 	c.putResponseData(cctx.body)
 	*cctx = Response{

@@ -92,12 +92,13 @@ func (s *Server) serveUDP(conn *net.UDPConn) (*udp.Transport, error) {
 		int64(s.opts.RequestMemoryLimit),
 		s.opts.cryptoKeys,
 		conn,
+		conn.LocalAddr(),
 		s.startTime,
 		s.acceptHandlerUDP(conn.LocalAddr()),
 		s.closeHandlerUDP,
 		s.allocateRequestBufUDP,
 		s.deAllocateRequestBufUDP, // we copy response to slice we get using allocateRequestBufUDP
-		s.opts.ResponseTimeoutAdjust/10,
+		0,
 		s.opts.DebugUdpRPC,
 	)
 	if err != nil {
@@ -126,7 +127,7 @@ func (s *Server) deAllocateRequestBufUDP(buf *[]byte) {
 func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection) {
 	return func(conn *udp.Connection) {
 		if s.opts.DebugUdpRPC >= 1 {
-			log.Printf("new udp connection accept listenAddr:%s connAddr:%s", listenAddr.String(), conn.LocalAddr())
+			log.Printf("new udp connection accept listenAddr:%s localAddr:%s remoteAddr:%s", listenAddr.String(), conn.LocalAddr(), conn.RemoteAddr())
 		}
 		closeCtx, cancelCloseCtx := context.WithCancelCause(context.Background())
 		sc := &UdpServerConn{
@@ -138,6 +139,8 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 			},
 			conn: conn,
 		}
+		sc.acquireHctx = sc.acquireHandlerCtx
+
 		sc.releaseFun = s.releaseHandlerCtx
 		sc.pushUnlockFun = sc.pushUnlock
 
@@ -147,14 +150,8 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 				log.Printf("udp message handle")
 			}
 			requestTime := time.Now()
-			hctx := s.acquireHandlerCtx(protocolUDP)
-			hctx.commonConn = sc
-			hctx.listenAddr = listenAddr
-			hctx.localAddr = conn.LocalAddr()
-			hctx.remoteAddr = conn.RemoteAddr()
-			hctx.keyID = sc.conn.KeyID()
-			hctx.protocolVersion = 0 // TODO protocol version
-			hctx.RequestTime = requestTime
+			hctx := s.acquireHandlerCtx(sc, protocolUDP)
+			hctx.requestTime = requestTime
 
 			hctx.Request = *message
 			if canSave {
@@ -191,15 +188,18 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 	}
 }
 
+var errUdpConnClose = fmt.Errorf("server udp connection Close() called")
+
 func (s *Server) closeHandlerUDP(conn *udp.Connection) {
 	if s.opts.DebugUdpRPC >= 1 {
-		log.Printf("udp connection close")
+		log.Printf("udp connection %s close", conn.RemoteAddr())
 	}
 
 	s.protocolStats[protocolUDP].connectionsCurrent.Add(-1)
 	if conn.UserData != nil {
 		if sc, ok := conn.UserData.(*UdpServerConn); ok {
 			sc.cancelAllLongpollResponses(false)
+			sc.cancelCloseCtx(errUdpConnClose)
 		}
 	}
 	// TODO - will all sending hctx be released?

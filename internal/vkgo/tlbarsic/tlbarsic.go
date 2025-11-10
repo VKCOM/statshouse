@@ -640,36 +640,13 @@ type Handler struct {
 	Split              func(ctx context.Context, args Split) (Split__Result, error)                           // barsic.split
 	Start              func(ctx context.Context, args Start) (Start__Result, error)                           // barsic.start
 
-	RawApplyPayload       func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.applyPayload
-	RawChangeRole         func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.changeRole
-	RawCommit             func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.commit
-	RawEngineStarted      func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.engineStarted
-	RawEngineStatus       func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.engineStatus
-	RawEngineWantsRestart func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.engineWantsRestart
-	RawReindex            func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.reindex
-	RawRevert             func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.revert
-	RawShutdown           func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.shutdown
-	RawSkip               func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.skip
-	RawSplit              func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.split
-	RawStart              func(ctx context.Context, hctx *rpc.HandlerContext) error // barsic.start
 }
 
 func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x8c981e13: // barsic.applyPayload
-		hctx.RequestFunctionName = "barsic.applyPayload"
-		if h.RawApplyPayload != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawApplyPayload(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.applyPayload", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.applyPayload")
 		if h.ApplyPayload != nil {
 			var args ApplyPayload
 			if hctx.BodyFormatTL2() {
@@ -696,18 +673,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0xecb3db89: // barsic.changeRole
-		hctx.RequestFunctionName = "barsic.changeRole"
-		if h.RawChangeRole != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawChangeRole(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.changeRole", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.changeRole")
 		if h.ChangeRole != nil {
 			var args ChangeRole
 			if hctx.BodyFormatTL2() {
@@ -734,18 +700,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x12357324: // barsic.commit
-		hctx.RequestFunctionName = "barsic.commit"
-		if h.RawCommit != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawCommit(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.commit", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.commit")
 		if h.Commit != nil {
 			var args Commit
 			if hctx.BodyFormatTL2() {
@@ -772,18 +727,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x4798167a: // barsic.engineStarted
-		hctx.RequestFunctionName = "barsic.engineStarted"
-		if h.RawEngineStarted != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawEngineStarted(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.engineStarted", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.engineStarted")
 		if h.EngineStarted != nil {
 			var args EngineStarted
 			if hctx.BodyFormatTL2() {
@@ -810,18 +754,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0xbfe7b094: // barsic.engineStatus
-		hctx.RequestFunctionName = "barsic.engineStatus"
-		if h.RawEngineStatus != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawEngineStatus(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.engineStatus", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.engineStatus")
 		if h.EngineStatus != nil {
 			var args EngineStatus
 			if hctx.BodyFormatTL2() {
@@ -848,18 +781,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0xf0ef3d68: // barsic.engineWantsRestart
-		hctx.RequestFunctionName = "barsic.engineWantsRestart"
-		if h.RawEngineWantsRestart != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawEngineWantsRestart(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.engineWantsRestart", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.engineWantsRestart")
 		if h.EngineWantsRestart != nil {
 			var args EngineWantsRestart
 			if hctx.BodyFormatTL2() {
@@ -886,18 +808,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x6a8e47c1: // barsic.reindex
-		hctx.RequestFunctionName = "barsic.reindex"
-		if h.RawReindex != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawReindex(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.reindex", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.reindex")
 		if h.Reindex != nil {
 			var args Reindex
 			if hctx.BodyFormatTL2() {
@@ -924,18 +835,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x7e05a9de: // barsic.revert
-		hctx.RequestFunctionName = "barsic.revert"
-		if h.RawRevert != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawRevert(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.revert", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.revert")
 		if h.Revert != nil {
 			var args Revert
 			if hctx.BodyFormatTL2() {
@@ -962,18 +862,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x708fd8d4: // barsic.shutdown
-		hctx.RequestFunctionName = "barsic.shutdown"
-		if h.RawShutdown != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawShutdown(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.shutdown", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.shutdown")
 		if h.Shutdown != nil {
 			var args Shutdown
 			if hctx.BodyFormatTL2() {
@@ -1000,18 +889,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x961de3bd: // barsic.skip
-		hctx.RequestFunctionName = "barsic.skip"
-		if h.RawSkip != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawSkip(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.skip", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.skip")
 		if h.Skip != nil {
 			var args Skip
 			if hctx.BodyFormatTL2() {
@@ -1038,18 +916,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0xaf4c92d8: // barsic.split
-		hctx.RequestFunctionName = "barsic.split"
-		if h.RawSplit != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawSplit(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.split", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.split")
 		if h.Split != nil {
 			var args Split
 			if hctx.BodyFormatTL2() {
@@ -1076,18 +943,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x85ca2340: // barsic.start
-		hctx.RequestFunctionName = "barsic.start"
-		if h.RawStart != nil && !hctx.BodyFormatTL2() {
-			hctx.Request = r
-			err = h.RawStart(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("barsic.start", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("barsic.start")
 		if h.Start != nil {
 			var args Start
 			if hctx.BodyFormatTL2() {

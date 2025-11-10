@@ -69,6 +69,11 @@ func (item RpcReqResultErrorWrapped) String() string {
 }
 
 func (item *RpcReqResultErrorWrapped) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *RpcReqResultErrorWrapped) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propErrorCodePresented bool
 	var propErrorPresented bool
 
@@ -117,14 +122,15 @@ func (item *RpcReqResultErrorWrapped) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *RpcReqResultErrorWrapped) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *RpcReqResultErrorWrapped) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *RpcReqResultErrorWrapped) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *RpcReqResultErrorWrapped) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *RpcReqResultErrorWrapped) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexErrorCode := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

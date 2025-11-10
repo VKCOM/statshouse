@@ -14,22 +14,24 @@ import (
 )
 
 // TODO replace with OutgoingConnectionConfig
-var MaxChunkSize = 348 // assuming minimal MTU for UDP is 508 bytes
+var MaxChunkSize = 1000 // assuming minimal MTU for UDP is 508 bytes
 
 type OutgoingMessage struct {
 	payload  *[]byte
 	seqNo    uint32
 	offset   int64
+	parts    uint32
 	refCount int
 }
 
 type OutgoingChunk struct {
 	message   *OutgoingMessage
-	payload   []byte
+	payload   []byte // `payload == nil` means chunk is acked
 	prevParts uint32
-	nextParts uint32
+}
 
-	acked bool
+func (c OutgoingChunk) nextParts() uint32 {
+	return c.message.parts - c.prevParts - 1
 }
 
 func (c OutgoingChunk) offset() int64 {
@@ -44,50 +46,45 @@ func (c OutgoingChunk) nextOffset() uint32 {
 	return uint32(len(*c.message.payload)-len(c.payload)) - c.prevOffset()
 }
 
-type OutgoingConnection struct {
-	transport *Transport
-	conn      *Connection
+func (c OutgoingChunk) acked() bool {
+	return c.payload == nil
+}
 
-	Window             algo.CircularSlice[OutgoingChunk]
+type OutgoingConnection struct {
+	window             algo.TreeMap[uint32, OutgoingChunk, seqNumCompT]
 	timeoutedSeqNum    uint32
 	nonTimeoutedSeqNum uint32
 	notSendedSeqNum    uint32
 	chunkToSendSeqNum  uint32 // points to some chunk in un-acked suffix
 
-	UnreliableMessages algo.CircularSlice[*[]byte]
-	prevWasReliable    bool
-
-	MaxWindowSize          int
-	WindowControlSeqNum    int64
-	MaxPayloadSize         int
-	MessageQueue           algo.CircularSlice[*OutgoingMessage]
-	AckSeqNoPrefix         uint32
-	LastAckedMessageOffset int64
-	TotalMessagesSize      int64
+	windowControlSeqNum int64
+	messageQueue        algo.CircularSlice[*OutgoingMessage]
+	ackSeqNoPrefix      uint32 // seqNo of first chunk in window
+	nextSeqNo           uint32 // seqNo of first chunk after window
+	totalMessagesOffset int64
 
 	resendRanges    tlnetUdpPacket.ResendRequest // outgoing seqNum ranges, requested to resend
 	resendIndex     int
 	rangeInnerIndex int // != 0 when we didn't send whole range (when part of range was already acked)
 }
 
-func (o *OutgoingConnection) unrefMessage(s *OutgoingMessage) {
+func (o *OutgoingConnection) unrefMessage(t *Transport, s *OutgoingMessage) {
 	s.refCount--
 	if s.refCount < 0 {
 		panic("message RefCount < 0")
 	}
 	if s.refCount == 0 {
-		o.LastAckedMessageOffset += int64(len(*s.payload))
-		o.TotalMessagesSize -= int64(len(*s.payload))
-		o.transport.messagesPool = append(o.transport.messagesPool, s)
+		t.outgoingMessagesPool = append(t.outgoingMessagesPool, s)
+		t.stats.OutgoingMessagesInflight.Add(-1)
 
 		*s.payload = (*s.payload)[:0]
-		o.transport.messageDeallocator(s.payload)
+		t.messageDeallocator(s.payload)
 		s.payload = nil
 	}
 }
 
 func (o *OutgoingConnection) checkAck(seqNum uint32) (ok bool, err error) {
-	index, length := seqNum-o.AckSeqNoPrefix, uint32(o.Window.Len())
+	index, length := seqNum-o.ackSeqNoPrefix, o.nextSeqNo-o.ackSeqNoPrefix
 	if index >= length {
 		if index < (1<<31)+(length>>1) {
 			return false, fmt.Errorf("ack from future: %d", seqNum)
@@ -98,17 +95,26 @@ func (o *OutgoingConnection) checkAck(seqNum uint32) (ok bool, err error) {
 	return true, nil
 }
 
-func (o *OutgoingConnection) ackFrontChunk() {
-	if o.Window.Len() == 0 {
+func (o *OutgoingConnection) ackFrontChunk(t *Transport) {
+	if o.window.Empty() {
 		panic("empty window")
 	}
-	chunk := o.Window.IndexRef(0)
-	chunk.acked = true
-	for o.Window.Len() > 0 && o.Window.Front().acked {
-		message := o.Window.Front().message
-		o.Window.PopFront()
-		o.unrefMessage(message)
-		o.AckSeqNoPrefix++
+	frontEntry := o.window.GetPtr(o.ackSeqNoPrefix)
+	frontEntry.payload = nil
+	chunk := *frontEntry
+	for {
+		message := chunk.message
+		o.window.Delete(o.ackSeqNoPrefix)
+		o.unrefMessage(t, message)
+		o.ackSeqNoPrefix++
+
+		if o.window.Empty() {
+			return
+		}
+		chunk = o.window.Front().V
+		if !chunk.acked() {
+			return
+		}
 	}
 }
 
@@ -131,7 +137,7 @@ func (o *OutgoingConnection) updatedSeqNums(ackSeqNum uint32) {
 }
 
 // TODO: clarify semantic
-func (o *OutgoingConnection) AckPrefix(prefixSeqNum uint32) error {
+func (o *OutgoingConnection) AckPrefix(t *Transport, prefixSeqNum uint32) error {
 	if prefixSeqNum == 0 {
 		return nil
 	}
@@ -139,103 +145,85 @@ func (o *OutgoingConnection) AckPrefix(prefixSeqNum uint32) error {
 		return err
 	}
 	o.updatedSeqNums(prefixSeqNum - 1)
-	oldAckSeqNoPrefix := o.AckSeqNoPrefix
+	oldAckSeqNoPrefix := o.ackSeqNoPrefix
 	targetIndex := prefixSeqNum - oldAckSeqNoPrefix // TODO: clarify semantic
-	for o.AckSeqNoPrefix-oldAckSeqNoPrefix < targetIndex {
-		o.ackFrontChunk()
+	for o.ackSeqNoPrefix-oldAckSeqNoPrefix < targetIndex {
+		o.ackFrontChunk(t)
 	}
 	return nil
 }
 
-func (o *OutgoingConnection) AckChunk(seqNum uint32) error {
+func (o *OutgoingConnection) AckChunk(t *Transport, seqNum uint32) error {
 	if ok, err := o.checkAck(seqNum); !ok {
 		return err
 	}
 	o.updatedSeqNums(seqNum)
-	index := int(seqNum - o.AckSeqNoPrefix)
-	if index == 0 {
-		o.ackFrontChunk()
+	if seqNum == o.ackSeqNoPrefix {
+		o.ackFrontChunk(t)
 		return nil
 	}
-	o.Window.IndexRef(index).acked = true
+	o.window.GetPtr(seqNum).payload = nil
 	return nil
 }
 
-func (o *OutgoingConnection) sliceNextMessage(datagramOffset int) {
-	message := o.MessageQueue.PopFront()
+func (o *OutgoingConnection) sliceNextMessage(t *Transport, datagramOffset int) {
+	message := o.messageQueue.PopFront()
 	if message == nil {
 		panic("message queue is empty")
 	}
-	message.seqNo = o.AckSeqNoPrefix + uint32(o.Window.Len())
+	message.seqNo = o.nextSeqNo
 
 	chunksCount := 0
 	for offset := 0; offset < len(*message.payload); {
-		if datagramOffset+4 >= o.MaxPayloadSize {
+		if datagramOffset+4 >= t.maxOutgoingPayloadSize {
 			datagramOffset = 0
 			continue
 		}
-		chunkSize := min(MaxChunkSize, min(o.MaxPayloadSize-datagramOffset-4, len(*message.payload)-offset))
+		chunkSize := min(t.maxOutgoingPayloadSize-datagramOffset-4, len(*message.payload)-offset)
 
 		chunk := OutgoingChunk{
 			message:   message,
 			payload:   (*message.payload)[offset : offset+chunkSize],
 			prevParts: uint32(chunksCount),
-			acked:     false,
 		}
-		o.Window.PushBack(chunk)
+		o.window.Set(o.nextSeqNo, chunk)
+		o.nextSeqNo++
 
 		offset += chunkSize
 		datagramOffset += 4 + chunkSize
-		if 4+datagramOffset >= o.MaxPayloadSize {
+		if 4+datagramOffset >= t.maxOutgoingPayloadSize {
 			datagramOffset = 0
 		}
 		chunksCount++
 	}
 
-	j := 0
-	for i := o.Window.Len() - 1; j < chunksCount; i-- {
-		o.Window.IndexRef(i).nextParts = uint32(j)
-		j++
-	}
-
+	message.parts = uint32(chunksCount)
 	message.refCount += chunksCount - 1
 }
 
 func (o *OutgoingConnection) SetFlowControl(seqNo uint32) {
-	o.WindowControlSeqNum = int64(seqNo)
+	o.windowControlSeqNum = int64(seqNo)
 }
 
 func (o *OutgoingConnection) ResetFlowControl() {
-	o.WindowControlSeqNum = -1
+	o.windowControlSeqNum = -1
 }
 
-func (o *OutgoingConnection) haveReliableChunksToSendNow() bool {
-	index := int(o.chunkToSendSeqNum - o.AckSeqNoPrefix)
+func (o *OutgoingConnection) haveReliableChunksToSendNow(t *Transport) bool {
+	index := int(o.chunkToSendSeqNum - o.ackSeqNoPrefix)
 	return o.resendIndex < len(o.resendRanges.Ranges) ||
-		(index < o.Window.Len() || o.MessageQueue.Len() != 0) && index < o.MaxWindowSize
+		(o.chunkToSendSeqNum < o.nextSeqNo || o.messageQueue.Len() != 0) && index < t.maxOutgoingWindowSize
 }
 
-func (o *OutgoingConnection) haveChunksToSendNow() bool {
-	return o.haveReliableChunksToSendNow() || o.UnreliableMessages.Len() > 0
+func (o *OutgoingConnection) haveChunksToSendNow(t *Transport) bool {
+	return o.haveReliableChunksToSendNow(t)
 }
 
 /*
 GetChunksToSend
 TODO draw data stream with acked/un-acked, timeout-ed, resended, ... chunks to explain algorithm how to choose chunks to send
 */
-func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgToDealloc *[]byte, firstSeqNum uint32, singleMessage bool) {
-	if o.MaxPayloadSize < MaxChunkSize {
-		panic("maximal payload size is less than maximal chunk size")
-	}
-
-	if o.UnreliableMessages.Len() > 0 && (o.prevWasReliable || !o.haveReliableChunksToSendNow()) {
-		messagePtr := o.UnreliableMessages.PopFront()
-		chunks = append(chunks, *messagePtr)
-		o.prevWasReliable = false
-		return chunks, messagePtr, ^uint32(0), true
-	}
-	o.prevWasReliable = true
-
+func (o *OutgoingConnection) GetChunksToSend(t *Transport, chunks [][]byte) (_ [][]byte, firstSeqNum uint32, singleMessage bool) {
 	payloadSize := 0
 	firstSeqNum = 0
 	singleMessage = true
@@ -243,7 +231,7 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 
 	for o.resendIndex < len(o.resendRanges.Ranges) {
 		r := o.resendRanges.Ranges[o.resendIndex]
-		if r.PacketNumTo < o.AckSeqNoPrefix {
+		if r.PacketNumTo < o.ackSeqNoPrefix {
 			// already in ack prefix
 			o.resendIndex++
 			o.rangeInnerIndex = 0
@@ -251,13 +239,12 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 		}
 
 		for seqNum := r.PacketNumFrom + uint32(o.rangeInnerIndex); seqNum <= r.PacketNumTo; seqNum++ {
-			if seqNum < o.AckSeqNoPrefix {
+			if seqNum < o.ackSeqNoPrefix {
 				o.rangeInnerIndex++
 				continue
 			}
-			index := int(seqNum - o.AckSeqNoPrefix)
-			chunk := o.Window.IndexRef(index)
-			if chunk.acked {
+			chunk := o.window.GetPtr(seqNum)
+			if chunk.acked() {
 				if prevMessage != nil {
 					break
 				}
@@ -266,7 +253,7 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 			}
 
 			// TODO remove copy paste code
-			if payloadSize+4+len(chunk.payload) > o.MaxPayloadSize {
+			if payloadSize+4+len(chunk.payload) > t.maxOutgoingPayloadSize {
 				break
 			}
 
@@ -277,7 +264,8 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 			} else {
 				// we don't allow several chunks of one message in a datagram
 				// prevMessage == chunk.message
-				return chunks, nil, firstSeqNum, singleMessage
+				t.stats.HoleSeqNumsSent.Add(int64(len(chunks)))
+				return chunks, firstSeqNum, singleMessage
 			}
 			prevMessage = chunk.message
 
@@ -287,7 +275,8 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 		}
 
 		if prevMessage != nil {
-			return chunks, nil, firstSeqNum, singleMessage
+			t.stats.HoleSeqNumsSent.Add(int64(len(chunks)))
+			return chunks, firstSeqNum, singleMessage
 		}
 
 		o.resendIndex++
@@ -296,15 +285,15 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 
 	for {
 		seqNum := o.chunkToSendSeqNum
-		index := int(seqNum - o.AckSeqNoPrefix)
-		if index < o.Window.Len() {
-			if index == o.MaxWindowSize {
+		if seqNum < o.nextSeqNo {
+			if int(seqNum-o.ackSeqNoPrefix) == t.maxOutgoingWindowSize {
 				break
 			}
-			chunk := o.Window.IndexRef(index)
+			chunk := o.window.GetPtr(seqNum)
+			// we do not check chunk.acked, because all chunks from seq num `o.chunkToSendSeqNum` are not acked (invariant)
 
 			// TODO remove copy paste code
-			if payloadSize+4+len(chunk.payload) > o.MaxPayloadSize {
+			if payloadSize+4+len(chunk.payload) > t.maxOutgoingPayloadSize {
 				break
 			}
 
@@ -333,14 +322,14 @@ func (o *OutgoingConnection) GetChunksToSend(chunks [][]byte) (_ [][]byte, msgTo
 			}
 			continue
 		}
-		if o.MessageQueue.Len() != 0 {
-			o.sliceNextMessage(payloadSize)
+		if o.messageQueue.Len() != 0 {
+			o.sliceNextMessage(t, payloadSize)
 			continue
 		}
 		break
 	}
 
-	return chunks, nil, firstSeqNum, singleMessage
+	return chunks, firstSeqNum, singleMessage
 }
 
 func (o *OutgoingConnection) OnResendTimeout() {

@@ -63,7 +63,7 @@ type Journal struct {
 	journal []tlmetadata.Event
 
 	clientsMu              sync.Mutex // Always taken after mu
-	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
+	metricsVersionClients3 map[rpc.LongpollHandle]tlstatshouse.GetMetrics3
 
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
@@ -84,15 +84,20 @@ func MakeJournal(namespaceSuffix string, journalRequestDelay time.Duration, dc p
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
 		journalRequestDelay:    journalRequestDelay,
 		applyEvent:             applyEvent,
-		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
+		metricsVersionClients3: map[rpc.LongpollHandle]tlstatshouse.GetMetrics3{},
 		lastUpdateTime:         time.Now(),
 	}
 }
 
-func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
+func (ms *Journal) CancelLongpoll(lh rpc.LongpollHandle) {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	delete(ms.metricsVersionClients3, hctx)
+	delete(ms.metricsVersionClients3, lh)
+}
+
+func (ms *Journal) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	ms.CancelLongpoll(lh) // we have infinite timeouts, so need no empty response support
+	return nil
 }
 
 func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
@@ -345,25 +350,29 @@ func (ms *Journal) broadcastJournal() {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
 	// TODO - most clients wait with the same version, remember response bytes in local map
-	for hctx, args := range ms.metricsVersionClients3 {
+	for lh, args := range ms.metricsVersionClients3 {
 		if ms.metricsDead {
-			delete(ms.metricsVersionClients3, hctx)
-			hctx.SendHijackedResponse(errDeadMetrics)
+			delete(ms.metricsVersionClients3, lh)
+			if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+				hctx.SendLongpollResponse(errDeadMetrics)
+			}
 			continue
 		}
 		result := ms.getJournalDiffLocked3(args.From)
 		if len(result.Events) == 0 {
 			continue
 		}
-		delete(ms.metricsVersionClients3, hctx)
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, result)
-		if err != nil {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
-		} else {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(result.Events)))
+		delete(ms.metricsVersionClients3, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			var err error
+			hctx.Response, err = args.WriteResult(hctx.Response, result)
+			if err != nil {
+				ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
+			} else {
+				ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(result.Events)))
+			}
+			hctx.SendLongpollResponse(err)
 		}
-		hctx.SendHijackedResponse(err)
 	}
 }
 
@@ -416,9 +425,10 @@ func (ms *Journal) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rpc.Ha
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.metricsVersionClients3[hctx] = args
+	lh, err := hctx.StartLongpoll(ms)
+	ms.metricsVersionClients3[lh] = args
 	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
-	return hctx.HijackResponse(ms)
+	return err
 }
 
 func (j *journalEventID) key() string {

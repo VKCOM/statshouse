@@ -69,6 +69,11 @@ func (item AllocSlotEvent) String() string {
 }
 
 func (item *AllocSlotEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *AllocSlotEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propKeyPresented bool
 	var propSlotPresented bool
 
@@ -85,7 +90,7 @@ func (item *AllocSlotEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 				if propKeyPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("allocSlotEvent", "key")
 				}
-				if err := item.Key.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Key.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propKeyPresented = true
@@ -93,7 +98,7 @@ func (item *AllocSlotEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 				if propSlotPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("allocSlotEvent", "slot")
 				}
-				if err := item.Slot.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Slot.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propSlotPresented = true
@@ -117,21 +122,22 @@ func (item *AllocSlotEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *AllocSlotEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *AllocSlotEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *AllocSlotEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *AllocSlotEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *AllocSlotEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"key":`...)
-	w = item.Key.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Key.WriteJSONOpt(tctx, w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"slot":`...)
-	w = item.Slot.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Slot.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

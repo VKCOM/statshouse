@@ -62,6 +62,11 @@ func (item RpcDestFlags) String() string {
 }
 
 func (item *RpcDestFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *RpcDestFlags) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propExtraPresented bool
 
 	if in != nil {
@@ -77,7 +82,7 @@ func (item *RpcDestFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) 
 				if propExtraPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestFlags", "extra")
 				}
-				if err := item.Extra.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Extra.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propExtraPresented = true
@@ -98,18 +103,19 @@ func (item *RpcDestFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) 
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *RpcDestFlags) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *RpcDestFlags) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *RpcDestFlags) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *RpcDestFlags) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *RpcDestFlags) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	w = item.Extra.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Extra.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

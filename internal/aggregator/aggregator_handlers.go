@@ -49,7 +49,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 		status = format.TagValueIDRPCRequestsStatusErrLocal
 		str = err.Error()
 	}
-	a.sh2.AddValueCounterString(uint32(hctx.RequestTime.Unix()), format.BuiltinMetricMetaRPCRequests,
+	a.sh2.AddValueCounterString(uint32(hctx.RequestTime().Unix()), format.BuiltinMetricMetaRPCRequests,
 		[]int32{
 			1: format.TagValueIDComponentAggregator,
 			2: int32(tag),
@@ -135,8 +135,9 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 			1, hostTagBytes, aera)
 		a.cfgNotifier.mu.Lock()
 		defer a.cfgNotifier.mu.Unlock()
-		a.cfgNotifier.clients[hctx] = struct{}{}
-		return hctx.HijackResponse(a.cfgNotifier)
+		lh, err := hctx.StartLongpoll(a.cfgNotifier)
+		a.cfgNotifier.clients[lh] = struct{}{}
+		return err
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
@@ -264,7 +265,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		a.mu.Unlock()
 		aggBucket.mu.Lock()
 		defer aggBucket.mu.Unlock()
-		return "", hctx.HijackResponse(aggBucket), false // must be under bucket lock
+		_, errHijack := hctx.StartLongpoll(aggBucket)
+		return "", errHijack, false // must be under bucket lock
 	}
 
 	oldestTime := a.recentBuckets[0].time
@@ -300,9 +302,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			if aggBucket == nil {
 				aggBucket = &aggregatorBucket{
 					time:                        args.Time,
-					contributors:                map[*rpc.HandlerContext]struct{}{},
-					contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
-					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
+					contributors:                map[rpc.LongpollHandle]struct{}{},
+					contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 				}
 				a.historicBuckets[args.Time] = aggBucket
@@ -337,9 +339,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			defer aggBucket.sendMu.RUnlock()
 			aggBucket.mu.Lock()
 			defer aggBucket.mu.Unlock()
-
-			aggBucket.contributorsSimulatedErrors[hctx] = struct{}{} // must be under bucket lock
-			return "", hctx.HijackResponse(aggBucket), false         // must be under bucket lock
+			lh, hijackErr := hctx.StartLongpoll(aggBucket)
+			aggBucket.contributorsSimulatedErrors[lh] = struct{}{} // must be under bucket lock
+			return "", hijackErr, false                            // must be under bucket lock
 		}
 	}
 
@@ -587,9 +589,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	if args.IsSetHistoric() {
 		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagS]++
 	}
-	aggBucket.contributors3[hctx] = resp // must be under bucket lock
+	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
+	aggBucket.contributors3[lh] = resp             // must be under bucket lock
 	compressedSize := len(hctx.Request)
-	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 
 	aggBucket.mu.Unlock()
 
@@ -785,12 +787,12 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	defer aggBucket.sendMu.RUnlock()
 
 	aggBucket.mu.Lock()
+	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
 	if version3 {
-		aggBucket.contributors3[hctx] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
+		aggBucket.contributors3[lh] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
 	} else {
-		aggBucket.contributors[hctx] = struct{}{} // must be under bucket lock
+		aggBucket.contributors[lh] = struct{}{} // must be under bucket lock
 	}
-	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	aggBucket.mu.Unlock()
 
 	a.sh2.AddCounterHostAERA(aggBucket.time, format.BuiltinMetricMetaAggKeepAlive,

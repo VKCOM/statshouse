@@ -11,6 +11,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 )
 
 func extractIPPort(addr net.Addr) (uint32, uint16) {
@@ -37,8 +39,29 @@ func extractIPPort(addr net.Addr) (uint32, uint16) {
 			return 0, 0
 		}
 		return 0, uint16(port)
+	case udp.Addr:
+		return addr.Ip, addr.Port
 	default:
-		return 0, 0
+		str := addr.String()
+		parts := strings.Split(str, ":")
+		if len(parts) != 2 {
+			// may be panic?
+			return 0, 0
+		}
+
+		ipBytes := net.ParseIP(parts[0])
+		ip := uint32(0)
+		if ipBytes != nil {
+			ip = binary.BigEndian.Uint32(ipBytes)
+		}
+
+		port, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			// may be panic?
+			return 0, 0
+		}
+
+		return ip, uint16(port)
 	}
 }
 

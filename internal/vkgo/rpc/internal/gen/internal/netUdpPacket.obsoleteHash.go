@@ -69,6 +69,11 @@ func (item NetUdpPacketObsoleteHash) String() string {
 }
 
 func (item *NetUdpPacketObsoleteHash) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketObsoleteHash) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propHashPresented bool
 	var propPidPresented bool
 
@@ -93,7 +98,7 @@ func (item *NetUdpPacketObsoleteHash) ReadJSON(legacyTypeNames bool, in *basictl
 				if propPidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.obsoleteHash", "pid")
 				}
-				if err := item.Pid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Pid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPidPresented = true
@@ -117,14 +122,15 @@ func (item *NetUdpPacketObsoleteHash) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketObsoleteHash) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketObsoleteHash) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketObsoleteHash) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketObsoleteHash) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketObsoleteHash) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexHash := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -135,7 +141,7 @@ func (item *NetUdpPacketObsoleteHash) WriteJSONOpt(newTypeNames bool, short bool
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pid":`...)
-	w = item.Pid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Pid.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

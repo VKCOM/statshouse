@@ -31,7 +31,7 @@ func testRPCGraceful(t *rapid.T) {
 		fmt.Printf("---- testRPCGraceful\n")
 	}
 	var lc net.ListenConfig
-	lc.Control = controlSetTCPReuseAddrPort
+	lc.Control = ControlSetTCPReuse(true, true)
 
 	ln, err := lc.Listen(context.Background(), "tcp4", "127.0.0.1:41577")
 	if err != nil {

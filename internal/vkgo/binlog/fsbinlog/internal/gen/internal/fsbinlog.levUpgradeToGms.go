@@ -76,6 +76,11 @@ func (item FsbinlogLevUpgradeToGms) String() string {
 }
 
 func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *FsbinlogLevUpgradeToGms) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propPayloadOffsetPresented bool
 	var propCrcPresented bool
@@ -148,14 +153,15 @@ func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *FsbinlogLevUpgradeToGms) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *FsbinlogLevUpgradeToGms) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

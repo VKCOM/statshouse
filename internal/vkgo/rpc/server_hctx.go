@@ -14,24 +14,27 @@ import (
 
 // commonality between UDP and TCP servers requried for HandlerContext
 type HandlerContextConnection interface {
-	HijackResponse(hctx *HandlerContext, canceller HijackResponseCanceller) error
-	SendHijackedResponse(hctx *HandlerContext, err error)
+	StartLongpoll(hctx *HandlerContext, canceller LongpollCanceller) (LongpollHandle, error)
+	StartLongpollWithTimeoutDeprecated(hctx *HandlerContext, canceller LongpollCanceller, timeout time.Duration) (LongpollHandle, error)
+	GetResponse(LongpollHandle) (*HandlerContext, error)
+	SendLongpollResponse(hctx *HandlerContext, err error)
+	SendEmptyResponse(lh LongpollHandle) // Prefer only one request instead of a batch here, because it's difficult to aggregate batches to different connections
 	AccountResponseMem(hctx *HandlerContext, respBodySizeEstimate int) error
 	RareLog(format string, args ...any)
+	ListenAddr() net.Addr
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
+	KeyID() [4]byte
+	ProtocolVersion() uint32
+	ProtocolTransportID() byte
+	ConnectionID() uintptr
 }
 
-// HandlerContext must not be used outside the handler, except in HijackResponse (longpoll) protocol
+// HandlerContext must not be used outside the handler, except in StartLongpoll (longpoll) protocol
 type HandlerContext struct {
 	actorID     int64
 	queryID     int64
-	RequestTime time.Time
-	listenAddr  net.Addr
-	localAddr   net.Addr
-	remoteAddr  net.Addr
-
-	keyID           [4]byte // encryption key prefix
-	protocolVersion uint32
-	protocolID      int
+	requestTime time.Time
 
 	request  *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
 	Request  []byte
@@ -45,6 +48,7 @@ type HandlerContext struct {
 	requestExtraFieldsmask uint32        // defensive copy
 	traceIDStr             string        // allocated after extra parsing
 	bodyFormatTL2          bool
+	protocolTransportID    byte // copy from connection, we use it many times, virtual call is costly
 
 	// UserData allows caching common state between different requests.
 	UserData any
@@ -76,29 +80,22 @@ func (hctx *HandlerContext) ActorID() int64            { return hctx.actorID }
 func (hctx *HandlerContext) QueryID() int64            { return hctx.queryID }
 func (hctx *HandlerContext) TraceIDStr() string        { return hctx.traceIDStr }
 func (hctx *HandlerContext) RequestTag() uint32        { return hctx.reqTag } // First 4 bytes of request available even after request is freed
-func (hctx *HandlerContext) KeyID() [4]byte            { return hctx.keyID }
-func (hctx *HandlerContext) ProtocolVersion() uint32   { return hctx.protocolVersion }
-func (hctx *HandlerContext) ProtocolTransport() string { return protocolName(hctx.protocolID) }
-func (hctx *HandlerContext) ListenAddr() net.Addr      { return hctx.listenAddr }
-func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.localAddr }
-func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.remoteAddr }
+func (hctx *HandlerContext) KeyID() [4]byte            { return hctx.commonConn.KeyID() }
+func (hctx *HandlerContext) ProtocolVersion() uint32   { return hctx.commonConn.ProtocolVersion() }
+func (hctx *HandlerContext) ProtocolTransport() string { return protocolName(hctx.protocolTransportID) }
+func (hctx *HandlerContext) ListenAddr() net.Addr      { return hctx.commonConn.ListenAddr() }
+func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.commonConn.LocalAddr() }
+func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.commonConn.RemoteAddr() }
 func (hctx *HandlerContext) BodyFormatTL2() bool       { return hctx.bodyFormatTL2 }
+func (hctx *HandlerContext) RequestTime() time.Time    { return hctx.requestTime }
 
-func (hctx *HandlerContext) SetRequestFunctionName(name string) {
-	hctx.RequestFunctionName = name
-}
+func (hctx *HandlerContext) SetRequestFunctionName(name string) { hctx.RequestFunctionName = name }
 
 // for implementing servers, also for tests with server mock ups
 func (hctx *HandlerContext) ResetTo(
-	commonConn HandlerContextConnection, listenAddr net.Addr, localAddr net.Addr, remoteAddr net.Addr,
-	keyID [4]byte, protocolVersion uint32, protocolID int, queryID int64) {
+	commonConn HandlerContextConnection, queryID int64) {
 	hctx.commonConn = commonConn
-	hctx.listenAddr = listenAddr
-	hctx.localAddr = localAddr
-	hctx.remoteAddr = remoteAddr
-	hctx.keyID = keyID
-	hctx.protocolVersion = protocolVersion
-	hctx.protocolID = protocolID
+	hctx.protocolTransportID = commonConn.ProtocolTransportID()
 	hctx.queryID = queryID
 }
 
@@ -114,18 +111,30 @@ func (hctx *HandlerContext) AccountResponseMem(respBodySizeEstimate int) error {
 	return hctx.commonConn.AccountResponseMem(hctx, respBodySizeEstimate)
 }
 
-// HijackResponse releases Request bytes (and UserData) for reuse, so must be called only after Request processing is complete
+// StartLongpoll releases Request bytes (and UserData) for reuse, so must be called only after Request processing is complete
 // You must return result of this call from your handler
-// After Hijack you are responsible for (whatever happens first)
-// 1) forget about hctx if canceller method is called (so you must update your data structures strictly after call HijackResponse finished)
-// 2) if 1) did not yet happen, can at any moment in the future call SendHijackedResponse
-func (hctx *HandlerContext) HijackResponse(canceller HijackResponseCanceller) error {
-	return hctx.commonConn.HijackResponse(hctx, canceller)
+// After starting longpoll you are responsible for (whatever happens first)
+// 1) forget about hctx if canceller method is called (so you must update your data structures strictly after call StartLongpoll finished)
+// 2) if 1) did not yet happen, can at any moment in the future call SendLongpollResponse
+func (hctx *HandlerContext) StartLongpoll(canceller LongpollCanceller) (LongpollHandle, error) {
+	return hctx.commonConn.StartLongpoll(hctx, canceller)
 }
 
-// Be careful, it's responsibility of the caller to synchronize SendHijackedResponse and CancelHijack
-func (hctx *HandlerContext) SendHijackedResponse(err error) {
-	hctx.commonConn.SendHijackedResponse(hctx, err)
+// This method allows users to set custom timeouts for long polls from a handler.
+// Although this method exists, client code must respect timeouts from rpc.RequestExtra
+// and shouldn't use this method.
+// The method is going to be deleted once Persic migrates to default RPC timeouts instead of
+// the custom timeout in request's tl body.
+func (hctx *HandlerContext) StartLongpollWithTimeoutDeprecated(
+	canceller LongpollCanceller,
+	timeout time.Duration,
+) (LongpollHandle, error) {
+	return hctx.commonConn.StartLongpollWithTimeoutDeprecated(hctx, canceller, timeout)
+}
+
+// Be careful, it's responsibility of the caller to synchronize SendLongpollResponse and CancelLongpoll
+func (hctx *HandlerContext) SendLongpollResponse(err error) {
+	hctx.commonConn.SendLongpollResponse(hctx, err)
 }
 
 // We serialize extra after body into Body, then write into reversed order
@@ -162,4 +171,21 @@ func (hctx *HandlerContext) releaseResponse(s *Server) {
 	hctx.respTaken = 0
 	hctx.response = nil
 	hctx.Response = nil
+}
+
+func (hctx *HandlerContext) fillFromHijackedResponse(hr hijackedResponse) *HandlerContext {
+	hctx.commonConn = hr.handle.CommonConn
+	hctx.actorID = hr.actorID
+	hctx.queryID = hr.handle.QueryID
+	hctx.RequestFunctionName = hr.requestFunctionName
+	hctx.traceIDStr = hr.traceIDStr
+	hctx.requestTime = hr.requestTime
+	hctx.requestExtraFieldsmask = hr.requestExtraFieldsmask
+	hctx.reqTag = hr.reqTag
+	hctx.protocolTransportID = hr.protocolTransportID
+	hctx.bodyFormatTL2 = hr.bodyFormatTL2
+	hctx.noResult = hr.noResult
+	hctx.timeout = hr.timeout
+
+	return hctx
 }
