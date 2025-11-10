@@ -17,7 +17,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
-// ConfigChangeNotifier notify getConfigResult3 if ConfigAggregatorRemote.ClusterShardsAddrs was updated
+// ConfigChangeNotifier notify getConfigResult3Locked if ConfigAggregatorRemote.ClusterShardsAddrs was updated
 type ConfigChangeNotifier struct {
 	mu      sync.Mutex
 	clients map[*rpc.HandlerContext]struct{}
@@ -253,7 +253,6 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 
 func NewConfigChangeNotifier() *ConfigChangeNotifier {
 	return &ConfigChangeNotifier{
-		mu:      sync.Mutex{},
 		clients: make(map[*rpc.HandlerContext]struct{}),
 	}
 }

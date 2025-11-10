@@ -319,7 +319,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
-	getConfigResult := a.getConfigResult3() // agent will use this config instead of getting via RPC, because our RPC is not started yet
+	getConfigResult := a.getConfigResult3Locked() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
 		format.TagValueIDComponentAggregator,
 		a.metricStorage, mappingsCache,
@@ -897,9 +897,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		for hctx := range aggBucket.contributorsSimulatedErrors {
 			hctx.SendHijackedResponse(sendErr)
 		}
-		for hctx := range aggBucket.contributorsSimulatedErrors { // compiles into map_clear
-			delete(aggBucket.contributorsSimulatedErrors, hctx)
-		}
+		clear(aggBucket.contributorsSimulatedErrors)
 		aggBucket.mu.Unlock()
 	}
 }

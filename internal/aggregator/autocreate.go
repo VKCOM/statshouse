@@ -129,45 +129,32 @@ func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerConte
 }
 
 func (ac *autoCreate) goWork() {
-	for {
-		var ok bool
-		hctx, args, ok := ac.getWork()
-		if !ok { // done
-			return
-		}
-		err := ac.createMetric(args)
-		if ac.done() {
-			return
-		}
-		ac.mu.Lock()
-		if _, ok := ac.args[hctx]; ok {
-			delete(ac.args, hctx)
-			hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
-			hctx.SendHijackedResponse(err)
-		}
-		ac.mu.Unlock()
-		if err != nil {
-			// backoff for a second
-			time.Sleep(1 * time.Second)
-		}
-	}
-}
-
-func (ac *autoCreate) getWork() (*rpc.HandlerContext, tlstatshouse.AutoCreateBytes, bool) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	for {
-		for len(ac.queue) == 0 {
-			if ac.done() {
-				return nil, tlstatshouse.AutoCreateBytes{}, false
-			}
+		if ac.done() {
+			return
+		}
+		if len(ac.queue) == 0 {
 			ac.co.Wait()
+			continue
 		}
 		hctx := ac.queue[0]
 		ac.queue = ac.queue[1:] // TODO - reuse buffer
-		if args, ok := ac.args[hctx]; ok {
-			return hctx, args, true
+		args, ok := ac.args[hctx]
+		if !ok {
+			continue
 		}
+		delete(ac.args, hctx)
+		ac.mu.Unlock()
+		createErr := ac.createMetric(args)
+		hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
+		hctx.SendHijackedResponse(createErr)
+		if createErr != nil {
+			// backoff for a second
+			time.Sleep(1 * time.Second)
+		}
+		ac.mu.Lock()
 	}
 }
 
