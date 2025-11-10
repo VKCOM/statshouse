@@ -42,7 +42,7 @@ func BuiltinVectorVectorDoubleWrite(w []byte, vec [][]float64) []byte {
 	return w
 }
 
-func BuiltinVectorVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]float64) error {
+func BuiltinVectorVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]float64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := BuiltinVectorDoubleReadJSON(legacyTypeNames, in, &(*vec)[index]); err != nil {
+			if err := BuiltinVectorDoubleReadJSONGeneral(tctx, in, &(*vec)[index]); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 }
 
 func BuiltinVectorVectorDoubleWriteJSON(w []byte, vec [][]float64) []byte {
-	return BuiltinVectorVectorDoubleWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorVectorDoubleWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorVectorDoubleWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]float64) []byte {
+func BuiltinVectorVectorDoubleWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec [][]float64) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, elem)
+		w = BuiltinVectorDoubleWriteJSONOpt(tctx, w, elem)
 	}
 	return append(w, ']')
 }
@@ -97,7 +98,6 @@ func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Read(w []byte) (_ []b
 	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -114,7 +114,6 @@ func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) ReadBoxed(w []byte) (
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -127,27 +126,32 @@ func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteBoxed(w []byte) 
 func (item VectorDictionaryFieldEngineMetafilesStatBoxed) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) MarshalJSON() ([]byte, error) {
@@ -176,7 +180,6 @@ func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDictionaryFieldString) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -193,7 +196,6 @@ func (item *VectorDictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDictionaryFieldString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -206,27 +208,32 @@ func (item *VectorDictionaryFieldString) WriteBoxed(w []byte) []byte {
 func (item VectorDictionaryFieldString) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorDictionaryFieldString) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorDictionaryFieldString) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorDictionaryFieldString) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorDictionaryFieldString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorDictionaryFieldString) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorDictionaryFieldString) MarshalJSON() ([]byte, error) {
@@ -255,7 +262,6 @@ func (item *VectorDictionaryFieldStringBytes) Read(w []byte) (_ []byte, err erro
 	return BuiltinVectorDictionaryFieldStringBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDictionaryFieldStringBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -272,7 +278,6 @@ func (item *VectorDictionaryFieldStringBytes) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDictionaryFieldStringBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -285,27 +290,32 @@ func (item *VectorDictionaryFieldStringBytes) WriteBoxed(w []byte) []byte {
 func (item VectorDictionaryFieldStringBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDictionaryFieldStringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorDictionaryFieldStringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorDictionaryFieldStringBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorDictionaryFieldStringBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorDictionaryFieldStringBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorDictionaryFieldStringBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorDictionaryFieldStringBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorDictionaryFieldStringBytes) MarshalJSON() ([]byte, error) {
@@ -334,7 +344,6 @@ func (item *VectorDouble) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorDoubleRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorDouble) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -351,7 +360,6 @@ func (item *VectorDouble) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorDouble) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -364,27 +372,32 @@ func (item *VectorDouble) WriteBoxed(w []byte) []byte {
 func (item VectorDouble) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorDouble) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorDouble) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]float64)(item)
-	if err := BuiltinVectorDoubleReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorDoubleReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorDouble) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorDouble) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorDouble) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorDouble) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorDouble) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]float64)(item)
-	w = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorDoubleWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorDouble) MarshalJSON() ([]byte, error) {
@@ -413,7 +426,6 @@ func (item *VectorEngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorEngineBinlogPrefixRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorEngineBinlogPrefix) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -430,7 +442,6 @@ func (item *VectorEngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorEngineBinlogPrefix) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -443,27 +454,32 @@ func (item *VectorEngineBinlogPrefix) WriteBoxed(w []byte) []byte {
 func (item VectorEngineBinlogPrefix) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorEngineBinlogPrefix) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorEngineBinlogPrefix) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	if err := BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorEngineBinlogPrefix) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorEngineBinlogPrefix) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorEngineBinlogPrefix) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorEngineBinlogPrefix) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorEngineBinlogPrefix) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	w = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorEngineBinlogPrefix) MarshalJSON() ([]byte, error) {
@@ -492,7 +508,6 @@ func (item *VectorEngineMetafilesOneMemoryStat) Read(w []byte) (_ []byte, err er
 	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorEngineMetafilesOneMemoryStat) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -509,7 +524,6 @@ func (item *VectorEngineMetafilesOneMemoryStat) ReadBoxed(w []byte) (_ []byte, e
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorEngineMetafilesOneMemoryStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -522,27 +536,32 @@ func (item *VectorEngineMetafilesOneMemoryStat) WriteBoxed(w []byte) []byte {
 func (item VectorEngineMetafilesOneMemoryStat) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorEngineMetafilesOneMemoryStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorEngineMetafilesOneMemoryStat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorEngineMetafilesOneMemoryStat) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	w = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorEngineMetafilesOneMemoryStat) MarshalJSON() ([]byte, error) {
@@ -571,7 +590,6 @@ func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorIntRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorInt) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -588,7 +606,6 @@ func (item *VectorInt) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorInt) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -601,27 +618,32 @@ func (item *VectorInt) WriteBoxed(w []byte) []byte {
 func (item VectorInt) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorInt) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorInt) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]int32)(item)
-	if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorIntReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorInt) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorInt) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorInt) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorInt) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorInt) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]int32)(item)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorIntWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorInt) MarshalJSON() ([]byte, error) {
@@ -650,7 +672,6 @@ func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorLongRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorLong) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -667,7 +688,6 @@ func (item *VectorLong) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -680,27 +700,32 @@ func (item *VectorLong) WriteBoxed(w []byte) []byte {
 func (item VectorLong) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorLong) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]int64)(item)
-	if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorLongReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorLong) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorLong) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorLong) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorLong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorLong) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]int64)(item)
-	w = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorLongWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorLong) MarshalJSON() ([]byte, error) {
@@ -729,7 +754,6 @@ func (item *VectorMetadataEvent) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorMetadataEventRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorMetadataEvent) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -746,7 +770,6 @@ func (item *VectorMetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorMetadataEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -759,27 +782,32 @@ func (item *VectorMetadataEvent) WriteBoxed(w []byte) []byte {
 func (item VectorMetadataEvent) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorMetadataEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorMetadataEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]MetadataEvent)(item)
-	if err := BuiltinVectorMetadataEventReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorMetadataEventReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorMetadataEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorMetadataEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorMetadataEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorMetadataEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorMetadataEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]MetadataEvent)(item)
-	w = BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorMetadataEventWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorMetadataEvent) MarshalJSON() ([]byte, error) {
@@ -808,7 +836,6 @@ func (item *VectorMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorMetadataEventBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorMetadataEventBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -825,7 +852,6 @@ func (item *VectorMetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorMetadataEventBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -838,27 +864,32 @@ func (item *VectorMetadataEventBytes) WriteBoxed(w []byte) []byte {
 func (item VectorMetadataEventBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorMetadataEventBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorMetadataEventBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]MetadataEventBytes)(item)
-	if err := BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorMetadataEventBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorMetadataEventBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorMetadataEventBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorMetadataEventBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorMetadataEventBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorMetadataEventBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]MetadataEventBytes)(item)
-	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorMetadataEventBytes) MarshalJSON() ([]byte, error) {
@@ -887,7 +918,6 @@ func (item *VectorMetadataHistoryShortResponseEvent) Read(w []byte, nat_t uint32
 	return BuiltinVectorMetadataHistoryShortResponseEventRead(w, ptr, nat_t)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorMetadataHistoryShortResponseEvent) WriteGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.Write(w, nat_t), nil
 }
@@ -904,7 +934,6 @@ func (item *VectorMetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_t u
 	return item.Read(w, nat_t)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorMetadataHistoryShortResponseEvent) WriteBoxedGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_t), nil
 }
@@ -914,26 +943,27 @@ func (item *VectorMetadataHistoryShortResponseEvent) WriteBoxed(w []byte, nat_t 
 	return item.Write(w, nat_t)
 }
 
-func (item *VectorMetadataHistoryShortResponseEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_t uint32) error {
+func (item *VectorMetadataHistoryShortResponseEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSON(legacyTypeNames, in, ptr, nat_t); err != nil {
+	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(tctx, in, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSON(w, nat_t), nil
+func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
 func (item *VectorMetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_t uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_t uint32) []byte {
+func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	w = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(newTypeNames, short, w, *ptr, nat_t)
+	w = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
 }
 
@@ -952,7 +982,6 @@ func (item *VectorMetadataMetricOld) Read(w []byte, nat_t uint32) (_ []byte, err
 	return BuiltinVectorMetadataMetricOldRead(w, ptr, nat_t)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorMetadataMetricOld) WriteGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.Write(w, nat_t), nil
 }
@@ -969,7 +998,6 @@ func (item *VectorMetadataMetricOld) ReadBoxed(w []byte, nat_t uint32) (_ []byte
 	return item.Read(w, nat_t)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorMetadataMetricOld) WriteBoxedGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_t), nil
 }
@@ -979,26 +1007,27 @@ func (item *VectorMetadataMetricOld) WriteBoxed(w []byte, nat_t uint32) []byte {
 	return item.Write(w, nat_t)
 }
 
-func (item *VectorMetadataMetricOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_t uint32) error {
+func (item *VectorMetadataMetricOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
 	ptr := (*[]MetadataMetricOld)(item)
-	if err := BuiltinVectorMetadataMetricOldReadJSON(legacyTypeNames, in, ptr, nat_t); err != nil {
+	if err := BuiltinVectorMetadataMetricOldReadJSONGeneral(tctx, in, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorMetadataMetricOld) WriteJSONGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSON(w, nat_t), nil
+func (item *VectorMetadataMetricOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
 func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_t uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorMetadataMetricOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_t uint32) []byte {
+func (item *VectorMetadataMetricOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
 	ptr := (*[]MetadataMetricOld)(item)
-	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(newTypeNames, short, w, *ptr, nat_t)
+	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
 }
 
@@ -1017,7 +1046,6 @@ func (item *VectorStatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseApiFilterRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseApiFilter) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1034,7 +1062,6 @@ func (item *VectorStatshouseApiFilter) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseApiFilter) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1047,27 +1074,32 @@ func (item *VectorStatshouseApiFilter) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseApiFilter) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseApiFilter) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseApiFilter) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseApiFilter)(item)
-	if err := BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiFilterReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseApiFilter) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseApiFilter) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseApiFilter) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseApiFilter) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseApiFilter) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseApiFilter)(item)
-	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseApiFilter) MarshalJSON() ([]byte, error) {
@@ -1096,7 +1128,6 @@ func (item *VectorStatshouseApiFunction) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseApiFunctionRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseApiFunction) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1113,7 +1144,6 @@ func (item *VectorStatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseApiFunction) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1126,27 +1156,32 @@ func (item *VectorStatshouseApiFunction) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseApiFunction) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseApiFunction) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if err := BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseApiFunction) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseApiFunction) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseApiFunction) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseApiFunction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseApiFunction) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseApiFunction)(item)
-	w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseApiFunction) MarshalJSON() ([]byte, error) {
@@ -1175,7 +1210,6 @@ func (item *VectorStatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseApiPointMetaRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseApiPointMeta) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1192,7 +1226,6 @@ func (item *VectorStatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseApiPointMeta) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1205,27 +1238,32 @@ func (item *VectorStatshouseApiPointMeta) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseApiPointMeta) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	if err := BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseApiPointMeta) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseApiPointMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseApiPointMeta) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseApiPointMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseApiPointMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	w = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseApiPointMeta) MarshalJSON() ([]byte, error) {
@@ -1254,7 +1292,6 @@ func (item *VectorStatshouseApiSeriesMeta) Read(w []byte, nat_t uint32) (_ []byt
 	return BuiltinVectorStatshouseApiSeriesMetaRead(w, ptr, nat_t)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseApiSeriesMeta) WriteGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.Write(w, nat_t), nil
 }
@@ -1271,7 +1308,6 @@ func (item *VectorStatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_t uint32) (_ 
 	return item.Read(w, nat_t)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseApiSeriesMeta) WriteBoxedGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_t), nil
 }
@@ -1281,26 +1317,27 @@ func (item *VectorStatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_t uint32) []
 	return item.Write(w, nat_t)
 }
 
-func (item *VectorStatshouseApiSeriesMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_t uint32) error {
+func (item *VectorStatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames, in, ptr, nat_t); err != nil {
+	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx, in, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseApiSeriesMeta) WriteJSONGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSON(w, nat_t), nil
+func (item *VectorStatshouseApiSeriesMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
 func (item *VectorStatshouseApiSeriesMeta) WriteJSON(w []byte, nat_t uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_t uint32) []byte {
+func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames, short, w, *ptr, nat_t)
+	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
 }
 
@@ -1319,7 +1356,6 @@ func (item *VectorStatshouseApiTagValue) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseApiTagValueRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseApiTagValue) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1336,7 +1372,6 @@ func (item *VectorStatshouseApiTagValue) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseApiTagValue) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1349,27 +1384,32 @@ func (item *VectorStatshouseApiTagValue) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseApiTagValue) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseApiTagValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	if err := BuiltinVectorStatshouseApiTagValueReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseApiTagValue) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseApiTagValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseApiTagValue) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseApiTagValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseApiTagValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	w = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseApiTagValue) MarshalJSON() ([]byte, error) {
@@ -1398,7 +1438,6 @@ func (item *VectorStatshouseCentroidFloat) Read(w []byte) (_ []byte, err error) 
 	return BuiltinVectorStatshouseCentroidFloatRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseCentroidFloat) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1415,7 +1454,6 @@ func (item *VectorStatshouseCentroidFloat) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseCentroidFloat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1428,27 +1466,32 @@ func (item *VectorStatshouseCentroidFloat) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseCentroidFloat) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseCentroidFloat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseCentroidFloat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseCentroidFloat)(item)
-	if err := BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseCentroidFloat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseCentroidFloat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseCentroidFloat) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseCentroidFloat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseCentroidFloat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseCentroidFloat)(item)
-	w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseCentroidFloat) MarshalJSON() ([]byte, error) {
@@ -1477,7 +1520,6 @@ func (item *VectorStatshouseIngestionStatus2) Read(w []byte) (_ []byte, err erro
 	return BuiltinVectorStatshouseIngestionStatus2Read(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseIngestionStatus2) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1494,7 +1536,6 @@ func (item *VectorStatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseIngestionStatus2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1507,27 +1548,32 @@ func (item *VectorStatshouseIngestionStatus2) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseIngestionStatus2) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseIngestionStatus2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseIngestionStatus2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseIngestionStatus2) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseIngestionStatus2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	w = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
@@ -1556,7 +1602,6 @@ func (item *VectorStatshouseMapping) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMappingRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMapping) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1573,7 +1618,6 @@ func (item *VectorStatshouseMapping) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMapping) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1586,27 +1630,32 @@ func (item *VectorStatshouseMapping) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMapping) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMapping) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMapping)(item)
-	if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMapping) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMapping) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMapping) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMapping) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMapping)(item)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMapping) MarshalJSON() ([]byte, error) {
@@ -1635,7 +1684,6 @@ func (item *VectorStatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMappingBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMappingBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1652,7 +1700,6 @@ func (item *VectorStatshouseMappingBytes) ReadBoxed(w []byte) (_ []byte, err err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMappingBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1665,27 +1712,32 @@ func (item *VectorStatshouseMappingBytes) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMappingBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMappingBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMappingBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	if err := BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMappingBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMappingBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMappingBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMappingBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMappingBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMappingBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	w = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMappingBytes) MarshalJSON() ([]byte, error) {
@@ -1714,7 +1766,6 @@ func (item *VectorStatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMetricRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMetric) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1731,7 +1782,6 @@ func (item *VectorStatshouseMetric) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMetric) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1744,27 +1794,32 @@ func (item *VectorStatshouseMetric) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMetric) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMetric) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMetric)(item)
-	if err := BuiltinVectorStatshouseMetricReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMetricReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMetric) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMetric) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMetric) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMetric) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMetric) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMetric)(item)
-	w = BuiltinVectorStatshouseMetricWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMetricWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMetric) MarshalJSON() ([]byte, error) {
@@ -1793,7 +1848,6 @@ func (item *VectorStatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMetricBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMetricBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1810,7 +1864,6 @@ func (item *VectorStatshouseMetricBytes) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMetricBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1823,27 +1876,32 @@ func (item *VectorStatshouseMetricBytes) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMetricBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMetricBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	if err := BuiltinVectorStatshouseMetricBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMetricBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMetricBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMetricBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMetricBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMetricBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMetricBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	w = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMetricBytes) MarshalJSON() ([]byte, error) {
@@ -1872,7 +1930,6 @@ func (item *VectorStatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMultiItemRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMultiItem) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1889,7 +1946,6 @@ func (item *VectorStatshouseMultiItem) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMultiItem) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1902,27 +1958,32 @@ func (item *VectorStatshouseMultiItem) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMultiItem) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMultiItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMultiItem)(item)
-	if err := BuiltinVectorStatshouseMultiItemReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMultiItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMultiItem) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMultiItem) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMultiItem) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMultiItem) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMultiItem)(item)
-	w = BuiltinVectorStatshouseMultiItemWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMultiItemWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMultiItem) MarshalJSON() ([]byte, error) {
@@ -1951,7 +2012,6 @@ func (item *VectorStatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error)
 	return BuiltinVectorStatshouseMultiItemBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseMultiItemBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -1968,7 +2028,6 @@ func (item *VectorStatshouseMultiItemBytes) ReadBoxed(w []byte) (_ []byte, err e
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseMultiItemBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -1981,27 +2040,32 @@ func (item *VectorStatshouseMultiItemBytes) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseMultiItemBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseMultiItemBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	if err := BuiltinVectorStatshouseMultiItemBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseMultiItemBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseMultiItemBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseMultiItemBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseMultiItemBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseMultiItemBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	w = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseMultiItemBytes) MarshalJSON() ([]byte, error) {
@@ -2030,7 +2094,6 @@ func (item *VectorStatshousePromTarget) Read(w []byte, nat_t uint32) (_ []byte, 
 	return BuiltinVectorStatshousePromTargetRead(w, ptr, nat_t)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshousePromTarget) WriteGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.Write(w, nat_t), nil
 }
@@ -2047,7 +2110,6 @@ func (item *VectorStatshousePromTarget) ReadBoxed(w []byte, nat_t uint32) (_ []b
 	return item.Read(w, nat_t)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshousePromTarget) WriteBoxedGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_t), nil
 }
@@ -2057,26 +2119,27 @@ func (item *VectorStatshousePromTarget) WriteBoxed(w []byte, nat_t uint32) []byt
 	return item.Write(w, nat_t)
 }
 
-func (item *VectorStatshousePromTarget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_t uint32) error {
+func (item *VectorStatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
 	ptr := (*[]StatshousePromTarget)(item)
-	if err := BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames, in, ptr, nat_t); err != nil {
+	if err := BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx, in, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshousePromTarget) WriteJSONGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSON(w, nat_t), nil
+func (item *VectorStatshousePromTarget) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
 func (item *VectorStatshousePromTarget) WriteJSON(w []byte, nat_t uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorStatshousePromTarget) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_t uint32) []byte {
+func (item *VectorStatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
 	ptr := (*[]StatshousePromTarget)(item)
-	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames, short, w, *ptr, nat_t)
+	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
 }
 
@@ -2095,7 +2158,6 @@ func (item *VectorStatshousePromTargetBytes) Read(w []byte, nat_t uint32) (_ []b
 	return BuiltinVectorStatshousePromTargetBytesRead(w, ptr, nat_t)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshousePromTargetBytes) WriteGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.Write(w, nat_t), nil
 }
@@ -2112,7 +2174,6 @@ func (item *VectorStatshousePromTargetBytes) ReadBoxed(w []byte, nat_t uint32) (
 	return item.Read(w, nat_t)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshousePromTargetBytes) WriteBoxedGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_t), nil
 }
@@ -2122,26 +2183,27 @@ func (item *VectorStatshousePromTargetBytes) WriteBoxed(w []byte, nat_t uint32) 
 	return item.Write(w, nat_t)
 }
 
-func (item *VectorStatshousePromTargetBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_t uint32) error {
+func (item *VectorStatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	if err := BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames, in, ptr, nat_t); err != nil {
+	if err := BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx, in, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshousePromTargetBytes) WriteJSONGeneral(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSON(w, nat_t), nil
+func (item *VectorStatshousePromTargetBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
 func (item *VectorStatshousePromTargetBytes) WriteJSON(w []byte, nat_t uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_t)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorStatshousePromTargetBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_t uint32) []byte {
+func (item *VectorStatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames, short, w, *ptr, nat_t)
+	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
 }
 
@@ -2160,7 +2222,6 @@ func (item *VectorStatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseSampleFactorRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseSampleFactor) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2177,7 +2238,6 @@ func (item *VectorStatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseSampleFactor) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2190,27 +2250,32 @@ func (item *VectorStatshouseSampleFactor) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseSampleFactor) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	if err := BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseSampleFactor) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseSampleFactor) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseSampleFactor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseSampleFactor) MarshalJSON() ([]byte, error) {
@@ -2239,7 +2304,6 @@ func (item *VectorStatshouseTopElement) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseTopElementRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseTopElement) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2256,7 +2320,6 @@ func (item *VectorStatshouseTopElement) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseTopElement) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2269,27 +2332,32 @@ func (item *VectorStatshouseTopElement) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseTopElement) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseTopElement) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseTopElement)(item)
-	if err := BuiltinVectorStatshouseTopElementReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseTopElementReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseTopElement) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseTopElement) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseTopElement) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseTopElement) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseTopElement) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseTopElement)(item)
-	w = BuiltinVectorStatshouseTopElementWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseTopElementWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseTopElement) MarshalJSON() ([]byte, error) {
@@ -2318,7 +2386,6 @@ func (item *VectorStatshouseTopElementBytes) Read(w []byte) (_ []byte, err error
 	return BuiltinVectorStatshouseTopElementBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStatshouseTopElementBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2335,7 +2402,6 @@ func (item *VectorStatshouseTopElementBytes) ReadBoxed(w []byte) (_ []byte, err 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStatshouseTopElementBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2348,27 +2414,32 @@ func (item *VectorStatshouseTopElementBytes) WriteBoxed(w []byte) []byte {
 func (item VectorStatshouseTopElementBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStatshouseTopElementBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	if err := BuiltinVectorStatshouseTopElementBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStatshouseTopElementBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseTopElementBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStatshouseTopElementBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStatshouseTopElementBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStatshouseTopElementBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStatshouseTopElementBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	w = BuiltinVectorStatshouseTopElementBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStatshouseTopElementBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStatshouseTopElementBytes) MarshalJSON() ([]byte, error) {
@@ -2397,7 +2468,6 @@ func (item *VectorString) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorString) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2414,7 +2484,6 @@ func (item *VectorString) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorString) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2427,27 +2496,32 @@ func (item *VectorString) WriteBoxed(w []byte) []byte {
 func (item VectorString) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorString) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]string)(item)
-	if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStringReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorString) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorString) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorString) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorString) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]string)(item)
-	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStringWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorString) MarshalJSON() ([]byte, error) {
@@ -2476,7 +2550,6 @@ func (item *VectorStringBytes) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringBytesRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorStringBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2493,7 +2566,6 @@ func (item *VectorStringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorStringBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2506,27 +2578,32 @@ func (item *VectorStringBytes) WriteBoxed(w []byte) []byte {
 func (item VectorStringBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorStringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[][]byte)(item)
-	if err := BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStringBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorStringBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorStringBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorStringBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorStringBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[][]byte)(item)
-	w = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorStringBytes) MarshalJSON() ([]byte, error) {
@@ -2555,7 +2632,6 @@ func (item *VectorTupleDouble2) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorTupleDouble2Read(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorTupleDouble2) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2572,7 +2648,6 @@ func (item *VectorTupleDouble2) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorTupleDouble2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2585,27 +2660,32 @@ func (item *VectorTupleDouble2) WriteBoxed(w []byte) []byte {
 func (item VectorTupleDouble2) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorTupleDouble2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorTupleDouble2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[][2]float64)(item)
-	if err := BuiltinVectorTupleDouble2ReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorTupleDouble2ReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorTupleDouble2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorTupleDouble2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorTupleDouble2) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorTupleDouble2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorTupleDouble2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[][2]float64)(item)
-	w = BuiltinVectorTupleDouble2WriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorTupleDouble2WriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorTupleDouble2) MarshalJSON() ([]byte, error) {
@@ -2634,7 +2714,6 @@ func (item *VectorVectorDouble) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorVectorDoubleRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *VectorVectorDouble) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -2651,7 +2730,6 @@ func (item *VectorVectorDouble) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *VectorVectorDouble) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -2664,27 +2742,32 @@ func (item *VectorVectorDouble) WriteBoxed(w []byte) []byte {
 func (item VectorVectorDouble) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *VectorVectorDouble) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorVectorDouble) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[][]float64)(item)
-	if err := BuiltinVectorVectorDoubleReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinVectorVectorDoubleReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorVectorDouble) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorVectorDouble) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorVectorDouble) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorVectorDouble) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorVectorDouble) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[][]float64)(item)
-	w = BuiltinVectorVectorDoubleWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = BuiltinVectorVectorDoubleWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorVectorDouble) MarshalJSON() ([]byte, error) {

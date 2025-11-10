@@ -47,7 +47,7 @@ func (item *StatshouseMultiValue) ClearCounter(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 0
 	}
 }
-func (item StatshouseMultiValue) IsSetCounter(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetCounter(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<0) != 0
 }
 
@@ -60,7 +60,7 @@ func (item *StatshouseMultiValue) SetCounterEq1(v bool, nat_fields_mask *uint32)
 		}
 	}
 }
-func (item StatshouseMultiValue) IsSetCounterEq1(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetCounterEq1(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<1) != 0
 }
 
@@ -73,7 +73,7 @@ func (item *StatshouseMultiValue) SetValueSet(v bool, nat_fields_mask *uint32) {
 		}
 	}
 }
-func (item StatshouseMultiValue) IsSetValueSet(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetValueSet(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<2) != 0
 }
 
@@ -89,7 +89,7 @@ func (item *StatshouseMultiValue) ClearValueMin(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 3
 	}
 }
-func (item StatshouseMultiValue) IsSetValueMin(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetValueMin(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<3) != 0
 }
 
@@ -105,7 +105,7 @@ func (item *StatshouseMultiValue) ClearValueMax(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValue) IsSetValueMax(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetValueMax(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -121,7 +121,7 @@ func (item *StatshouseMultiValue) ClearValueSum(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValue) IsSetValueSum(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetValueSum(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -137,7 +137,7 @@ func (item *StatshouseMultiValue) ClearValueSumSquare(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValue) IsSetValueSumSquare(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetValueSumSquare(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -153,7 +153,7 @@ func (item *StatshouseMultiValue) ClearUniques(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 5
 	}
 }
-func (item StatshouseMultiValue) IsSetUniques(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetUniques(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<5) != 0
 }
 
@@ -169,7 +169,7 @@ func (item *StatshouseMultiValue) ClearCentroids(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 6
 	}
 }
-func (item StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
 }
 
@@ -182,7 +182,7 @@ func (item *StatshouseMultiValue) SetImplicitCentroid(v bool, nat_fields_mask *u
 		}
 	}
 }
-func (item StatshouseMultiValue) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<18) != 0
 }
 
@@ -198,7 +198,7 @@ func (item *StatshouseMultiValue) ClearMaxHostTag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item StatshouseMultiValue) IsSetMaxHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMaxHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
 }
 
@@ -214,7 +214,7 @@ func (item *StatshouseMultiValue) ClearMinHostTag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 8
 	}
 }
-func (item StatshouseMultiValue) IsSetMinHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMinHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<8) != 0
 }
 
@@ -230,7 +230,7 @@ func (item *StatshouseMultiValue) ClearMaxCounterHostTag(nat_fields_mask *uint32
 		*nat_fields_mask &^= 1 << 9
 	}
 }
-func (item StatshouseMultiValue) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<9) != 0
 }
 
@@ -246,7 +246,7 @@ func (item *StatshouseMultiValue) ClearMaxHostStag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 14
 	}
 }
-func (item StatshouseMultiValue) IsSetMaxHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMaxHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<14) != 0
 }
 
@@ -262,7 +262,7 @@ func (item *StatshouseMultiValue) ClearMinHostStag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 15
 	}
 }
-func (item StatshouseMultiValue) IsSetMinHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMinHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<15) != 0
 }
 
@@ -278,7 +278,7 @@ func (item *StatshouseMultiValue) ClearMaxCounterHostStag(nat_fields_mask *uint3
 		*nat_fields_mask &^= 1 << 16
 	}
 }
-func (item StatshouseMultiValue) IsSetMaxCounterHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValue) IsSetMaxCounterHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<16) != 0
 }
 
@@ -393,7 +393,6 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMultiValue) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_fields_mask), nil
 }
@@ -448,7 +447,6 @@ func (item *StatshouseMultiValue) ReadBoxed(w []byte, nat_fields_mask uint32) (_
 	return item.Read(w, nat_fields_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMultiValue) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_fields_mask), nil
 }
@@ -458,7 +456,7 @@ func (item *StatshouseMultiValue) WriteBoxed(w []byte, nat_fields_mask uint32) [
 	return item.Write(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propCounterPresented bool
 	var propValueMinPresented bool
 	var propValueMaxPresented bool
@@ -559,7 +557,7 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if nat_fields_mask&(1<<6) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
@@ -684,14 +682,15 @@ func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMultiValue) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+func (item *StatshouseMultiValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseMultiValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -726,7 +725,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames, short, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -795,7 +794,7 @@ func (item *StatshouseMultiValueBytes) ClearCounter(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 0
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetCounter(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetCounter(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<0) != 0
 }
 
@@ -808,7 +807,7 @@ func (item *StatshouseMultiValueBytes) SetCounterEq1(v bool, nat_fields_mask *ui
 		}
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetCounterEq1(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetCounterEq1(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<1) != 0
 }
 
@@ -821,7 +820,7 @@ func (item *StatshouseMultiValueBytes) SetValueSet(v bool, nat_fields_mask *uint
 		}
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetValueSet(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetValueSet(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<2) != 0
 }
 
@@ -837,7 +836,7 @@ func (item *StatshouseMultiValueBytes) ClearValueMin(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 3
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetValueMin(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetValueMin(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<3) != 0
 }
 
@@ -853,7 +852,7 @@ func (item *StatshouseMultiValueBytes) ClearValueMax(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetValueMax(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetValueMax(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -869,7 +868,7 @@ func (item *StatshouseMultiValueBytes) ClearValueSum(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetValueSum(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetValueSum(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -885,7 +884,7 @@ func (item *StatshouseMultiValueBytes) ClearValueSumSquare(nat_fields_mask *uint
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetValueSumSquare(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetValueSumSquare(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -901,7 +900,7 @@ func (item *StatshouseMultiValueBytes) ClearUniques(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 5
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetUniques(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetUniques(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<5) != 0
 }
 
@@ -917,7 +916,7 @@ func (item *StatshouseMultiValueBytes) ClearCentroids(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 6
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
 }
 
@@ -930,7 +929,7 @@ func (item *StatshouseMultiValueBytes) SetImplicitCentroid(v bool, nat_fields_ma
 		}
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetImplicitCentroid(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<18) != 0
 }
 
@@ -946,7 +945,7 @@ func (item *StatshouseMultiValueBytes) ClearMaxHostTag(nat_fields_mask *uint32) 
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMaxHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMaxHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
 }
 
@@ -962,7 +961,7 @@ func (item *StatshouseMultiValueBytes) ClearMinHostTag(nat_fields_mask *uint32) 
 		*nat_fields_mask &^= 1 << 8
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMinHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMinHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<8) != 0
 }
 
@@ -978,7 +977,7 @@ func (item *StatshouseMultiValueBytes) ClearMaxCounterHostTag(nat_fields_mask *u
 		*nat_fields_mask &^= 1 << 9
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<9) != 0
 }
 
@@ -994,7 +993,7 @@ func (item *StatshouseMultiValueBytes) ClearMaxHostStag(nat_fields_mask *uint32)
 		*nat_fields_mask &^= 1 << 14
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMaxHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMaxHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<14) != 0
 }
 
@@ -1010,7 +1009,7 @@ func (item *StatshouseMultiValueBytes) ClearMinHostStag(nat_fields_mask *uint32)
 		*nat_fields_mask &^= 1 << 15
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMinHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMinHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<15) != 0
 }
 
@@ -1026,7 +1025,7 @@ func (item *StatshouseMultiValueBytes) ClearMaxCounterHostStag(nat_fields_mask *
 		*nat_fields_mask &^= 1 << 16
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetMaxCounterHostStag(nat_fields_mask uint32) bool {
+func (item *StatshouseMultiValueBytes) IsSetMaxCounterHostStag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<16) != 0
 }
 
@@ -1141,7 +1140,6 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseMultiValueBytes) WriteGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_fields_mask), nil
 }
@@ -1196,7 +1194,6 @@ func (item *StatshouseMultiValueBytes) ReadBoxed(w []byte, nat_fields_mask uint3
 	return item.Read(w, nat_fields_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseMultiValueBytes) WriteBoxedGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_fields_mask), nil
 }
@@ -1206,7 +1203,7 @@ func (item *StatshouseMultiValueBytes) WriteBoxed(w []byte, nat_fields_mask uint
 	return item.Write(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propCounterPresented bool
 	var propValueMinPresented bool
 	var propValueMaxPresented bool
@@ -1307,7 +1304,7 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if nat_fields_mask&(1<<6) == 0 {
 					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
-				if err := BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
@@ -1432,14 +1429,15 @@ func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMultiValueBytes) WriteJSONGeneral(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask), nil
+func (item *StatshouseMultiValueBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1474,7 +1472,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames, short, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFuncti
 	return w
 }
 
-func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
+func BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basict
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames bool, in *basict
 }
 
 func BuiltinVectorStatshouseApiFunctionWriteJSON(w []byte, vec []StatshouseApiFunction) []byte {
-	return BuiltinVectorStatshouseApiFunctionWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseApiFunctionWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiFunction) []byte {
+func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiFunction) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -213,110 +214,110 @@ func (item StatshouseApiFunction) TLTag() uint32  { return _StatshouseApiFunctio
 
 func (item *StatshouseApiFunction) Reset() { item.index = 0 }
 
-func (item *StatshouseApiFunction) IsFnCount() bool { return item.index == 0 }
-func (item *StatshouseApiFunction) SetFnCount()     { item.index = 0 }
+func (item StatshouseApiFunction) IsFnCount() bool { return item.index == 0 }
+func (item *StatshouseApiFunction) SetFnCount()    { item.index = 0 }
 
-func (item *StatshouseApiFunction) IsFnCountNorm() bool { return item.index == 1 }
-func (item *StatshouseApiFunction) SetFnCountNorm()     { item.index = 1 }
+func (item StatshouseApiFunction) IsFnCountNorm() bool { return item.index == 1 }
+func (item *StatshouseApiFunction) SetFnCountNorm()    { item.index = 1 }
 
-func (item *StatshouseApiFunction) IsFnCumulCount() bool { return item.index == 2 }
-func (item *StatshouseApiFunction) SetFnCumulCount()     { item.index = 2 }
+func (item StatshouseApiFunction) IsFnCumulCount() bool { return item.index == 2 }
+func (item *StatshouseApiFunction) SetFnCumulCount()    { item.index = 2 }
 
-func (item *StatshouseApiFunction) IsFnMin() bool { return item.index == 3 }
-func (item *StatshouseApiFunction) SetFnMin()     { item.index = 3 }
+func (item StatshouseApiFunction) IsFnMin() bool { return item.index == 3 }
+func (item *StatshouseApiFunction) SetFnMin()    { item.index = 3 }
 
-func (item *StatshouseApiFunction) IsFnMax() bool { return item.index == 4 }
-func (item *StatshouseApiFunction) SetFnMax()     { item.index = 4 }
+func (item StatshouseApiFunction) IsFnMax() bool { return item.index == 4 }
+func (item *StatshouseApiFunction) SetFnMax()    { item.index = 4 }
 
-func (item *StatshouseApiFunction) IsFnAvg() bool { return item.index == 5 }
-func (item *StatshouseApiFunction) SetFnAvg()     { item.index = 5 }
+func (item StatshouseApiFunction) IsFnAvg() bool { return item.index == 5 }
+func (item *StatshouseApiFunction) SetFnAvg()    { item.index = 5 }
 
-func (item *StatshouseApiFunction) IsFnCumulAvg() bool { return item.index == 6 }
-func (item *StatshouseApiFunction) SetFnCumulAvg()     { item.index = 6 }
+func (item StatshouseApiFunction) IsFnCumulAvg() bool { return item.index == 6 }
+func (item *StatshouseApiFunction) SetFnCumulAvg()    { item.index = 6 }
 
-func (item *StatshouseApiFunction) IsFnSum() bool { return item.index == 7 }
-func (item *StatshouseApiFunction) SetFnSum()     { item.index = 7 }
+func (item StatshouseApiFunction) IsFnSum() bool { return item.index == 7 }
+func (item *StatshouseApiFunction) SetFnSum()    { item.index = 7 }
 
-func (item *StatshouseApiFunction) IsFnSumNorm() bool { return item.index == 8 }
-func (item *StatshouseApiFunction) SetFnSumNorm()     { item.index = 8 }
+func (item StatshouseApiFunction) IsFnSumNorm() bool { return item.index == 8 }
+func (item *StatshouseApiFunction) SetFnSumNorm()    { item.index = 8 }
 
-func (item *StatshouseApiFunction) IsFnCumulSum() bool { return item.index == 9 }
-func (item *StatshouseApiFunction) SetFnCumulSum()     { item.index = 9 }
+func (item StatshouseApiFunction) IsFnCumulSum() bool { return item.index == 9 }
+func (item *StatshouseApiFunction) SetFnCumulSum()    { item.index = 9 }
 
-func (item *StatshouseApiFunction) IsFnStddev() bool { return item.index == 10 }
-func (item *StatshouseApiFunction) SetFnStddev()     { item.index = 10 }
+func (item StatshouseApiFunction) IsFnStddev() bool { return item.index == 10 }
+func (item *StatshouseApiFunction) SetFnStddev()    { item.index = 10 }
 
-func (item *StatshouseApiFunction) IsFnP01() bool { return item.index == 11 }
-func (item *StatshouseApiFunction) SetFnP01()     { item.index = 11 }
+func (item StatshouseApiFunction) IsFnP01() bool { return item.index == 11 }
+func (item *StatshouseApiFunction) SetFnP01()    { item.index = 11 }
 
-func (item *StatshouseApiFunction) IsFnP1() bool { return item.index == 12 }
-func (item *StatshouseApiFunction) SetFnP1()     { item.index = 12 }
+func (item StatshouseApiFunction) IsFnP1() bool { return item.index == 12 }
+func (item *StatshouseApiFunction) SetFnP1()    { item.index = 12 }
 
-func (item *StatshouseApiFunction) IsFnP5() bool { return item.index == 13 }
-func (item *StatshouseApiFunction) SetFnP5()     { item.index = 13 }
+func (item StatshouseApiFunction) IsFnP5() bool { return item.index == 13 }
+func (item *StatshouseApiFunction) SetFnP5()    { item.index = 13 }
 
-func (item *StatshouseApiFunction) IsFnP10() bool { return item.index == 14 }
-func (item *StatshouseApiFunction) SetFnP10()     { item.index = 14 }
+func (item StatshouseApiFunction) IsFnP10() bool { return item.index == 14 }
+func (item *StatshouseApiFunction) SetFnP10()    { item.index = 14 }
 
-func (item *StatshouseApiFunction) IsFnP25() bool { return item.index == 15 }
-func (item *StatshouseApiFunction) SetFnP25()     { item.index = 15 }
+func (item StatshouseApiFunction) IsFnP25() bool { return item.index == 15 }
+func (item *StatshouseApiFunction) SetFnP25()    { item.index = 15 }
 
-func (item *StatshouseApiFunction) IsFnP50() bool { return item.index == 16 }
-func (item *StatshouseApiFunction) SetFnP50()     { item.index = 16 }
+func (item StatshouseApiFunction) IsFnP50() bool { return item.index == 16 }
+func (item *StatshouseApiFunction) SetFnP50()    { item.index = 16 }
 
-func (item *StatshouseApiFunction) IsFnP75() bool { return item.index == 17 }
-func (item *StatshouseApiFunction) SetFnP75()     { item.index = 17 }
+func (item StatshouseApiFunction) IsFnP75() bool { return item.index == 17 }
+func (item *StatshouseApiFunction) SetFnP75()    { item.index = 17 }
 
-func (item *StatshouseApiFunction) IsFnP90() bool { return item.index == 18 }
-func (item *StatshouseApiFunction) SetFnP90()     { item.index = 18 }
+func (item StatshouseApiFunction) IsFnP90() bool { return item.index == 18 }
+func (item *StatshouseApiFunction) SetFnP90()    { item.index = 18 }
 
-func (item *StatshouseApiFunction) IsFnP95() bool { return item.index == 19 }
-func (item *StatshouseApiFunction) SetFnP95()     { item.index = 19 }
+func (item StatshouseApiFunction) IsFnP95() bool { return item.index == 19 }
+func (item *StatshouseApiFunction) SetFnP95()    { item.index = 19 }
 
-func (item *StatshouseApiFunction) IsFnP99() bool { return item.index == 20 }
-func (item *StatshouseApiFunction) SetFnP99()     { item.index = 20 }
+func (item StatshouseApiFunction) IsFnP99() bool { return item.index == 20 }
+func (item *StatshouseApiFunction) SetFnP99()    { item.index = 20 }
 
-func (item *StatshouseApiFunction) IsFnP999() bool { return item.index == 21 }
-func (item *StatshouseApiFunction) SetFnP999()     { item.index = 21 }
+func (item StatshouseApiFunction) IsFnP999() bool { return item.index == 21 }
+func (item *StatshouseApiFunction) SetFnP999()    { item.index = 21 }
 
-func (item *StatshouseApiFunction) IsFnUnique() bool { return item.index == 22 }
-func (item *StatshouseApiFunction) SetFnUnique()     { item.index = 22 }
+func (item StatshouseApiFunction) IsFnUnique() bool { return item.index == 22 }
+func (item *StatshouseApiFunction) SetFnUnique()    { item.index = 22 }
 
-func (item *StatshouseApiFunction) IsFnUniqueNorm() bool { return item.index == 23 }
-func (item *StatshouseApiFunction) SetFnUniqueNorm()     { item.index = 23 }
+func (item StatshouseApiFunction) IsFnUniqueNorm() bool { return item.index == 23 }
+func (item *StatshouseApiFunction) SetFnUniqueNorm()    { item.index = 23 }
 
-func (item *StatshouseApiFunction) IsFnMaxHost() bool { return item.index == 24 }
-func (item *StatshouseApiFunction) SetFnMaxHost()     { item.index = 24 }
+func (item StatshouseApiFunction) IsFnMaxHost() bool { return item.index == 24 }
+func (item *StatshouseApiFunction) SetFnMaxHost()    { item.index = 24 }
 
-func (item *StatshouseApiFunction) IsFnMaxCountHost() bool { return item.index == 25 }
-func (item *StatshouseApiFunction) SetFnMaxCountHost()     { item.index = 25 }
+func (item StatshouseApiFunction) IsFnMaxCountHost() bool { return item.index == 25 }
+func (item *StatshouseApiFunction) SetFnMaxCountHost()    { item.index = 25 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeMin() bool { return item.index == 26 }
-func (item *StatshouseApiFunction) SetFnDerivativeMin()     { item.index = 26 }
+func (item StatshouseApiFunction) IsFnDerivativeMin() bool { return item.index == 26 }
+func (item *StatshouseApiFunction) SetFnDerivativeMin()    { item.index = 26 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeMax() bool { return item.index == 27 }
-func (item *StatshouseApiFunction) SetFnDerivativeMax()     { item.index = 27 }
+func (item StatshouseApiFunction) IsFnDerivativeMax() bool { return item.index == 27 }
+func (item *StatshouseApiFunction) SetFnDerivativeMax()    { item.index = 27 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeAvg() bool { return item.index == 28 }
-func (item *StatshouseApiFunction) SetFnDerivativeAvg()     { item.index = 28 }
+func (item StatshouseApiFunction) IsFnDerivativeAvg() bool { return item.index == 28 }
+func (item *StatshouseApiFunction) SetFnDerivativeAvg()    { item.index = 28 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeCount() bool { return item.index == 29 }
-func (item *StatshouseApiFunction) SetFnDerivativeCount()     { item.index = 29 }
+func (item StatshouseApiFunction) IsFnDerivativeCount() bool { return item.index == 29 }
+func (item *StatshouseApiFunction) SetFnDerivativeCount()    { item.index = 29 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeCountNorm() bool { return item.index == 30 }
-func (item *StatshouseApiFunction) SetFnDerivativeCountNorm()     { item.index = 30 }
+func (item StatshouseApiFunction) IsFnDerivativeCountNorm() bool { return item.index == 30 }
+func (item *StatshouseApiFunction) SetFnDerivativeCountNorm()    { item.index = 30 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeSum() bool { return item.index == 31 }
-func (item *StatshouseApiFunction) SetFnDerivativeSum()     { item.index = 31 }
+func (item StatshouseApiFunction) IsFnDerivativeSum() bool { return item.index == 31 }
+func (item *StatshouseApiFunction) SetFnDerivativeSum()    { item.index = 31 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeSumNorm() bool { return item.index == 32 }
-func (item *StatshouseApiFunction) SetFnDerivativeSumNorm()     { item.index = 32 }
+func (item StatshouseApiFunction) IsFnDerivativeSumNorm() bool { return item.index == 32 }
+func (item *StatshouseApiFunction) SetFnDerivativeSumNorm()    { item.index = 32 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeUnique() bool { return item.index == 33 }
-func (item *StatshouseApiFunction) SetFnDerivativeUnique()     { item.index = 33 }
+func (item StatshouseApiFunction) IsFnDerivativeUnique() bool { return item.index == 33 }
+func (item *StatshouseApiFunction) SetFnDerivativeUnique()    { item.index = 33 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeUniqueNorm() bool { return item.index == 34 }
-func (item *StatshouseApiFunction) SetFnDerivativeUniqueNorm()     { item.index = 34 }
+func (item StatshouseApiFunction) IsFnDerivativeUniqueNorm() bool { return item.index == 34 }
+func (item *StatshouseApiFunction) SetFnDerivativeUniqueNorm()    { item.index = 34 }
 
 func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
@@ -434,228 +435,337 @@ func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiFunction) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
 
-func (item StatshouseApiFunction) WriteBoxed(w []byte) []byte {
+func (item *StatshouseApiFunction) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, _StatshouseApiFunction[item.index].TLTag)
 	return w
 }
 
 func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiFunction) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_jtype := in.UnsafeString()
 	if !in.Ok() {
 		return ErrorInvalidJSON("statshouseApi.Function", "expected string")
 	}
 	switch _jtype {
 	case "statshouseApi.fnCount#89689775", "statshouseApi.fnCount", "#89689775":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnCount#89689775" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnCount" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnCount#89689775" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCount#89689775")
 		}
 		item.index = 0
 		return nil
 	case "statshouseApi.fnCountNorm#60e68b5c", "statshouseApi.fnCountNorm", "#60e68b5c":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnCountNorm#60e68b5c" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnCountNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnCountNorm#60e68b5c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCountNorm#60e68b5c")
 		}
 		item.index = 1
 		return nil
 	case "statshouseApi.fnCumulCount#871201c4", "statshouseApi.fnCumulCount", "#871201c4":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulCount#871201c4" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnCumulCount" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnCumulCount#871201c4" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulCount#871201c4")
 		}
 		item.index = 2
 		return nil
 	case "statshouseApi.fnMin#b4cb2644", "statshouseApi.fnMin", "#b4cb2644":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnMin#b4cb2644" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnMin" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnMin#b4cb2644" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMin#b4cb2644")
 		}
 		item.index = 3
 		return nil
 	case "statshouseApi.fnMax#f90de384", "statshouseApi.fnMax", "#f90de384":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnMax#f90de384" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnMax" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnMax#f90de384" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMax#f90de384")
 		}
 		item.index = 4
 		return nil
 	case "statshouseApi.fnAvg#6323c2f6", "statshouseApi.fnAvg", "#6323c2f6":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnAvg#6323c2f6" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnAvg" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnAvg#6323c2f6" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnAvg#6323c2f6")
 		}
 		item.index = 5
 		return nil
 	case "statshouseApi.fnCumulAvg#f4d9ad09", "statshouseApi.fnCumulAvg", "#f4d9ad09":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulAvg#f4d9ad09" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnCumulAvg" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnCumulAvg#f4d9ad09" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulAvg#f4d9ad09")
 		}
 		item.index = 6
 		return nil
 	case "statshouseApi.fnSum#80ce3cf1", "statshouseApi.fnSum", "#80ce3cf1":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnSum#80ce3cf1" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnSum" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnSum#80ce3cf1" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnSum#80ce3cf1")
 		}
 		item.index = 7
 		return nil
 	case "statshouseApi.fnSumNorm#361963d5", "statshouseApi.fnSumNorm", "#361963d5":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnSumNorm#361963d5" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnSumNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnSumNorm#361963d5" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnSumNorm#361963d5")
 		}
 		item.index = 8
 		return nil
 	case "statshouseApi.fnCumulSum#42fc39b6", "statshouseApi.fnCumulSum", "#42fc39b6":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnCumulSum#42fc39b6" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnCumulSum" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnCumulSum#42fc39b6" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnCumulSum#42fc39b6")
 		}
 		item.index = 9
 		return nil
 	case "statshouseApi.fnStddev#2043e480", "statshouseApi.fnStddev", "#2043e480":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnStddev#2043e480" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnStddev" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnStddev#2043e480" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnStddev#2043e480")
 		}
 		item.index = 10
 		return nil
 	case "statshouseApi.fnP01#381b1cee", "statshouseApi.fnP01", "#381b1cee":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP01#381b1cee" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP01" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP01#381b1cee" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP01#381b1cee")
 		}
 		item.index = 11
 		return nil
 	case "statshouseApi.fnP1#bbb36a23", "statshouseApi.fnP1", "#bbb36a23":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP1#bbb36a23" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP1" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP1#bbb36a23" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP1#bbb36a23")
 		}
 		item.index = 12
 		return nil
 	case "statshouseApi.fnP5#bcdeae3a", "statshouseApi.fnP5", "#bcdeae3a":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP5#bcdeae3a" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP5" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP5#bcdeae3a" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP5#bcdeae3a")
 		}
 		item.index = 13
 		return nil
 	case "statshouseApi.fnP10#56071d39", "statshouseApi.fnP10", "#56071d39":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP10#56071d39" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP10" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP10#56071d39" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP10#56071d39")
 		}
 		item.index = 14
 		return nil
 	case "statshouseApi.fnP25#cf9ad7bf", "statshouseApi.fnP25", "#cf9ad7bf":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP25#cf9ad7bf" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP25" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP25#cf9ad7bf" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP25#cf9ad7bf")
 		}
 		item.index = 15
 		return nil
 	case "statshouseApi.fnP50#77c5de5c", "statshouseApi.fnP50", "#77c5de5c":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP50#77c5de5c" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP50" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP50#77c5de5c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP50#77c5de5c")
 		}
 		item.index = 16
 		return nil
 	case "statshouseApi.fnP75#0e674272", "statshouseApi.fnP75", "#0e674272":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP75#0e674272" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP75" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP75#0e674272" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP75#0e674272")
 		}
 		item.index = 17
 		return nil
 	case "statshouseApi.fnP90#d4c8c793", "statshouseApi.fnP90", "#d4c8c793":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP90#d4c8c793" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP90" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP90#d4c8c793" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP90#d4c8c793")
 		}
 		item.index = 18
 		return nil
 	case "statshouseApi.fnP95#9a92b76f", "statshouseApi.fnP95", "#9a92b76f":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP95#9a92b76f" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP95" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP95#9a92b76f" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP95#9a92b76f")
 		}
 		item.index = 19
 		return nil
 	case "statshouseApi.fnP99#71992e9a", "statshouseApi.fnP99", "#71992e9a":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP99#71992e9a" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP99" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP99#71992e9a" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP99#71992e9a")
 		}
 		item.index = 20
 		return nil
 	case "statshouseApi.fnP999#a3434c26", "statshouseApi.fnP999", "#a3434c26":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnP999#a3434c26" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnP999" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnP999#a3434c26" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnP999#a3434c26")
 		}
 		item.index = 21
 		return nil
 	case "statshouseApi.fnUnique#f20fb854", "statshouseApi.fnUnique", "#f20fb854":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnUnique#f20fb854" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnUnique" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnUnique#f20fb854" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnUnique#f20fb854")
 		}
 		item.index = 22
 		return nil
 	case "statshouseApi.fnUniqueNorm#9ceb6f68", "statshouseApi.fnUniqueNorm", "#9ceb6f68":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnUniqueNorm#9ceb6f68" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnUniqueNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnUniqueNorm#9ceb6f68" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnUniqueNorm#9ceb6f68")
 		}
 		item.index = 23
 		return nil
 	case "statshouseApi.fnMaxHost#b4790064", "statshouseApi.fnMaxHost", "#b4790064":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnMaxHost#b4790064" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnMaxHost" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnMaxHost#b4790064" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMaxHost#b4790064")
 		}
 		item.index = 24
 		return nil
 	case "statshouseApi.fnMaxCountHost#885e665b", "statshouseApi.fnMaxCountHost", "#885e665b":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnMaxCountHost#885e665b" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnMaxCountHost" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnMaxCountHost#885e665b" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnMaxCountHost#885e665b")
 		}
 		item.index = 25
 		return nil
 	case "statshouseApi.fnDerivativeMin#4817df2b", "statshouseApi.fnDerivativeMin", "#4817df2b":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeMin#4817df2b" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeMin" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeMin#4817df2b" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeMin#4817df2b")
 		}
 		item.index = 26
 		return nil
 	case "statshouseApi.fnDerivativeMax#43eeb810", "statshouseApi.fnDerivativeMax", "#43eeb810":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeMax#43eeb810" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeMax" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeMax#43eeb810" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeMax#43eeb810")
 		}
 		item.index = 27
 		return nil
 	case "statshouseApi.fnDerivativeAvg#60d2b603", "statshouseApi.fnDerivativeAvg", "#60d2b603":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeAvg#60d2b603" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeAvg" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeAvg#60d2b603" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeAvg#60d2b603")
 		}
 		item.index = 28
 		return nil
 	case "statshouseApi.fnDerivativeCount#e617771c", "statshouseApi.fnDerivativeCount", "#e617771c":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeCount#e617771c" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeCount" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeCount#e617771c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeCount#e617771c")
 		}
 		item.index = 29
 		return nil
 	case "statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "statshouseApi.fnDerivativeCountNorm", "#bfb5f7fc":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeCountNorm#bfb5f7fc" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeCountNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeCountNorm#bfb5f7fc" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeCountNorm#bfb5f7fc")
 		}
 		item.index = 30
 		return nil
 	case "statshouseApi.fnDerivativeSum#a3a43781", "statshouseApi.fnDerivativeSum", "#a3a43781":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeSum#a3a43781" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeSum" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeSum#a3a43781" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeSum#a3a43781")
 		}
 		item.index = 31
 		return nil
 	case "statshouseApi.fnDerivativeSumNorm#96683390", "statshouseApi.fnDerivativeSumNorm", "#96683390":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeSumNorm#96683390" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeSumNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeSumNorm#96683390" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeSumNorm#96683390")
 		}
 		item.index = 32
 		return nil
 	case "statshouseApi.fnDerivativeUnique#5745a0a3", "statshouseApi.fnDerivativeUnique", "#5745a0a3":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeUnique#5745a0a3" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeUnique" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeUnique#5745a0a3" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeUnique#5745a0a3")
 		}
 		item.index = 33
 		return nil
 	case "statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "statshouseApi.fnDerivativeUniqueNorm", "#4bd4f327":
-		if !legacyTypeNames && _jtype == "statshouseApi.fnDerivativeUniqueNorm#4bd4f327" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.fnDerivativeUniqueNorm" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.fnDerivativeUniqueNorm#4bd4f327" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Function", "statshouseApi.fnDerivativeUniqueNorm#4bd4f327")
 		}
 		item.index = 34
@@ -666,19 +776,20 @@ func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item StatshouseApiFunction) WriteJSONGeneral(w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item StatshouseApiFunction) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item StatshouseApiFunction) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item StatshouseApiFunction) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item StatshouseApiFunction) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '"')
-	if newTypeNames {
-		w = append(w, _StatshouseApiFunction[item.index].TLName...)
-	} else {
+	if tctx.LegacyTypeNames {
 		w = append(w, _StatshouseApiFunction[item.index].TLString...)
+	} else {
+		w = append(w, _StatshouseApiFunction[item.index].TLName...)
 	}
 	return append(w, '"')
 }

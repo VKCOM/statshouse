@@ -29,7 +29,6 @@ func (item *EngineAlreadyInMasterMode) Reset() {}
 
 func (item *EngineAlreadyInMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineAlreadyInMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -45,7 +44,6 @@ func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineAlreadyInMasterMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -60,6 +58,11 @@ func (item EngineAlreadyInMasterMode) String() string {
 }
 
 func (item *EngineAlreadyInMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineAlreadyInMasterMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -77,14 +80,15 @@ func (item *EngineAlreadyInMasterMode) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineAlreadyInMasterMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineAlreadyInMasterMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineAlreadyInMasterMode) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineAlreadyInMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineAlreadyInMasterMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -116,7 +120,6 @@ func (item *EngineAlreadyInReplicaMode) Reset() {}
 
 func (item *EngineAlreadyInReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineAlreadyInReplicaMode) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -132,7 +135,6 @@ func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineAlreadyInReplicaMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -147,6 +149,11 @@ func (item EngineAlreadyInReplicaMode) String() string {
 }
 
 func (item *EngineAlreadyInReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineAlreadyInReplicaMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -164,14 +171,15 @@ func (item *EngineAlreadyInReplicaMode) ReadJSON(legacyTypeNames bool, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineAlreadyInReplicaMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineAlreadyInReplicaMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineAlreadyInReplicaMode) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -208,7 +216,6 @@ func (item *EngineFailedToSwitchMode) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Error)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineFailedToSwitchMode) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -225,7 +232,6 @@ func (item *EngineFailedToSwitchMode) ReadBoxed(w []byte) (_ []byte, err error) 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineFailedToSwitchMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -240,6 +246,11 @@ func (item EngineFailedToSwitchMode) String() string {
 }
 
 func (item *EngineFailedToSwitchMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineFailedToSwitchMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propErrorPresented bool
 
 	if in != nil {
@@ -276,14 +287,15 @@ func (item *EngineFailedToSwitchMode) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineFailedToSwitchMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineFailedToSwitchMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineFailedToSwitchMode) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineFailedToSwitchMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineFailedToSwitchMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexError := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -439,7 +451,6 @@ func (item *EngineSwitchMasterReplicaModeResult) ReadBoxed(w []byte) (_ []byte, 
 	}
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineSwitchMasterReplicaModeResult) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -464,33 +475,53 @@ func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) []byte {
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_tag, _value, err := Json2ReadUnion("engine.SwitchMasterReplicaModeResult", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "engine.switchedToMasterMode#95b13964", "engine.switchedToMasterMode", "#95b13964":
-		if !legacyTypeNames && _tag == "engine.switchedToMasterMode#95b13964" {
+		if tctx.IsTL2 && _tag != "engine.switchedToMasterMode" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.switchedToMasterMode#95b13964" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterMode#95b13964")
 		}
 		item.index = 0
 	case "engine.switchedToReplicaMode#ad642a0b", "engine.switchedToReplicaMode", "#ad642a0b":
-		if !legacyTypeNames && _tag == "engine.switchedToReplicaMode#ad642a0b" {
+		if tctx.IsTL2 && _tag != "engine.switchedToReplicaMode" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.switchedToReplicaMode#ad642a0b" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToReplicaMode#ad642a0b")
 		}
 		item.index = 1
 	case "engine.alreadyInMasterMode#402409cb", "engine.alreadyInMasterMode", "#402409cb":
-		if !legacyTypeNames && _tag == "engine.alreadyInMasterMode#402409cb" {
+		if tctx.IsTL2 && _tag != "engine.alreadyInMasterMode" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.alreadyInMasterMode#402409cb" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInMasterMode#402409cb")
 		}
 		item.index = 2
 	case "engine.alreadyInReplicaMode#ebd80142", "engine.alreadyInReplicaMode", "#ebd80142":
-		if !legacyTypeNames && _tag == "engine.alreadyInReplicaMode#ebd80142" {
+		if tctx.IsTL2 && _tag != "engine.alreadyInReplicaMode" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.alreadyInReplicaMode#ebd80142" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.alreadyInReplicaMode#ebd80142")
 		}
 		item.index = 3
 	case "engine.switchedToMasterModeForcefully#ec61b4be", "engine.switchedToMasterModeForcefully", "#ec61b4be":
-		if !legacyTypeNames && _tag == "engine.switchedToMasterModeForcefully#ec61b4be" {
+		if tctx.IsTL2 && _tag != "engine.switchedToMasterModeForcefully" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.switchedToMasterModeForcefully#ec61b4be" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.switchedToMasterModeForcefully#ec61b4be")
 		}
 		item.index = 4
@@ -499,11 +530,14 @@ func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, 
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueSwitchedToMasterModeForcefully.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueSwitchedToMasterModeForcefully.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.failedToSwitchMode#17418662", "engine.failedToSwitchMode", "#17418662":
-		if !legacyTypeNames && _tag == "engine.failedToSwitchMode#17418662" {
+		if tctx.IsTL2 && _tag != "engine.failedToSwitchMode" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "engine.failedToSwitchMode#17418662" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.SwitchMasterReplicaModeResult", "engine.failedToSwitchMode#17418662")
 		}
 		item.index = 5
@@ -512,7 +546,7 @@ func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, 
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueFailedToSwitchMode.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueFailedToSwitchMode.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	default:
@@ -522,60 +556,85 @@ func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, 
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSwitchMasterReplicaModeResult) WriteJSONGeneral(w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	switch item.index {
 	case 0:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.switchedToMasterMode"`...)
 		} else {
-			w = append(w, `{"type":"engine.switchedToMasterMode#95b13964"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.switchedToMasterMode#95b13964"`...)
+			} else {
+				w = append(w, `{"type":"engine.switchedToMasterMode"`...)
+			}
 		}
 		return append(w, '}')
 	case 1:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.switchedToReplicaMode"`...)
 		} else {
-			w = append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.switchedToReplicaMode#ad642a0b"`...)
+			} else {
+				w = append(w, `{"type":"engine.switchedToReplicaMode"`...)
+			}
 		}
 		return append(w, '}')
 	case 2:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.alreadyInMasterMode"`...)
 		} else {
-			w = append(w, `{"type":"engine.alreadyInMasterMode#402409cb"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.alreadyInMasterMode#402409cb"`...)
+			} else {
+				w = append(w, `{"type":"engine.alreadyInMasterMode"`...)
+			}
 		}
 		return append(w, '}')
 	case 3:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.alreadyInReplicaMode"`...)
 		} else {
-			w = append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"`...)
+			} else {
+				w = append(w, `{"type":"engine.alreadyInReplicaMode"`...)
+			}
 		}
 		return append(w, '}')
 	case 4:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.switchedToMasterModeForcefully"`...)
 		} else {
-			w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be"`...)
+			} else {
+				w = append(w, `{"type":"engine.switchedToMasterModeForcefully"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 5:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"engine.failedToSwitchMode"`...)
 		} else {
-			w = append(w, `{"type":"engine.failedToSwitchMode#17418662"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"engine.failedToSwitchMode#17418662"`...)
+			} else {
+				w = append(w, `{"type":"engine.failedToSwitchMode"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueFailedToSwitchMode.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueFailedToSwitchMode.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	default: // Impossible due to panic above
 		return w
@@ -613,7 +672,6 @@ func (item *EngineSwitchedToMasterMode) Reset() {}
 
 func (item *EngineSwitchedToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineSwitchedToMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -629,7 +687,6 @@ func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineSwitchedToMasterMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -644,6 +701,11 @@ func (item EngineSwitchedToMasterMode) String() string {
 }
 
 func (item *EngineSwitchedToMasterMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineSwitchedToMasterMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -661,14 +723,15 @@ func (item *EngineSwitchedToMasterMode) ReadJSON(legacyTypeNames bool, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSwitchedToMasterMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineSwitchedToMasterMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineSwitchedToMasterMode) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineSwitchedToMasterMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineSwitchedToMasterMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -707,7 +770,6 @@ func (item *EngineSwitchedToMasterModeForcefully) Read(w []byte) (_ []byte, err 
 	return basictl.LongRead(w, &item.BytesTruncated)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineSwitchedToMasterModeForcefully) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -724,7 +786,6 @@ func (item *EngineSwitchedToMasterModeForcefully) ReadBoxed(w []byte) (_ []byte,
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineSwitchedToMasterModeForcefully) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -739,6 +800,11 @@ func (item EngineSwitchedToMasterModeForcefully) String() string {
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propBytesTruncatedPresented bool
 
 	if in != nil {
@@ -775,14 +841,15 @@ func (item *EngineSwitchedToMasterModeForcefully) ReadJSON(legacyTypeNames bool,
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSwitchedToMasterModeForcefully) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBytesTruncated := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -821,7 +888,6 @@ func (item *EngineSwitchedToReplicaMode) Reset() {}
 
 func (item *EngineSwitchedToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineSwitchedToReplicaMode) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -837,7 +903,6 @@ func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) (_ []byte, err erro
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineSwitchedToReplicaMode) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -852,6 +917,11 @@ func (item EngineSwitchedToReplicaMode) String() string {
 }
 
 func (item *EngineSwitchedToReplicaMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineSwitchedToReplicaMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -869,14 +939,15 @@ func (item *EngineSwitchedToReplicaMode) ReadJSON(legacyTypeNames bool, in *basi
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSwitchedToReplicaMode) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineSwitchedToReplicaMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineSwitchedToReplicaMode) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }

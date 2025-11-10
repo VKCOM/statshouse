@@ -24,9 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeebo/xxh3"
-	"pgregory.net/rand"
-
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -38,6 +35,9 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
+	"github.com/zeebo/xxh3"
+
+	"pgregory.net/rand"
 )
 
 type (
@@ -758,7 +758,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			for _, b := range staleBuckets {
 				b.mu.Lock()
 				for lh := range b.contributors {
-					var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
+					var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
 					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 						hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
 						hctx.SendLongpollResponse(nil)
@@ -842,7 +842,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		for i, b := range aggBuckets {
 			b.mu.Lock()
 			for lh := range b.contributors {
-				var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
+				var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
 				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
 					hctx.SendLongpollResponse(sendErr)

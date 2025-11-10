@@ -138,7 +138,6 @@ func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.N)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseShutdownInfo) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -177,7 +176,6 @@ func (item *StatshouseShutdownInfo) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseShutdownInfo) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -192,6 +190,11 @@ func (item StatshouseShutdownInfo) String() string {
 }
 
 func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseShutdownInfo) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propStartShutdownTimePresented bool
 	var propFinishShutdownTimePresented bool
 	var propStopRecentSendersPresented bool
@@ -492,14 +495,15 @@ func (item *StatshouseShutdownInfo) ReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseShutdownInfo) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseShutdownInfo) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseShutdownInfo) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseShutdownInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseShutdownInfo) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStartShutdownTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

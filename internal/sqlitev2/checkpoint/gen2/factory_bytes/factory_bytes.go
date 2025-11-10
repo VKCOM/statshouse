@@ -31,6 +31,7 @@ func CreateObjectFromNameBytes(name string) meta.Object {
 }
 
 func init() {
+	// TL
 	meta.SetGlobalFactoryCreateForObjectBytes(0xa8509bda, func() meta.Object { var ret internal.Int; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0x9286affa, func() meta.Object { var ret internal.SqliteMetainfoBytes; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0xb5286e24, func() meta.Object { var ret internal.String; return &ret })

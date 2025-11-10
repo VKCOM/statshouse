@@ -38,7 +38,6 @@ func (item *MetadataPutMappingEvent) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorIntRead(w, &item.Value)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataPutMappingEvent) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -57,7 +56,6 @@ func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataPutMappingEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -72,6 +70,11 @@ func (item MetadataPutMappingEvent) String() string {
 }
 
 func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataPutMappingEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propKeysPresented bool
 	var propValuePresented bool
@@ -97,7 +100,7 @@ func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propKeysPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "keys")
 				}
-				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Keys); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Keys); err != nil {
 					return err
 				}
 				propKeysPresented = true
@@ -105,7 +108,7 @@ func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propValuePresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "value")
 				}
-				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Value); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Value); err != nil {
 					return err
 				}
 				propValuePresented = true
@@ -132,14 +135,15 @@ func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataPutMappingEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataPutMappingEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataPutMappingEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataPutMappingEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -151,14 +155,14 @@ func (item *MetadataPutMappingEvent) WriteJSONOpt(newTypeNames bool, short bool,
 	backupIndexKeys := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"keys":`...)
-	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Keys)
+	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.Keys)
 	if (len(item.Keys) != 0) == false {
 		w = w[:backupIndexKeys]
 	}
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"value":`...)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Value)
+	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.Value)
 	if (len(item.Value) != 0) == false {
 		w = w[:backupIndexValue]
 	}

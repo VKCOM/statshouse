@@ -31,7 +31,7 @@ func (item *EngineReloadDynamicLibOptions) ClearSlicesPart() {
 	item.SlicesPart = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineReloadDynamicLibOptions) Reset() {
 	item.FieldsMask = 0
@@ -60,7 +60,6 @@ func (item *EngineReloadDynamicLibOptions) Read(w []byte) (_ []byte, err error) 
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineReloadDynamicLibOptions) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -82,7 +81,6 @@ func (item *EngineReloadDynamicLibOptions) ReadBoxed(w []byte) (_ []byte, err er
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineReloadDynamicLibOptions) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -97,6 +95,11 @@ func (item EngineReloadDynamicLibOptions) String() string {
 }
 
 func (item *EngineReloadDynamicLibOptions) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineReloadDynamicLibOptions) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propLibIdPresented bool
 	var propLibFileNamePresented bool
@@ -172,14 +175,15 @@ func (item *EngineReloadDynamicLibOptions) ReadJSON(legacyTypeNames bool, in *ba
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReloadDynamicLibOptions) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineReloadDynamicLibOptions) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineReloadDynamicLibOptions) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
