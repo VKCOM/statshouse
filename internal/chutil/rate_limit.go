@@ -162,18 +162,23 @@ func (r *RateLimit) GetInflightCount() (uint64, bool) {
 	return r.healthState.InflightCnt * r.healthState.InflightWeight, true
 }
 
-func (r *RateLimit) AddInflightCount() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.healthState.InflightCnt++
+func (r *RateLimit) DoInflight(f func() error) error {
+	func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.healthState.InflightCnt++
+	}()
+	defer func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.healthState.InflightCnt--
+	}()
+	return f()
 }
 
 func (r *RateLimit) RecordEvent(event Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	defer func() {
-		r.healthState.InflightCnt--
-	}()
 	if r.stage == StageDisable {
 		return
 	}

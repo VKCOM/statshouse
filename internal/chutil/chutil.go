@@ -23,6 +23,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/util/queue"
 )
@@ -409,8 +410,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				return info, err
 			}
 			start := time.Now()
-			servers[i].rate.AddInflightCount()
-			err = servers[i].pool.Do(ctx, query)
+			err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(ctx, query) })
 			info.QueryDuration = time.Since(start)
 			info.Host = servers[i].addr
 			info.Shard = shard + 1
