@@ -69,15 +69,7 @@ func (item *BarsicSnapshotHeader) Reset() {
 }
 
 func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
-	var maskFieldsMask uint32
-	maskFieldsMask = basictl.RandomUint(rg)
-	item.FieldsMask = 0
-	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
-		item.FieldsMask |= (1 << 1)
-	}
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.ClusterId = basictl.RandomString(rg)
 	item.ShardId = basictl.RandomString(rg)
 	item.SnapshotMeta = basictl.RandomString(rg)
@@ -182,6 +174,11 @@ func (item BarsicSnapshotHeader) String() string {
 }
 
 func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicSnapshotHeader) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
@@ -238,7 +235,7 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if propDependenciesPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
 				}
-				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSONGeneral(tctx, in, &item.Dependencies); err != nil {
 					return err
 				}
 				propDependenciesPresented = true
@@ -278,7 +275,7 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 				if propExternalFilesPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "external_files")
 				}
-				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSON(legacyTypeNames, in, &item.ExternalFiles); err != nil {
+				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx, in, &item.ExternalFiles); err != nil {
 					return err
 				}
 				propExternalFilesPresented = true
@@ -332,14 +329,15 @@ func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicSnapshotHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicSnapshotHeader) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicSnapshotHeader) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicSnapshotHeader) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -372,7 +370,7 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w 
 	backupIndexDependencies := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"dependencies":`...)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, item.Dependencies)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(tctx, w, item.Dependencies)
 	if (len(item.Dependencies) != 0) == false {
 		w = w[:backupIndexDependencies]
 	}
@@ -405,7 +403,7 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w 
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"external_files":`...)
-		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(newTypeNames, short, w, item.ExternalFiles)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(tctx, w, item.ExternalFiles)
 	}
 	return append(w, '}')
 }
@@ -479,15 +477,7 @@ func (item *BarsicSnapshotHeaderBytes) Reset() {
 }
 
 func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
-	var maskFieldsMask uint32
-	maskFieldsMask = basictl.RandomUint(rg)
-	item.FieldsMask = 0
-	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
-		item.FieldsMask |= (1 << 1)
-	}
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.ClusterId = basictl.RandomStringBytes(rg)
 	item.ShardId = basictl.RandomStringBytes(rg)
 	item.SnapshotMeta = basictl.RandomStringBytes(rg)
@@ -592,6 +582,11 @@ func (item BarsicSnapshotHeaderBytes) String() string {
 }
 
 func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicSnapshotHeaderBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
@@ -648,7 +643,7 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if propDependenciesPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
 				}
-				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSONGeneral(tctx, in, &item.Dependencies); err != nil {
 					return err
 				}
 				propDependenciesPresented = true
@@ -688,7 +683,7 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 				if propExternalFilesPresented {
 					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "external_files")
 				}
-				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSON(legacyTypeNames, in, &item.ExternalFiles); err != nil {
+				if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx, in, &item.ExternalFiles); err != nil {
 					return err
 				}
 				propExternalFilesPresented = true
@@ -742,14 +737,15 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicSnapshotHeaderBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicSnapshotHeaderBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -782,7 +778,7 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short boo
 	backupIndexDependencies := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"dependencies":`...)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, item.Dependencies)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(tctx, w, item.Dependencies)
 	if (len(item.Dependencies) != 0) == false {
 		w = w[:backupIndexDependencies]
 	}
@@ -815,7 +811,7 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short boo
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"external_files":`...)
-		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(newTypeNames, short, w, item.ExternalFiles)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(tctx, w, item.ExternalFiles)
 	}
 	return append(w, '}')
 }

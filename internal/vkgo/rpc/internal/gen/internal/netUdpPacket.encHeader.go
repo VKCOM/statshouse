@@ -30,6 +30,8 @@ type NetUdpPacketEncHeader struct {
 	NextLength      uint32   // Conditional: item.Flags.25
 	// SingleRpcMsg (TrueType) // Conditional: item.Flags.26
 	// MultipleRpcMsgs (TrueType) // Conditional: item.Flags.27
+	// ZeroPadding1Byte (TrueType) // Conditional: item.Flags.18
+	// ZeroPadding2Bytes (TrueType) // Conditional: item.Flags.19
 	// ZeroPadding4Bytes (TrueType) // Conditional: item.Flags.28
 	// ZeroPadding8Bytes (TrueType) // Conditional: item.Flags.29
 	PacketOffset  int64  // Conditional: item.Flags.30
@@ -187,6 +189,24 @@ func (item *NetUdpPacketEncHeader) SetMultipleRpcMsgs(v bool) {
 }
 func (item *NetUdpPacketEncHeader) IsSetMultipleRpcMsgs() bool { return item.Flags&(1<<27) != 0 }
 
+func (item *NetUdpPacketEncHeader) SetZeroPadding1Byte(v bool) {
+	if v {
+		item.Flags |= 1 << 18
+	} else {
+		item.Flags &^= 1 << 18
+	}
+}
+func (item *NetUdpPacketEncHeader) IsSetZeroPadding1Byte() bool { return item.Flags&(1<<18) != 0 }
+
+func (item *NetUdpPacketEncHeader) SetZeroPadding2Bytes(v bool) {
+	if v {
+		item.Flags |= 1 << 19
+	} else {
+		item.Flags &^= 1 << 19
+	}
+}
+func (item *NetUdpPacketEncHeader) IsSetZeroPadding2Bytes() bool { return item.Flags&(1<<19) != 0 }
+
 func (item *NetUdpPacketEncHeader) SetZeroPadding4Bytes(v bool) {
 	if v {
 		item.Flags |= 1 << 28
@@ -245,60 +265,7 @@ func (item *NetUdpPacketEncHeader) Reset() {
 }
 
 func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
-	var maskFlags uint32
-	maskFlags = basictl.RandomUint(rg)
-	item.Flags = 0
-	if maskFlags&(1<<0) != 0 {
-		item.Flags |= (1 << 9)
-	}
-	if maskFlags&(1<<1) != 0 {
-		item.Flags |= (1 << 10)
-	}
-	if maskFlags&(1<<2) != 0 {
-		item.Flags |= (1 << 13)
-	}
-	if maskFlags&(1<<3) != 0 {
-		item.Flags |= (1 << 14)
-	}
-	if maskFlags&(1<<4) != 0 {
-		item.Flags |= (1 << 15)
-	}
-	if maskFlags&(1<<5) != 0 {
-		item.Flags |= (1 << 20)
-	}
-	if maskFlags&(1<<6) != 0 {
-		item.Flags |= (1 << 21)
-	}
-	if maskFlags&(1<<7) != 0 {
-		item.Flags |= (1 << 22)
-	}
-	if maskFlags&(1<<8) != 0 {
-		item.Flags |= (1 << 23)
-	}
-	if maskFlags&(1<<9) != 0 {
-		item.Flags |= (1 << 24)
-	}
-	if maskFlags&(1<<10) != 0 {
-		item.Flags |= (1 << 25)
-	}
-	if maskFlags&(1<<11) != 0 {
-		item.Flags |= (1 << 26)
-	}
-	if maskFlags&(1<<12) != 0 {
-		item.Flags |= (1 << 27)
-	}
-	if maskFlags&(1<<13) != 0 {
-		item.Flags |= (1 << 28)
-	}
-	if maskFlags&(1<<14) != 0 {
-		item.Flags |= (1 << 29)
-	}
-	if maskFlags&(1<<15) != 0 {
-		item.Flags |= (1 << 30)
-	}
-	if maskFlags&(1<<16) != 0 {
-		item.Flags |= (1 << 31)
-	}
+	item.Flags = basictl.RandomFieldMask(rg, 0b11111111111111001110011000000000)
 	if item.Flags&(1<<9) != 0 {
 		item.Time = basictl.RandomInt(rg)
 	} else {
@@ -563,6 +530,11 @@ func (item NetUdpPacketEncHeader) String() string {
 }
 
 func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketEncHeader) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propTimePresented bool
 	var propVersionPresented bool
@@ -581,6 +553,10 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	var trueTypeSingleRpcMsgValue bool
 	var trueTypeMultipleRpcMsgsPresented bool
 	var trueTypeMultipleRpcMsgsValue bool
+	var trueTypeZeroPadding1BytePresented bool
+	var trueTypeZeroPadding1ByteValue bool
+	var trueTypeZeroPadding2BytesPresented bool
+	var trueTypeZeroPadding2BytesValue bool
 	var trueTypeZeroPadding4BytesPresented bool
 	var trueTypeZeroPadding4BytesValue bool
 	var trueTypeZeroPadding8BytesPresented bool
@@ -649,7 +625,7 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propPacketAckSetPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_set")
 				}
-				if err := BuiltinVectorReadJSON(legacyTypeNames, in, &item.PacketAckSet); err != nil {
+				if err := BuiltinVectorReadJSONGeneral(tctx, in, &item.PacketAckSet); err != nil {
 					return err
 				}
 				propPacketAckSetPresented = true
@@ -725,6 +701,22 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 					return err
 				}
 				trueTypeMultipleRpcMsgsPresented = true
+			case "zero_padding_1_byte":
+				if trueTypeZeroPadding1BytePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "zero_padding_1_byte")
+				}
+				if err := Json2ReadBool(in, &trueTypeZeroPadding1ByteValue); err != nil {
+					return err
+				}
+				trueTypeZeroPadding1BytePresented = true
+			case "zero_padding_2_bytes":
+				if trueTypeZeroPadding2BytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "zero_padding_2_bytes")
+				}
+				if err := Json2ReadBool(in, &trueTypeZeroPadding2BytesValue); err != nil {
+					return err
+				}
+				trueTypeZeroPadding2BytesPresented = true
 			case "zero_padding_4_bytes":
 				if trueTypeZeroPadding4BytesPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "zero_padding_4_bytes")
@@ -864,6 +856,16 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 			item.Flags |= 1 << 27
 		}
 	}
+	if trueTypeZeroPadding1BytePresented {
+		if trueTypeZeroPadding1ByteValue {
+			item.Flags |= 1 << 18
+		}
+	}
+	if trueTypeZeroPadding2BytesPresented {
+		if trueTypeZeroPadding2BytesValue {
+			item.Flags |= 1 << 19
+		}
+	}
 	if trueTypeZeroPadding4BytesPresented {
 		if trueTypeZeroPadding4BytesValue {
 			item.Flags |= 1 << 28
@@ -882,32 +884,41 @@ func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeSingleRpcMsgPresented && !trueTypeSingleRpcMsgValue && (item.Flags&(1<<26) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.26 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeMultipleRpcMsgsPresented && !trueTypeMultipleRpcMsgsValue && (item.Flags&(1<<27) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.27 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeZeroPadding1BytePresented && !trueTypeZeroPadding1ByteValue && (item.Flags&(1<<18) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.18 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeZeroPadding2BytesPresented && !trueTypeZeroPadding2BytesValue && (item.Flags&(1<<19) != 0) {
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.19 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeZeroPadding4BytesPresented && !trueTypeZeroPadding4BytesValue && (item.Flags&(1<<28) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.28 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeZeroPadding8BytesPresented && !trueTypeZeroPadding8BytesValue && (item.Flags&(1<<29) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.encHeader", "fieldmask bit item.Flags.29 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketEncHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketEncHeader) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketEncHeader) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -944,7 +955,7 @@ func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_set":`...)
-		w = BuiltinVectorWriteJSONOpt(newTypeNames, short, w, item.PacketAckSet)
+		w = BuiltinVectorWriteJSONOpt(tctx, w, item.PacketAckSet)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -988,6 +999,14 @@ func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"multiple_rpc_msgs":true`...)
+	}
+	if item.Flags&(1<<18) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"zero_padding_1_byte":true`...)
+	}
+	if item.Flags&(1<<19) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"zero_padding_2_bytes":true`...)
 	}
 	if item.Flags&(1<<28) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

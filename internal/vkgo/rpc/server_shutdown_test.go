@@ -21,21 +21,35 @@ import (
 
 type shutdownTestServer struct {
 	mu      sync.Mutex
-	clients map[*HandlerContext]struct{}
+	clients map[LongpollHandle]int32
 }
 
-func (s *shutdownTestServer) CancelHijack(hctx *HandlerContext) {
+func (s *shutdownTestServer) CancelLongpoll(lh LongpollHandle) {
 	s.mu.Lock()
-	delete(s.clients, hctx)
+	delete(s.clients, lh)
 	s.mu.Unlock()
+}
+
+func (s *shutdownTestServer) WriteEmptyResponse(lh LongpollHandle, hctx *HandlerContext) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.clients, lh)
+
+	return nil
 }
 
 func (s *shutdownTestServer) sendSomeResponses() {
 	s.mu.Lock()
 	counter := 0
-	for hctxToSend := range s.clients {
-		delete(s.clients, hctxToSend)
-		hctxToSend.SendHijackedResponse(nil)
+	for lh, n := range s.clients {
+		delete(s.clients, lh)
+		hctx, _ := lh.FinishLongpoll()
+		if hctx == nil {
+			continue
+		}
+
+		hctx.Response = basictl.IntWrite(hctx.Response, n)
+		hctx.SendLongpollResponse(nil)
 		counter++
 		if counter >= len(s.clients) {
 			break // approx. half sent
@@ -56,9 +70,10 @@ func (s *shutdownTestServer) testShutdownHandler(_ context.Context, hctx *Handle
 	hctx.Response = basictl.IntWrite(hctx.Response, n)
 	if (n/2)%2 == 0 {
 		s.mu.Lock()
-		s.clients[hctx] = struct{}{}
+		lctx, hjErr := hctx.StartLongpoll(s)
+		s.clients[lctx] = n
 		s.mu.Unlock()
-		return hctx.HijackResponse(s)
+		return hjErr
 	}
 	return nil
 }
@@ -84,7 +99,7 @@ func testShutdownClient(t *rapid.T) {
 	clients = clients[:1]
 	numRequests := rapid.IntRange(1, 10).Draw(t, "numRequests")
 
-	ts := shutdownTestServer{clients: map[*HandlerContext]struct{}{}}
+	ts := shutdownTestServer{clients: map[LongpollHandle]int32{}}
 	s := NewServer(
 		ServerWithSyncHandler(ts.testShutdownHandler),
 		ServerWithCryptoKeys(testCryptoKeys),

@@ -20,7 +20,7 @@ import (
 // ConfigChangeNotifier notify getConfigResult3Locked if ConfigAggregatorRemote.ClusterShardsAddrs was updated
 type ConfigChangeNotifier struct {
 	mu      sync.Mutex
-	clients map[*rpc.HandlerContext]struct{}
+	clients map[rpc.LongpollHandle]struct{}
 }
 
 type ConfigAggregatorRemote struct {
@@ -253,21 +253,29 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 
 func NewConfigChangeNotifier() *ConfigChangeNotifier {
 	return &ConfigChangeNotifier{
-		clients: make(map[*rpc.HandlerContext]struct{}),
+		clients: make(map[rpc.LongpollHandle]struct{}),
 	}
 }
 
 func (c *ConfigChangeNotifier) notifyConfigChange() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for hctx := range c.clients {
-		delete(c.clients, hctx)
-		hctx.SendHijackedResponse(nil)
+	for lh := range c.clients {
+		delete(c.clients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			// TODO - writing response must be here
+			hctx.SendLongpollResponse(nil)
+		}
 	}
 }
 
-func (c *ConfigChangeNotifier) CancelHijack(hctx *rpc.HandlerContext) {
+func (c *ConfigChangeNotifier) CancelLongpoll(lh rpc.LongpollHandle) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.clients, hctx)
+	delete(c.clients, lh)
+}
+
+func (c *ConfigChangeNotifier) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	c.CancelLongpoll(lh) // we have infinite timeouts so do not need empty responses
+	return nil
 }

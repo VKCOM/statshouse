@@ -54,8 +54,8 @@ type PacketConn struct {
 	conn       net.Conn
 	tcpconn_fd *os.File
 
-	remoteAddr      string
-	localAddr       string
+	remoteAddr      net.Addr
+	localAddr       net.Addr
 	timeoutAccuracy time.Duration
 
 	flagCancelReq   bool
@@ -96,8 +96,8 @@ type PacketConn struct {
 func NewPacketConn(c net.Conn, readBufSize int, writeBufSize int) *PacketConn {
 	pc := &PacketConn{
 		conn:            c,
-		remoteAddr:      c.RemoteAddr().String(),
-		localAddr:       c.LocalAddr().String(),
+		remoteAddr:      c.RemoteAddr(),
+		localAddr:       c.LocalAddr(),
 		timeoutAccuracy: DefaultConnTimeoutAccuracy,
 		r:               newCryptoReader(c, readBufSize),
 		w:               newCryptoWriter(c, writeBufSize),
@@ -124,16 +124,18 @@ func (pc *PacketConn) FlagCancelReq() bool {
 	return pc.flagCancelReq
 }
 
-func (pc *PacketConn) LocalAddr() string {
+func (pc *PacketConn) LocalAddr() net.Addr {
 	return pc.localAddr
 }
 
-func (pc *PacketConn) RemoteAddr() string {
-	return pc.remoteAddr
-}
+func (pc *PacketConn) RemoteAddr() net.Addr { return pc.remoteAddr }
 
 func (pc *PacketConn) ProtocolVersion() uint32 {
 	return pc.protocolVersion
+}
+
+func (pc *PacketConn) Encrypted() bool {
+	return pc.w.isEncrypted()
 }
 
 func (pc *PacketConn) Close() error {
@@ -150,7 +152,7 @@ func (pc *PacketConn) setCRC32C() {
 	pc.table = castagnoliTable
 }
 
-func (pc *PacketConn) setReadTimeoutUnlocked(timeout time.Duration) error {
+func (pc *PacketConn) SetReadTimeoutUnlocked(timeout time.Duration) error {
 	if timeout <= 0 {
 		if pc.rDeadline == (time.Time{}) {
 			return nil
@@ -174,7 +176,7 @@ func (pc *PacketConn) setReadTimeoutUnlocked(timeout time.Duration) error {
 	return nil
 }
 
-func (pc *PacketConn) setWriteTimeoutUnlocked(timeout time.Duration) error {
+func (pc *PacketConn) SetWriteTimeoutUnlocked(timeout time.Duration) error {
 	if timeout <= 0 {
 		if pc.wDeadline == (time.Time{}) {
 			return nil
@@ -229,7 +231,7 @@ func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (t
 	defer pc.readMu.Unlock()
 
 	var header packetHeader
-	magicHead, isBuiltin, builtinKind, err := pc.readPacketHeaderUnlocked(&header, timeout)
+	magicHead, isBuiltin, builtinKind, err := pc.ReadPacketHeaderUnlocked(&header, timeout)
 	if err != nil {
 		return 0, magicHead, body, isBuiltin, builtinKind, err
 	}
@@ -237,13 +239,13 @@ func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (t
 		return 0, nil, body, true, builtinKind, nil
 	}
 
-	body, err = pc.readPacketBodyUnlocked(&header, body)
+	body, err = pc.ReadPacketBodyUnlocked(&header, body)
 	return header.tip, nil, body, isBuiltin, builtinKind, err
 }
 
-func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, builtinKind string, err error) {
+func (pc *PacketConn) ReadPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, builtinKind string, err error) {
 	for {
-		if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
+		if err = pc.SetReadTimeoutUnlocked(timeout); err != nil {
 			return nil, false, "", fmt.Errorf("failed to set read timeout: %w", err)
 		}
 		magicHead, err = pc.readPacketHeaderUnlockedImpl(header)
@@ -270,7 +272,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 					err: fmt.Errorf("ping packet has wrong length: %d", header.length),
 				}
 			}
-			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
+			_, err := pc.ReadPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
 				return nil, false, "", fmt.Errorf("failed to read ping body: %w", err)
 			}
@@ -283,7 +285,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 			if header.length != packetOverhead+8 {
 				return nil, false, "", fmt.Errorf("pong packet has wrong length %d", header.length)
 			}
-			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
+			_, err := pc.ReadPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
 				return nil, false, "", fmt.Errorf("failed to read pong body: %w", err)
 			}
@@ -374,9 +376,9 @@ func (pc *PacketConn) readPacketHeaderUnlockedImpl(header *packetHeader) (magicH
 	return nil, nil
 }
 
-func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte) (_ []byte, err error) {
+func (pc *PacketConn) ReadPacketBodyUnlocked(header *packetHeader, body []byte) (_ []byte, err error) {
 	if header.length < packetOverhead || header.length > maxPacketLen {
-		panic(fmt.Sprintf("packet size %v outside [%v, %v], was checked in readPacketHeaderUnlocked", header.length, packetOverhead, maxPacketLen))
+		panic(fmt.Sprintf("packet size %v outside [%v, %v], was checked in ReadPacketHeaderUnlocked", header.length, packetOverhead, maxPacketLen))
 	}
 	bodySize := int(header.length) - packetOverhead
 	alignTo4 := 0
@@ -430,6 +432,24 @@ func (pc *PacketConn) WritePacket(packetType uint32, body []byte, timeout time.D
 	return pc.FlushUnlocked()
 }
 
+// it is common to write body consisting of 2 parts
+func (pc *PacketConn) WritePacket2(packetType uint32, body []byte, body2 []byte, timeout time.Duration) error {
+	pc.writeMu.Lock()
+	defer pc.writeMu.Unlock()
+
+	if err := pc.WritePacketHeaderUnlocked(packetType, len(body), timeout); err != nil {
+		return err
+	}
+	if err := pc.WritePacketBodyUnlocked(body); err != nil {
+		return err
+	}
+	if err := pc.WritePacketBodyUnlocked(body2); err != nil {
+		return err
+	}
+	pc.WritePacketTrailerUnlocked()
+	return pc.FlushUnlocked()
+}
+
 func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout time.Duration) error {
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
@@ -439,13 +459,13 @@ func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout
 
 // If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
 func (pc *PacketConn) WritePacketNoFlushUnlocked(packetType uint32, body []byte, timeout time.Duration) error {
-	if err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout); err != nil {
+	if err := pc.WritePacketHeaderUnlocked(packetType, len(body), timeout); err != nil {
 		return err
 	}
-	if err := pc.writePacketBodyUnlocked(body); err != nil {
+	if err := pc.WritePacketBodyUnlocked(body); err != nil {
 		return err
 	}
-	pc.writePacketTrailerUnlocked()
+	pc.WritePacketTrailerUnlocked()
 	return nil
 }
 
@@ -492,11 +512,24 @@ func (pc *PacketConn) ShutdownWrite() error {
 	return cw.CloseWrite()
 }
 
+// you will most likely never need to call this
+func (pc *PacketConn) WriteRawBytes(b []byte) (int, error) {
+	return pc.conn.Write(b)
+}
+
+// you will most likely never need to call this
+func (pc *PacketConn) HijackConnection() (net.Conn, []byte) {
+	_ = pc.SetReadTimeoutUnlocked(0)
+	_ = pc.SetWriteTimeoutUnlocked(0)
+	// We do not close connection, ownership is moved to SocketHijackHandler
+	return pc.conn, pc.r.buf[pc.r.begin:pc.r.end]
+}
+
 // how to use:
-// first call writePacketHeaderUnlocked with sum of all body chunk lengths you are going to write on the next step
-// then call writePacketBodyUnlocked 0 or more times
-// then call writePacketTrailerUnlocked
-func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen int, timeout time.Duration) error {
+// first call WritePacketHeaderUnlocked with sum of all body chunk lengths you are going to write on the next step
+// then call WritePacketBodyUnlocked 0 or more times
+// then call WritePacketTrailerUnlocked
+func (pc *PacketConn) WritePacketHeaderUnlocked(packetType uint32, packetBodyLen int, timeout time.Duration) error {
 	if err := validBodyLen(packetBodyLen); err != nil {
 		return err
 	}
@@ -507,7 +540,7 @@ func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen
 		}
 	}
 
-	if err := pc.setWriteTimeoutUnlocked(timeout); err != nil {
+	if err := pc.SetWriteTimeoutUnlocked(timeout); err != nil {
 		return fmt.Errorf("failed to set write timeout: %w", err)
 	}
 	prevBytes := len(pc.headerWriteBuf)
@@ -532,7 +565,7 @@ func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen
 	return nil
 }
 
-func (pc *PacketConn) writePacketBodyUnlocked(body []byte) error {
+func (pc *PacketConn) WritePacketBodyUnlocked(body []byte) error {
 	if _, err := pc.w.Write(body); err != nil {
 		return err
 	}
@@ -540,7 +573,7 @@ func (pc *PacketConn) writePacketBodyUnlocked(body []byte) error {
 	return nil
 }
 
-func (pc *PacketConn) writePacketTrailerUnlocked() {
+func (pc *PacketConn) WritePacketTrailerUnlocked() {
 	pc.headerWriteBuf = binary.LittleEndian.AppendUint32(pc.headerWriteBuf, pc.writeCRC)
 	switch pc.writeAlignTo4 {
 	case 3:

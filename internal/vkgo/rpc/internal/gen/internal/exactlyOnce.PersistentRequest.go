@@ -75,6 +75,11 @@ func (item ExactlyOnceCommitRequest) String() string {
 }
 
 func (item *ExactlyOnceCommitRequest) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *ExactlyOnceCommitRequest) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPersistentQueryUuidPresented bool
 	var propPersistentSlotUuidPresented bool
 
@@ -91,7 +96,7 @@ func (item *ExactlyOnceCommitRequest) ReadJSON(legacyTypeNames bool, in *basictl
 				if propPersistentQueryUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.commitRequest", "persistent_query_uuid")
 				}
-				if err := item.PersistentQueryUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentQueryUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentQueryUuidPresented = true
@@ -99,7 +104,7 @@ func (item *ExactlyOnceCommitRequest) ReadJSON(legacyTypeNames bool, in *basictl
 				if propPersistentSlotUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.commitRequest", "persistent_slot_uuid")
 				}
-				if err := item.PersistentSlotUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentSlotUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentSlotUuidPresented = true
@@ -123,21 +128,22 @@ func (item *ExactlyOnceCommitRequest) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *ExactlyOnceCommitRequest) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *ExactlyOnceCommitRequest) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *ExactlyOnceCommitRequest) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *ExactlyOnceCommitRequest) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *ExactlyOnceCommitRequest) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_query_uuid":`...)
-	w = item.PersistentQueryUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentQueryUuid.WriteJSONOpt(tctx, w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_slot_uuid":`...)
-	w = item.PersistentSlotUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentSlotUuid.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 
@@ -253,13 +259,21 @@ func (item *ExactlyOncePersistentRequest) WriteBoxed(w []byte) []byte {
 }
 
 func (item *ExactlyOncePersistentRequest) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *ExactlyOncePersistentRequest) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_tag, _value, err := Json2ReadUnion("exactlyOnce.PersistentRequest", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "exactlyOnce.prepareRequest#c8d71b66", "exactlyOnce.prepareRequest", "#c8d71b66":
-		if !legacyTypeNames && _tag == "exactlyOnce.prepareRequest#c8d71b66" {
+		if tctx.IsTL2 && _tag != "exactlyOnce.prepareRequest" {
+			return ErrorInvalidUnionLegacyTagJSON("exactlyOnce.PersistentRequest", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "exactlyOnce.prepareRequest#c8d71b66" {
 			return ErrorInvalidUnionLegacyTagJSON("exactlyOnce.PersistentRequest", "exactlyOnce.prepareRequest#c8d71b66")
 		}
 		item.index = 0
@@ -268,11 +282,14 @@ func (item *ExactlyOncePersistentRequest) ReadJSON(legacyTypeNames bool, in *bas
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valuePrepareRequest.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valuePrepareRequest.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	case "exactlyOnce.commitRequest#6836b983", "exactlyOnce.commitRequest", "#6836b983":
-		if !legacyTypeNames && _tag == "exactlyOnce.commitRequest#6836b983" {
+		if tctx.IsTL2 && _tag != "exactlyOnce.commitRequest" {
+			return ErrorInvalidUnionLegacyTagJSON("exactlyOnce.PersistentRequest", _tag)
+		}
+		if !tctx.LegacyTypeNames && _tag == "exactlyOnce.commitRequest#6836b983" {
 			return ErrorInvalidUnionLegacyTagJSON("exactlyOnce.PersistentRequest", "exactlyOnce.commitRequest#6836b983")
 		}
 		item.index = 1
@@ -281,7 +298,7 @@ func (item *ExactlyOncePersistentRequest) ReadJSON(legacyTypeNames bool, in *bas
 			in2 := basictl.JsonLexer{Data: _value}
 			in2Pointer = &in2
 		}
-		if err := item.valueCommitRequest.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
+		if err := item.valueCommitRequest.ReadJSONGeneral(tctx, in2Pointer); err != nil {
 			return err
 		}
 	default:
@@ -291,32 +308,41 @@ func (item *ExactlyOncePersistentRequest) ReadJSON(legacyTypeNames bool, in *bas
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *ExactlyOncePersistentRequest) WriteJSONGeneral(w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *ExactlyOncePersistentRequest) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *ExactlyOncePersistentRequest) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *ExactlyOncePersistentRequest) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *ExactlyOncePersistentRequest) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	switch item.index {
 	case 0:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"exactlyOnce.prepareRequest"`...)
 		} else {
-			w = append(w, `{"type":"exactlyOnce.prepareRequest#c8d71b66"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"exactlyOnce.prepareRequest#c8d71b66"`...)
+			} else {
+				w = append(w, `{"type":"exactlyOnce.prepareRequest"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valuePrepareRequest.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valuePrepareRequest.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	case 1:
-		if newTypeNames {
+		if tctx.IsTL2 {
 			w = append(w, `{"type":"exactlyOnce.commitRequest"`...)
 		} else {
-			w = append(w, `{"type":"exactlyOnce.commitRequest#6836b983"`...)
+			if tctx.LegacyTypeNames {
+				w = append(w, `{"type":"exactlyOnce.commitRequest#6836b983"`...)
+			} else {
+				w = append(w, `{"type":"exactlyOnce.commitRequest"`...)
+			}
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueCommitRequest.WriteJSONOpt(newTypeNames, short, w)
+		w = item.valueCommitRequest.WriteJSONOpt(tctx, w)
 		return append(w, '}')
 	default: // Impossible due to panic above
 		return w
@@ -393,6 +419,11 @@ func (item ExactlyOncePrepareRequest) String() string {
 }
 
 func (item *ExactlyOncePrepareRequest) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *ExactlyOncePrepareRequest) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPersistentQueryUuidPresented bool
 
 	if in != nil {
@@ -408,7 +439,7 @@ func (item *ExactlyOncePrepareRequest) ReadJSON(legacyTypeNames bool, in *basict
 				if propPersistentQueryUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.prepareRequest", "persistent_query_uuid")
 				}
-				if err := item.PersistentQueryUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentQueryUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentQueryUuidPresented = true
@@ -429,18 +460,19 @@ func (item *ExactlyOncePrepareRequest) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *ExactlyOncePrepareRequest) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *ExactlyOncePrepareRequest) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *ExactlyOncePrepareRequest) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *ExactlyOncePrepareRequest) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *ExactlyOncePrepareRequest) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_query_uuid":`...)
-	w = item.PersistentQueryUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentQueryUuid.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

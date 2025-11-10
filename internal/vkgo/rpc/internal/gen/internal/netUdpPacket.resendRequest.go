@@ -62,6 +62,11 @@ func (item NetUdpPacketResendRequest) String() string {
 }
 
 func (item *NetUdpPacketResendRequest) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketResendRequest) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propRangesPresented bool
 
 	if in != nil {
@@ -77,7 +82,7 @@ func (item *NetUdpPacketResendRequest) ReadJSON(legacyTypeNames bool, in *basict
 				if propRangesPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.resendRequest", "ranges")
 				}
-				if err := BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames, in, &item.Ranges); err != nil {
+				if err := BuiltinVectorNetUdpPacketResendRangeReadJSONGeneral(tctx, in, &item.Ranges); err != nil {
 					return err
 				}
 				propRangesPresented = true
@@ -98,19 +103,20 @@ func (item *NetUdpPacketResendRequest) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketResendRequest) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketResendRequest) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketResendRequest) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketResendRequest) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketResendRequest) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexRanges := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ranges":`...)
-	w = BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(newTypeNames, short, w, item.Ranges)
+	w = BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(tctx, w, item.Ranges)
 	if (len(item.Ranges) != 0) == false {
 		w = w[:backupIndexRanges]
 	}

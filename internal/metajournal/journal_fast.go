@@ -61,7 +61,7 @@ type JournalFast struct {
 	order   *btree.BTreeG[journalOrder]
 
 	clientsMu              sync.Mutex // Always taken after mu
-	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
+	metricsVersionClients3 map[rpc.LongpollHandle]tlstatshouse.GetMetrics3
 
 	sh2       *agent.Agent
 	MetricsMu sync.Mutex
@@ -116,7 +116,7 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent
 		journal:                map[journalEventID]journalEvent{},
 		order:                  btree.NewG[journalOrder](32, journalOrderLess), // degree selected by running benchmarks
 		applyEvent:             applyEvent,
-		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
+		metricsVersionClients3: map[rpc.LongpollHandle]tlstatshouse.GetMetrics3{},
 		compact:                compact,
 		writeAt:                func(offset int64, data []byte) error { return nil },
 		truncate:               func(offset int64) error { return nil },
