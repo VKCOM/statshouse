@@ -178,7 +178,7 @@ func TestKeySizeEstimationEdgeCases(t *testing.T) {
 }
 
 // Helper function to convert Key to MultiItemBytes and back
-func roundTripKey(key Key, bucketTimestamp uint32, newestTime uint32) Key {
+func roundTripKey(key Key, bucketTimestamp uint32) Key {
 	// Convert Key to MultiItem
 	item := key.TLMultiItemFromKey(bucketTimestamp)
 
@@ -200,14 +200,14 @@ func roundTripKey(key Key, bucketTimestamp uint32, newestTime uint32) Key {
 	}
 
 	// Convert MultiItemBytes back to Key
-	reconstructedKey, _ := KeyFromStatshouseMultiItem(multiItemBytes, bucketTimestamp, newestTime)
+	reconstructedKey, _ := KeyFromStatshouseMultiItem(multiItemBytes, bucketTimestamp)
 	for i, str := range multiItemBytes.Skeys {
 		reconstructedKey.SetSTag(i, string(str))
 	}
 	return reconstructedKey
 }
 
-func timestampValid(t require.TestingT, originalTs, newestTime, reconstructedTs, bucketTimestamp uint32) {
+func timestampValid(t require.TestingT, originalTs, reconstructedTs, bucketTimestamp uint32) {
 	var oldestTime uint32
 	if bucketTimestamp > BelieveTimestampWindow {
 		oldestTime = bucketTimestamp - BelieveTimestampWindow
@@ -215,10 +215,10 @@ func timestampValid(t require.TestingT, originalTs, newestTime, reconstructedTs,
 	switch {
 	case originalTs == 0:
 		require.Equal(t, originalTs, reconstructedTs, "Zero timestamp should be replaced with bucketTimestamp")
-	case originalTs > newestTime:
-		require.Equal(t, newestTime, reconstructedTs, "Timestamp should be clamped to newestTime")
+	case originalTs > bucketTimestamp+FutureWindow:
+		require.Equal(t, bucketTimestamp, reconstructedTs, "Timestamp should be clamped to newestTime")
 	case originalTs < oldestTime:
-		require.Equal(t, oldestTime, reconstructedTs,
+		require.Equal(t, bucketTimestamp, reconstructedTs,
 			"Timestamp should be clamped to bucketTimestamp-BelieveTimestampWindow")
 	default:
 		require.Equal(t, originalTs, reconstructedTs, "Timestamps should match")
@@ -229,19 +229,18 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		// Generate timestamps within reasonable bounds
 		bucketTimestamp := uint32(rapid.Int64Range(1, now).Draw(t, "bucket_timestamp"))
-		newestTime := bucketTimestamp + uint32(rapid.Int64Range(0, 3600*24).Draw(t, "time_offset")) // Up to 24 hours newer
 
 		// Generate a random key using existing generator
 		originalKey := genKey().Draw(t, "key")
 
 		// Perform roundtrip
-		reconstructedKey := roundTripKey(originalKey, bucketTimestamp, newestTime)
+		reconstructedKey := roundTripKey(originalKey, bucketTimestamp)
 
 		// Verify key components
 		require.Equal(t, originalKey.Metric, reconstructedKey.Metric, "Metrics should match")
 		require.Equal(t, originalKey.Tags, reconstructedKey.Tags, "Tags should match")
 		require.Equal(t, originalKey.STags, reconstructedKey.STags, "STags should match")
-		timestampValid(t, originalKey.Timestamp, newestTime, reconstructedKey.Timestamp, bucketTimestamp)
+		timestampValid(t, originalKey.Timestamp, reconstructedKey.Timestamp, bucketTimestamp)
 	})
 }
 

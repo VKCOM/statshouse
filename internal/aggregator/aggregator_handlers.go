@@ -455,7 +455,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				measurementStringTops++
 			}
 		}
-		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
