@@ -128,8 +128,9 @@ func mainAggregator() int {
 	}
 	defer fjCompact.Close()
 
-	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
-	startDiscCacheTime := time.Now()                                                                    // we only have disk cache before. Be carefull when redesigning
+	// we ignore error because cache can be damaged
+	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.RemoteInitial.MappingCacheSize, argv.RemoteInitial.MappingCacheTTL)
+	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
 	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
@@ -217,7 +218,6 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma separated list of aggregator listen addresses")
 	flag.StringVar(&argv.Cluster, "cluster", aggregator.DefaultConfigAggregator().Cluster, "clickhouse cluster name to autodetect configuration, local shard and replica")
 	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
-	flag.IntVar(&argv.ShortWindow, "short-window", aggregator.DefaultConfigAggregator().ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	flag.IntVar(&argv.RecentInserters, "recent-inserters", aggregator.DefaultConfigAggregator().RecentInserters, "How many parallel inserts to make for recent data")
 	flag.IntVar(&argv.HistoricInserters, "historic-inserters", aggregator.DefaultConfigAggregator().HistoricInserters, "How many parallel inserts to make for historic data")
 	flag.IntVar(&argv.InsertHistoricWhen, "insert-historic-when", aggregator.DefaultConfigAggregator().InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")
@@ -225,7 +225,7 @@ func parseCommandLine() error {
 	flag.IntVar(&cardinalityWindow, "cardinality-window", 0, "Depecated, not used.") // TODO - remove
 	var maxCardinality int
 	flag.IntVar(&maxCardinality, "max-cardinality", 0, "Deprecated, not used.") // TODO - remove
-	argv.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().ConfigAggregatorRemote, false)
+	argv.RemoteInitial.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().RemoteInitial, false)
 	flag.Float64Var(&argv.SimulateRandomErrors, "simulate-errors-random", aggregator.DefaultConfigAggregator().SimulateRandomErrors, "Probability of errors for recent buckets from 0.0 (no errors) to 1.0 (all errors)")
 	flag.BoolVar(&argv.AutoCreate, "auto-create", aggregator.DefaultConfigAggregator().AutoCreate, "Enable metric auto-create.")
 	flag.BoolVar(&argv.AutoCreateDefaultNamespace, "auto-create-default-namespace", false, "Auto-create metrics with no namespace specified.")

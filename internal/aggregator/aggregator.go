@@ -192,8 +192,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.LocalShard > 0 {
 		shardKey = int32(config.LocalShard)
 	}
-	if len(config.ClusterShardsAddrs) > 0 {
-		addresses = config.ClusterShardsAddrs
+	if len(config.RemoteInitial.ClusterShardsAddrs) > 0 {
+		addresses = config.RemoteInitial.ClusterShardsAddrs
 	}
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
@@ -204,7 +204,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.ShardByMetricShards == 0 {
 		config.ShardByMetricShards = len(addresses) / 3
 	}
-	config.ClusterShardsAddrs = addresses
+	config.RemoteInitial.ClusterShardsAddrs = addresses
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
@@ -239,7 +239,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
-		configR:                     config.ConfigAggregatorRemote,
+		configR:                     config.RemoteInitial,
 		cfgNotifier:                 NewConfigChangeNotifier(),
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
@@ -351,7 +351,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
-	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.ClusterShardsAddrs, ","), "", "Started")
+	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.RemoteInitial.ClusterShardsAddrs, ","), "", "Started")
 
 	a.insertsSemaSize = int64(a.config.RecentInserters)
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
@@ -947,19 +947,23 @@ func (a *Aggregator) popOldestHistoricBucket(oldestTime uint32) (aggBucket *aggr
 }
 
 func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggregatorBucket {
+	a.configMu.RLock()
+	configR := a.configR
+	a.configMu.RUnlock()
+
 	nowUnix := uint32(now.Unix())
 	var readyBuckets []*aggregatorBucket
 	// As quickly as possible select which buckets should be sent
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	for len(a.recentBuckets) != 0 && nowUnix > a.recentBuckets[0].time+uint32(a.config.ShortWindow) {
+	for len(a.recentBuckets) != 0 && nowUnix > a.recentBuckets[0].time+uint32(configR.ShortWindow) {
 		readyBuckets = append(readyBuckets, a.recentBuckets[0])
 		a.recentBuckets = append([]*aggregatorBucket{}, a.recentBuckets[1:]...) // copy
 	}
 	if len(a.recentBuckets) == 0 { // Jumped into future, also initial state
 		b := &aggregatorBucket{
-			time:                        nowUnix - uint32(a.config.ShortWindow),
+			time:                        nowUnix - uint32(configR.ShortWindow),
 			contributors:                map[rpc.LongpollHandle]struct{}{},
 			contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
 			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
@@ -967,7 +971,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
-	for len(a.recentBuckets) < a.config.ShortWindow+data_model.FutureWindow {
+	for len(a.recentBuckets) < configR.ShortWindow+data_model.FutureWindow {
 		b := &aggregatorBucket{
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
 			contributors:                map[rpc.LongpollHandle]struct{}{},
@@ -1060,7 +1064,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	}
 	a.configS = description
 	log.Printf("Remote config:\n%s", description)
-	config := a.config.ConfigAggregatorRemote
+	config := a.config.RemoteInitial
 	config.ClusterShardsAddrs = nil
 	if err := config.updateFromRemoteDescription(description); err != nil {
 		log.Printf("[error] Remote config: error updating config from metric %q: %v", format.StatshouseAggregatorRemoteConfigMetric, err)
@@ -1069,7 +1073,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
 	if len(config.ClusterShardsAddrs) == 0 {
-		config.ClusterShardsAddrs = a.config.ClusterShardsAddrs
+		config.ClusterShardsAddrs = a.config.RemoteInitial.ClusterShardsAddrs
 	}
 	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
 		a.cfgNotifier.notifyConfigChange()
