@@ -916,9 +916,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 // returns bucket with exclusive ownership requiring no locks to access
 func (a *Aggregator) popOldestHistoricBucket(oldestTime uint32) (aggBucket *aggregatorBucket, staleBuckets []*aggregatorBucket) {
+	historicWindow := a.sh2.HistoricWindow()
+
 	a.mu.Lock()
 	for _, v := range a.historicBuckets { // Find oldest bucket
-		if oldestTime >= data_model.MaxHistoricWindow && v.time < oldestTime-data_model.MaxHistoricWindow {
+		if oldestTime >= historicWindow && v.time < oldestTime-historicWindow {
 			staleBuckets = append(staleBuckets, v)
 			delete(a.historicBuckets, v.time)
 			continue
@@ -1044,8 +1046,9 @@ func (a *Aggregator) goTicker() {
 				aggBucket.mu.Unlock()
 			}
 		}
-		if len(readyBuckets) != 0 && readyBuckets[0].time >= data_model.MaxHistoricWindow {
-			oldestTime := readyBuckets[0].time - data_model.MaxHistoricWindow
+		historicWindow := a.sh2.HistoricWindow()
+		if len(readyBuckets) != 0 && readyBuckets[0].time >= historicWindow {
+			oldestTime := readyBuckets[0].time - historicWindow
 			a.estimator.GarbageCollect(oldestTime)
 		}
 	}

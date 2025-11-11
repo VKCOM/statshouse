@@ -194,6 +194,8 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 }
 
 func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket3Bytes, bucket tlstatshouse.SourceBucket3Bytes) (string, error, bool) {
+	historicWindow := a.sh2.HistoricWindow()
+
 	a.configMu.RLock()
 	configR := a.configR
 	a.configMu.RUnlock()
@@ -290,7 +292,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			// We discard, because otherwise clients will flood aggregators with this data
 			return "historic bucket time is too far in the future", nil, true
 		}
-		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
+		if oldestTime >= historicWindow && roundedToOurTime < oldestTime-historicWindow {
 			a.mu.Unlock()
 			a.sh2.AddValueCounterHostAERA(nowUnix, format.BuiltinMetricMetaTimingErrors,
 				[]int32{0, format.TagValueIDTimingLongWindowThrownAggregator},
@@ -431,7 +433,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if item.T != 0 && item.T < roundedToOurTime {
 			measurementOutdatedRows++
 		}
-		if item.T != 0 && nowUnix >= data_model.MaxHistoricWindow && item.T < nowUnix-data_model.MaxHistoricWindow {
+		if item.T != 0 && nowUnix >= historicWindow && item.T < nowUnix-historicWindow {
 			b := oldMetricBuckets[item.Metric]
 			if nowUnix-item.T >= 48*3600 {
 				b[2]++
@@ -455,7 +457,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				measurementStringTops++
 			}
 		}
-		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time, newestTime)
+		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
 		if clampedTag != 0 {
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}

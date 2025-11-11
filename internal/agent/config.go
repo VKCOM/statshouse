@@ -22,7 +22,8 @@ type Config struct {
 	// Sampling Algorithm
 	SampleBudget        int         // for all shards, in bytes
 	ShardSampleBudget   map[int]int // pre shard overrides, if not set buget is equal to SampleBudget
-	MaxHistoricDiskSize int64       // for all shards, in bytes
+	HistoricWindow      uint
+	MaxHistoricDiskSize int64 // for all shards, in bytes
 	SampleKeepSingle    bool
 	SampleNamespaces    bool
 	SampleGroups        bool
@@ -41,7 +42,6 @@ type Config struct {
 	SendMoreBytes          int
 	StatsHouseEnv          string
 	Cluster                string
-	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 	LegacyApplyValues      bool
 
 	MappingCacheSize int64
@@ -63,6 +63,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		SampleBudget:                     150000,
+		HistoricWindow:                   6 * 3600, // TODO - after V3 tables dropped, change to 24 hours
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
 		SampleNamespaces:                 false,
 		SampleGroups:                     false,
@@ -119,8 +120,10 @@ func (c *Config) setShardBudget(param string) error {
 func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.IntVar(&c.SampleBudget, "sample-budget", d.SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
 	f.Func("shard-sample-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
+	f.UintVar(&c.HistoricWindow, "historic-window", d.HistoricWindow, "If aggregators are unavailable, buckets created outside this window will be discarded.")
 	f.Int64Var(&c.MaxHistoricDiskSize, "max-disk-size", d.MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
-	f.IntVar(&c.SkipShards, "skip-shards", d.SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
+	var skipShards int // TODO - remove from config
+	f.IntVar(&skipShards, "skip-shards", 0, "Deprecated, not used.")
 
 	f.IntVar(&c.StringTopCapacity, "string-top-capacity", d.StringTopCapacity, "How many different strings per key is stored in string tops.")
 	f.IntVar(&c.StringTopCountSend, "string-top-send", d.StringTopCountSend, "How many different strings per key is sent in string tops.")
@@ -172,6 +175,9 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 func (c *Config) ValidateConfigSource() error {
 	if c.SampleBudget < 1 {
 		return fmt.Errorf("sample-budget (%d) must be >= 1", c.SampleBudget)
+	}
+	if c.HistoricWindow > data_model.MaxHistoricWindow {
+		return fmt.Errorf("historic-window (%d) must be <= %d", c.HistoricWindow, data_model.MaxHistoricWindow)
 	}
 
 	if c.StringTopCapacity < data_model.MinStringTopCapacity {
