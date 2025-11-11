@@ -65,12 +65,12 @@ type Agent struct {
 	argsLen         int32
 	args            string
 	config          Config
+	historicWindow  atomic.Uint32 // copy from config/remote config
 	logF            rpc.LoggerFunc
 	envLoader       *env.Loader
 
-	statshouseRemoteConfigString string       // optimization
-	skipShards                   atomic.Int32 // copy from config.
-	shardByMetricCount           uint32       // never changes, access without lock
+	statshouseRemoteConfigString string // optimization
+	shardByMetricCount           uint32 // never changes, access without lock
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -190,6 +190,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
 		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
+	result.historicWindow.Store(uint32(config.HistoricWindow))
 	result.builtinMetricMetaUsageCPU.Resolution = 1
 	result.builtinMetricMetaUsageCPU.EffectiveResolution = 1
 	result.builtinMetricMetaUsageMemory.Resolution = 1
@@ -288,9 +289,13 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	}
 
 	result.initBuiltInMetrics()
-	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
+	result.updateRemoteConfig() // first update from stored in sqlite
 	return result, nil
 }
+
+// For aggregator, which uses agent remote config value, because
+// it must be the same on agent and aggregator to work efficiently.
+func (s *Agent) HistoricWindow() uint32 { return s.historicWindow.Load() }
 
 func (s *Agent) ComponentTag() int32 { return s.componentTag }
 
@@ -461,7 +466,7 @@ func (s *Agent) getShardReplicaForSecond(shardNum int, timestamp uint32) (shardR
 	return shardReplica, true
 }
 
-func (s *Agent) updateConfigRemotelyExperimental() {
+func (s *Agent) updateRemoteConfig() {
 	if s.config.DisableRemoteConfig {
 		return
 	}
@@ -485,12 +490,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 		return
 	}
 	s.logF("Remote config: updated config from metric %q", format.StatshouseAgentRemoteConfigMetric)
-	if config.SkipShards < s.NumShards() {
-		s.skipShards.Store(int32(config.SkipShards))
-	} else {
-		s.skipShards.Store(0)
-	}
-	log.Printf("New conveyor is enabled")
+	s.historicWindow.Store(uint32(config.HistoricWindow))
 	for _, shard := range s.Shards {
 		shard.mu.Lock()
 		shard.config = config
@@ -526,7 +526,7 @@ func (s *Agent) goFlusher(cancelFlushCtx context.Context, wg *sync.WaitGroup) {
 		case <-timer.C:
 		}
 		s.goFlushIteration(time.Now())
-		s.updateConfigRemotelyExperimental()
+		s.updateRemoteConfig()
 		// code below was used to test agent resilience to jitter
 		// if rand.Intn(30) == 0 {
 		//	time.Sleep(2 * time.Second)

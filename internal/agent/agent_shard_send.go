@@ -365,7 +365,11 @@ func (s *Shard) goSendRecent(num int, wg *sync.WaitGroup, recentSendersSema *sem
 func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData, scratchPad *[]byte) {
 	for {
 		nowUnix := uint32(time.Now().Unix())
-		if s.checkOutOfWindow(nowUnix, cbd) { // should check in for because time passes with attempts
+		s.mu.Lock()
+		historicWindow := uint32(s.config.HistoricWindow)
+		s.mu.Unlock()
+
+		if s.checkOutOfWindow(nowUnix, cbd, historicWindow) { // should check inside loop, because time passes with attempts
 			time.Sleep(200 * time.Millisecond)
 			// Deleting 5 seconds per second is good for us, and does not spin CPU too much
 			// This sleep will not affect shutdown time, so we keep it simple without timer+context.
@@ -546,8 +550,8 @@ func (s *Shard) popOldestHistoricSecondLocked(nowUnix uint32) (_ compressedBucke
 	return cbd, true
 }
 
-func (s *Shard) checkOutOfWindow(nowUnix uint32, cbd compressedBucketData) bool {
-	if nowUnix < data_model.MaxHistoricWindow || cbd.time >= nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
+func (s *Shard) checkOutOfWindow(nowUnix uint32, cbd compressedBucketData, historicWindow uint32) bool {
+	if nowUnix < historicWindow || cbd.time >= nowUnix-historicWindow { // Not bother sending, will receive error anyway
 		return false
 	}
 	s.agent.logF("Send Disaster: Bucket %d for shard %d does not fit into full admission window (now is %d), throwing out",
@@ -593,9 +597,10 @@ func (s *Shard) goEraseHistoric(wg *sync.WaitGroup, cancelCtx context.Context) {
 			continue
 		}
 		diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShards())
+		historicWindow := uint32(s.config.HistoricWindow)
 		s.mu.Unlock()
 
-		if s.checkOutOfWindow(nowUnix, cbd) { // should check, because time passes with attempts
+		if s.checkOutOfWindow(nowUnix, cbd, historicWindow) { // should check here, because time passes with attempts
 			time.Sleep(200 * time.Millisecond)
 			// Deleting 5 seconds per second is good for us, and does not spin CPU too much
 			// This sleep will not affect shutdown time, so we keep it simple without timer+context.
