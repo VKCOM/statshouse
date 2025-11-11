@@ -30,7 +30,7 @@ func (item *SqliteMetainfo) ClearControlMeta() {
 	item.ControlMeta = ""
 	item.FieldMask &^= 1 << 0
 }
-func (item SqliteMetainfo) IsSetControlMeta() bool { return item.FieldMask&(1<<0) != 0 }
+func (item *SqliteMetainfo) IsSetControlMeta() bool { return item.FieldMask&(1<<0) != 0 }
 
 func (item *SqliteMetainfo) Reset() {
 	item.FieldMask = 0
@@ -55,7 +55,6 @@ func (item *SqliteMetainfo) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *SqliteMetainfo) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -76,7 +75,6 @@ func (item *SqliteMetainfo) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *SqliteMetainfo) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -91,6 +89,11 @@ func (item SqliteMetainfo) String() string {
 }
 
 func (item *SqliteMetainfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *SqliteMetainfo) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propOffsetPresented bool
 	var propControlMetaPresented bool
@@ -154,14 +157,15 @@ func (item *SqliteMetainfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *SqliteMetainfo) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *SqliteMetainfo) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *SqliteMetainfo) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *SqliteMetainfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *SqliteMetainfo) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -213,7 +217,7 @@ func (item *SqliteMetainfoBytes) ClearControlMeta() {
 	item.ControlMeta = item.ControlMeta[:0]
 	item.FieldMask &^= 1 << 0
 }
-func (item SqliteMetainfoBytes) IsSetControlMeta() bool { return item.FieldMask&(1<<0) != 0 }
+func (item *SqliteMetainfoBytes) IsSetControlMeta() bool { return item.FieldMask&(1<<0) != 0 }
 
 func (item *SqliteMetainfoBytes) Reset() {
 	item.FieldMask = 0
@@ -238,7 +242,6 @@ func (item *SqliteMetainfoBytes) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *SqliteMetainfoBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -259,7 +262,6 @@ func (item *SqliteMetainfoBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *SqliteMetainfoBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -274,6 +276,11 @@ func (item SqliteMetainfoBytes) String() string {
 }
 
 func (item *SqliteMetainfoBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *SqliteMetainfoBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propOffsetPresented bool
 	var propControlMetaPresented bool
@@ -337,14 +344,15 @@ func (item *SqliteMetainfoBytes) ReadJSON(legacyTypeNames bool, in *basictl.Json
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *SqliteMetainfoBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *SqliteMetainfoBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *SqliteMetainfoBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *SqliteMetainfoBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *SqliteMetainfoBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

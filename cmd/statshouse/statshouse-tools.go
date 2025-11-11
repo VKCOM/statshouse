@@ -696,54 +696,65 @@ func massUpdateMetadata() int {
 	})
 	_, _ = fmt.Fprintf(os.Stderr, "Starting list of %d metrics\n", len(list))
 	found := 0
-	//fixMeta := func(meta *format.MetricMetaValue) (shouldUpdate bool) {
-	//	//if meta.Disable != !meta.Visible {
-	//	//	meta.Disable = !meta.Visible
-	//	//	shouldUpdate = true
+	//for _, meta := range list {
+	//	//if !strings.HasPrefix(meta.Name, "gbuteyko") {
+	//	//	continue
 	//	//}
-	//	//for i := range meta.Tags {
-	//	//	tag := &meta.Tags[i]
-	//	//	if !tag.Raw && tag.RawKind != "" {
-	//	//		shouldUpdate = true
-	//	//		tag.RawKind = ""
-	//	//	}
-	//	//	if tag.Raw && tag.RawKind == "" {
-	//	//		shouldUpdate = true
-	//	//		tag.RawKind = "int"
-	//	//	}
-	//	//}
-	//	return
+	//	shardNum := uint32(meta.MetricID) % 16
+	//	switch meta.ShardStrategy {
+	//	case format.ShardFixed: // great, our favorite
+	//		//if meta.ShardNum != shardNum { // all new metrics assigned randomly
+	//		//	_, _ = fmt.Fprintf(os.Stderr, "info: Metric %d (%q) fixed shard_key (%d) != automatic fixed shard_key (%d)\n", meta.MetricID, meta.Name, meta.ShardNum+1, shardNum+1)
+	//		//}
+	//		continue
+	//	case format.ShardByTagsHash, format.ShardBuiltinDist:
+	//		_, _ = fmt.Fprintf(os.Stderr, "warning: Metric %d (%q) uncommon strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+	//		continue
+	//	case "": // break to code below
+	//	default:
+	//		_, _ = fmt.Fprintf(os.Stderr, "alarm: Metric %d (%q) unknown strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+	//		continue
+	//	}
+	//	if found >= argv.maxUpdates {
+	//		break
+	//	}
+	//	found++
+	//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) old strategy %s shard_key %d move to shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1, shardNum+1)
+	//	if argv.dryRun {
+	//		continue
+	//	}
+	//	meta2 := *meta
+	//	meta2.ShardNum = shardNum
+	//	meta2.ShardStrategy = format.ShardFixed
+	//	_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
+	//	var err error
+	//	meta2, err = loader.SaveMetric(context.Background(), meta2, "")
+	//	if err != nil {
+	//		_, _ = fmt.Fprintln(os.Stderr, err)
+	//		continue
+	//	}
+	//	err = storage.WaitVersion(context.Background(), meta.Version)
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
 	//}
 	for _, meta := range list {
-		//if !strings.HasPrefix(meta.Name, "gbuteyko") {
-		//	continue
-		//}
-		shardNum := uint32(meta.MetricID) % 16
-		switch meta.ShardStrategy {
-		case format.ShardFixed: // great, our favorite
-			if meta.ShardNum != shardNum { // all new metrics assigned randomly
-				_, _ = fmt.Fprintf(os.Stderr, "info: Metric %d (%q) fixed shard_key (%d) != automatic fixed shard_key (%d)\n", meta.MetricID, meta.Name, meta.ShardNum+1, shardNum+1)
-			}
+		if !strings.HasPrefix(meta.Name, "scrape:netdata_statsd_kphp") {
 			continue
-		case format.ShardByTagsHash, format.ShardBuiltinDist:
-			_, _ = fmt.Fprintf(os.Stderr, "warning: Metric %d (%q) uncommon strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
-			continue
-		case "": // break to code below
-		default:
-			_, _ = fmt.Fprintf(os.Stderr, "alarm: Metric %d (%q) unknown strategy %s shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1)
+		}
+		if meta.Disable {
 			continue
 		}
 		if found >= argv.maxUpdates {
 			break
 		}
 		found++
-		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) old strategy %s shard_key %d move to shard_key %d\n", meta.MetricID, meta.Name, meta.ShardStrategy, meta.ShardNum+1, shardNum+1)
+		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will disable\n", meta.MetricID, meta.Name)
 		if argv.dryRun {
 			continue
 		}
 		meta2 := *meta
-		meta2.ShardNum = shardNum
-		meta2.ShardStrategy = format.ShardFixed
+		meta2.Disable = true
 		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
 		var err error
 		meta2, err = loader.SaveMetric(context.Background(), meta2, "")

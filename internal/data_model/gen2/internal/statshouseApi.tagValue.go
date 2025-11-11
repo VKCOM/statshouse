@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseApiTagValueWrite(w []byte, vec []StatshouseApiTagVal
 	return w
 }
 
-func BuiltinVectorStatshouseApiTagValueReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
+func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseApiTagValueReadJSON(legacyTypeNames bool, in *basict
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseApiTagValueReadJSON(legacyTypeNames bool, in *basict
 }
 
 func BuiltinVectorStatshouseApiTagValueWriteJSON(w []byte, vec []StatshouseApiTagValue) []byte {
-	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiTagValue) []byte {
+func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiTagValue) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -112,7 +113,6 @@ func (item *StatshouseApiTagValue) Read(w []byte) (_ []byte, err error) {
 	return item.Flag.ReadBoxed(w)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiTagValue) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -132,7 +132,6 @@ func (item *StatshouseApiTagValue) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiTagValue) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -147,6 +146,11 @@ func (item StatshouseApiTagValue) String() string {
 }
 
 func (item *StatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiTagValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propInPresented bool
 	var propValuePresented bool
@@ -189,7 +193,7 @@ func (item *StatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propFlagPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "flag")
 				}
-				if err := item.Flag.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Flag.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propFlagPresented = true
@@ -219,14 +223,15 @@ func (item *StatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.Js
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiTagValue) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseApiTagValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseApiTagValue) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseApiTagValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseApiTagValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -251,7 +256,7 @@ func (item *StatshouseApiTagValue) WriteJSONOpt(newTypeNames bool, short bool, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"flag":`...)
-	w = item.Flag.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Flag.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

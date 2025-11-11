@@ -35,7 +35,7 @@ func BuiltinTuple4StringWrite(w []byte, vec *[4]string) []byte {
 	return w
 }
 
-func BuiltinTuple4StringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[4]string) error {
+func BuiltinTuple4StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4]string) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -63,9 +63,10 @@ func BuiltinTuple4StringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 }
 
 func BuiltinTuple4StringWriteJSON(w []byte, vec *[4]string) []byte {
-	return BuiltinTuple4StringWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinTuple4StringWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple4StringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[4]string) []byte {
+func BuiltinTuple4StringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[4]string) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -96,7 +97,7 @@ func BuiltinTuple4StringBytesWrite(w []byte, vec *[4][]byte) []byte {
 	return w
 }
 
-func BuiltinTuple4StringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[4][]byte) error {
+func BuiltinTuple4StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4][]byte) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -124,9 +125,10 @@ func BuiltinTuple4StringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexe
 }
 
 func BuiltinTuple4StringBytesWriteJSON(w []byte, vec *[4][]byte) []byte {
-	return BuiltinTuple4StringBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinTuple4StringBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple4StringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[4][]byte) []byte {
+func BuiltinTuple4StringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[4][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -164,7 +166,7 @@ func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 	return w
 }
 
-func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
+func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -193,9 +195,10 @@ func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) []byte {
-	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStringWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) []byte {
+func BuiltinVectorStringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -233,7 +236,7 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 	return w
 }
 
-func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {
+func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -262,9 +265,10 @@ func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexe
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) []byte {
-	return BuiltinVectorStringBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStringBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) []byte {
+func BuiltinVectorStringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -288,7 +292,6 @@ func (item *String) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *String) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -305,7 +308,6 @@ func (item *String) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *String) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -318,8 +320,12 @@ func (item *String) WriteBoxed(w []byte) []byte {
 func (item String) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *String) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*string)(item)
 	if err := Json2ReadString(in, ptr); err != nil {
 		return err
@@ -328,15 +334,16 @@ func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *String) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *String) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *String) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *String) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *String) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*string)(item)
 	w = basictl.JSONWriteString(w, *ptr)
 	return w
@@ -367,7 +374,6 @@ func (item *StringBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringReadBytes(w, ptr)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StringBytes) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -384,7 +390,6 @@ func (item *StringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StringBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -397,8 +402,12 @@ func (item *StringBytes) WriteBoxed(w []byte) []byte {
 func (item StringBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
-
 func (item *StringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]byte)(item)
 	if err := Json2ReadStringBytes(in, ptr); err != nil {
 		return err
@@ -407,15 +416,16 @@ func (item *StringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) e
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StringBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *StringBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StringBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *StringBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StringBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]byte)(item)
 	w = basictl.JSONWriteStringBytes(w, *ptr)
 	return w

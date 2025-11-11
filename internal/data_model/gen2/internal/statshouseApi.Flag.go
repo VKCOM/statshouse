@@ -30,14 +30,14 @@ func (item StatshouseApiFlag) TLTag() uint32  { return _StatshouseApiFlag[item.i
 
 func (item *StatshouseApiFlag) Reset() { item.index = 0 }
 
-func (item *StatshouseApiFlag) IsMapped() bool { return item.index == 0 }
-func (item *StatshouseApiFlag) SetMapped()     { item.index = 0 }
+func (item StatshouseApiFlag) IsMapped() bool { return item.index == 0 }
+func (item *StatshouseApiFlag) SetMapped()    { item.index = 0 }
 
-func (item *StatshouseApiFlag) IsRaw() bool { return item.index == 1 }
-func (item *StatshouseApiFlag) SetRaw()     { item.index = 1 }
+func (item StatshouseApiFlag) IsRaw() bool { return item.index == 1 }
+func (item *StatshouseApiFlag) SetRaw()    { item.index = 1 }
 
-func (item *StatshouseApiFlag) IsAuto() bool { return item.index == 2 }
-func (item *StatshouseApiFlag) SetAuto()     { item.index = 2 }
+func (item StatshouseApiFlag) IsAuto() bool { return item.index == 2 }
+func (item *StatshouseApiFlag) SetAuto()    { item.index = 2 }
 
 func (item *StatshouseApiFlag) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
@@ -59,36 +59,49 @@ func (item *StatshouseApiFlag) ReadBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiFlag) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
 
-func (item StatshouseApiFlag) WriteBoxed(w []byte) []byte {
+func (item *StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, _StatshouseApiFlag[item.index].TLTag)
 	return w
 }
 
 func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiFlag) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_jtype := in.UnsafeString()
 	if !in.Ok() {
 		return ErrorInvalidJSON("statshouseApi.Flag", "expected string")
 	}
 	switch _jtype {
 	case "statshouseApi.flagMapped#670ab89c", "statshouseApi.flagMapped", "#670ab89c":
-		if !legacyTypeNames && _jtype == "statshouseApi.flagMapped#670ab89c" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.flagMapped" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.flagMapped#670ab89c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagMapped#670ab89c")
 		}
 		item.index = 0
 		return nil
 	case "statshouseApi.flagRaw#4ca979c0", "statshouseApi.flagRaw", "#4ca979c0":
-		if !legacyTypeNames && _jtype == "statshouseApi.flagRaw#4ca979c0" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.flagRaw" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.flagRaw#4ca979c0" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagRaw#4ca979c0")
 		}
 		item.index = 1
 		return nil
 	case "statshouseApi.flagAuto#2a6e4c14", "statshouseApi.flagAuto", "#2a6e4c14":
-		if !legacyTypeNames && _jtype == "statshouseApi.flagAuto#2a6e4c14" {
+		if tctx.IsTL2 && _jtype != "statshouseApi.flagAuto" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", _jtype)
+		}
+		if !tctx.LegacyTypeNames && _jtype == "statshouseApi.flagAuto#2a6e4c14" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagAuto#2a6e4c14")
 		}
 		item.index = 2
@@ -99,19 +112,20 @@ func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item StatshouseApiFlag) WriteJSONGeneral(w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item StatshouseApiFlag) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item StatshouseApiFlag) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item StatshouseApiFlag) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item StatshouseApiFlag) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '"')
-	if newTypeNames {
-		w = append(w, _StatshouseApiFlag[item.index].TLName...)
-	} else {
+	if tctx.LegacyTypeNames {
 		w = append(w, _StatshouseApiFlag[item.index].TLString...)
+	} else {
+		w = append(w, _StatshouseApiFlag[item.index].TLName...)
 	}
 	return append(w, '"')
 }

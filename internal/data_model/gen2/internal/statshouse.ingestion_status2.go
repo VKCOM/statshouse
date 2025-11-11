@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseInge
 	return w
 }
 
-func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
+func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *b
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames bool, in *b
 }
 
 func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) []byte {
-	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseIngestionStatus2) []byte {
+func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseIngestionStatus2) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -107,7 +108,6 @@ func (item *StatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Value)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseIngestionStatus2) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -126,7 +126,6 @@ func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseIngestionStatus2) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -141,6 +140,11 @@ func (item StatshouseIngestionStatus2) String() string {
 }
 
 func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propEnvPresented bool
 	var propMetricPresented bool
 	var propValuePresented bool
@@ -201,14 +205,15 @@ func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseIngestionStatus2) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseIngestionStatus2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseIngestionStatus2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseIngestionStatus2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexEnv := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
