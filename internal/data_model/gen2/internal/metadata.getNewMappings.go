@@ -17,10 +17,20 @@ type MetadataGetNewMappings struct {
 	FieldMask uint32
 	From      int32
 	Limit     int32
+	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
 }
 
 func (MetadataGetNewMappings) TLName() string { return "metadata.getNewMappings" }
 func (MetadataGetNewMappings) TLTag() uint32  { return 0x93ba92f7 }
+
+func (item *MetadataGetNewMappings) SetReturnIfEmpty(v bool) {
+	if v {
+		item.FieldMask |= 1 << 3
+	} else {
+		item.FieldMask &^= 1 << 3
+	}
+}
+func (item MetadataGetNewMappings) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *MetadataGetNewMappings) Reset() {
 	item.FieldMask = 0
@@ -35,7 +45,10 @@ func (item *MetadataGetNewMappings) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.From); err != nil {
 		return w, err
 	}
-	return basictl.IntRead(w, &item.Limit)
+	if w, err = basictl.IntRead(w, &item.Limit); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 // This method is general version of Write, use it instead!
@@ -128,6 +141,8 @@ func (item *MetadataGetNewMappings) ReadJSON(legacyTypeNames bool, in *basictl.J
 	var propFieldMaskPresented bool
 	var propFromPresented bool
 	var propLimitPresented bool
+	var trueTypeReturnIfEmptyPresented bool
+	var trueTypeReturnIfEmptyValue bool
 
 	if in != nil {
 		in.Delim('{')
@@ -162,6 +177,14 @@ func (item *MetadataGetNewMappings) ReadJSON(legacyTypeNames bool, in *basictl.J
 					return err
 				}
 				propLimitPresented = true
+			case "return_if_empty":
+				if trueTypeReturnIfEmptyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappings", "return_if_empty")
+				}
+				if err := Json2ReadBool(in, &trueTypeReturnIfEmptyValue); err != nil {
+					return err
+				}
+				trueTypeReturnIfEmptyPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("metadata.getNewMappings", key)
 			}
@@ -180,6 +203,15 @@ func (item *MetadataGetNewMappings) ReadJSON(legacyTypeNames bool, in *basictl.J
 	}
 	if !propLimitPresented {
 		item.Limit = 0
+	}
+	if trueTypeReturnIfEmptyPresented {
+		if trueTypeReturnIfEmptyValue {
+			item.FieldMask |= 1 << 3
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeReturnIfEmptyPresented && !trueTypeReturnIfEmptyValue && (item.FieldMask&(1<<3) != 0) {
+		return ErrorInvalidJSON("metadata.getNewMappings", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -214,6 +246,10 @@ func (item *MetadataGetNewMappings) WriteJSONOpt(newTypeNames bool, short bool, 
 	w = basictl.JSONWriteInt32(w, item.Limit)
 	if (item.Limit != 0) == false {
 		w = w[:backupIndexLimit]
+	}
+	if item.FieldMask&(1<<3) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"return_if_empty":true`...)
 	}
 	return append(w, '}')
 }

@@ -13,67 +13,48 @@ import (
 
 var _ = basictl.NatWrite
 
-var _MetadataGetNewMappingsResponse = [2]UnionElement{
-	{TLTag: 0x9287aaaa, TLName: "metadata.getNewMappingsResponse", TLString: "metadata.getNewMappingsResponse#9287aaaa"},
-	{TLTag: 0x9287aaab, TLName: "metadata.getNewMappingsResponseNotExists", TLString: "metadata.getNewMappingsResponseNotExists#9287aaab"},
-}
-
 type MetadataGetNewMappingsResponse struct {
-	valueGetNewMappingsResponse MetadataGetNewMappingsResponse0
-	index                       int
+	CurrentVersion int32
+	LastVersion    int32
+	Pairs          []StatshouseMapping
 }
 
-func (item MetadataGetNewMappingsResponse) TLName() string {
-	return _MetadataGetNewMappingsResponse[item.index].TLName
-}
-func (item MetadataGetNewMappingsResponse) TLTag() uint32 {
-	return _MetadataGetNewMappingsResponse[item.index].TLTag
-}
+func (MetadataGetNewMappingsResponse) TLName() string { return "metadata.getNewMappingsResponse" }
+func (MetadataGetNewMappingsResponse) TLTag() uint32  { return 0x9287aaaa }
 
-func (item *MetadataGetNewMappingsResponse) Reset() { item.ResetToGetNewMappingsResponse() }
-
-func (item *MetadataGetNewMappingsResponse) IsGetNewMappingsResponse() bool { return item.index == 0 }
-
-func (item *MetadataGetNewMappingsResponse) AsGetNewMappingsResponse() (*MetadataGetNewMappingsResponse0, bool) {
-	if item.index != 0 {
-		return nil, false
-	}
-	return &item.valueGetNewMappingsResponse, true
-}
-func (item *MetadataGetNewMappingsResponse) ResetToGetNewMappingsResponse() *MetadataGetNewMappingsResponse0 {
-	item.index = 0
-	item.valueGetNewMappingsResponse.Reset()
-	return &item.valueGetNewMappingsResponse
-}
-func (item *MetadataGetNewMappingsResponse) SetGetNewMappingsResponse(value MetadataGetNewMappingsResponse0) {
-	item.index = 0
-	item.valueGetNewMappingsResponse = value
+func (item *MetadataGetNewMappingsResponse) Reset() {
+	item.CurrentVersion = 0
+	item.LastVersion = 0
+	item.Pairs = item.Pairs[:0]
 }
 
-func (item *MetadataGetNewMappingsResponse) IsNotExists() bool { return item.index == 1 }
-
-func (item *MetadataGetNewMappingsResponse) AsNotExists() (MetadataGetNewMappingsResponseNotExists, bool) {
-	var value MetadataGetNewMappingsResponseNotExists
-	return value, item.index == 1
-}
-func (item *MetadataGetNewMappingsResponse) ResetToNotExists() { item.index = 1 }
-func (item *MetadataGetNewMappingsResponse) SetNotExists()     { item.index = 1 }
-
-func (item *MetadataGetNewMappingsResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	var tag uint32
-	if w, err = basictl.NatRead(w, &tag); err != nil {
+func (item *MetadataGetNewMappingsResponse) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.IntRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	switch tag {
-	case 0x9287aaaa:
-		item.index = 0
-		return item.valueGetNewMappingsResponse.Read(w, nat_field_mask)
-	case 0x9287aaab:
-		item.index = 1
-		return w, nil
-	default:
-		return w, ErrorInvalidUnionTag("metadata.GetNewMappingsResponse", tag)
+	if w, err = basictl.IntRead(w, &item.LastVersion); err != nil {
+		return w, err
 	}
+	return BuiltinVectorStatshouseMappingRead(w, &item.Pairs)
+}
+
+// This method is general version of Write, use it instead!
+func (item *MetadataGetNewMappingsResponse) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.Write(w, nat_field_mask), nil
+}
+
+func (item *MetadataGetNewMappingsResponse) Write(w []byte, nat_field_mask uint32) []byte {
+	w = basictl.IntWrite(w, item.CurrentVersion)
+	w = basictl.IntWrite(w, item.LastVersion)
+	w = BuiltinVectorStatshouseMappingWrite(w, item.Pairs)
+	return w
+}
+
+func (item *MetadataGetNewMappingsResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9287aaaa); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_field_mask)
 }
 
 // This method is general version of WriteBoxed, use it instead!
@@ -82,133 +63,13 @@ func (item *MetadataGetNewMappingsResponse) WriteBoxedGeneral(w []byte, nat_fiel
 }
 
 func (item *MetadataGetNewMappingsResponse) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
-	w = basictl.NatWrite(w, _MetadataGetNewMappingsResponse[item.index].TLTag)
-	switch item.index {
-	case 0:
-		w = item.valueGetNewMappingsResponse.Write(w, nat_field_mask)
-	case 1:
-		return w
-	}
-	return w
-}
-
-func (item *MetadataGetNewMappingsResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
-	_tag, _value, err := Json2ReadUnion("metadata.GetNewMappingsResponse", in)
-	if err != nil {
-		return err
-	}
-	switch _tag {
-	case "metadata.getNewMappingsResponse#9287aaaa", "metadata.getNewMappingsResponse", "#9287aaaa":
-		if !legacyTypeNames && _tag == "metadata.getNewMappingsResponse#9287aaaa" {
-			return ErrorInvalidUnionLegacyTagJSON("metadata.GetNewMappingsResponse", "metadata.getNewMappingsResponse#9287aaaa")
-		}
-		item.index = 0
-		var in2Pointer *basictl.JsonLexer
-		if _value != nil {
-			in2 := basictl.JsonLexer{Data: _value}
-			in2Pointer = &in2
-		}
-		if err := item.valueGetNewMappingsResponse.ReadJSON(legacyTypeNames, in2Pointer, nat_field_mask); err != nil {
-			return err
-		}
-	case "metadata.getNewMappingsResponseNotExists#9287aaab", "metadata.getNewMappingsResponseNotExists", "#9287aaab":
-		if !legacyTypeNames && _tag == "metadata.getNewMappingsResponseNotExists#9287aaab" {
-			return ErrorInvalidUnionLegacyTagJSON("metadata.GetNewMappingsResponse", "metadata.getNewMappingsResponseNotExists#9287aaab")
-		}
-		item.index = 1
-	default:
-		return ErrorInvalidUnionTagJSON("metadata.GetNewMappingsResponse", _tag)
-	}
-	return nil
-}
-
-// This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetNewMappingsResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) ([]byte, error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
-}
-func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
-	switch item.index {
-	case 0:
-		if newTypeNames {
-			w = append(w, `{"type":"metadata.getNewMappingsResponse"`...)
-		} else {
-			w = append(w, `{"type":"metadata.getNewMappingsResponse#9287aaaa"`...)
-		}
-		w = append(w, `,"value":`...)
-		w = item.valueGetNewMappingsResponse.WriteJSONOpt(newTypeNames, short, w, nat_field_mask)
-		return append(w, '}')
-	case 1:
-		if newTypeNames {
-			w = append(w, `{"type":"metadata.getNewMappingsResponseNotExists"`...)
-		} else {
-			w = append(w, `{"type":"metadata.getNewMappingsResponseNotExists#9287aaab"`...)
-		}
-		return append(w, '}')
-	default: // Impossible due to panic above
-		return w
-	}
-}
-
-func (item MetadataGetNewMappingsResponse0) AsUnion() MetadataGetNewMappingsResponse {
-	var ret MetadataGetNewMappingsResponse
-	ret.SetGetNewMappingsResponse(item)
-	return ret
-}
-
-type MetadataGetNewMappingsResponse0 struct {
-	CurrentVersion int32
-	Pairs          []StatshouseMapping
-}
-
-func (MetadataGetNewMappingsResponse0) TLName() string { return "metadata.getNewMappingsResponse" }
-func (MetadataGetNewMappingsResponse0) TLTag() uint32  { return 0x9287aaaa }
-
-func (item *MetadataGetNewMappingsResponse0) Reset() {
-	item.CurrentVersion = 0
-	item.Pairs = item.Pairs[:0]
-}
-
-func (item *MetadataGetNewMappingsResponse0) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.IntRead(w, &item.CurrentVersion); err != nil {
-		return w, err
-	}
-	return BuiltinVectorStatshouseMappingRead(w, &item.Pairs)
-}
-
-// This method is general version of Write, use it instead!
-func (item *MetadataGetNewMappingsResponse0) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.Write(w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponse0) Write(w []byte, nat_field_mask uint32) []byte {
-	w = basictl.IntWrite(w, item.CurrentVersion)
-	w = BuiltinVectorStatshouseMappingWrite(w, item.Pairs)
-	return w
-}
-
-func (item *MetadataGetNewMappingsResponse0) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x9287aaaa); err != nil {
-		return w, err
-	}
-	return item.Read(w, nat_field_mask)
-}
-
-// This method is general version of WriteBoxed, use it instead!
-func (item *MetadataGetNewMappingsResponse0) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteBoxed(w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponse0) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.NatWrite(w, 0x9287aaaa)
 	return item.Write(w, nat_field_mask)
 }
 
-func (item *MetadataGetNewMappingsResponse0) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetNewMappingsResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
+	var propLastVersionPresented bool
 	var propPairsPresented bool
 
 	if in != nil {
@@ -228,6 +89,14 @@ func (item *MetadataGetNewMappingsResponse0) ReadJSON(legacyTypeNames bool, in *
 					return err
 				}
 				propCurrentVersionPresented = true
+			case "last_version":
+				if propLastVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappingsResponse", "last_version")
+				}
+				if err := Json2ReadInt32(in, &item.LastVersion); err != nil {
+					return err
+				}
+				propLastVersionPresented = true
 			case "pairs":
 				if propPairsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappingsResponse", "pairs")
@@ -249,6 +118,9 @@ func (item *MetadataGetNewMappingsResponse0) ReadJSON(legacyTypeNames bool, in *
 	if !propCurrentVersionPresented {
 		item.CurrentVersion = 0
 	}
+	if !propLastVersionPresented {
+		item.LastVersion = 0
+	}
 	if !propPairsPresented {
 		item.Pairs = item.Pairs[:0]
 	}
@@ -256,14 +128,14 @@ func (item *MetadataGetNewMappingsResponse0) ReadJSON(legacyTypeNames bool, in *
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetNewMappingsResponse0) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetNewMappingsResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
 }
 
-func (item *MetadataGetNewMappingsResponse0) WriteJSON(w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetNewMappingsResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
 	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetNewMappingsResponse0) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -272,6 +144,13 @@ func (item *MetadataGetNewMappingsResponse0) WriteJSONOpt(newTypeNames bool, sho
 	if (item.CurrentVersion != 0) == false {
 		w = w[:backupIndexCurrentVersion]
 	}
+	backupIndexLastVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"last_version":`...)
+	w = basictl.JSONWriteInt32(w, item.LastVersion)
+	if (item.LastVersion != 0) == false {
+		w = w[:backupIndexLastVersion]
+	}
 	backupIndexPairs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pairs":`...)
@@ -279,81 +158,5 @@ func (item *MetadataGetNewMappingsResponse0) WriteJSONOpt(newTypeNames bool, sho
 	if (len(item.Pairs) != 0) == false {
 		w = w[:backupIndexPairs]
 	}
-	return append(w, '}')
-}
-
-func (item MetadataGetNewMappingsResponseNotExists) AsUnion() MetadataGetNewMappingsResponse {
-	var ret MetadataGetNewMappingsResponse
-	ret.SetNotExists()
-	return ret
-}
-
-type MetadataGetNewMappingsResponseNotExists struct {
-}
-
-func (MetadataGetNewMappingsResponseNotExists) TLName() string {
-	return "metadata.getNewMappingsResponseNotExists"
-}
-func (MetadataGetNewMappingsResponseNotExists) TLTag() uint32 { return 0x9287aaab }
-
-func (item *MetadataGetNewMappingsResponseNotExists) Reset() {}
-
-func (item *MetadataGetNewMappingsResponseNotExists) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return w, nil
-}
-
-// This method is general version of Write, use it instead!
-func (item *MetadataGetNewMappingsResponseNotExists) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.Write(w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponseNotExists) Write(w []byte, nat_field_mask uint32) []byte {
-	return w
-}
-
-func (item *MetadataGetNewMappingsResponseNotExists) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x9287aaab); err != nil {
-		return w, err
-	}
-	return item.Read(w, nat_field_mask)
-}
-
-// This method is general version of WriteBoxed, use it instead!
-func (item *MetadataGetNewMappingsResponseNotExists) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteBoxed(w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponseNotExists) WriteBoxed(w []byte, nat_field_mask uint32) []byte {
-	w = basictl.NatWrite(w, 0x9287aaab)
-	return item.Write(w, nat_field_mask)
-}
-
-func (item *MetadataGetNewMappingsResponseNotExists) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
-	if in != nil {
-		in.Delim('{')
-		if !in.Ok() {
-			return in.Error()
-		}
-		for !in.IsDelim('}') {
-			return ErrorInvalidJSON("metadata.getNewMappingsResponseNotExists", "this object can't have properties")
-		}
-		in.Delim('}')
-		if !in.Ok() {
-			return in.Error()
-		}
-	}
-	return nil
-}
-
-// This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetNewMappingsResponseNotExists) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
-}
-
-func (item *MetadataGetNewMappingsResponseNotExists) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
-}
-func (item *MetadataGetNewMappingsResponseNotExists) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
-	w = append(w, '{')
 	return append(w, '}')
 }

@@ -37,15 +37,14 @@ metadata.getMetricsResponse#9286abfb {field_mask: #}
 
 metadata.getJournalResponsenew#9286aaaa {field_mask: #}
     current_version: long // important for receivers that want to load until 'latest' version. Also useful for reporting progress of loading.
+    last_version: long
     events: (vector metadata.event)
     = metadata.GetJournalResponsenew field_mask;
 
 metadata.getNewMappingsResponse#9287aaaa {field_mask: #}
     current_version: int
+    last_version: int
     pairs: (vector statshouse.mapping)
-    = metadata.GetNewMappingsResponse field_mask;
-
-metadata.getNewMappingsResponseNotExists#9287aaab {field_mask: #}
     = metadata.GetNewMappingsResponse field_mask;
 
 metadata.getMappingResponse#9286abfc {field_mask: #}
@@ -119,6 +118,7 @@ metadata.resetFloodResponse2#9286abef
     field_mask: #
     from: int // excluded
     limit: int
+    return_if_empty: field_mask.3?true
      = metadata.GetNewMappingsResponse field_mask;
 
 @readwrite metadata.getMapping#9dfa7a83

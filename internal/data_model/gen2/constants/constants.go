@@ -100,7 +100,6 @@ const (
 	MetadataGetMetricsResponse                   = 0x9286abfb // metadata.getMetricsResponse
 	MetadataGetNewMappings                       = 0x93ba92f7 // metadata.getNewMappings
 	MetadataGetNewMappingsResponse               = 0x9287aaaa // metadata.getNewMappingsResponse
-	MetadataGetNewMappingsResponseNotExists      = 0x9287aaab // metadata.getNewMappingsResponseNotExists
 	MetadataGetTagMappingBootstrap               = 0x5fc81a9b // metadata.getTagMappingBootstrap
 	MetadataHistoryShortResponse                 = 0x7186baaf // metadata.history_short_response
 	MetadataHistoryShortResponseEvent            = 0x1186baaf // metadata.history_short_response_event

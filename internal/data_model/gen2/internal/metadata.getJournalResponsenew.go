@@ -15,6 +15,7 @@ var _ = basictl.NatWrite
 
 type MetadataGetJournalResponsenew struct {
 	CurrentVersion int64
+	LastVersion    int64
 	Events         []MetadataEvent
 }
 
@@ -23,11 +24,15 @@ func (MetadataGetJournalResponsenew) TLTag() uint32  { return 0x9286aaaa }
 
 func (item *MetadataGetJournalResponsenew) Reset() {
 	item.CurrentVersion = 0
+	item.LastVersion = 0
 	item.Events = item.Events[:0]
 }
 
 func (item *MetadataGetJournalResponsenew) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.LastVersion); err != nil {
 		return w, err
 	}
 	return BuiltinVectorMetadataEventRead(w, &item.Events)
@@ -40,6 +45,7 @@ func (item *MetadataGetJournalResponsenew) WriteGeneral(w []byte, nat_field_mask
 
 func (item *MetadataGetJournalResponsenew) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
+	w = basictl.LongWrite(w, item.LastVersion)
 	w = BuiltinVectorMetadataEventWrite(w, item.Events)
 	return w
 }
@@ -63,6 +69,7 @@ func (item *MetadataGetJournalResponsenew) WriteBoxed(w []byte, nat_field_mask u
 
 func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
+	var propLastVersionPresented bool
 	var propEventsPresented bool
 
 	if in != nil {
@@ -82,6 +89,14 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 					return err
 				}
 				propCurrentVersionPresented = true
+			case "last_version":
+				if propLastVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "last_version")
+				}
+				if err := Json2ReadInt64(in, &item.LastVersion); err != nil {
+					return err
+				}
+				propLastVersionPresented = true
 			case "events":
 				if propEventsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
@@ -102,6 +117,9 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 	}
 	if !propCurrentVersionPresented {
 		item.CurrentVersion = 0
+	}
+	if !propLastVersionPresented {
+		item.LastVersion = 0
 	}
 	if !propEventsPresented {
 		item.Events = item.Events[:0]
@@ -126,6 +144,13 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short
 	if (item.CurrentVersion != 0) == false {
 		w = w[:backupIndexCurrentVersion]
 	}
+	backupIndexLastVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"last_version":`...)
+	w = basictl.JSONWriteInt64(w, item.LastVersion)
+	if (item.LastVersion != 0) == false {
+		w = w[:backupIndexLastVersion]
+	}
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"events":`...)
@@ -138,6 +163,7 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short
 
 type MetadataGetJournalResponsenewBytes struct {
 	CurrentVersion int64
+	LastVersion    int64
 	Events         []MetadataEventBytes
 }
 
@@ -146,11 +172,15 @@ func (MetadataGetJournalResponsenewBytes) TLTag() uint32  { return 0x9286aaaa }
 
 func (item *MetadataGetJournalResponsenewBytes) Reset() {
 	item.CurrentVersion = 0
+	item.LastVersion = 0
 	item.Events = item.Events[:0]
 }
 
 func (item *MetadataGetJournalResponsenewBytes) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
+		return w, err
+	}
+	if w, err = basictl.LongRead(w, &item.LastVersion); err != nil {
 		return w, err
 	}
 	return BuiltinVectorMetadataEventBytesRead(w, &item.Events)
@@ -163,6 +193,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteGeneral(w []byte, nat_field
 
 func (item *MetadataGetJournalResponsenewBytes) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
+	w = basictl.LongWrite(w, item.LastVersion)
 	w = BuiltinVectorMetadataEventBytesWrite(w, item.Events)
 	return w
 }
@@ -186,6 +217,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteBoxed(w []byte, nat_field_m
 
 func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
+	var propLastVersionPresented bool
 	var propEventsPresented bool
 
 	if in != nil {
@@ -205,6 +237,14 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 					return err
 				}
 				propCurrentVersionPresented = true
+			case "last_version":
+				if propLastVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "last_version")
+				}
+				if err := Json2ReadInt64(in, &item.LastVersion); err != nil {
+					return err
+				}
+				propLastVersionPresented = true
 			case "events":
 				if propEventsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
@@ -225,6 +265,9 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 	}
 	if !propCurrentVersionPresented {
 		item.CurrentVersion = 0
+	}
+	if !propLastVersionPresented {
+		item.LastVersion = 0
 	}
 	if !propEventsPresented {
 		item.Events = item.Events[:0]
@@ -248,6 +291,13 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, 
 	w = basictl.JSONWriteInt64(w, item.CurrentVersion)
 	if (item.CurrentVersion != 0) == false {
 		w = w[:backupIndexCurrentVersion]
+	}
+	backupIndexLastVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"last_version":`...)
+	w = basictl.JSONWriteInt64(w, item.LastVersion)
+	if (item.LastVersion != 0) == false {
+		w = w[:backupIndexLastVersion]
 	}
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

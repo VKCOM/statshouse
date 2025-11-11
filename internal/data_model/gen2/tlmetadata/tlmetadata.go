@@ -44,8 +44,6 @@ type (
 	GetMetricsResponse                   = internal.MetadataGetMetricsResponse
 	GetNewMappings                       = internal.MetadataGetNewMappings
 	GetNewMappingsResponse               = internal.MetadataGetNewMappingsResponse
-	GetNewMappingsResponse0              = internal.MetadataGetNewMappingsResponse0
-	GetNewMappingsResponseNotExists      = internal.MetadataGetNewMappingsResponseNotExists
 	GetTagMappingBootstrap               = internal.MetadataGetTagMappingBootstrap
 	HistoryShortResponse                 = internal.MetadataHistoryShortResponse
 	HistoryShortResponseEvent            = internal.MetadataHistoryShortResponseEvent
