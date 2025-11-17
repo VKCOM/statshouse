@@ -719,7 +719,7 @@ func TestRPCServerBroadcast(t *testing.T) {
 	}
 	h.getJournalClients.mx.Lock()
 	defer h.getJournalClients.mx.Unlock()
-	require.Len(t, h.getJournalClients, 1)
+	require.Len(t, h.getJournalClients.clients, 1)
 }
 
 func TestRPCServerBroadcastMapping(t *testing.T) {
@@ -769,7 +769,7 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 	}
 	h.getMappingClients.mx.Lock()
 	defer h.getMappingClients.mx.Unlock()
-	require.Len(t, h.getMappingClients, 1)
+	require.Len(t, h.getMappingClients.clients, 1)
 }
 
 func TestBootstrap(t *testing.T) {
