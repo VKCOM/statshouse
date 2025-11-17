@@ -54,32 +54,41 @@ func (ms *JournalFast) broadcastJournal() {
 	// most clients wait with the same version, but usually diff is very small,
 	// so we simply run independent code for everyone
 	var ret tlmetadata.GetJournalResponsenew
-	for hctx, args := range ms.metricsVersionClients3 {
+	for lh, args := range ms.metricsVersionClients3 {
 		if ms.metricsDead {
-			delete(ms.metricsVersionClients3, hctx)
-			hctx.SendHijackedResponse(errDeadMetrics)
+			delete(ms.metricsVersionClients3, lh)
+			if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+				hctx.SendLongpollResponse(errDeadMetrics)
+			}
 			continue
 		}
 		ms.getJournalDiffLocked3(args.From, &ret)
 		if len(ret.Events) == 0 {
 			continue
 		}
-		delete(ms.metricsVersionClients3, hctx)
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, ret)
-		if err != nil {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
-		} else {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(ret.Events)))
+		delete(ms.metricsVersionClients3, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			var err error
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
+				ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
+			} else {
+				ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(ret.Events)))
+			}
+			hctx.SendLongpollResponse(err)
 		}
-		hctx.SendHijackedResponse(err)
 	}
 }
 
-func (ms *JournalFast) CancelHijack(hctx *rpc.HandlerContext) {
+func (ms *JournalFast) CancelLongpoll(lh rpc.LongpollHandle) {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	delete(ms.metricsVersionClients3, hctx)
+	delete(ms.metricsVersionClients3, lh)
+}
+
+func (ms *JournalFast) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	ms.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rpc.HandlerContext) error {
@@ -103,7 +112,11 @@ func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rp
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.metricsVersionClients3[hctx] = args
+	lh, err := hctx.StartLongpoll(ms)
+	if err != nil {
+		return err
+	}
+	ms.metricsVersionClients3[lh] = args
 	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
-	return hctx.HijackResponse(ms)
+	return nil
 }

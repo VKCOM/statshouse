@@ -28,8 +28,8 @@ type autoCreate struct {
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
 	co         *sync.Cond
-	queue      []*rpc.HandlerContext // protected by "mu"
-	args       map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes
+	queue      []rpc.LongpollHandle // protected by "mu"
+	args       map[rpc.LongpollHandle]tlstatshouse.AutoCreateBytes
 	ctx        context.Context
 	shutdownFn func()
 
@@ -45,7 +45,7 @@ func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAll
 	ac := &autoCreate{
 		agg:                     a,
 		client:                  client,
-		args:                    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
+		args:                    make(map[rpc.LongpollHandle]tlstatshouse.AutoCreateBytes),
 		defaultNamespaceAllowed: defaultNamespaceAllowed,
 	}
 	ac.co = sync.NewCond(&ac.mu)
@@ -107,11 +107,17 @@ func (ac *autoCreate) Shutdown() {
 	ac.co.Broadcast()
 }
 
-func (ac *autoCreate) CancelHijack(hctx *rpc.HandlerContext) {
+func (ac *autoCreate) CancelLongpoll(lh rpc.LongpollHandle) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	delete(ac.args, hctx)
-	// TODO - must remove from queue here, otherwise the same hctx will be reused and added to map, and we'll break rpc.Server internal invariants
+	delete(ac.args, lh)
+	// TODO - must remove from queue here, otherwise the same lh will be reused and added to map.
+	// this is low probability event though (needs both the collision of *Connection and query ID)
+}
+
+func (ac *autoCreate) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	ac.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -122,10 +128,14 @@ func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerConte
 	}
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	ac.queue = append(ac.queue, hctx)
-	ac.args[hctx] = args
+	lh, err := hctx.StartLongpoll(ac)
+	if err != nil {
+		return err
+	}
+	ac.queue = append(ac.queue, lh)
+	ac.args[lh] = args
 	ac.co.Signal()
-	return hctx.HijackResponse(ac)
+	return nil
 }
 
 func (ac *autoCreate) goWork() {
@@ -139,17 +149,19 @@ func (ac *autoCreate) goWork() {
 			ac.co.Wait()
 			continue
 		}
-		hctx := ac.queue[0]
+		lh := ac.queue[0]
 		ac.queue = ac.queue[1:] // TODO - reuse buffer
-		args, ok := ac.args[hctx]
+		args, ok := ac.args[lh]
 		if !ok {
 			continue
 		}
-		delete(ac.args, hctx)
+		delete(ac.args, lh)
 		ac.mu.Unlock()
 		createErr := ac.createMetric(args)
-		hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
-		hctx.SendHijackedResponse(createErr)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
+			hctx.SendLongpollResponse(createErr)
+		}
 		if createErr != nil {
 			// backoff for a second
 			time.Sleep(1 * time.Second)

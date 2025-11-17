@@ -23,7 +23,6 @@ func (item *EngineGetExpectedMetafilesStats) Reset() {}
 
 func (item *EngineGetExpectedMetafilesStats) Read(w []byte) (_ []byte, err error) { return w, nil }
 
-// This method is general version of Write, use it instead!
 func (item *EngineGetExpectedMetafilesStats) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -39,7 +38,6 @@ func (item *EngineGetExpectedMetafilesStats) ReadBoxed(w []byte) (_ []byte, err 
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineGetExpectedMetafilesStats) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -63,36 +61,29 @@ func (item *EngineGetExpectedMetafilesStats) WriteResult(w []byte, ret map[strin
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *map[string]EngineMetafilesStat) error {
-	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(legacyTypeNames, in, ret); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteResultJSON(w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *EngineGetExpectedMetafilesStats) writeResultJSON(newTypeNames bool, short bool, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(newTypeNames, short, w, ret)
+func (item *EngineGetExpectedMetafilesStats) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
+	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, ret)
 	return w, nil
 }
 
-func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret map[string]EngineMetafilesStat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret map[string]EngineMetafilesStat
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -111,6 +102,11 @@ func (item EngineGetExpectedMetafilesStats) String() string {
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineGetExpectedMetafilesStats) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -128,14 +124,15 @@ func (item *EngineGetExpectedMetafilesStats) ReadJSON(legacyTypeNames bool, in *
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineGetExpectedMetafilesStats) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineGetExpectedMetafilesStats) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineGetExpectedMetafilesStats) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineGetExpectedMetafilesStats) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }

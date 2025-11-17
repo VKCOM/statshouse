@@ -53,7 +53,7 @@ type scrapeServer struct {
 	targetsByAddr map[netip.Addr]tlstatshouse.GetTargetsResultBytes
 
 	// long poll requests
-	requests map[*rpc.HandlerContext]scrapeRequest
+	requests map[rpc.LongpollHandle]scrapeRequest
 }
 
 type scrapeRequest struct {
@@ -66,7 +66,7 @@ func newScrapeServer() *scrapeServer {
 	res := &scrapeServer{
 		targetsByName: make(map[string]tlstatshouse.GetTargetsResultBytes),
 		targetsByAddr: make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
-		requests:      make(map[*rpc.HandlerContext]scrapeRequest),
+		requests:      make(map[rpc.LongpollHandle]scrapeRequest),
 	}
 	res.discovery = newScrapeDiscovery(res.applyScrapeConfig)
 	return res
@@ -243,15 +243,17 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 		}
 	}
 	// serve long poll requests
-	for hctx, v := range s.requests {
+	for lh, v := range s.requests {
 		res, changed := s.tryGetNewTargetsLocked(v)
 		if !changed {
 			continue
 		}
-		delete(s.requests, hctx)
-		var err error
-		hctx.Response, err = v.args.WriteResult(hctx.Response, res)
-		hctx.SendHijackedResponse(err)
+		delete(s.requests, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			var err error
+			hctx.Response, err = v.args.WriteResult(hctx.Response, res)
+			hctx.SendLongpollResponse(err)
+		}
 	}
 }
 
@@ -288,9 +290,12 @@ func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 		return err
 	}
 	// long poll, scrape targets will be sent once ready
-	err = hctx.HijackResponse(s)
-	s.requests[hctx] = req
-	return err
+	lh, err := hctx.StartLongpoll(s)
+	if err != nil {
+		return err
+	}
+	s.requests[lh] = req
+	return nil
 }
 
 func (s *scrapeServer) tryGetNewTargetsLocked(req scrapeRequest) (_ tlstatshouse.GetTargetsResultBytes, changed bool) {
@@ -312,10 +317,15 @@ func (s *scrapeServer) tryGetNewTargetsLocked(req scrapeRequest) (_ tlstatshouse
 	return res, true
 }
 
-func (s *scrapeServer) CancelHijack(hctx *rpc.HandlerContext) {
+func (s *scrapeServer) CancelLongpoll(lh rpc.LongpollHandle) {
 	s.configMu.Lock()
 	defer s.configMu.Unlock()
-	delete(s.requests, hctx)
+	delete(s.requests, lh)
+}
+
+func (s *scrapeServer) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	s.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (job *scrapeJobConfig) toPromTargetBytes(addr string, labels []tl.DictionaryFieldStringBytes) tlstatshouse.PromTargetBytes {

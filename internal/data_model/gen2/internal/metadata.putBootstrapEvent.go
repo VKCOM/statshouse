@@ -33,7 +33,6 @@ func (item *MetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataPutBootstrapEvent) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -51,7 +50,6 @@ func (item *MetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error)
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataPutBootstrapEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -66,6 +64,11 @@ func (item MetadataPutBootstrapEvent) String() string {
 }
 
 func (item *MetadataPutBootstrapEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataPutBootstrapEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propMappingsPresented bool
 
@@ -90,7 +93,7 @@ func (item *MetadataPutBootstrapEvent) ReadJSON(legacyTypeNames bool, in *basict
 				if propMappingsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putBootstrapEvent", "mappings")
 				}
-				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
 				propMappingsPresented = true
@@ -114,14 +117,15 @@ func (item *MetadataPutBootstrapEvent) ReadJSON(legacyTypeNames bool, in *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataPutBootstrapEvent) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataPutBootstrapEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataPutBootstrapEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataPutBootstrapEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -133,7 +137,7 @@ func (item *MetadataPutBootstrapEvent) WriteJSONOpt(newTypeNames bool, short boo
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, item.Mappings)
 	if (len(item.Mappings) != 0) == false {
 		w = w[:backupIndexMappings]
 	}

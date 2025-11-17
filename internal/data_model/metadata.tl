@@ -39,6 +39,7 @@ metadata.getJournalResponsenew#9286aaaa {field_mask: #}
     current_version: long // important for receivers that want to load until 'latest' version. Also useful for reporting progress of loading.
     last_version: long
     events: (vector metadata.event)
+    last_version: long
     = metadata.GetJournalResponsenew field_mask;
 
 metadata.getNewMappingsResponse#9287aaaa {field_mask: #}

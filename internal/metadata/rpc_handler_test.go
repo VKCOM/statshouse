@@ -59,7 +59,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 		err = server.Serve(ln)
 		require.NoError(t, err)
 	}()
-	rpcClient := rpc.NewClient()
+	rpcClient := rpc.NewClient(rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion))
 	cl := &tlmetadata.Client{
 		Client:  rpcClient,
 		Network: "tcp4",

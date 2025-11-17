@@ -27,6 +27,19 @@ const (
 	hugeStringLen    = (1 << 56) - 1
 )
 
+type JSONWriteContext struct {
+	LegacyTypeNames bool
+	Short           bool
+
+	IsTL2 bool
+}
+
+type JSONReadContext struct {
+	LegacyTypeNames bool
+
+	IsTL2 bool
+}
+
 type JsonLexer = jlexer.Lexer
 
 var errBadPadding = fmt.Errorf("non-canonical non-zero string padding")
@@ -625,6 +638,14 @@ type RandGenerator struct {
 	maxDepth uint32
 	curDepth uint32
 	r        Rand
+
+	SizeHandler      func(generatedValue uint32) uint32
+	FieldMaskHandler func(generatedValue uint32, bitMask uint32) uint32
+}
+
+type RandgeneratorContext struct {
+	SizeHandler      func(generatedValue uint32) uint32
+	FieldMaskHandler func(generatedValue uint32, bitMask uint32) uint32
 }
 
 func NewRandGenerator(r Rand) *RandGenerator {
@@ -634,7 +655,25 @@ func NewRandGenerator(r Rand) *RandGenerator {
 		maxDepth: (r.Uint32() % (maxDepth - minDepth + 1)) + minDepth,
 		curDepth: 0,
 		r:        r,
+
+		SizeHandler: func(generatedValue uint32) uint32 {
+			return generatedValue
+		},
+		FieldMaskHandler: func(generatedValue uint32, bitMask uint32) uint32 {
+			return generatedValue
+		},
 	}
+}
+
+func NewRandGeneratorWithContext(r Rand, ctx RandgeneratorContext) *RandGenerator {
+	rand := NewRandGenerator(r)
+	if ctx.SizeHandler != nil {
+		rand.SizeHandler = ctx.SizeHandler
+	}
+	if ctx.FieldMaskHandler != nil {
+		rand.FieldMaskHandler = ctx.FieldMaskHandler
+	}
+	return rand
 }
 
 func (rg *RandGenerator) IncreaseDepth() {
@@ -693,6 +732,25 @@ func RandomUint(rg *RandGenerator) uint32 {
 	bitMask = (1 << bitMask) - 1
 
 	return rg.r.Uint32() & bitMask
+}
+
+func RandomSize(rg *RandGenerator) uint32 {
+	return rg.SizeHandler(rg.LimitValue(RandomUint(rg)))
+}
+
+func RandomFieldMask(rg *RandGenerator, bitMask uint32) uint32 {
+	source := RandomUint(rg)
+	sourceIndex := 0
+	value := uint32(0)
+	for i := 0; i < 32; i++ {
+		if bitMask&(1<<i) != 0 {
+			if source&(1<<sourceIndex) != 0 {
+				value |= (1 << i)
+			}
+			sourceIndex++
+		}
+	}
+	return rg.FieldMaskHandler(value, bitMask)
 }
 
 func RandomByte(rg *RandGenerator) byte {

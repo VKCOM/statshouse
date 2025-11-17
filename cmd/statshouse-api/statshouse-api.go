@@ -222,7 +222,10 @@ func run() int {
 		return 1
 	}
 	defer func() { chV2.Close() }()
-	c := rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+	c := rpc.NewClient(
+		// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+		rpc.ClientWithLogf(log.Printf),
+		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	defer func() { _ = c.Close() }()
 
 	dc, err := sqlitecache.OpenSqliteDiskCache(argv.diskCache, diskCacheTxDuration)

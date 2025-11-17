@@ -31,6 +31,7 @@ func CreateObjectFromName(name string) meta.Object {
 }
 
 func init() {
+	// TL
 	meta.SetGlobalFactoryCreateForObject(0x2abb2c70, func() meta.Object { var ret internal.AllocSlotEvent; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x60e50d3d, func() meta.Object { var ret internal.EngineAsyncSleep; return &ret }, func() meta.Function { var ret internal.EngineAsyncSleep; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x594870d6, func() meta.Object { var ret internal.EngineFilteredStat; return &ret }, func() meta.Function { var ret internal.EngineFilteredStat; return &ret }, nil)

@@ -17,23 +17,28 @@ import (
 )
 
 type (
-	Filter                = internal.StatshouseApiFilter
-	Flag                  = internal.StatshouseApiFlag
-	Function              = internal.StatshouseApiFunction
-	GetChunk              = internal.StatshouseApiGetChunk
-	GetChunkResponse      = internal.StatshouseApiGetChunkResponse
-	GetQuery              = internal.StatshouseApiGetQuery
-	GetQueryPoint         = internal.StatshouseApiGetQueryPoint
-	GetQueryPointResponse = internal.StatshouseApiGetQueryPointResponse
-	GetQueryResponse      = internal.StatshouseApiGetQueryResponse
-	PointMeta             = internal.StatshouseApiPointMeta
-	Query                 = internal.StatshouseApiQuery
-	QueryPoint            = internal.StatshouseApiQueryPoint
-	ReleaseChunks         = internal.StatshouseApiReleaseChunks
-	ReleaseChunksResponse = internal.StatshouseApiReleaseChunksResponse
-	Series                = internal.StatshouseApiSeries
-	SeriesMeta            = internal.StatshouseApiSeriesMeta
-	TagValue              = internal.StatshouseApiTagValue
+	Filter                        = internal.StatshouseApiFilter
+	Flag                          = internal.StatshouseApiFlag
+	Function                      = internal.StatshouseApiFunction
+	GetChunk                      = internal.StatshouseApiGetChunk
+	GetChunkResponse              = internal.StatshouseApiGetChunkResponse
+	GetQuery                      = internal.StatshouseApiGetQuery
+	GetQueryPoint                 = internal.StatshouseApiGetQueryPoint
+	GetQueryPointResponse         = internal.StatshouseApiGetQueryPointResponse
+	GetQueryResponse              = internal.StatshouseApiGetQueryResponse
+	PointMeta                     = internal.StatshouseApiPointMeta
+	Query                         = internal.StatshouseApiQuery
+	QueryPoint                    = internal.StatshouseApiQueryPoint
+	ReleaseChunks                 = internal.StatshouseApiReleaseChunks
+	ReleaseChunksResponse         = internal.StatshouseApiReleaseChunksResponse
+	Series                        = internal.StatshouseApiSeries
+	SeriesMeta                    = internal.StatshouseApiSeriesMeta
+	TagValue                      = internal.StatshouseApiTagValue
+	VectorStatshouseApiFilter     = internal.VectorStatshouseApiFilter
+	VectorStatshouseApiFunction   = internal.VectorStatshouseApiFunction
+	VectorStatshouseApiPointMeta  = internal.VectorStatshouseApiPointMeta
+	VectorStatshouseApiSeriesMeta = internal.VectorStatshouseApiSeriesMeta
+	VectorStatshouseApiTagValue   = internal.VectorStatshouseApiTagValue
 )
 
 func FlagAuto() Flag                   { return internal.StatshouseApiFlagAuto() }
@@ -106,7 +111,8 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 		return internal.ErrorClientDo("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -135,7 +141,8 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 		return internal.ErrorClientDo("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -165,7 +172,8 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 		return internal.ErrorClientDo("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -194,7 +202,8 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 		return internal.ErrorClientDo("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -207,135 +216,95 @@ type Handler struct {
 	GetQueryPoint func(ctx context.Context, args GetQueryPoint) (GetQueryPointResponse, error) // statshouseApi.getQueryPoint
 	ReleaseChunks func(ctx context.Context, args ReleaseChunks) (ReleaseChunksResponse, error) // statshouseApi.releaseChunks
 
-	RawGetChunk      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getChunk
-	RawGetQuery      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getQuery
-	RawGetQueryPoint func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getQueryPoint
-	RawReleaseChunks func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.releaseChunks
 }
 
 func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x52721884: // statshouseApi.getChunk
-		hctx.RequestFunctionName = "statshouseApi.getChunk"
-		if h.RawGetChunk != nil {
-			hctx.Request = r
-			err = h.RawGetChunk(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouseApi.getChunk", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("statshouseApi.getChunk")
 		if h.GetChunk != nil {
 			var args GetChunk
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getChunk", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetChunk(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("statshouseApi.getChunk", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.getChunk", err)
 			}
 			return nil
 		}
 	case 0x0c7349bb: // statshouseApi.getQuery
-		hctx.RequestFunctionName = "statshouseApi.getQuery"
-		if h.RawGetQuery != nil {
-			hctx.Request = r
-			err = h.RawGetQuery(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouseApi.getQuery", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("statshouseApi.getQuery")
 		if h.GetQuery != nil {
 			var args GetQuery
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getQuery", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetQuery(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("statshouseApi.getQuery", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.getQuery", err)
 			}
 			return nil
 		}
 	case 0x0c7348bb: // statshouseApi.getQueryPoint
-		hctx.RequestFunctionName = "statshouseApi.getQueryPoint"
-		if h.RawGetQueryPoint != nil {
-			hctx.Request = r
-			err = h.RawGetQueryPoint(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouseApi.getQueryPoint", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("statshouseApi.getQueryPoint")
 		if h.GetQueryPoint != nil {
 			var args GetQueryPoint
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getQueryPoint", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetQueryPoint(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("statshouseApi.getQueryPoint", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.getQueryPoint", err)
 			}
 			return nil
 		}
 	case 0x62adc773: // statshouseApi.releaseChunks
-		hctx.RequestFunctionName = "statshouseApi.releaseChunks"
-		if h.RawReleaseChunks != nil {
-			hctx.Request = r
-			err = h.RawReleaseChunks(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouseApi.releaseChunks", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("statshouseApi.releaseChunks")
 		if h.ReleaseChunks != nil {
 			var args ReleaseChunks
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.releaseChunks", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReleaseChunks(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("statshouseApi.releaseChunks", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.releaseChunks", err)
 			}
 			return nil

@@ -38,18 +38,19 @@ func (k *Key) STagSlice() []string {
 }
 
 // does not copy strings, we need max efficiency so want to look up in local map before converting []byte to string
-func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32, newestTime uint32) (key Key, clampedTimestampTag int32) {
+func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, clampedTimestampTag int32) {
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
 		key.Timestamp = item.T
-		// sometimes if agent conveyor is stuck or if it is on machine with wrong clock but receives events from
-		// client with correct clock, item timestamp will be > agent bucketTimestamp, we should not clamp by it.
-		// instead we use aggregator clock which we demand to always be set correctly.
-		if key.Timestamp > newestTime {
-			key.Timestamp = newestTime
+		if int64(key.Timestamp) > int64(bucketTimestamp)+FutureWindow {
+			// Agent does not clamp T at all, because there is no reason - aggregator does it anyway for protecting clickhouse.
+			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
+			// TODO - remove +FutureWindow above in separate MR to see what happens (should be OK)
+			key.Timestamp = bucketTimestamp
 			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture
-		} else if bucketTimestamp > BelieveTimestampWindow && key.Timestamp < bucketTimestamp-BelieveTimestampWindow {
-			key.Timestamp = bucketTimestamp - BelieveTimestampWindow
+		} else if int64(key.Timestamp) < int64(bucketTimestamp)-BelieveTimestampWindow {
+			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
+			key.Timestamp = bucketTimestamp
 			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast
 		}
 		// above checks can be moved below }, but they will always be NOP as bucketTimestamp is both <= newestTime and in believe window
@@ -231,7 +232,8 @@ func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, capacity int, s2 *tlsta
 	for _, v := range s2.Top {
 		mi := s.MapStringTopBytes(rng, capacity, TagUnionBytes{S: v.Stag, I: v.Tag}, v.Value.Counter)
 		v.Stag, _ = format.AppendValidStringValue(v.Stag[:0], v.Stag) // TODO - report this error via builtin metrics
-		// we want to validate all incoming strings. In case of encoding error, v.Key will be truncated to 0
+		// We want to validate all incoming strings. In case of encoding error,
+		// v.Stag will be truncated to empty string, merging Value into 'other' strings
 		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
 	}
 	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)

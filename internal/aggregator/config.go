@@ -20,10 +20,11 @@ import (
 // ConfigChangeNotifier notify getConfigResult3Locked if ConfigAggregatorRemote.ClusterShardsAddrs was updated
 type ConfigChangeNotifier struct {
 	mu      sync.Mutex
-	clients map[*rpc.HandlerContext]struct{}
+	clients map[rpc.LongpollHandle]struct{}
 }
 
 type ConfigAggregatorRemote struct {
+	ShortWindow          int
 	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
 	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
 	StringTopCountInsert int
@@ -44,7 +45,6 @@ type ConfigAggregatorRemote struct {
 }
 
 type ConfigAggregator struct {
-	ShortWindow        int
 	RecentInserters    int
 	HistoricInserters  int
 	InsertHistoricWhen int
@@ -54,7 +54,7 @@ type ConfigAggregator struct {
 	KHPassword     string
 	KHPasswordFile string
 
-	ConfigAggregatorRemote
+	RemoteInitial ConfigAggregatorRemote
 
 	SimulateRandomErrors float64
 
@@ -76,7 +76,6 @@ type ConfigAggregator struct {
 
 func DefaultConfigAggregator() ConfigAggregator {
 	return ConfigAggregator{
-		ShortWindow:          data_model.MaxShortWindow,
 		RecentInserters:      4,
 		HistoricInserters:    1,
 		InsertHistoricWhen:   2,
@@ -85,7 +84,8 @@ func DefaultConfigAggregator() ConfigAggregator {
 		MetadataNet:          "tcp4",
 		MetadataAddr:         "127.0.0.1:2442",
 
-		ConfigAggregatorRemote: ConfigAggregatorRemote{
+		RemoteInitial: ConfigAggregatorRemote{
+			ShortWindow:          data_model.MaxShortWindow,
 			InsertBudget:         400,
 			StringTopCountInsert: 20,
 			SampleNamespaces:     true,
@@ -140,6 +140,7 @@ func (c *ConfigAggregatorRemote) setClusterShardsHosts(param string) error {
 }
 
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
+	f.IntVar(&c.ShortWindow, "short-window", d.ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
 	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
@@ -173,13 +174,6 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 }
 
 func ValidateConfigAggregator(c *ConfigAggregator) error {
-	if c.ShortWindow > data_model.MaxShortWindow {
-		return fmt.Errorf("short-window (%d) cannot be > %d", c.ShortWindow, data_model.MaxShortWindow)
-	}
-	if c.ShortWindow < 2 {
-		return fmt.Errorf("short-window (%d) cannot be < 2", c.ShortWindow)
-	}
-
 	if c.InsertHistoricWhen < 1 {
 		return fmt.Errorf("--insert-historic-when (%d) must be >= 1", c.InsertHistoricWhen)
 	}
@@ -193,7 +187,7 @@ func ValidateConfigAggregator(c *ConfigAggregator) error {
 		return fmt.Errorf("--historic-inserters (%d) must be <= 4", c.HistoricInserters)
 	}
 
-	return c.ConfigAggregatorRemote.Validate()
+	return c.RemoteInitial.Validate()
 }
 
 // ParseMigrationTimeRange parses the migration time range and returns start and end timestamps
@@ -222,6 +216,12 @@ func (c *ConfigAggregatorRemote) ParseMigrationTimeRange() (startTs, endTs uint3
 }
 
 func (c *ConfigAggregatorRemote) Validate() error {
+	if c.ShortWindow > data_model.MaxShortWindow {
+		return fmt.Errorf("short-window (%d) cannot be > %d", c.ShortWindow, data_model.MaxShortWindow)
+	}
+	if c.ShortWindow < 3 {
+		return fmt.Errorf("short-window (%d) cannot be < 3 (due to round robin replica selection)", c.ShortWindow)
+	}
 	if c.InsertBudget < 1 {
 		return fmt.Errorf("insert-budget (%d) must be >= 1", c.InsertBudget)
 	}
@@ -253,21 +253,29 @@ func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string)
 
 func NewConfigChangeNotifier() *ConfigChangeNotifier {
 	return &ConfigChangeNotifier{
-		clients: make(map[*rpc.HandlerContext]struct{}),
+		clients: make(map[rpc.LongpollHandle]struct{}),
 	}
 }
 
 func (c *ConfigChangeNotifier) notifyConfigChange() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for hctx := range c.clients {
-		delete(c.clients, hctx)
-		hctx.SendHijackedResponse(nil)
+	for lh := range c.clients {
+		delete(c.clients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			// TODO - writing response must be here
+			hctx.SendLongpollResponse(nil)
+		}
 	}
 }
 
-func (c *ConfigChangeNotifier) CancelHijack(hctx *rpc.HandlerContext) {
+func (c *ConfigChangeNotifier) CancelLongpoll(lh rpc.LongpollHandle) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.clients, hctx)
+	delete(c.clients, lh)
+}
+
+func (c *ConfigChangeNotifier) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	c.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }

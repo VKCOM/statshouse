@@ -73,7 +73,7 @@ func (s *RPCServerMetrics) handleConnError(err error) {
 func (s *RPCServerMetrics) handleResponse(hctx *rpc.HandlerContext, err error) {
 	tags := s.commonTags // copy
 	metricshandler.AttachRPC(tags[:], hctx, err)
-	metricshandler.ResponseTimeRaw(tags, time.Since(hctx.RequestTime))
+	metricshandler.ResponseTimeRaw(tags, time.Since(hctx.RequestTime()))
 	metricshandler.ResponseSizeRaw(tags, len(hctx.Response))
 	metricshandler.RequestSizeRaw(tags, len(hctx.Request))
 }

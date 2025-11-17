@@ -24,17 +24,16 @@ import (
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
-const longPollTimeout = time.Hour
 const mappingCacheSize = 500
 
 type Handler struct {
 	db *DBV2
 
 	getJournalMx      sync.Mutex
-	getJournalClients map[*rpc.HandlerContext]tlmetadata.GetJournalnew // by getJournalMx
+	getJournalClients map[rpc.LongpollHandle]tlmetadata.GetJournalnew // by getJournalMx
 
 	getMappingMx      sync.Mutex
-	getMappingClients map[*rpc.HandlerContext]tlmetadata.GetNewMappings // by getMappingMx
+	getMappingClients map[rpc.LongpollHandle]tlmetadata.GetNewMappings // by getMappingMx
 
 	mappingCacheMx sync.RWMutex
 	mappingCache   [mappingCacheSize]tlstatshouse.Mapping // by mappingCacheMx, ASC
@@ -48,20 +47,12 @@ type Handler struct {
 func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) *Handler {
 	h := &Handler{
 		db:                db,
-		getJournalClients: map[*rpc.HandlerContext]tlmetadata.GetJournalnew{},
-		getMappingClients: map[*rpc.HandlerContext]tlmetadata.GetNewMappings{},
+		getJournalClients: map[rpc.LongpollHandle]tlmetadata.GetJournalnew{},
+		getMappingClients: map[rpc.LongpollHandle]tlmetadata.GetNewMappings{},
 		mappingCache:      [mappingCacheSize]tlstatshouse.Mapping{},
 		log:               log,
 		host:              host,
 	}
-	go func() {
-		t := time.NewTimer(longPollTimeout)
-		for {
-			<-t.C
-			h.broadcastCancel()
-			t = time.NewTimer(longPollTimeout)
-		}
-	}()
 	h.mappingCacheMx.Lock()
 	defer h.mappingCacheMx.Unlock()
 	h.bootStrapMappingCacheUnlocked(context.Background())
@@ -85,55 +76,65 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 	return h
 }
 
-func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
-	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host}, 1)
+func (h *Handler) CancelLongpoll(lh rpc.LongpollHandle) {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel"}, 1)
 	h.getJournalMx.Lock()
-	delete(h.getJournalClients, hctx)
+	defer h.getJournalMx.Unlock()
+	delete(h.getJournalClients, lh)
 	h.getJournalMx.Unlock()
 
 	h.getMappingMx.Lock()
-	delete(h.getMappingClients, hctx)
+	delete(h.getMappingClients, lh)
 	h.getMappingMx.Unlock()
 }
 
-func (h *Handler) broadcastCancel() {
-	func() {
+func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "empty"}, 1)
+	err1 := func() error {
 		h.getJournalMx.Lock()
 		defer h.getJournalMx.Unlock()
-		if len(h.getJournalClients) == 0 {
-			return
+		args, ok := h.getJournalClients[lh]
+		if !ok {
+			return rpc.ErrLongpollNoEmptyResponse
 		}
-		for hctx, args := range h.getJournalClients {
-			resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
-			var err error
-			hctx.Response, err = args.WriteResult(hctx.Response, resp)
-			hctx.SendHijackedResponse(err)
-		}
-		h.log("[info] broadcast empty journal response to %d long poll clients", len(h.getJournalClients))
-		clear(h.getJournalClients)
+		delete(h.getJournalClients, lh)
+		resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
+		var err error
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return err
 	}()
-	func() {
+	err2 := func() error {
 		h.getMappingMx.Lock()
 		defer h.getMappingMx.Unlock()
-		if len(h.getMappingClients) == 0 {
-			return
+		args, ok := h.getMappingClients[lh]
+		if !ok {
+			return rpc.ErrLongpollNoEmptyResponse
 		}
+		delete(h.getMappingClients, lh)
+
 		h.mappingCacheMx.RLock()
 		lastVersion := h.mappingCache[h.mappingTail].Value
 		h.mappingCacheMx.RUnlock()
 
-		for hctx, args := range h.getMappingClients {
-			resp := tlmetadata.GetNewMappingsResponse{
-				CurrentVersion: args.From,
-				LastVersion:    lastVersion,
-			}
-			var err error
-			hctx.Response, err = args.WriteResult(hctx.Response, resp)
-			hctx.SendHijackedResponse(err)
+		resp := tlmetadata.GetNewMappingsResponse{
+			CurrentVersion: args.From,
+			LastVersion:    lastVersion,
 		}
-		h.log("[info] broadcast empty mapping response to %d long poll clients", len(h.getMappingClients))
-		clear(h.getMappingClients)
+		var err error
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return err
 	}()
+	if err1 != nil && !errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) {
+		return err1
+	}
+	if err2 != nil && !errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
+		return err2
+	}
+	if errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) && errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
+		// only if we not found anywhere
+		return rpc.ErrLongpollNoEmptyResponse
+	}
+	return nil
 }
 
 func (h *Handler) broadcastJournal() {
@@ -157,7 +158,7 @@ func (h *Handler) broadcastJournal() {
 		return
 	}
 	clientGotResponseCount := 0
-	for hctx, args := range h.getJournalClients {
+	for lh, args := range h.getJournalClients {
 		resp := tlmetadata.GetJournalResponsenew{
 			CurrentVersion: journalNew[len(journalNew)-1].Version,
 			Events:         journalNew,
@@ -168,9 +169,11 @@ func (h *Handler) broadcastJournal() {
 		if len(resp.Events) == 0 {
 			continue
 		}
-		delete(h.getJournalClients, hctx)
-		hctx.Response, err = args.WriteResult(hctx.Response, resp)
-		hctx.SendHijackedResponse(err)
+		delete(h.getJournalClients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, resp)
+			hctx.SendLongpollResponse(err)
+		}
 		clientGotResponseCount++
 	}
 	if clientGotResponseCount > 0 {
@@ -209,7 +212,7 @@ func (h *Handler) broadcastMapping() {
 		return
 	}
 	clientGotResponseCount := 0
-	for hctx, args := range h.getMappingClients {
+	for lh, args := range h.getMappingClients {
 		resp := tlmetadata.GetNewMappingsResponse{
 			CurrentVersion: m[len(m)-1].Value,
 			LastVersion:    lastVersion,
@@ -221,9 +224,11 @@ func (h *Handler) broadcastMapping() {
 		if len(resp.Pairs) == 0 {
 			continue
 		}
-		delete(h.getMappingClients, hctx)
-		hctx.Response, err = args.WriteResult(hctx.Response, resp)
-		hctx.SendHijackedResponse(err)
+		delete(h.getMappingClients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, resp)
+			hctx.SendLongpollResponse(err)
+		}
 		clientGotResponseCount++
 	}
 	if clientGotResponseCount > 0 {
@@ -270,8 +275,12 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return "", err
 	}
-	h.getJournalClients[hctx] = args
-	return "", hctx.HijackResponse(h)
+	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
+	h.getJournalClients[lh] = args
+	return "", nil
 }
 
 func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
@@ -331,9 +340,12 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return "", err
 	}
-
-	h.getMappingClients[hctx] = args
-	return "", hctx.HijackResponse(h)
+	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
+	h.getMappingClients[lh] = args
+	return "", nil
 }
 
 func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {

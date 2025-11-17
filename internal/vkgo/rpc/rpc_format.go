@@ -141,10 +141,7 @@ func (hctx *HandlerContext) fillInvokeReqInternals(opts *ServerOptions) {
 	// We calculate timeout before handler can change hctx.RequestExtra
 	if hctx.RequestExtra.CustomTimeoutMs > 0 { // implies hctx.RequestExtra.IsSetCustomTimeoutMs()
 		// CustomTimeoutMs <= 0 means forever/maximum. TODO - harmonize condition with C engines
-		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - opts.ResponseTimeoutAdjust
-		if customTimeout < time.Millisecond { // TODO - adjustable minimum timeout
-			customTimeout = time.Millisecond
-		}
+		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs) * time.Millisecond
 		hctx.timeout = customTimeout
 	} else {
 		hctx.timeout = opts.DefaultResponseTimeout
@@ -173,11 +170,6 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 			respErr.Description = err.Error()
 		}
 
-		if hctx.noResult {
-			hctx.commonConn.RareLog("rpc: failed to handle no_result query: #%v tag: #%08x method: %q error_code: %d error_text: %s", hctx.queryID, hctx.reqTag, hctx.RequestFunctionName, respErr.Code, respErr.Description)
-			return nil
-		}
-
 		resp = resp[:0]
 		// vkext compatibility hack instead of
 		// packetTypeRPCReqError in packet header
@@ -195,10 +187,6 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	}
 	if hctx.noResult { // We do not care what is in Response, might be any trash
 		return nil
-	}
-	if len(resp) == 0 {
-		// Handler should return ErrNoHandler if it does not know how to return response
-		hctx.commonConn.RareLog("rpc: handler returned empty response with no error query #%v tag #%08x (%s)", hctx.queryID, hctx.reqTag, hctx.RequestFunctionName)
 	}
 	hctx.extraStart = len(resp)
 	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}

@@ -76,6 +76,11 @@ func (item NetUdpPacketObsoletePid) String() string {
 }
 
 func (item *NetUdpPacketObsoletePid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketObsoletePid) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propObsoletePidPresented bool
 	var propActualPidPresented bool
 	var propGenerationPresented bool
@@ -93,7 +98,7 @@ func (item *NetUdpPacketObsoletePid) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propObsoletePidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.obsoletePid", "obsolete_pid")
 				}
-				if err := item.ObsoletePid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.ObsoletePid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propObsoletePidPresented = true
@@ -101,7 +106,7 @@ func (item *NetUdpPacketObsoletePid) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propActualPidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.obsoletePid", "actual_pid")
 				}
-				if err := item.ActualPid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.ActualPid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propActualPidPresented = true
@@ -136,21 +141,22 @@ func (item *NetUdpPacketObsoletePid) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketObsoletePid) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketObsoletePid) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketObsoletePid) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketObsoletePid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketObsoletePid) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"obsolete_pid":`...)
-	w = item.ObsoletePid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.ObsoletePid.WriteJSONOpt(tctx, w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"actual_pid":`...)
-	w = item.ActualPid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.ActualPid.WriteJSONOpt(tctx, w)
 	backupIndexGeneration := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"generation":`...)

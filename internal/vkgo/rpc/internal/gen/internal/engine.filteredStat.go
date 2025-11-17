@@ -67,36 +67,35 @@ func (item *EngineFilteredStat) WriteResult(w []byte, ret Stat) (_ []byte, err e
 }
 
 func (item *EngineFilteredStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *Stat) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineFilteredStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *EngineFilteredStat) writeResultJSON(newTypeNames bool, short bool, w []byte, ret Stat) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *EngineFilteredStat) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret Stat) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *EngineFilteredStat) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineFilteredStat) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret Stat
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
-func (item *EngineFilteredStat) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineFilteredStat) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret Stat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -115,6 +114,11 @@ func (item EngineFilteredStat) String() string {
 }
 
 func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineFilteredStat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propStatNamesPresented bool
 
 	if in != nil {
@@ -130,7 +134,7 @@ func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 				if propStatNamesPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.filteredStat", "stat_names")
 				}
-				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.StatNames); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.StatNames); err != nil {
 					return err
 				}
 				propStatNamesPresented = true
@@ -151,19 +155,20 @@ func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineFilteredStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineFilteredStat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineFilteredStat) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineFilteredStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineFilteredStat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexStatNames := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"stat_names":`...)
-	w = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames)
+	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.StatNames)
 	if (len(item.StatNames) != 0) == false {
 		w = w[:backupIndexStatNames]
 	}

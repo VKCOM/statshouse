@@ -35,7 +35,7 @@ func BuiltinTuple2DoubleWrite(w []byte, vec *[2]float64) []byte {
 	return w
 }
 
-func BuiltinTuple2DoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[2]float64) error {
+func BuiltinTuple2DoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[2]float64) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -63,9 +63,10 @@ func BuiltinTuple2DoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 }
 
 func BuiltinTuple2DoubleWriteJSON(w []byte, vec *[2]float64) []byte {
-	return BuiltinTuple2DoubleWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinTuple2DoubleWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple2DoubleWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[2]float64) []byte {
+func BuiltinTuple2DoubleWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[2]float64) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -103,7 +104,7 @@ func BuiltinVectorDoubleWrite(w []byte, vec []float64) []byte {
 	return w
 }
 
-func BuiltinVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]float64) error {
+func BuiltinVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]float64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -132,9 +133,10 @@ func BuiltinVectorDoubleReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 }
 
 func BuiltinVectorDoubleWriteJSON(w []byte, vec []float64) []byte {
-	return BuiltinVectorDoubleWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorDoubleWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorDoubleWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []float64) []byte {
+func BuiltinVectorDoubleWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []float64) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

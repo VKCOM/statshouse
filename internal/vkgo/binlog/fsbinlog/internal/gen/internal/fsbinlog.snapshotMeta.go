@@ -76,6 +76,11 @@ func (item FsbinlogSnapshotMeta) String() string {
 }
 
 func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *FsbinlogSnapshotMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propCommitPositionPresented bool
 	var propCommitCrcPresented bool
@@ -148,14 +153,15 @@ func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.Jso
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *FsbinlogSnapshotMeta) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *FsbinlogSnapshotMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *FsbinlogSnapshotMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

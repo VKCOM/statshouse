@@ -22,9 +22,10 @@ type udpClientConn struct {
 
 	addresses map[NetAddr]struct{}
 
-	mu    sync.Mutex
-	calls map[int64]*Response
-	conn  *udp.Connection
+	mu        sync.Mutex
+	calls     map[int64]*Response
+	totalSent int // # of send calls. Wait for this to become 0 before closing connection to server
+	conn      *udp.Connection
 }
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
@@ -35,10 +36,12 @@ func (pc *udpClientConn) setupCallLocked(req *Request, deadline time.Time, multi
 		cctx.result = multiResult // overrides single-result channel
 	}
 	cctx.cb = cb
+	// cctx.req = req - do not assign here, as request is considered immediately sent in UDP transport
+	pc.totalSent++
+	cctx.deadline = deadline
 	cctx.userData = userData
 	cctx.failIfNoConnection = req.FailIfNoConnection
 	cctx.readonly = req.ReadOnly
-	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
 	/* in UDP we don't have pc.closeCC: we either got pc from client.conns and has added call to it, or didn't get pc and created new connect
 	// TODO understand why no pc.closeCC in UDP
@@ -75,10 +78,6 @@ func (pc *udpClientConn) setupCallLocked(req *Request, deadline time.Time, multi
 		return nil, err
 	}
 
-	if cctx.hookState != nil {
-		cctx.hookState.BeforeSend(req)
-	}
-
 	return cctx, nil
 }
 
@@ -104,9 +103,14 @@ func (pc *udpClientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Respo
 		return nil
 	}
 	delete(pc.calls, queryID)
-	if !cctx.sent {
+	if cctx.req != nil { // was not sent, residing somewhere in writeQ
 		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
 		return nil
+	}
+	// was sent
+	pc.totalSent--
+	if pc.totalSent < 0 {
+		panic("rpc.Client invariant violation: pc.inFlight < 0")
 	}
 	if pc.conn != nil {
 		var message = pc.client.allocateMessage(12)
@@ -173,7 +177,7 @@ func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte
 			fmt.Printf("%v client %p conn %p read Let's FIN\n", time.Now(), pc.client, pc)
 		}
 		pc.mu.Lock()
-		pc.writeFin = true
+		pc.writeClientWantsFin = true
 		pc.mu.Unlock()
 		pc.writeQCond.Signal()*/
 		// goWrite will take last bunch of requests plus fin from writeQ, write them and quit.

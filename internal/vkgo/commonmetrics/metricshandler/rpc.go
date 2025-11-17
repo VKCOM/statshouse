@@ -19,14 +19,14 @@ func CommonRPC(hctx *rpc.HandlerContext, err error) {
 	var tags statshouse.Tags
 	commonmetrics.AttachBaseS(tags[:])
 	AttachRPC(tags[:], hctx, err)
-	ResponseTimeRaw(tags, time.Since(hctx.RequestTime))
+	ResponseTimeRaw(tags, time.Since(hctx.RequestTime()))
 	ResponseSizeRaw(tags, len(hctx.Response))
 	RequestSizeRaw(tags, len(hctx.Request))
 }
 
 func AttachRPC(tags []string, hctx *rpc.HandlerContext, err error) []string {
 	status := commonmetrics.StatusFromError(err)
-	method := internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName)
+	method := internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName())
 	tags[4] = commonmetrics.ProtocolRPC
 	tags[5] = method.Group
 	tags[6] = method.Name

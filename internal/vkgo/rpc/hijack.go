@@ -43,7 +43,7 @@ func bytePrint(c byte) bool {
 	return c >= 0x20 && c <= 0x7e
 }
 
-// TODO - feel free to improve this function. Magic is [0..12] bytes
+// TODO - feel free to improve this function. Magic is [0..12] bytes, which is enough for most protocols.
 func (h *HijackConnection) LooksLikeHTTP() bool {
 	if len(h.Magic) == 0 || !isByteLetter(h.Magic[0]) {
 		return false

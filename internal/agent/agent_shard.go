@@ -32,8 +32,8 @@ type (
 
 		mu                                   sync.Mutex
 		config                               Config       // can change if remotely updated
-		hardwareMetricResolutionResolved     atomic.Int32 // depends on config
-		hardwareSlowMetricResolutionResolved atomic.Int32 // depends on config
+		hardwareMetricResolutionResolved     atomic.Int32 // copy from config to avoid lock in fast path
+		hardwareSlowMetricResolutionResolved atomic.Int32 // copy from config to avoid lock in fast path
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 

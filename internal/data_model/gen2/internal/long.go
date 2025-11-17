@@ -42,7 +42,7 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
 	return w
 }
 
-func BuiltinVectorLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int64) error {
+func BuiltinVectorLongReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]int64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -71,9 +71,10 @@ func BuiltinVectorLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec 
 }
 
 func BuiltinVectorLongWriteJSON(w []byte, vec []int64) []byte {
-	return BuiltinVectorLongWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorLongWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorLongWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int64) []byte {
+func BuiltinVectorLongWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []int64) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

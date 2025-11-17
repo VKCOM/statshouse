@@ -38,7 +38,6 @@ func (item *MetadataGetNewMappingsResponse) Read(w []byte, nat_field_mask uint32
 	return BuiltinVectorStatshouseMappingRead(w, &item.Pairs)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataGetNewMappingsResponse) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_field_mask), nil
 }
@@ -57,7 +56,6 @@ func (item *MetadataGetNewMappingsResponse) ReadBoxed(w []byte, nat_field_mask u
 	return item.Read(w, nat_field_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataGetNewMappingsResponse) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_field_mask), nil
 }
@@ -67,7 +65,7 @@ func (item *MetadataGetNewMappingsResponse) WriteBoxed(w []byte, nat_field_mask 
 	return item.Write(w, nat_field_mask)
 }
 
-func (item *MetadataGetNewMappingsResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetNewMappingsResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
 	var propLastVersionPresented bool
 	var propPairsPresented bool
@@ -101,7 +99,7 @@ func (item *MetadataGetNewMappingsResponse) ReadJSON(legacyTypeNames bool, in *b
 				if propPairsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getNewMappingsResponse", "pairs")
 				}
-				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Pairs); err != nil {
+				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Pairs); err != nil {
 					return err
 				}
 				propPairsPresented = true
@@ -128,14 +126,15 @@ func (item *MetadataGetNewMappingsResponse) ReadJSON(legacyTypeNames bool, in *b
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetNewMappingsResponse) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+func (item *MetadataGetNewMappingsResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetNewMappingsResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
 }
-func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -154,7 +153,7 @@ func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(newTypeNames bool, shor
 	backupIndexPairs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pairs":`...)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Pairs)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, item.Pairs)
 	if (len(item.Pairs) != 0) == false {
 		w = w[:backupIndexPairs]
 	}

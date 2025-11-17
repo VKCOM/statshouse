@@ -30,7 +30,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
 )
 
-func (s *Server) collectStats(localAddr net.Addr) map[string]string {
+func (s *Server) CollectStats(localAddr net.Addr) map[string]string {
 	cmdline := readCommandLine()
 	now := time.Now().Unix()
 	uptime := now - int64(s.startTime)
@@ -48,6 +48,36 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	connCurrent1 := s.protocolStats[protocolUDP].connectionsCurrent.Load()
 	longPolls0 := s.protocolStats[protocolTCP].longPollsWaiting.Load()
 	longPolls1 := s.protocolStats[protocolUDP].longPollsWaiting.Load()
+
+	udpNewIncomingMessages := s.udpStatsPerSecond.NewIncomingMessages.Load()
+	udpMessageHandlerCalled := s.udpStatsPerSecond.MessageHandlerCalled.Load()
+	udpMessageReleased := s.udpStatsPerSecond.MessageReleased.Load()
+	udpDatagramRead := s.udpStatsPerSecond.DatagramRead.Load()
+	udpDatagramWritten := s.udpStatsPerSecond.DatagramWritten.Load()
+	udpUnreliableMessagesReceived := s.udpStatsPerSecond.UnreliableMessagesReceived.Load()
+	udpObsoletePidReceived := s.udpStatsPerSecond.ObsoletePidReceived.Load()
+	udpObsoleteHashReceived := s.udpStatsPerSecond.ObsoleteHashReceived.Load()
+	udpObsoleteGenerationReceived := s.udpStatsPerSecond.ObsoleteGenerationReceived.Load()
+	udpResendRequestReceived := s.udpStatsPerSecond.ResendRequestReceived.Load()
+	udpUnreliableMessagesSent := s.udpStatsPerSecond.UnreliableMessagesSent.Load()
+	udpObsoletePidSent := s.udpStatsPerSecond.ObsoletePidSent.Load()
+	udpObsoleteHashSent := s.udpStatsPerSecond.ObsoleteHashSent.Load()
+	udpObsoleteGenerationSent := s.udpStatsPerSecond.ObsoleteGenerationSent.Load()
+	udpResendRequestSent := s.udpStatsPerSecond.ResendRequestSent.Load()
+	udpResendTimerBurned := s.udpStatsPerSecond.ResendTimerBurned.Load()
+	udpAckTimerBurned := s.udpStatsPerSecond.AckTimerBurned.Load()
+	udpResendRequestTimerBurned := s.udpStatsPerSecond.ResendRequestTimerBurned.Load()
+	udpRegenerateTimerBurned := s.udpStatsPerSecond.RegenerateTimerBurned.Load()
+	udpHoleSeqNumsSent := s.udpStatsPerSecond.HoleSeqNumsSent.Load()
+	udpRequestedSeqNumsOutOfWindow := s.udpStatsPerSecond.RequestedSeqNumsOutOfWindow.Load()
+	udpRequestedSeqNumsActuallyAcked := s.udpStatsPerSecond.RequestedSeqNumsActuallyAcked.Load()
+	udpRequestedSeqNumsNotAcked := s.udpStatsPerSecond.RequestedSeqNumsNotAcked.Load()
+	udpIncomingMessagesInflight := s.udpStatsPerSecond.IncomingMessagesInflight.Load()
+	udpOutgoingMessagesInflight := s.udpStatsPerSecond.OutgoingMessagesInflight.Load()
+	udpConnectionsMapSize := s.udpStatsPerSecond.ConnectionsMapSize.Load()
+	udpMemoryWaitersSize := s.udpStatsPerSecond.MemoryWaitersSize.Load()
+	udpAcquiredMemory := s.udpStatsPerSecond.AcquiredMemory.Load()
+
 	requestMem, _ := s.reqMemSem.Observe()
 	responseMem, _ := s.respMemSem.Observe()
 
@@ -103,6 +133,35 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["response_memory"] = strconv.FormatInt(responseMem, 10)
 	m["workers_total"] = strconv.FormatInt(int64(workersTotal), 10)
 
+	m["udp_new_incoming_messages_per_second"] = strconv.FormatInt(udpNewIncomingMessages, 10)
+	m["udp_message_handler_called_per_second"] = strconv.FormatInt(udpMessageHandlerCalled, 10)
+	m["udp_message_released_per_second"] = strconv.FormatInt(udpMessageReleased, 10)
+	m["udp_datagram_read_per_second"] = strconv.FormatInt(udpDatagramRead, 10)
+	m["udp_datagram_written_per_second"] = strconv.FormatInt(udpDatagramWritten, 10)
+	m["udp_unreliable_messages_received_per_second"] = strconv.FormatInt(udpUnreliableMessagesReceived, 10)
+	m["udp_obsolete_pid_received_per_second"] = strconv.FormatInt(udpObsoletePidReceived, 10)
+	m["udp_obsolete_hash_received_per_second"] = strconv.FormatInt(udpObsoleteHashReceived, 10)
+	m["udp_obsolete_generation_received_per_second"] = strconv.FormatInt(udpObsoleteGenerationReceived, 10)
+	m["udp_resend_request_received_per_second"] = strconv.FormatInt(udpResendRequestReceived, 10)
+	m["udp_unreliable_messages_sent_per_second"] = strconv.FormatInt(udpUnreliableMessagesSent, 10)
+	m["udp_obsolete_pid_sent_per_second"] = strconv.FormatInt(udpObsoletePidSent, 10)
+	m["udp_obsolete_hash_sent_per_second"] = strconv.FormatInt(udpObsoleteHashSent, 10)
+	m["udp_obsolete_generation_sent_per_second"] = strconv.FormatInt(udpObsoleteGenerationSent, 10)
+	m["udp_resend_request_sent_per_second"] = strconv.FormatInt(udpResendRequestSent, 10)
+	m["udp_resend_timer_burned"] = strconv.FormatInt(udpResendTimerBurned, 10)
+	m["udp_ack_timer_burned"] = strconv.FormatInt(udpAckTimerBurned, 10)
+	m["udp_resend_request_timer_burned"] = strconv.FormatInt(udpResendRequestTimerBurned, 10)
+	m["udp_regenerate_timer_burned"] = strconv.FormatInt(udpRegenerateTimerBurned, 10)
+	m["udp_hole_seq_nums_sent"] = strconv.FormatInt(udpHoleSeqNumsSent, 10)
+	m["udp_requested_seq_nums_out_of_window"] = strconv.FormatInt(udpRequestedSeqNumsOutOfWindow, 10)
+	m["udp_requested_seq_nums_actually_acked"] = strconv.FormatInt(udpRequestedSeqNumsActuallyAcked, 10)
+	m["udp_requested_seq_nums_not_acked"] = strconv.FormatInt(udpRequestedSeqNumsNotAcked, 10)
+	m["udp_incoming_messages_inflight"] = strconv.FormatInt(udpIncomingMessagesInflight, 10)
+	m["udp_outgoing_messages_inflight"] = strconv.FormatInt(udpOutgoingMessagesInflight, 10)
+	m["udp_connections_map_size"] = strconv.FormatInt(udpConnectionsMapSize, 10)
+	m["udp_memory_waiters_size"] = strconv.FormatInt(udpMemoryWaitersSize, 10)
+	m["udp_acquired_memory"] = strconv.FormatInt(udpAcquiredMemory, 10)
+
 	m["gc_ms"] = strconv.FormatUint(gc.PauseTotalMs, 10)
 	m["gc_mcs"] = strconv.FormatUint(gc.PauseTotalMcs, 10)
 	m["gc_cpu_usage"] = strconv.FormatFloat(gc.GCCPUFraction, 'f', 5, 32)
@@ -130,7 +189,7 @@ func readCommandLine() string {
 }
 
 func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
-	if s.opts.DebugUdpRPC >= 1 && hctx.protocolID == protocolUDP {
+	if s.opts.DebugUdpRPC >= 1 && hctx.protocolTransportID == protocolUDP {
 		log.Printf("udp ping recieved")
 	}
 	req := tlengine.Pid{}
@@ -140,7 +199,7 @@ func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
 	if s.engineShutdown.Load() {
 		return errGracefulShutdown
 	}
-	pid := prepareHandshakePIDServer(hctx.localAddr, s.startTime)
+	pid := prepareHandshakePIDServer(hctx.LocalAddr(), s.startTime)
 	hctx.Response, err = req.WriteResult(hctx.Response, pid)
 	return err
 }
@@ -150,7 +209,7 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err
 	}
-	stats := s.collectStats(hctx.localAddr)
+	stats := s.CollectStats(hctx.LocalAddr())
 	keys := sortedStatKeys(stats)
 	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
 
@@ -168,7 +227,7 @@ func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err
 	}
-	stats := s.collectStats(hctx.localAddr)
+	stats := s.CollectStats(hctx.LocalAddr())
 	filterStats(stats, req.StatNames)
 	keys := sortedStatKeys(stats)
 	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
@@ -209,7 +268,7 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 
 func handleEngineSleep(ctx context.Context, hctx *HandlerContext, timeMs int32) (err error) {
 	if hctx.timeout != 0 {
-		deadline := hctx.RequestTime.Add(hctx.timeout)
+		deadline := hctx.requestTime.Add(hctx.timeout)
 		dt := time.Since(deadline)
 		if dt >= 0 {
 			return &Error{
@@ -255,6 +314,18 @@ func (s *Server) handleEngineAsyncSleep(ctx context.Context, hctx *HandlerContex
 	return err
 }
 
+func (s *Server) handleNetDumpUdpTargets(ctx context.Context, hctx *HandlerContext) (err error) {
+	/*req := tlnet.DumpUdpTargets{}
+	if _, err = req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}*/
+	for _, t := range s.transportsUDP {
+		t.DumpUdpTargets()
+	}
+	hctx.Response = basictl.NatWrite(hctx.Response, 0x3fedd339)
+	return nil
+}
+
 func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
 	resp := fmt.Sprintf("VERSION %v\r\n", s.opts.Version)
 
@@ -265,7 +336,7 @@ func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
 }
 
 func (s *Server) respondWithMemcachedStats(conn *PacketConn) {
-	stats := s.collectStats(conn.conn.LocalAddr())
+	stats := s.CollectStats(conn.conn.LocalAddr())
 	resp := marshalMemcachedStats(stats)
 
 	err := s.sendMemcachedResponse(conn, "stats", resp)
@@ -275,14 +346,14 @@ func (s *Server) respondWithMemcachedStats(conn *PacketConn) {
 }
 
 func (s *Server) sendMemcachedResponse(c *PacketConn, name string, resp []byte) error {
-	err := c.conn.SetWriteDeadline(time.Now().Add(DefaultPacketTimeout))
+	err := c.SetWriteTimeoutUnlocked(DefaultPacketTimeout)
 	if err != nil {
-		return fmt.Errorf("rpc: failed to set write deadline for memcached %v for %v: %w", name, c.remoteAddr, err)
+		return fmt.Errorf("rpc: failed to set write deadline for memcached %v for %s: %w", name, c.RemoteAddr(), err)
 	}
 
-	_, err = c.conn.Write(resp)
+	_, err = c.WriteRawBytes(resp)
 	if err != nil {
-		return fmt.Errorf("rpc: failed to write memcached %v for %v: %w", name, c.remoteAddr, err)
+		return fmt.Errorf("rpc: failed to write memcached %v for %s: %w", name, c.RemoteAddr(), err)
 	}
 
 	return nil

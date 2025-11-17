@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	vkuthJWTHeader       = "X-Vkuth-JWT"
+	VkuthJWTHeader       = "X-Vkuth-JWT"
 	keyIDHeader          = "kid"
 	JWTTimeWindow        = 5 * time.Second
 	TokenIssuer          = "vkuth"
@@ -98,7 +98,7 @@ func vkuthFingerprint(data []byte) string {
 }
 
 func GetAccessToken(r *http.Request) string {
-	return r.Header.Get(vkuthJWTHeader)
+	return r.Header.Get(VkuthJWTHeader)
 }
 
 func stripFullBit(fullBit string, appName string) string {
@@ -117,6 +117,7 @@ type Data struct {
 	EmployeeID   *int64   `json:"employee_id"`
 	UnitsIDOwner *string  `json:"units_id_owner"` // owner/team lead
 }
+
 type Claims struct {
 	*jwt.RegisteredClaims
 	Data    Data `json:"vkuth_data"`
@@ -144,6 +145,7 @@ func NewJWTHelper(publicKeys map[string][]byte, appName string) *JWTHelper {
 }
 
 func (c *Claims) Valid() error {
+	// protection against clock drift - allow up to JWTTimeWindow at both window sides
 	now := c.now
 	expireAtNow := now.Add(-JWTTimeWindow)
 	vErr := new(jwt.ValidationError)

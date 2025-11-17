@@ -31,6 +31,7 @@ func CreateObjectFromNameBytes(name string) meta.Object {
 }
 
 func init() {
+	// TL
 	meta.SetGlobalFactoryCreateForObjectBytes(0x92cbcbfa, func() meta.Object { var ret internal.BoolStat; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0x402409cb, func() meta.Object { var ret internal.EngineAlreadyInMasterMode; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0xebd80142, func() meta.Object { var ret internal.EngineAlreadyInReplicaMode; return &ret })
@@ -191,11 +192,9 @@ func init() {
 	meta.SetGlobalFactoryCreateForObjectBytes(0x4f7b7822, func() meta.Object { var ret internal.StatshouseSampleFactor; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x4285ff53, func() meta.Object { var ret internal.StatshouseSendKeepAlive2Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive2Bytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x4285ff54, func() meta.Object { var ret internal.StatshouseSendKeepAlive3Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseSendKeepAlive3Bytes; return &ret }, nil)
-	meta.SetGlobalFactoryCreateForFunctionBytes(0x44575940, func() meta.Object { var ret internal.StatshouseSendSourceBucket2Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket2Bytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x0d04aa3f, func() meta.Object { var ret internal.StatshouseSendSourceBucket3Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseSendSourceBucket3Bytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObjectBytes(0x0e177acc, func() meta.Object { var ret internal.StatshouseSendSourceBucket3ResponseBytes; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0x4124cf9c, func() meta.Object { var ret internal.StatshouseShutdownInfo; return &ret })
-	meta.SetGlobalFactoryCreateForObjectBytes(0x3af6e822, func() meta.Object { var ret internal.StatshouseSourceBucket2Bytes; return &ret })
 	meta.SetGlobalFactoryCreateForObjectBytes(0x16c4dd7b, func() meta.Object { var ret internal.StatshouseSourceBucket3Bytes; return &ret })
 	meta.SetGlobalFactoryCreateForFunctionBytes(0x4285ff58, func() meta.Object { var ret internal.StatshouseTestConnection2Bytes; return &ret }, func() meta.Function { var ret internal.StatshouseTestConnection2Bytes; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObjectBytes(0x9ffdea42, func() meta.Object { var ret internal.StatshouseTopElementBytes; return &ret })

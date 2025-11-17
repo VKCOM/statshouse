@@ -38,6 +38,16 @@ func fuzzFile(filename string) {
 	if err != nil {
 		panic(err)
 	}
-	log.Println("fuzz", filename)
-	FuzzTransport(data)
+	//log.Println("fuzz", filename)
+	res := FuzzDyukov(data)
+	if res != 1 {
+		log.Panicf("udp transport fuzzing failed on corpus file '%s'", filename)
+	}
+}
+
+// standard go approach
+func FuzzTransport(f *testing.F) {
+	f.Fuzz(func(t *testing.T, commands []byte) {
+		_ = FuzzDyukov(commands)
+	})
 }

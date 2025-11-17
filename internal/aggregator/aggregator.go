@@ -24,9 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeebo/xxh3"
-	"pgregory.net/rand"
-
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -38,6 +35,9 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
+	"github.com/zeebo/xxh3"
+
+	"pgregory.net/rand"
 )
 
 type (
@@ -54,17 +54,17 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		contributors       map[*rpc.HandlerContext]struct{}                               // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
-		contributors3      map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response // Protected by mu, can be removed if client disconnects.
-		historicHosts      [2][2]map[data_model.TagUnion]int64                            // [role][route] Protected by mu
-		contributorsMetric [2][2]data_model.ItemValue                                     // [role][route] Not recorded for keep-alive, protected by aggregator mutex
+		contributors       map[rpc.LongpollHandle]struct{}                               // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
+		contributors3      map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response // Protected by mu, can be removed if client disconnects.
+		historicHosts      [2][2]map[data_model.TagUnion]int64                           // [role][route] Protected by mu
+		contributorsMetric [2][2]data_model.ItemValue                                    // [role][route] Not recorded for keep-alive, protected by aggregator mutex
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
 
 		sendMu sync.RWMutex // Used to wait for all aggregating clients to finish before sending
 
-		contributorsSimulatedErrors map[*rpc.HandlerContext]struct{} // put into most future bucket, so receive error after >7 seconds
+		contributorsSimulatedErrors map[rpc.LongpollHandle]struct{} // put into most future bucket, so receive error after >7 seconds
 	}
 	Aggregator struct {
 		h                 tlstatshouse.Handler
@@ -132,16 +132,19 @@ type (
 	}
 )
 
-const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 * 3 // *3 is additional load for spares, when original aggregator is down
-
-func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
+func (b *aggregatorBucket) CancelLongpoll(lh rpc.LongpollHandle) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// we cannot remove merged data or merged set, so data remains in buckets
 	// cancels are rare, so we simply remove from all maps, we do not know in which map hctx is
-	delete(b.contributors, hctx)
-	delete(b.contributors3, hctx)
-	delete(b.contributorsSimulatedErrors, hctx)
+	delete(b.contributors, lh)
+	delete(b.contributors3, lh)
+	delete(b.contributorsSimulatedErrors, lh)
+}
+
+func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	b.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 // aggregator is also run in this method
@@ -189,8 +192,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.LocalShard > 0 {
 		shardKey = int32(config.LocalShard)
 	}
-	if len(config.ClusterShardsAddrs) > 0 {
-		addresses = config.ClusterShardsAddrs
+	if len(config.RemoteInitial.ClusterShardsAddrs) > 0 {
+		addresses = config.RemoteInitial.ClusterShardsAddrs
 	}
 	if len(addresses)%3 != 0 {
 		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
@@ -201,11 +204,15 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if config.ShardByMetricShards == 0 {
 		config.ShardByMetricShards = len(addresses) / 3
 	}
-	config.ClusterShardsAddrs = addresses
+	config.RemoteInitial.ClusterShardsAddrs = addresses
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
-		Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithLogf(log.Printf),
+			rpc.ClientWithCryptoKey(aesPwd),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		Network: config.MetadataNet,
 		Address: config.MetadataAddr,
 		ActorID: config.MetadataActorID,
@@ -236,7 +243,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
-		configR:                     config.ConfigAggregatorRemote,
+		configR:                     config.RemoteInitial,
 		cfgNotifier:                 NewConfigChangeNotifier(),
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
@@ -285,8 +292,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		rpc.ServerWithDisableContextTimeout(true),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
-		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets),
+		rpc.ServerWithDefaultResponseTimeout(0), // explicit infinite timeout
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<33),
@@ -349,7 +355,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
-	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.ClusterShardsAddrs, ","), "", "Started")
+	a.appendInternalLog("start", "", build.Commit(), build.Info(), strings.Join(os.Args[1:], " "), strings.Join(a.config.RemoteInitial.ClusterShardsAddrs, ","), "", "Started")
 
 	a.insertsSemaSize = int64(a.config.RecentInserters)
 	a.insertsSema = semaphore.NewWeighted(a.insertsSemaSize)
@@ -755,17 +761,21 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
 			for _, b := range staleBuckets {
 				b.mu.Lock()
-				for hctx := range b.contributors {
-					var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
-					hctx.SendHijackedResponse(nil)
+				for lh := range b.contributors {
+					var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
+					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+						hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
+						hctx.SendLongpollResponse(nil)
+					}
 				}
-				for hctx, resp := range b.contributors3 {
+				for lh, resp := range b.contributors3 {
 					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 					resp.Warning = "Successfully discarded historic bucket with timestamp before historic window"
 					resp.SetDiscard(true)
-					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
-					hctx.SendHijackedResponse(nil)
+					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+						hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+						hctx.SendLongpollResponse(nil)
+					}
 				}
 				clear(b.contributors)
 				clear(b.contributors3) // safeguard against sending more than once
@@ -835,19 +845,23 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		for i, b := range aggBuckets {
 			b.mu.Lock()
-			for hctx := range b.contributors {
-				var ssb2 tlstatshouse.SendSourceBucket2 // Dummy
-				hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
-				hctx.SendHijackedResponse(sendErr)
+			for lh := range b.contributors {
+				var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
+				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
+					hctx.SendLongpollResponse(sendErr)
+				}
 			}
-			for hctx, resp := range b.contributors3 {
+			for lh, resp := range b.contributors3 {
 				var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 				if sendErr != nil {
 					resp.Warning = sendErr.Error()
 				}
 				resp.SetDiscard(sendErr == nil)
-				hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
-				hctx.SendHijackedResponse(sendErr)
+				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+					hctx.SendLongpollResponse(sendErr)
+				}
 			}
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once
@@ -894,8 +908,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		sendErr = fmt.Errorf("simulated error")
 		aggBucket.mu.Lock()
-		for hctx := range aggBucket.contributorsSimulatedErrors {
-			hctx.SendHijackedResponse(sendErr)
+		for lh := range aggBucket.contributorsSimulatedErrors {
+			if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+				hctx.SendLongpollResponse(sendErr)
+			}
 		}
 		clear(aggBucket.contributorsSimulatedErrors)
 		aggBucket.mu.Unlock()
@@ -904,9 +920,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 // returns bucket with exclusive ownership requiring no locks to access
 func (a *Aggregator) popOldestHistoricBucket(oldestTime uint32) (aggBucket *aggregatorBucket, staleBuckets []*aggregatorBucket) {
+	historicWindow := a.sh2.HistoricWindow()
+
 	a.mu.Lock()
 	for _, v := range a.historicBuckets { // Find oldest bucket
-		if oldestTime >= data_model.MaxHistoricWindow && v.time < oldestTime-data_model.MaxHistoricWindow {
+		if oldestTime >= historicWindow && v.time < oldestTime-historicWindow {
 			staleBuckets = append(staleBuckets, v)
 			delete(a.historicBuckets, v.time)
 			continue
@@ -935,32 +953,36 @@ func (a *Aggregator) popOldestHistoricBucket(oldestTime uint32) (aggBucket *aggr
 }
 
 func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggregatorBucket {
+	a.configMu.RLock()
+	configR := a.configR
+	a.configMu.RUnlock()
+
 	nowUnix := uint32(now.Unix())
 	var readyBuckets []*aggregatorBucket
 	// As quickly as possible select which buckets should be sent
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	for len(a.recentBuckets) != 0 && nowUnix > a.recentBuckets[0].time+uint32(a.config.ShortWindow) {
+	for len(a.recentBuckets) != 0 && nowUnix > a.recentBuckets[0].time+uint32(configR.ShortWindow) {
 		readyBuckets = append(readyBuckets, a.recentBuckets[0])
 		a.recentBuckets = append([]*aggregatorBucket{}, a.recentBuckets[1:]...) // copy
 	}
 	if len(a.recentBuckets) == 0 { // Jumped into future, also initial state
 		b := &aggregatorBucket{
-			time:                        nowUnix - uint32(a.config.ShortWindow),
-			contributors:                map[*rpc.HandlerContext]struct{}{},
-			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
-			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
+			time:                        nowUnix - uint32(configR.ShortWindow),
+			contributors:                map[rpc.LongpollHandle]struct{}{},
+			contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
-	for len(a.recentBuckets) < a.config.ShortWindow+data_model.FutureWindow {
+	for len(a.recentBuckets) < configR.ShortWindow+data_model.FutureWindow {
 		b := &aggregatorBucket{
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
-			contributors:                map[*rpc.HandlerContext]struct{}{},
-			contributors3:               map[*rpc.HandlerContext]tlstatshouse.SendSourceBucket3Response{},
-			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
+			contributors:                map[rpc.LongpollHandle]struct{}{},
+			contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
@@ -1010,22 +1032,27 @@ func (a *Aggregator) goTicker() {
 				// there must be exactly 0 historic hosts in this bucket, so can skip the next lines
 				// historicHosts := aggBucket.historicHosts
 				// (under aggregator lock): a.updateHistoricHostsLocked(a.historicHosts, historicHosts)
-				for hctx := range aggBucket.contributors {
-					hctx.SendHijackedResponse(err)
+				for lh := range aggBucket.contributors {
+					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+						hctx.SendLongpollResponse(err)
+					}
 				}
-				for hctx, resp := range aggBucket.contributors3 {
+				for lh, resp := range aggBucket.contributors3 {
 					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
-					resp.Warning = err.Error()
-					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
-					hctx.SendHijackedResponse(nil)
+					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+						resp.Warning = err.Error()
+						hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+						hctx.SendLongpollResponse(nil)
+					}
 				}
 				clear(aggBucket.contributors)
 				clear(aggBucket.contributors3) // safeguard against sending more than once
 				aggBucket.mu.Unlock()
 			}
 		}
-		if len(readyBuckets) != 0 && readyBuckets[0].time >= data_model.MaxHistoricWindow {
-			oldestTime := readyBuckets[0].time - data_model.MaxHistoricWindow
+		historicWindow := a.sh2.HistoricWindow()
+		if len(readyBuckets) != 0 && readyBuckets[0].time >= historicWindow {
+			oldestTime := readyBuckets[0].time - historicWindow
 			a.estimator.GarbageCollect(oldestTime)
 		}
 	}
@@ -1044,7 +1071,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	}
 	a.configS = description
 	log.Printf("Remote config:\n%s", description)
-	config := a.config.ConfigAggregatorRemote
+	config := a.config.RemoteInitial
 	config.ClusterShardsAddrs = nil
 	if err := config.updateFromRemoteDescription(description); err != nil {
 		log.Printf("[error] Remote config: error updating config from metric %q: %v", format.StatshouseAggregatorRemoteConfigMetric, err)
@@ -1053,7 +1080,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
 	if len(config.ClusterShardsAddrs) == 0 {
-		config.ClusterShardsAddrs = a.config.ClusterShardsAddrs
+		config.ClusterShardsAddrs = a.config.RemoteInitial.ClusterShardsAddrs
 	}
 	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
 		a.cfgNotifier.notifyConfigChange()

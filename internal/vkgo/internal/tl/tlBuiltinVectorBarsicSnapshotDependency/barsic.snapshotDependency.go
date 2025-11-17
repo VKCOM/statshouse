@@ -18,7 +18,7 @@ var _ = internal.ErrorInvalidEnumTag
 
 func BuiltinVectorBarsicSnapshotDependencyFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependency, l)
 	for i := range *vec {
 		(*vec)[i].FillRandom(rg)
@@ -58,7 +58,7 @@ func BuiltinVectorBarsicSnapshotDependencyInternalReadTL2(r []byte, vec *[]tlBar
 	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency")
 }
 
-func BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
+func BuiltinVectorBarsicSnapshotDependencyReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -72,7 +72,7 @@ func BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames bool, in *bas
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -87,20 +87,21 @@ func BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames bool, in *bas
 }
 
 func BuiltinVectorBarsicSnapshotDependencyWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) []byte {
-	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) []byte {
+func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
 
 func BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes, l)
 	for i := range *vec {
 		(*vec)[i].FillRandom(rg)
@@ -140,7 +141,7 @@ func BuiltinVectorBarsicSnapshotDependencyBytesInternalReadTL2(r []byte, vec *[]
 	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes")
 }
 
-func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
+func BuiltinVectorBarsicSnapshotDependencyBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -154,7 +155,7 @@ func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames bool, in
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -169,13 +170,14 @@ func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames bool, in
 }
 
 func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) []byte {
-	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) []byte {
+func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }

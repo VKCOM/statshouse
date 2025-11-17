@@ -15,8 +15,8 @@ var _ = basictl.NatWrite
 
 type MetadataGetJournalResponsenew struct {
 	CurrentVersion int64
-	LastVersion    int64
 	Events         []MetadataEvent
+	LastVersion    int64
 }
 
 func (MetadataGetJournalResponsenew) TLName() string { return "metadata.getJournalResponsenew" }
@@ -24,29 +24,28 @@ func (MetadataGetJournalResponsenew) TLTag() uint32  { return 0x9286aaaa }
 
 func (item *MetadataGetJournalResponsenew) Reset() {
 	item.CurrentVersion = 0
-	item.LastVersion = 0
 	item.Events = item.Events[:0]
+	item.LastVersion = 0
 }
 
 func (item *MetadataGetJournalResponsenew) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	if w, err = basictl.LongRead(w, &item.LastVersion); err != nil {
+	if w, err = BuiltinVectorMetadataEventRead(w, &item.Events); err != nil {
 		return w, err
 	}
-	return BuiltinVectorMetadataEventRead(w, &item.Events)
+	return basictl.LongRead(w, &item.LastVersion)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataGetJournalResponsenew) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenew) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	w = basictl.LongWrite(w, item.LastVersion)
 	w = BuiltinVectorMetadataEventWrite(w, item.Events)
+	w = basictl.LongWrite(w, item.LastVersion)
 	return w
 }
 
@@ -57,7 +56,6 @@ func (item *MetadataGetJournalResponsenew) ReadBoxed(w []byte, nat_field_mask ui
 	return item.Read(w, nat_field_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataGetJournalResponsenew) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_field_mask), nil
 }
@@ -67,10 +65,10 @@ func (item *MetadataGetJournalResponsenew) WriteBoxed(w []byte, nat_field_mask u
 	return item.Write(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetJournalResponsenew) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
-	var propLastVersionPresented bool
 	var propEventsPresented bool
+	var propLastVersionPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -89,6 +87,14 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 					return err
 				}
 				propCurrentVersionPresented = true
+			case "events":
+				if propEventsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
+				}
+				if err := BuiltinVectorMetadataEventReadJSONGeneral(tctx, in, &item.Events); err != nil {
+					return err
+				}
+				propEventsPresented = true
 			case "last_version":
 				if propLastVersionPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "last_version")
@@ -97,14 +103,6 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 					return err
 				}
 				propLastVersionPresented = true
-			case "events":
-				if propEventsPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
-				}
-				if err := BuiltinVectorMetadataEventReadJSON(legacyTypeNames, in, &item.Events); err != nil {
-					return err
-				}
-				propEventsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", key)
 			}
@@ -118,24 +116,25 @@ func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *ba
 	if !propCurrentVersionPresented {
 		item.CurrentVersion = 0
 	}
-	if !propLastVersionPresented {
-		item.LastVersion = 0
-	}
 	if !propEventsPresented {
 		item.Events = item.Events[:0]
+	}
+	if !propLastVersionPresented {
+		item.LastVersion = 0
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetJournalResponsenew) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+func (item *MetadataGetJournalResponsenew) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -144,6 +143,13 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short
 	if (item.CurrentVersion != 0) == false {
 		w = w[:backupIndexCurrentVersion]
 	}
+	backupIndexEvents := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"events":`...)
+	w = BuiltinVectorMetadataEventWriteJSONOpt(tctx, w, item.Events)
+	if (len(item.Events) != 0) == false {
+		w = w[:backupIndexEvents]
+	}
 	backupIndexLastVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"last_version":`...)
@@ -151,20 +157,13 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short
 	if (item.LastVersion != 0) == false {
 		w = w[:backupIndexLastVersion]
 	}
-	backupIndexEvents := len(w)
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"events":`...)
-	w = BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames, short, w, item.Events)
-	if (len(item.Events) != 0) == false {
-		w = w[:backupIndexEvents]
-	}
 	return append(w, '}')
 }
 
 type MetadataGetJournalResponsenewBytes struct {
 	CurrentVersion int64
-	LastVersion    int64
 	Events         []MetadataEventBytes
+	LastVersion    int64
 }
 
 func (MetadataGetJournalResponsenewBytes) TLName() string { return "metadata.getJournalResponsenew" }
@@ -172,29 +171,28 @@ func (MetadataGetJournalResponsenewBytes) TLTag() uint32  { return 0x9286aaaa }
 
 func (item *MetadataGetJournalResponsenewBytes) Reset() {
 	item.CurrentVersion = 0
-	item.LastVersion = 0
 	item.Events = item.Events[:0]
+	item.LastVersion = 0
 }
 
 func (item *MetadataGetJournalResponsenewBytes) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	if w, err = basictl.LongRead(w, &item.LastVersion); err != nil {
+	if w, err = BuiltinVectorMetadataEventBytesRead(w, &item.Events); err != nil {
 		return w, err
 	}
-	return BuiltinVectorMetadataEventBytesRead(w, &item.Events)
+	return basictl.LongRead(w, &item.LastVersion)
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataGetJournalResponsenewBytes) WriteGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenewBytes) Write(w []byte, nat_field_mask uint32) []byte {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	w = basictl.LongWrite(w, item.LastVersion)
 	w = BuiltinVectorMetadataEventBytesWrite(w, item.Events)
+	w = basictl.LongWrite(w, item.LastVersion)
 	return w
 }
 
@@ -205,7 +203,6 @@ func (item *MetadataGetJournalResponsenewBytes) ReadBoxed(w []byte, nat_field_ma
 	return item.Read(w, nat_field_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataGetJournalResponsenewBytes) WriteBoxedGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_field_mask), nil
 }
@@ -215,10 +212,10 @@ func (item *MetadataGetJournalResponsenewBytes) WriteBoxed(w []byte, nat_field_m
 	return item.Write(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetJournalResponsenewBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
-	var propLastVersionPresented bool
 	var propEventsPresented bool
+	var propLastVersionPresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -237,6 +234,14 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 					return err
 				}
 				propCurrentVersionPresented = true
+			case "events":
+				if propEventsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
+				}
+				if err := BuiltinVectorMetadataEventBytesReadJSONGeneral(tctx, in, &item.Events); err != nil {
+					return err
+				}
+				propEventsPresented = true
 			case "last_version":
 				if propLastVersionPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "last_version")
@@ -245,14 +250,6 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 					return err
 				}
 				propLastVersionPresented = true
-			case "events":
-				if propEventsPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
-				}
-				if err := BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames, in, &item.Events); err != nil {
-					return err
-				}
-				propEventsPresented = true
 			default:
 				return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", key)
 			}
@@ -266,24 +263,25 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, i
 	if !propCurrentVersionPresented {
 		item.CurrentVersion = 0
 	}
-	if !propLastVersionPresented {
-		item.LastVersion = 0
-	}
 	if !propEventsPresented {
 		item.Events = item.Events[:0]
+	}
+	if !propLastVersionPresented {
+		item.LastVersion = 0
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONGeneral(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask), nil
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_field_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -292,19 +290,19 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, 
 	if (item.CurrentVersion != 0) == false {
 		w = w[:backupIndexCurrentVersion]
 	}
+	backupIndexEvents := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"events":`...)
+	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(tctx, w, item.Events)
+	if (len(item.Events) != 0) == false {
+		w = w[:backupIndexEvents]
+	}
 	backupIndexLastVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"last_version":`...)
 	w = basictl.JSONWriteInt64(w, item.LastVersion)
 	if (item.LastVersion != 0) == false {
 		w = w[:backupIndexLastVersion]
-	}
-	backupIndexEvents := len(w)
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"events":`...)
-	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames, short, w, item.Events)
-	if (len(item.Events) != 0) == false {
-		w = w[:backupIndexEvents]
 	}
 	return append(w, '}')
 }

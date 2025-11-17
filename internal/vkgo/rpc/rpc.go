@@ -31,19 +31,21 @@ const (
 	// contains 8 byte payload
 
 	// rpc-error-codes.h
-	TLErrorSyntax           = -1000 // TL_ERROR_SYNTAX
-	TlErrorNoHandler        = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
-	TlErrorTooLongString    = -2003 // TOO_LONG_STRING
-	TlErrorValueNotInRange  = -2004 // VALUE_NOT_IN_RANGE
-	TlErrorQueryIncorrect   = -2005 // QUERY_INCORRECT
-	TlErrorBadValue         = -2006 // BAD_VALUE
-	TlErrorGracefulShutdown = -2014 // TL_ERROR_GRACEFUL_SHUTDOWN
-	TlErrorTimeout          = -3000 // TL_ERROR_QUERY_TIMEOUT
-	TLErrorNoConnections    = -3002 // TL_ERROR_NO_CONNECTIONS
-	TlErrorInternal         = -3003 // TL_ERROR_INTERNAL
-	TLErrorResultToLarge    = -3011 // TL_ERROR_RESULT_TOO_LARGE
-	TlErrorUnknown          = -4000 // TL_ERROR_UNKNOWN
-	TlErrorResponseSyntax   = -4101 // RESPONSE_SYNTAX
+	TLErrorSyntax              = -1000 // TL_ERROR_SYNTAX
+	TlErrorNoHandler           = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
+	TlErrorTooLongString       = -2003 // TOO_LONG_STRING
+	TlErrorValueNotInRange     = -2004 // VALUE_NOT_IN_RANGE
+	TlErrorQueryIncorrect      = -2005 // QUERY_INCORRECT
+	TlErrorBadValue            = -2006 // BAD_VALUE
+	TlErrorFeatureDisabled     = -2008 // TL_ERROR_FEATURE_DISABLED
+	TlErrorGracefulShutdown    = -2014 // TL_ERROR_GRACEFUL_SHUTDOWN
+	TlErrorTimeout             = -3000 // TL_ERROR_QUERY_TIMEOUT
+	TLErrorNoConnections       = -3002 // TL_ERROR_NO_CONNECTIONS
+	TlErrorInternal            = -3003 // TL_ERROR_INTERNAL
+	TLErrorAIOMaxRetryExceeded = -3007 // TL_ERROR_AIO_MAX_RETRY_EXCEEDED
+	TLErrorResultToLarge       = -3011 // TL_ERROR_RESULT_TOO_LARGE
+	TlErrorUnknown             = -4000 // TL_ERROR_UNKNOWN
+	TlErrorResponseSyntax      = -4101 // RESPONSE_SYNTAX
 
 	DefaultPacketTimeout = 10 * time.Second
 	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
@@ -109,6 +111,11 @@ func NewDefaultError(description string) *Error {
 	}
 }
 
+// @see https://confluence.vk.team/pages/viewpage.action?pageId=1405042319
+func (err *Error) IsApplicationLevelError() bool {
+	return err.Code >= -5999 && err.Code <= -5000
+}
+
 type tagError struct {
 	tag string // can be empty, but in most cases is not
 	err error  // never nil
@@ -158,16 +165,19 @@ func (na NetAddr) String() string {
 	return na.Network + "://" + na.Address
 }
 
+// after header, there is body, then
+// crc32 of (header | body)
+// then (only if encrypted) must contain 0 to 3 zero bytes aligning packet to multiple of 4
+// then can contain 0 to 3 values of uint32(4), aligning packet to multiple of AES encryption block.
 type packetHeader struct {
 	length uint32 // (body size + 16 bytes) for historic reasons
 	seqNum uint32
 	tip    uint32
 }
 
-// after header, there is body, then
-// crc32 of (header | body)
-// then (only if encrypted) must contain 0 to 3 zero bytes aligning packet to multiple of 4
-// then can contain 0 to 3 values of uint32(4), aligning packet to multiple of AES encryption block.
+func (p packetHeader) String() string {
+	return fmt.Sprintf(`{"len":%d,"seq":%d,"tip":"0x%08X"}`, p.length, p.seqNum, p.tip)
+}
 
 func humanByteCountIEC(b int64) string {
 	const unit int64 = 1024

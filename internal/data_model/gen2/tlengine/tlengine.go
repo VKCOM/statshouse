@@ -17,70 +17,101 @@ import (
 )
 
 type (
-	AlreadyInMasterMode            = internal.EngineAlreadyInMasterMode
-	AlreadyInReplicaMode           = internal.EngineAlreadyInReplicaMode
-	AsyncSleep                     = internal.EngineAsyncSleep
-	BinlogPrefix                   = internal.EngineBinlogPrefix
-	Count                          = internal.EngineCount
-	DumpForceQueries               = internal.EngineDumpForceQueries
-	DumpLastQueries                = internal.EngineDumpLastQueries
-	DumpNextQueries                = internal.EngineDumpNextQueries
-	EnableMetafilesAnalyzer        = internal.EngineEnableMetafilesAnalyzer
-	FailedToSwitchMode             = internal.EngineFailedToSwitchMode
-	FilteredStat                   = internal.EngineFilteredStat
-	GetBinlogPrefixes              = internal.EngineGetBinlogPrefixes
-	GetExpectedMetafilesStats      = internal.EngineGetExpectedMetafilesStats
-	GetReadWriteMode               = internal.EngineGetReadWriteMode
-	GetReindexStatus               = internal.EngineGetReindexStatus
-	HttpQuery                      = internal.EngineHttpQuery
-	HttpQueryResponse              = internal.EngineHttpQueryResponse
-	InvokeHttpQuery                = internal.EngineInvokeHttpQuery
-	IsProduction                   = internal.EngineIsProduction
-	MetafilesOneMemoryStat         = internal.EngineMetafilesOneMemoryStat
-	MetafilesStat                  = internal.EngineMetafilesStat
-	Nop                            = internal.EngineNop
-	Pid                            = internal.EnginePid
-	PushStat                       = internal.EnginePushStat
-	QueryResult                    = internal.EngineQueryResult
-	QueryResult0                   = internal.EngineQueryResult0
-	QueryResultAio                 = internal.EngineQueryResultAio
-	QueryResultError               = internal.EngineQueryResultError
-	ReadNop                        = internal.EngineReadNop
-	ReadWriteMode                  = internal.EngineReadWriteMode
-	RecordNextQueries              = internal.EngineRecordNextQueries
-	RegisterDynamicLib             = internal.EngineRegisterDynamicLib
-	ReindexStatus                  = internal.EngineReindexStatus
-	ReindexStatusDone              = internal.EngineReindexStatusDone
-	ReindexStatusDoneOld           = internal.EngineReindexStatusDoneOld
-	ReindexStatusFailed            = internal.EngineReindexStatusFailed
-	ReindexStatusNever             = internal.EngineReindexStatusNever
-	ReindexStatusRunning           = internal.EngineReindexStatusRunning
-	ReindexStatusRunningOld        = internal.EngineReindexStatusRunningOld
-	ReindexStatusSignaled          = internal.EngineReindexStatusSignaled
-	ReloadDynamicLib               = internal.EngineReloadDynamicLib
-	ReloadDynamicLibOptions        = internal.EngineReloadDynamicLibOptions
-	ReplaceConfigServer            = internal.EngineReplaceConfigServer
-	SendSignal                     = internal.EngineSendSignal
-	SetFsyncInterval               = internal.EngineSetFsyncInterval
-	SetMetafileMemory              = internal.EngineSetMetafileMemory
-	SetNoPersistentConfigArray     = internal.EngineSetNoPersistentConfigArray
-	SetNoPersistentConfigValue     = internal.EngineSetNoPersistentConfigValue
-	SetPersistentConfigArray       = internal.EngineSetPersistentConfigArray
-	SetPersistentConfigValue       = internal.EngineSetPersistentConfigValue
-	SetVerbosity                   = internal.EngineSetVerbosity
-	SetVerbosityType               = internal.EngineSetVerbosityType
-	Sleep                          = internal.EngineSleep
-	Stat                           = internal.EngineStat
-	SwitchMasterReplicaModeResult  = internal.EngineSwitchMasterReplicaModeResult
-	SwitchToMasterMode             = internal.EngineSwitchToMasterMode
-	SwitchToMasterModeForcefully   = internal.EngineSwitchToMasterModeForcefully
-	SwitchToReplicaMode            = internal.EngineSwitchToReplicaMode
-	SwitchedToMasterMode           = internal.EngineSwitchedToMasterMode
-	SwitchedToMasterModeForcefully = internal.EngineSwitchedToMasterModeForcefully
-	SwitchedToReplicaMode          = internal.EngineSwitchedToReplicaMode
-	UnregisterDynamicLib           = internal.EngineUnregisterDynamicLib
-	Version                        = internal.EngineVersion
-	WriteNop                       = internal.EngineWriteNop
+	AlreadyInMasterMode                           = internal.EngineAlreadyInMasterMode
+	AlreadyInReplicaMode                          = internal.EngineAlreadyInReplicaMode
+	AsyncSleep                                    = internal.EngineAsyncSleep
+	BinlogPrefix                                  = internal.EngineBinlogPrefix
+	Count                                         = internal.EngineCount
+	DictionaryEngineMetafilesStatBoxed            = internal.DictionaryEngineMetafilesStatBoxed
+	DictionaryFieldEngineMetafilesStatBoxed       = internal.DictionaryFieldEngineMetafilesStatBoxed
+	DumpForceQueries                              = internal.EngineDumpForceQueries
+	DumpLastQueries                               = internal.EngineDumpLastQueries
+	DumpNextQueries                               = internal.EngineDumpNextQueries
+	EnableMetafilesAnalyzer                       = internal.EngineEnableMetafilesAnalyzer
+	FailedToSwitchMode                            = internal.EngineFailedToSwitchMode
+	FilteredStat                                  = internal.EngineFilteredStat
+	GetBinlogPrefixes                             = internal.EngineGetBinlogPrefixes
+	GetExpectedMetafilesStats                     = internal.EngineGetExpectedMetafilesStats
+	GetReadWriteMode                              = internal.EngineGetReadWriteMode
+	GetReindexStatus                              = internal.EngineGetReindexStatus
+	HttpQuery                                     = internal.EngineHttpQuery
+	HttpQueryResponse                             = internal.EngineHttpQueryResponse
+	InvokeHttpQuery                               = internal.EngineInvokeHttpQuery
+	IsProduction                                  = internal.EngineIsProduction
+	MetafilesOneMemoryStat                        = internal.EngineMetafilesOneMemoryStat
+	MetafilesStat                                 = internal.EngineMetafilesStat
+	Nop                                           = internal.EngineNop
+	Pid                                           = internal.EnginePid
+	PushStat                                      = internal.EnginePushStat
+	QueryResult                                   = internal.EngineQueryResult
+	QueryResult0                                  = internal.EngineQueryResult0
+	QueryResultAio                                = internal.EngineQueryResultAio
+	QueryResultError                              = internal.EngineQueryResultError
+	ReadNop                                       = internal.EngineReadNop
+	ReadWriteMode                                 = internal.EngineReadWriteMode
+	RecordNextQueries                             = internal.EngineRecordNextQueries
+	RegisterDynamicLib                            = internal.EngineRegisterDynamicLib
+	ReindexStatus                                 = internal.EngineReindexStatus
+	ReindexStatusDone                             = internal.EngineReindexStatusDone
+	ReindexStatusDoneOld                          = internal.EngineReindexStatusDoneOld
+	ReindexStatusFailed                           = internal.EngineReindexStatusFailed
+	ReindexStatusNever                            = internal.EngineReindexStatusNever
+	ReindexStatusRunning                          = internal.EngineReindexStatusRunning
+	ReindexStatusRunningOld                       = internal.EngineReindexStatusRunningOld
+	ReindexStatusSignaled                         = internal.EngineReindexStatusSignaled
+	ReloadDynamicLib                              = internal.EngineReloadDynamicLib
+	ReloadDynamicLibOptions                       = internal.EngineReloadDynamicLibOptions
+	ReplaceConfigServer                           = internal.EngineReplaceConfigServer
+	SendSignal                                    = internal.EngineSendSignal
+	SetFsyncInterval                              = internal.EngineSetFsyncInterval
+	SetMetafileMemory                             = internal.EngineSetMetafileMemory
+	SetNoPersistentConfigArray                    = internal.EngineSetNoPersistentConfigArray
+	SetNoPersistentConfigValue                    = internal.EngineSetNoPersistentConfigValue
+	SetPersistentConfigArray                      = internal.EngineSetPersistentConfigArray
+	SetPersistentConfigValue                      = internal.EngineSetPersistentConfigValue
+	SetVerbosity                                  = internal.EngineSetVerbosity
+	SetVerbosityType                              = internal.EngineSetVerbosityType
+	Sleep                                         = internal.EngineSleep
+	Stat                                          = internal.EngineStat
+	SwitchMasterReplicaModeResult                 = internal.EngineSwitchMasterReplicaModeResult
+	SwitchToMasterMode                            = internal.EngineSwitchToMasterMode
+	SwitchToMasterModeForcefully                  = internal.EngineSwitchToMasterModeForcefully
+	SwitchToReplicaMode                           = internal.EngineSwitchToReplicaMode
+	SwitchedToMasterMode                          = internal.EngineSwitchedToMasterMode
+	SwitchedToMasterModeForcefully                = internal.EngineSwitchedToMasterModeForcefully
+	SwitchedToReplicaMode                         = internal.EngineSwitchedToReplicaMode
+	UnregisterDynamicLib                          = internal.EngineUnregisterDynamicLib
+	VectorDictionaryFieldEngineMetafilesStatBoxed = internal.VectorDictionaryFieldEngineMetafilesStatBoxed
+	VectorEngineBinlogPrefix                      = internal.VectorEngineBinlogPrefix
+	VectorEngineMetafilesOneMemoryStat            = internal.VectorEngineMetafilesOneMemoryStat
+	Version                                       = internal.EngineVersion
+	WriteNop                                      = internal.EngineWriteNop
+
+	Count__Result                      = internal.BoolStat
+	DumpForceQueries__Result           = internal.True
+	DumpLastQueries__Result            = internal.True
+	DumpNextQueries__Result            = internal.True
+	FilteredStat__Result               = internal.Stat
+	GetBinlogPrefixes__Result          = []internal.EngineBinlogPrefix
+	GetExpectedMetafilesStats__Result  = map[string]internal.EngineMetafilesStat
+	Nop__Result                        = internal.True
+	Pid__Result                        = internal.NetPid
+	ReadNop__Result                    = internal.True
+	RegisterDynamicLib__Result         = internal.BoolStat
+	ReloadDynamicLib__Result           = internal.BoolStat
+	ReplaceConfigServer__Result        = internal.True
+	SendSignal__Result                 = internal.True
+	SetFsyncInterval__Result           = internal.BoolStat
+	SetMetafileMemory__Result          = internal.BoolStat
+	SetNoPersistentConfigArray__Result = internal.True
+	SetNoPersistentConfigValue__Result = internal.True
+	SetPersistentConfigArray__Result   = internal.True
+	SetPersistentConfigValue__Result   = internal.True
+	SetVerbosity__Result               = internal.True
+	SetVerbosityType__Result           = internal.True
+	Stat__Result                       = internal.Stat
+	UnregisterDynamicLib__Result       = internal.BoolStat
+	WriteNop__Result                   = internal.True
 )
 
 type Client struct {
@@ -113,14 +144,15 @@ func (c *Client) AsyncSleep(ctx context.Context, args AsyncSleep, extra *rpc.Inv
 		return internal.ErrorClientDo("engine.asyncSleep", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.asyncSleep", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) Count(ctx context.Context, args Count, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) Count(ctx context.Context, args Count, extra *rpc.InvokeReqExtra, ret *Count__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.count"
@@ -142,14 +174,15 @@ func (c *Client) Count(ctx context.Context, args Count, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientDo("engine.count", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.count", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) DumpForceQueries(ctx context.Context, args DumpForceQueries, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) DumpForceQueries(ctx context.Context, args DumpForceQueries, extra *rpc.InvokeReqExtra, ret *DumpForceQueries__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.dumpForceQueries"
@@ -171,14 +204,15 @@ func (c *Client) DumpForceQueries(ctx context.Context, args DumpForceQueries, ex
 		return internal.ErrorClientDo("engine.dumpForceQueries", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.dumpForceQueries", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) DumpLastQueries(ctx context.Context, args DumpLastQueries, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) DumpLastQueries(ctx context.Context, args DumpLastQueries, extra *rpc.InvokeReqExtra, ret *DumpLastQueries__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.dumpLastQueries"
@@ -200,14 +234,15 @@ func (c *Client) DumpLastQueries(ctx context.Context, args DumpLastQueries, extr
 		return internal.ErrorClientDo("engine.dumpLastQueries", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.dumpLastQueries", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) DumpNextQueries(ctx context.Context, args DumpNextQueries, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) DumpNextQueries(ctx context.Context, args DumpNextQueries, extra *rpc.InvokeReqExtra, ret *DumpNextQueries__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.dumpNextQueries"
@@ -229,7 +264,8 @@ func (c *Client) DumpNextQueries(ctx context.Context, args DumpNextQueries, extr
 		return internal.ErrorClientDo("engine.dumpNextQueries", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.dumpNextQueries", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -258,14 +294,15 @@ func (c *Client) EnableMetafilesAnalyzer(ctx context.Context, args EnableMetafil
 		return internal.ErrorClientDo("engine.enableMetafilesAnalyzer", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.enableMetafilesAnalyzer", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) FilteredStat(ctx context.Context, args FilteredStat, extra *rpc.InvokeReqExtra, ret *internal.Stat) (err error) {
+func (c *Client) FilteredStat(ctx context.Context, args FilteredStat, extra *rpc.InvokeReqExtra, ret *FilteredStat__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.filteredStat"
@@ -287,14 +324,15 @@ func (c *Client) FilteredStat(ctx context.Context, args FilteredStat, extra *rpc
 		return internal.ErrorClientDo("engine.filteredStat", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.filteredStat", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) GetBinlogPrefixes(ctx context.Context, args GetBinlogPrefixes, extra *rpc.InvokeReqExtra, ret *[]internal.EngineBinlogPrefix) (err error) {
+func (c *Client) GetBinlogPrefixes(ctx context.Context, args GetBinlogPrefixes, extra *rpc.InvokeReqExtra, ret *GetBinlogPrefixes__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.getBinlogPrefixes"
@@ -316,14 +354,15 @@ func (c *Client) GetBinlogPrefixes(ctx context.Context, args GetBinlogPrefixes, 
 		return internal.ErrorClientDo("engine.getBinlogPrefixes", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.getBinlogPrefixes", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) GetExpectedMetafilesStats(ctx context.Context, args GetExpectedMetafilesStats, extra *rpc.InvokeReqExtra, ret *map[string]internal.EngineMetafilesStat) (err error) {
+func (c *Client) GetExpectedMetafilesStats(ctx context.Context, args GetExpectedMetafilesStats, extra *rpc.InvokeReqExtra, ret *GetExpectedMetafilesStats__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.getExpectedMetafilesStats"
@@ -345,7 +384,8 @@ func (c *Client) GetExpectedMetafilesStats(ctx context.Context, args GetExpected
 		return internal.ErrorClientDo("engine.getExpectedMetafilesStats", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.getExpectedMetafilesStats", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -374,7 +414,8 @@ func (c *Client) GetReadWriteMode(ctx context.Context, args GetReadWriteMode, ex
 		return internal.ErrorClientDo("engine.getReadWriteMode", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.getReadWriteMode", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -403,7 +444,8 @@ func (c *Client) GetReindexStatus(ctx context.Context, args GetReindexStatus, ex
 		return internal.ErrorClientDo("engine.getReindexStatus", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.getReindexStatus", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -432,7 +474,8 @@ func (c *Client) InvokeHttpQuery(ctx context.Context, args InvokeHttpQuery, extr
 		return internal.ErrorClientDo("engine.invokeHttpQuery", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.invokeHttpQuery", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -461,14 +504,15 @@ func (c *Client) IsProduction(ctx context.Context, args IsProduction, extra *rpc
 		return internal.ErrorClientDo("engine.isProduction", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.isProduction", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) Nop(ctx context.Context, args Nop, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) Nop(ctx context.Context, args Nop, extra *rpc.InvokeReqExtra, ret *Nop__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.nop"
@@ -490,14 +534,15 @@ func (c *Client) Nop(ctx context.Context, args Nop, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientDo("engine.nop", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.nop", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) Pid(ctx context.Context, args Pid, extra *rpc.InvokeReqExtra, ret *internal.NetPid) (err error) {
+func (c *Client) Pid(ctx context.Context, args Pid, extra *rpc.InvokeReqExtra, ret *Pid__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.pid"
@@ -519,7 +564,8 @@ func (c *Client) Pid(ctx context.Context, args Pid, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientDo("engine.pid", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.pid", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -548,14 +594,15 @@ func (c *Client) PushStat(ctx context.Context, args PushStat, extra *rpc.InvokeR
 		return internal.ErrorClientDo("engine.pushStat", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.pushStat", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) ReadNop(ctx context.Context, args ReadNop, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) ReadNop(ctx context.Context, args ReadNop, extra *rpc.InvokeReqExtra, ret *ReadNop__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.ReadOnly = true
@@ -578,7 +625,8 @@ func (c *Client) ReadNop(ctx context.Context, args ReadNop, extra *rpc.InvokeReq
 		return internal.ErrorClientDo("engine.readNop", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.readNop", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -607,14 +655,15 @@ func (c *Client) RecordNextQueries(ctx context.Context, args RecordNextQueries, 
 		return internal.ErrorClientDo("engine.recordNextQueries", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.recordNextQueries", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) RegisterDynamicLib(ctx context.Context, args RegisterDynamicLib, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) RegisterDynamicLib(ctx context.Context, args RegisterDynamicLib, extra *rpc.InvokeReqExtra, ret *RegisterDynamicLib__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.registerDynamicLib"
@@ -636,14 +685,15 @@ func (c *Client) RegisterDynamicLib(ctx context.Context, args RegisterDynamicLib
 		return internal.ErrorClientDo("engine.registerDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.registerDynamicLib", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) ReloadDynamicLib(ctx context.Context, args ReloadDynamicLib, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) ReloadDynamicLib(ctx context.Context, args ReloadDynamicLib, extra *rpc.InvokeReqExtra, ret *ReloadDynamicLib__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.reloadDynamicLib"
@@ -665,14 +715,15 @@ func (c *Client) ReloadDynamicLib(ctx context.Context, args ReloadDynamicLib, ex
 		return internal.ErrorClientDo("engine.reloadDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.reloadDynamicLib", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) ReplaceConfigServer(ctx context.Context, args ReplaceConfigServer, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) ReplaceConfigServer(ctx context.Context, args ReplaceConfigServer, extra *rpc.InvokeReqExtra, ret *ReplaceConfigServer__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.replaceConfigServer"
@@ -694,14 +745,15 @@ func (c *Client) ReplaceConfigServer(ctx context.Context, args ReplaceConfigServ
 		return internal.ErrorClientDo("engine.replaceConfigServer", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.replaceConfigServer", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SendSignal(ctx context.Context, args SendSignal, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SendSignal(ctx context.Context, args SendSignal, extra *rpc.InvokeReqExtra, ret *SendSignal__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.sendSignal"
@@ -723,14 +775,15 @@ func (c *Client) SendSignal(ctx context.Context, args SendSignal, extra *rpc.Inv
 		return internal.ErrorClientDo("engine.sendSignal", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.sendSignal", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetFsyncInterval(ctx context.Context, args SetFsyncInterval, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) SetFsyncInterval(ctx context.Context, args SetFsyncInterval, extra *rpc.InvokeReqExtra, ret *SetFsyncInterval__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setFsyncInterval"
@@ -752,14 +805,15 @@ func (c *Client) SetFsyncInterval(ctx context.Context, args SetFsyncInterval, ex
 		return internal.ErrorClientDo("engine.setFsyncInterval", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setFsyncInterval", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetMetafileMemory(ctx context.Context, args SetMetafileMemory, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) SetMetafileMemory(ctx context.Context, args SetMetafileMemory, extra *rpc.InvokeReqExtra, ret *SetMetafileMemory__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.ReadOnly = true
@@ -782,14 +836,15 @@ func (c *Client) SetMetafileMemory(ctx context.Context, args SetMetafileMemory, 
 		return internal.ErrorClientDo("engine.setMetafileMemory", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setMetafileMemory", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetNoPersistentConfigArray(ctx context.Context, args SetNoPersistentConfigArray, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetNoPersistentConfigArray(ctx context.Context, args SetNoPersistentConfigArray, extra *rpc.InvokeReqExtra, ret *SetNoPersistentConfigArray__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setNoPersistentConfigArray"
@@ -811,14 +866,15 @@ func (c *Client) SetNoPersistentConfigArray(ctx context.Context, args SetNoPersi
 		return internal.ErrorClientDo("engine.setNoPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setNoPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetNoPersistentConfigValue(ctx context.Context, args SetNoPersistentConfigValue, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetNoPersistentConfigValue(ctx context.Context, args SetNoPersistentConfigValue, extra *rpc.InvokeReqExtra, ret *SetNoPersistentConfigValue__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setNoPersistentConfigValue"
@@ -840,14 +896,15 @@ func (c *Client) SetNoPersistentConfigValue(ctx context.Context, args SetNoPersi
 		return internal.ErrorClientDo("engine.setNoPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setNoPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetPersistentConfigArray(ctx context.Context, args SetPersistentConfigArray, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetPersistentConfigArray(ctx context.Context, args SetPersistentConfigArray, extra *rpc.InvokeReqExtra, ret *SetPersistentConfigArray__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setPersistentConfigArray"
@@ -869,14 +926,15 @@ func (c *Client) SetPersistentConfigArray(ctx context.Context, args SetPersisten
 		return internal.ErrorClientDo("engine.setPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetPersistentConfigValue(ctx context.Context, args SetPersistentConfigValue, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetPersistentConfigValue(ctx context.Context, args SetPersistentConfigValue, extra *rpc.InvokeReqExtra, ret *SetPersistentConfigValue__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setPersistentConfigValue"
@@ -898,14 +956,15 @@ func (c *Client) SetPersistentConfigValue(ctx context.Context, args SetPersisten
 		return internal.ErrorClientDo("engine.setPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetVerbosity(ctx context.Context, args SetVerbosity, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetVerbosity(ctx context.Context, args SetVerbosity, extra *rpc.InvokeReqExtra, ret *SetVerbosity__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setVerbosity"
@@ -927,14 +986,15 @@ func (c *Client) SetVerbosity(ctx context.Context, args SetVerbosity, extra *rpc
 		return internal.ErrorClientDo("engine.setVerbosity", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setVerbosity", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) SetVerbosityType(ctx context.Context, args SetVerbosityType, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) SetVerbosityType(ctx context.Context, args SetVerbosityType, extra *rpc.InvokeReqExtra, ret *SetVerbosityType__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.setVerbosityType"
@@ -956,7 +1016,8 @@ func (c *Client) SetVerbosityType(ctx context.Context, args SetVerbosityType, ex
 		return internal.ErrorClientDo("engine.setVerbosityType", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.setVerbosityType", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -985,14 +1046,15 @@ func (c *Client) Sleep(ctx context.Context, args Sleep, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientDo("engine.sleep", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.sleep", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) Stat(ctx context.Context, args Stat, extra *rpc.InvokeReqExtra, ret *internal.Stat) (err error) {
+func (c *Client) Stat(ctx context.Context, args Stat, extra *rpc.InvokeReqExtra, ret *Stat__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.stat"
@@ -1014,7 +1076,8 @@ func (c *Client) Stat(ctx context.Context, args Stat, extra *rpc.InvokeReqExtra,
 		return internal.ErrorClientDo("engine.stat", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.stat", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -1043,7 +1106,8 @@ func (c *Client) SwitchToMasterMode(ctx context.Context, args SwitchToMasterMode
 		return internal.ErrorClientDo("engine.switchToMasterMode", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.switchToMasterMode", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -1072,7 +1136,8 @@ func (c *Client) SwitchToMasterModeForcefully(ctx context.Context, args SwitchTo
 		return internal.ErrorClientDo("engine.switchToMasterModeForcefully", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.switchToMasterModeForcefully", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -1101,14 +1166,15 @@ func (c *Client) SwitchToReplicaMode(ctx context.Context, args SwitchToReplicaMo
 		return internal.ErrorClientDo("engine.switchToReplicaMode", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.switchToReplicaMode", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) UnregisterDynamicLib(ctx context.Context, args UnregisterDynamicLib, extra *rpc.InvokeReqExtra, ret *internal.BoolStat) (err error) {
+func (c *Client) UnregisterDynamicLib(ctx context.Context, args UnregisterDynamicLib, extra *rpc.InvokeReqExtra, ret *UnregisterDynamicLib__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.unregisterDynamicLib"
@@ -1130,7 +1196,8 @@ func (c *Client) UnregisterDynamicLib(ctx context.Context, args UnregisterDynami
 		return internal.ErrorClientDo("engine.unregisterDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.unregisterDynamicLib", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -1159,14 +1226,15 @@ func (c *Client) Version(ctx context.Context, args Version, extra *rpc.InvokeReq
 		return internal.ErrorClientDo("engine.version", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.version", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
 }
 
-func (c *Client) WriteNop(ctx context.Context, args WriteNop, extra *rpc.InvokeReqExtra, ret *internal.True) (err error) {
+func (c *Client) WriteNop(ctx context.Context, args WriteNop, extra *rpc.InvokeReqExtra, ret *WriteNop__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.writeNop"
@@ -1188,7 +1256,8 @@ func (c *Client) WriteNop(ctx context.Context, args WriteNop, extra *rpc.InvokeR
 		return internal.ErrorClientDo("engine.writeNop", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
 			return internal.ErrorClientReadResult("engine.writeNop", c.Network, c.ActorID, c.Address, err)
 		}
 	}
@@ -1196,1262 +1265,882 @@ func (c *Client) WriteNop(ctx context.Context, args WriteNop, extra *rpc.InvokeR
 }
 
 type Handler struct {
-	AsyncSleep                   func(ctx context.Context, args AsyncSleep) (bool, error)                                                   // engine.asyncSleep
-	Count                        func(ctx context.Context, args Count) (internal.BoolStat, error)                                           // engine.count
-	DumpForceQueries             func(ctx context.Context, args DumpForceQueries) (internal.True, error)                                    // engine.dumpForceQueries
-	DumpLastQueries              func(ctx context.Context, args DumpLastQueries) (internal.True, error)                                     // engine.dumpLastQueries
-	DumpNextQueries              func(ctx context.Context, args DumpNextQueries) (internal.True, error)                                     // engine.dumpNextQueries
-	EnableMetafilesAnalyzer      func(ctx context.Context, args EnableMetafilesAnalyzer) (bool, error)                                      // engine.enableMetafilesAnalyzer
-	FilteredStat                 func(ctx context.Context, args FilteredStat) (internal.Stat, error)                                        // engine.filteredStat
-	GetBinlogPrefixes            func(ctx context.Context, args GetBinlogPrefixes) ([]internal.EngineBinlogPrefix, error)                   // engine.getBinlogPrefixes
-	GetExpectedMetafilesStats    func(ctx context.Context, args GetExpectedMetafilesStats) (map[string]internal.EngineMetafilesStat, error) // engine.getExpectedMetafilesStats
-	GetReadWriteMode             func(ctx context.Context, args GetReadWriteMode) (ReadWriteMode, error)                                    // engine.getReadWriteMode
-	GetReindexStatus             func(ctx context.Context, args GetReindexStatus) (ReindexStatus, error)                                    // engine.getReindexStatus
-	InvokeHttpQuery              func(ctx context.Context, args InvokeHttpQuery) (HttpQueryResponse, error)                                 // engine.invokeHttpQuery
-	IsProduction                 func(ctx context.Context, args IsProduction) (bool, error)                                                 // engine.isProduction
-	Nop                          func(ctx context.Context, args Nop) (internal.True, error)                                                 // engine.nop
-	Pid                          func(ctx context.Context, args Pid) (internal.NetPid, error)                                               // engine.pid
-	PushStat                     func(ctx context.Context, args PushStat) (bool, error)                                                     // engine.pushStat
-	ReadNop                      func(ctx context.Context, args ReadNop) (internal.True, error)                                             // engine.readNop
-	RecordNextQueries            func(ctx context.Context, args RecordNextQueries) (bool, error)                                            // engine.recordNextQueries
-	RegisterDynamicLib           func(ctx context.Context, args RegisterDynamicLib) (internal.BoolStat, error)                              // engine.registerDynamicLib
-	ReloadDynamicLib             func(ctx context.Context, args ReloadDynamicLib) (internal.BoolStat, error)                                // engine.reloadDynamicLib
-	ReplaceConfigServer          func(ctx context.Context, args ReplaceConfigServer) (internal.True, error)                                 // engine.replaceConfigServer
-	SendSignal                   func(ctx context.Context, args SendSignal) (internal.True, error)                                          // engine.sendSignal
-	SetFsyncInterval             func(ctx context.Context, args SetFsyncInterval) (internal.BoolStat, error)                                // engine.setFsyncInterval
-	SetMetafileMemory            func(ctx context.Context, args SetMetafileMemory) (internal.BoolStat, error)                               // engine.setMetafileMemory
-	SetNoPersistentConfigArray   func(ctx context.Context, args SetNoPersistentConfigArray) (internal.True, error)                          // engine.setNoPersistentConfigArray
-	SetNoPersistentConfigValue   func(ctx context.Context, args SetNoPersistentConfigValue) (internal.True, error)                          // engine.setNoPersistentConfigValue
-	SetPersistentConfigArray     func(ctx context.Context, args SetPersistentConfigArray) (internal.True, error)                            // engine.setPersistentConfigArray
-	SetPersistentConfigValue     func(ctx context.Context, args SetPersistentConfigValue) (internal.True, error)                            // engine.setPersistentConfigValue
-	SetVerbosity                 func(ctx context.Context, args SetVerbosity) (internal.True, error)                                        // engine.setVerbosity
-	SetVerbosityType             func(ctx context.Context, args SetVerbosityType) (internal.True, error)                                    // engine.setVerbosityType
-	Sleep                        func(ctx context.Context, args Sleep) (bool, error)                                                        // engine.sleep
-	Stat                         func(ctx context.Context, args Stat) (internal.Stat, error)                                                // engine.stat
-	SwitchToMasterMode           func(ctx context.Context, args SwitchToMasterMode) (SwitchMasterReplicaModeResult, error)                  // engine.switchToMasterMode
-	SwitchToMasterModeForcefully func(ctx context.Context, args SwitchToMasterModeForcefully) (SwitchMasterReplicaModeResult, error)        // engine.switchToMasterModeForcefully
-	SwitchToReplicaMode          func(ctx context.Context, args SwitchToReplicaMode) (SwitchMasterReplicaModeResult, error)                 // engine.switchToReplicaMode
-	UnregisterDynamicLib         func(ctx context.Context, args UnregisterDynamicLib) (internal.BoolStat, error)                            // engine.unregisterDynamicLib
-	Version                      func(ctx context.Context, args Version) (string, error)                                                    // engine.version
-	WriteNop                     func(ctx context.Context, args WriteNop) (internal.True, error)                                            // engine.writeNop
+	AsyncSleep                   func(ctx context.Context, args AsyncSleep) (bool, error)                                               // engine.asyncSleep
+	Count                        func(ctx context.Context, args Count) (Count__Result, error)                                           // engine.count
+	DumpForceQueries             func(ctx context.Context, args DumpForceQueries) (DumpForceQueries__Result, error)                     // engine.dumpForceQueries
+	DumpLastQueries              func(ctx context.Context, args DumpLastQueries) (DumpLastQueries__Result, error)                       // engine.dumpLastQueries
+	DumpNextQueries              func(ctx context.Context, args DumpNextQueries) (DumpNextQueries__Result, error)                       // engine.dumpNextQueries
+	EnableMetafilesAnalyzer      func(ctx context.Context, args EnableMetafilesAnalyzer) (bool, error)                                  // engine.enableMetafilesAnalyzer
+	FilteredStat                 func(ctx context.Context, args FilteredStat) (FilteredStat__Result, error)                             // engine.filteredStat
+	GetBinlogPrefixes            func(ctx context.Context, args GetBinlogPrefixes) (GetBinlogPrefixes__Result, error)                   // engine.getBinlogPrefixes
+	GetExpectedMetafilesStats    func(ctx context.Context, args GetExpectedMetafilesStats) (GetExpectedMetafilesStats__Result, error)   // engine.getExpectedMetafilesStats
+	GetReadWriteMode             func(ctx context.Context, args GetReadWriteMode) (ReadWriteMode, error)                                // engine.getReadWriteMode
+	GetReindexStatus             func(ctx context.Context, args GetReindexStatus) (ReindexStatus, error)                                // engine.getReindexStatus
+	InvokeHttpQuery              func(ctx context.Context, args InvokeHttpQuery) (HttpQueryResponse, error)                             // engine.invokeHttpQuery
+	IsProduction                 func(ctx context.Context, args IsProduction) (bool, error)                                             // engine.isProduction
+	Nop                          func(ctx context.Context, args Nop) (Nop__Result, error)                                               // engine.nop
+	Pid                          func(ctx context.Context, args Pid) (Pid__Result, error)                                               // engine.pid
+	PushStat                     func(ctx context.Context, args PushStat) (bool, error)                                                 // engine.pushStat
+	ReadNop                      func(ctx context.Context, args ReadNop) (ReadNop__Result, error)                                       // engine.readNop
+	RecordNextQueries            func(ctx context.Context, args RecordNextQueries) (bool, error)                                        // engine.recordNextQueries
+	RegisterDynamicLib           func(ctx context.Context, args RegisterDynamicLib) (RegisterDynamicLib__Result, error)                 // engine.registerDynamicLib
+	ReloadDynamicLib             func(ctx context.Context, args ReloadDynamicLib) (ReloadDynamicLib__Result, error)                     // engine.reloadDynamicLib
+	ReplaceConfigServer          func(ctx context.Context, args ReplaceConfigServer) (ReplaceConfigServer__Result, error)               // engine.replaceConfigServer
+	SendSignal                   func(ctx context.Context, args SendSignal) (SendSignal__Result, error)                                 // engine.sendSignal
+	SetFsyncInterval             func(ctx context.Context, args SetFsyncInterval) (SetFsyncInterval__Result, error)                     // engine.setFsyncInterval
+	SetMetafileMemory            func(ctx context.Context, args SetMetafileMemory) (SetMetafileMemory__Result, error)                   // engine.setMetafileMemory
+	SetNoPersistentConfigArray   func(ctx context.Context, args SetNoPersistentConfigArray) (SetNoPersistentConfigArray__Result, error) // engine.setNoPersistentConfigArray
+	SetNoPersistentConfigValue   func(ctx context.Context, args SetNoPersistentConfigValue) (SetNoPersistentConfigValue__Result, error) // engine.setNoPersistentConfigValue
+	SetPersistentConfigArray     func(ctx context.Context, args SetPersistentConfigArray) (SetPersistentConfigArray__Result, error)     // engine.setPersistentConfigArray
+	SetPersistentConfigValue     func(ctx context.Context, args SetPersistentConfigValue) (SetPersistentConfigValue__Result, error)     // engine.setPersistentConfigValue
+	SetVerbosity                 func(ctx context.Context, args SetVerbosity) (SetVerbosity__Result, error)                             // engine.setVerbosity
+	SetVerbosityType             func(ctx context.Context, args SetVerbosityType) (SetVerbosityType__Result, error)                     // engine.setVerbosityType
+	Sleep                        func(ctx context.Context, args Sleep) (bool, error)                                                    // engine.sleep
+	Stat                         func(ctx context.Context, args Stat) (Stat__Result, error)                                             // engine.stat
+	SwitchToMasterMode           func(ctx context.Context, args SwitchToMasterMode) (SwitchMasterReplicaModeResult, error)              // engine.switchToMasterMode
+	SwitchToMasterModeForcefully func(ctx context.Context, args SwitchToMasterModeForcefully) (SwitchMasterReplicaModeResult, error)    // engine.switchToMasterModeForcefully
+	SwitchToReplicaMode          func(ctx context.Context, args SwitchToReplicaMode) (SwitchMasterReplicaModeResult, error)             // engine.switchToReplicaMode
+	UnregisterDynamicLib         func(ctx context.Context, args UnregisterDynamicLib) (UnregisterDynamicLib__Result, error)             // engine.unregisterDynamicLib
+	Version                      func(ctx context.Context, args Version) (string, error)                                                // engine.version
+	WriteNop                     func(ctx context.Context, args WriteNop) (WriteNop__Result, error)                                     // engine.writeNop
 
-	RawAsyncSleep                   func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.asyncSleep
-	RawCount                        func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.count
-	RawDumpForceQueries             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.dumpForceQueries
-	RawDumpLastQueries              func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.dumpLastQueries
-	RawDumpNextQueries              func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.dumpNextQueries
-	RawEnableMetafilesAnalyzer      func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.enableMetafilesAnalyzer
-	RawFilteredStat                 func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.filteredStat
-	RawGetBinlogPrefixes            func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.getBinlogPrefixes
-	RawGetExpectedMetafilesStats    func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.getExpectedMetafilesStats
-	RawGetReadWriteMode             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.getReadWriteMode
-	RawGetReindexStatus             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.getReindexStatus
-	RawInvokeHttpQuery              func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.invokeHttpQuery
-	RawIsProduction                 func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.isProduction
-	RawNop                          func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.nop
-	RawPid                          func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.pid
-	RawPushStat                     func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.pushStat
-	RawReadNop                      func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.readNop
-	RawRecordNextQueries            func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.recordNextQueries
-	RawRegisterDynamicLib           func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.registerDynamicLib
-	RawReloadDynamicLib             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.reloadDynamicLib
-	RawReplaceConfigServer          func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.replaceConfigServer
-	RawSendSignal                   func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.sendSignal
-	RawSetFsyncInterval             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setFsyncInterval
-	RawSetMetafileMemory            func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setMetafileMemory
-	RawSetNoPersistentConfigArray   func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setNoPersistentConfigArray
-	RawSetNoPersistentConfigValue   func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setNoPersistentConfigValue
-	RawSetPersistentConfigArray     func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setPersistentConfigArray
-	RawSetPersistentConfigValue     func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setPersistentConfigValue
-	RawSetVerbosity                 func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setVerbosity
-	RawSetVerbosityType             func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.setVerbosityType
-	RawSleep                        func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.sleep
-	RawStat                         func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.stat
-	RawSwitchToMasterMode           func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.switchToMasterMode
-	RawSwitchToMasterModeForcefully func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.switchToMasterModeForcefully
-	RawSwitchToReplicaMode          func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.switchToReplicaMode
-	RawUnregisterDynamicLib         func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.unregisterDynamicLib
-	RawVersion                      func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.version
-	RawWriteNop                     func(ctx context.Context, hctx *rpc.HandlerContext) error // engine.writeNop
 }
 
 func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x60e50d3d: // engine.asyncSleep
-		hctx.RequestFunctionName = "engine.asyncSleep"
-		if h.RawAsyncSleep != nil {
-			hctx.Request = r
-			err = h.RawAsyncSleep(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.asyncSleep", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.asyncSleep")
 		if h.AsyncSleep != nil {
 			var args AsyncSleep
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.asyncSleep", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.AsyncSleep(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.asyncSleep", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.asyncSleep", err)
 			}
 			return nil
 		}
 	case 0x19d0f020: // engine.count
-		hctx.RequestFunctionName = "engine.count"
-		if h.RawCount != nil {
-			hctx.Request = r
-			err = h.RawCount(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.count", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.count")
 		if h.Count != nil {
 			var args Count
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.count", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Count(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.count", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.count", err)
 			}
 			return nil
 		}
 	case 0xf1f90880: // engine.dumpForceQueries
-		hctx.RequestFunctionName = "engine.dumpForceQueries"
-		if h.RawDumpForceQueries != nil {
-			hctx.Request = r
-			err = h.RawDumpForceQueries(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.dumpForceQueries", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.dumpForceQueries")
 		if h.DumpForceQueries != nil {
 			var args DumpForceQueries
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.dumpForceQueries", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpForceQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.dumpForceQueries", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.dumpForceQueries", err)
 			}
 			return nil
 		}
 	case 0xc060a29f: // engine.dumpLastQueries
-		hctx.RequestFunctionName = "engine.dumpLastQueries"
-		if h.RawDumpLastQueries != nil {
-			hctx.Request = r
-			err = h.RawDumpLastQueries(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.dumpLastQueries", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.dumpLastQueries")
 		if h.DumpLastQueries != nil {
 			var args DumpLastQueries
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.dumpLastQueries", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpLastQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.dumpLastQueries", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.dumpLastQueries", err)
 			}
 			return nil
 		}
 	case 0xe65872ad: // engine.dumpNextQueries
-		hctx.RequestFunctionName = "engine.dumpNextQueries"
-		if h.RawDumpNextQueries != nil {
-			hctx.Request = r
-			err = h.RawDumpNextQueries(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.dumpNextQueries", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.dumpNextQueries")
 		if h.DumpNextQueries != nil {
 			var args DumpNextQueries
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.dumpNextQueries", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpNextQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.dumpNextQueries", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.dumpNextQueries", err)
 			}
 			return nil
 		}
 	case 0x88836cdc: // engine.enableMetafilesAnalyzer
-		hctx.RequestFunctionName = "engine.enableMetafilesAnalyzer"
-		if h.RawEnableMetafilesAnalyzer != nil {
-			hctx.Request = r
-			err = h.RawEnableMetafilesAnalyzer(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.enableMetafilesAnalyzer", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.enableMetafilesAnalyzer")
 		if h.EnableMetafilesAnalyzer != nil {
 			var args EnableMetafilesAnalyzer
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.enableMetafilesAnalyzer", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EnableMetafilesAnalyzer(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.enableMetafilesAnalyzer", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.enableMetafilesAnalyzer", err)
 			}
 			return nil
 		}
 	case 0x594870d6: // engine.filteredStat
-		hctx.RequestFunctionName = "engine.filteredStat"
-		if h.RawFilteredStat != nil {
-			hctx.Request = r
-			err = h.RawFilteredStat(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.filteredStat", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.filteredStat")
 		if h.FilteredStat != nil {
 			var args FilteredStat
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.filteredStat", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.FilteredStat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.filteredStat", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.filteredStat", err)
 			}
 			return nil
 		}
 	case 0xef14db93: // engine.getBinlogPrefixes
-		hctx.RequestFunctionName = "engine.getBinlogPrefixes"
-		if h.RawGetBinlogPrefixes != nil {
-			hctx.Request = r
-			err = h.RawGetBinlogPrefixes(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.getBinlogPrefixes", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.getBinlogPrefixes")
 		if h.GetBinlogPrefixes != nil {
 			var args GetBinlogPrefixes
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.getBinlogPrefixes", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetBinlogPrefixes(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.getBinlogPrefixes", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.getBinlogPrefixes", err)
 			}
 			return nil
 		}
 	case 0x0342f391: // engine.getExpectedMetafilesStats
-		hctx.RequestFunctionName = "engine.getExpectedMetafilesStats"
-		if h.RawGetExpectedMetafilesStats != nil {
-			hctx.Request = r
-			err = h.RawGetExpectedMetafilesStats(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.getExpectedMetafilesStats", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.getExpectedMetafilesStats")
 		if h.GetExpectedMetafilesStats != nil {
 			var args GetExpectedMetafilesStats
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.getExpectedMetafilesStats", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetExpectedMetafilesStats(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.getExpectedMetafilesStats", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.getExpectedMetafilesStats", err)
 			}
 			return nil
 		}
 	case 0x61b3f593: // engine.getReadWriteMode
-		hctx.RequestFunctionName = "engine.getReadWriteMode"
-		if h.RawGetReadWriteMode != nil {
-			hctx.Request = r
-			err = h.RawGetReadWriteMode(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.getReadWriteMode", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.getReadWriteMode")
 		if h.GetReadWriteMode != nil {
 			var args GetReadWriteMode
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.getReadWriteMode", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetReadWriteMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.getReadWriteMode", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.getReadWriteMode", err)
 			}
 			return nil
 		}
 	case 0xf492042e: // engine.getReindexStatus
-		hctx.RequestFunctionName = "engine.getReindexStatus"
-		if h.RawGetReindexStatus != nil {
-			hctx.Request = r
-			err = h.RawGetReindexStatus(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.getReindexStatus", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.getReindexStatus")
 		if h.GetReindexStatus != nil {
 			var args GetReindexStatus
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.getReindexStatus", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetReindexStatus(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.getReindexStatus", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.getReindexStatus", err)
 			}
 			return nil
 		}
 	case 0xf4c73c0b: // engine.invokeHttpQuery
-		hctx.RequestFunctionName = "engine.invokeHttpQuery"
-		if h.RawInvokeHttpQuery != nil {
-			hctx.Request = r
-			err = h.RawInvokeHttpQuery(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.invokeHttpQuery", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.invokeHttpQuery")
 		if h.InvokeHttpQuery != nil {
 			var args InvokeHttpQuery
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.invokeHttpQuery", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.InvokeHttpQuery(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.invokeHttpQuery", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.invokeHttpQuery", err)
 			}
 			return nil
 		}
 	case 0xccdea0ac: // engine.isProduction
-		hctx.RequestFunctionName = "engine.isProduction"
-		if h.RawIsProduction != nil {
-			hctx.Request = r
-			err = h.RawIsProduction(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.isProduction", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.isProduction")
 		if h.IsProduction != nil {
 			var args IsProduction
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.isProduction", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.IsProduction(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.isProduction", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.isProduction", err)
 			}
 			return nil
 		}
 	case 0x166bb7c6: // engine.nop
-		hctx.RequestFunctionName = "engine.nop"
-		if h.RawNop != nil {
-			hctx.Request = r
-			err = h.RawNop(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.nop", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.nop")
 		if h.Nop != nil {
 			var args Nop
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.nop", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Nop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.nop", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.nop", err)
 			}
 			return nil
 		}
 	case 0x559d6e36: // engine.pid
-		hctx.RequestFunctionName = "engine.pid"
-		if h.RawPid != nil {
-			hctx.Request = r
-			err = h.RawPid(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.pid", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.pid")
 		if h.Pid != nil {
 			var args Pid
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.pid", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Pid(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.pid", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.pid", err)
 			}
 			return nil
 		}
 	case 0xf4b19fa2: // engine.pushStat
-		hctx.RequestFunctionName = "engine.pushStat"
-		if h.RawPushStat != nil {
-			hctx.Request = r
-			err = h.RawPushStat(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.pushStat", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.pushStat")
 		if h.PushStat != nil {
 			var args PushStat
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.pushStat", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.PushStat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.pushStat", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.pushStat", err)
 			}
 			return nil
 		}
 	case 0x9d2b841f: // engine.readNop
-		hctx.RequestFunctionName = "engine.readNop"
-		if h.RawReadNop != nil {
-			hctx.Request = r
-			err = h.RawReadNop(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.readNop", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.readNop")
 		if h.ReadNop != nil {
 			var args ReadNop
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.readNop", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReadNop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.readNop", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.readNop", err)
 			}
 			return nil
 		}
 	case 0x0001e9d6: // engine.recordNextQueries
-		hctx.RequestFunctionName = "engine.recordNextQueries"
-		if h.RawRecordNextQueries != nil {
-			hctx.Request = r
-			err = h.RawRecordNextQueries(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.recordNextQueries", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.recordNextQueries")
 		if h.RecordNextQueries != nil {
 			var args RecordNextQueries
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.recordNextQueries", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.RecordNextQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.recordNextQueries", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.recordNextQueries", err)
 			}
 			return nil
 		}
 	case 0x2f86f276: // engine.registerDynamicLib
-		hctx.RequestFunctionName = "engine.registerDynamicLib"
-		if h.RawRegisterDynamicLib != nil {
-			hctx.Request = r
-			err = h.RawRegisterDynamicLib(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.registerDynamicLib", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.registerDynamicLib")
 		if h.RegisterDynamicLib != nil {
 			var args RegisterDynamicLib
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.registerDynamicLib", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.RegisterDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.registerDynamicLib", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.registerDynamicLib", err)
 			}
 			return nil
 		}
 	case 0x602d62c1: // engine.reloadDynamicLib
-		hctx.RequestFunctionName = "engine.reloadDynamicLib"
-		if h.RawReloadDynamicLib != nil {
-			hctx.Request = r
-			err = h.RawReloadDynamicLib(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.reloadDynamicLib", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.reloadDynamicLib")
 		if h.ReloadDynamicLib != nil {
 			var args ReloadDynamicLib
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.reloadDynamicLib", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReloadDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.reloadDynamicLib", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.reloadDynamicLib", err)
 			}
 			return nil
 		}
 	case 0x5fcd8e77: // engine.replaceConfigServer
-		hctx.RequestFunctionName = "engine.replaceConfigServer"
-		if h.RawReplaceConfigServer != nil {
-			hctx.Request = r
-			err = h.RawReplaceConfigServer(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.replaceConfigServer", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.replaceConfigServer")
 		if h.ReplaceConfigServer != nil {
 			var args ReplaceConfigServer
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.replaceConfigServer", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReplaceConfigServer(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.replaceConfigServer", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.replaceConfigServer", err)
 			}
 			return nil
 		}
 	case 0x1a7708a3: // engine.sendSignal
-		hctx.RequestFunctionName = "engine.sendSignal"
-		if h.RawSendSignal != nil {
-			hctx.Request = r
-			err = h.RawSendSignal(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.sendSignal", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.sendSignal")
 		if h.SendSignal != nil {
 			var args SendSignal
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.sendSignal", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SendSignal(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.sendSignal", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.sendSignal", err)
 			}
 			return nil
 		}
 	case 0x665d2ab7: // engine.setFsyncInterval
-		hctx.RequestFunctionName = "engine.setFsyncInterval"
-		if h.RawSetFsyncInterval != nil {
-			hctx.Request = r
-			err = h.RawSetFsyncInterval(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setFsyncInterval", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setFsyncInterval")
 		if h.SetFsyncInterval != nil {
 			var args SetFsyncInterval
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setFsyncInterval", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetFsyncInterval(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setFsyncInterval", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setFsyncInterval", err)
 			}
 			return nil
 		}
 	case 0x7bdcf404: // engine.setMetafileMemory
-		hctx.RequestFunctionName = "engine.setMetafileMemory"
-		if h.RawSetMetafileMemory != nil {
-			hctx.Request = r
-			err = h.RawSetMetafileMemory(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setMetafileMemory", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setMetafileMemory")
 		if h.SetMetafileMemory != nil {
 			var args SetMetafileMemory
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setMetafileMemory", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetMetafileMemory(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setMetafileMemory", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setMetafileMemory", err)
 			}
 			return nil
 		}
 	case 0x5806a520: // engine.setNoPersistentConfigArray
-		hctx.RequestFunctionName = "engine.setNoPersistentConfigArray"
-		if h.RawSetNoPersistentConfigArray != nil {
-			hctx.Request = r
-			err = h.RawSetNoPersistentConfigArray(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setNoPersistentConfigArray", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setNoPersistentConfigArray")
 		if h.SetNoPersistentConfigArray != nil {
 			var args SetNoPersistentConfigArray
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setNoPersistentConfigArray", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetNoPersistentConfigArray(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setNoPersistentConfigArray", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setNoPersistentConfigArray", err)
 			}
 			return nil
 		}
 	case 0x92aaa5b9: // engine.setNoPersistentConfigValue
-		hctx.RequestFunctionName = "engine.setNoPersistentConfigValue"
-		if h.RawSetNoPersistentConfigValue != nil {
-			hctx.Request = r
-			err = h.RawSetNoPersistentConfigValue(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setNoPersistentConfigValue", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setNoPersistentConfigValue")
 		if h.SetNoPersistentConfigValue != nil {
 			var args SetNoPersistentConfigValue
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setNoPersistentConfigValue", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetNoPersistentConfigValue(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setNoPersistentConfigValue", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setNoPersistentConfigValue", err)
 			}
 			return nil
 		}
 	case 0xfc99af0b: // engine.setPersistentConfigArray
-		hctx.RequestFunctionName = "engine.setPersistentConfigArray"
-		if h.RawSetPersistentConfigArray != nil {
-			hctx.Request = r
-			err = h.RawSetPersistentConfigArray(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setPersistentConfigArray", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setPersistentConfigArray")
 		if h.SetPersistentConfigArray != nil {
 			var args SetPersistentConfigArray
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setPersistentConfigArray", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetPersistentConfigArray(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setPersistentConfigArray", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setPersistentConfigArray", err)
 			}
 			return nil
 		}
 	case 0x4cc8953f: // engine.setPersistentConfigValue
-		hctx.RequestFunctionName = "engine.setPersistentConfigValue"
-		if h.RawSetPersistentConfigValue != nil {
-			hctx.Request = r
-			err = h.RawSetPersistentConfigValue(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setPersistentConfigValue", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setPersistentConfigValue")
 		if h.SetPersistentConfigValue != nil {
 			var args SetPersistentConfigValue
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setPersistentConfigValue", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetPersistentConfigValue(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setPersistentConfigValue", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setPersistentConfigValue", err)
 			}
 			return nil
 		}
 	case 0x9d980926: // engine.setVerbosity
-		hctx.RequestFunctionName = "engine.setVerbosity"
-		if h.RawSetVerbosity != nil {
-			hctx.Request = r
-			err = h.RawSetVerbosity(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setVerbosity", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setVerbosity")
 		if h.SetVerbosity != nil {
 			var args SetVerbosity
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setVerbosity", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetVerbosity(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setVerbosity", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setVerbosity", err)
 			}
 			return nil
 		}
 	case 0x5388c0ae: // engine.setVerbosityType
-		hctx.RequestFunctionName = "engine.setVerbosityType"
-		if h.RawSetVerbosityType != nil {
-			hctx.Request = r
-			err = h.RawSetVerbosityType(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.setVerbosityType", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.setVerbosityType")
 		if h.SetVerbosityType != nil {
 			var args SetVerbosityType
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.setVerbosityType", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetVerbosityType(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.setVerbosityType", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.setVerbosityType", err)
 			}
 			return nil
 		}
 	case 0x3d3bcd48: // engine.sleep
-		hctx.RequestFunctionName = "engine.sleep"
-		if h.RawSleep != nil {
-			hctx.Request = r
-			err = h.RawSleep(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.sleep", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.sleep")
 		if h.Sleep != nil {
 			var args Sleep
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.sleep", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Sleep(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.sleep", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.sleep", err)
 			}
 			return nil
 		}
 	case 0xefb3c36b: // engine.stat
-		hctx.RequestFunctionName = "engine.stat"
-		if h.RawStat != nil {
-			hctx.Request = r
-			err = h.RawStat(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.stat", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.stat")
 		if h.Stat != nil {
 			var args Stat
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.stat", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Stat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.stat", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.stat", err)
 			}
 			return nil
 		}
 	case 0x8cdcb5f9: // engine.switchToMasterMode
-		hctx.RequestFunctionName = "engine.switchToMasterMode"
-		if h.RawSwitchToMasterMode != nil {
-			hctx.Request = r
-			err = h.RawSwitchToMasterMode(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.switchToMasterMode", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.switchToMasterMode")
 		if h.SwitchToMasterMode != nil {
 			var args SwitchToMasterMode
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.switchToMasterMode", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToMasterMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.switchToMasterMode", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.switchToMasterMode", err)
 			}
 			return nil
 		}
 	case 0x1973fa8f: // engine.switchToMasterModeForcefully
-		hctx.RequestFunctionName = "engine.switchToMasterModeForcefully"
-		if h.RawSwitchToMasterModeForcefully != nil {
-			hctx.Request = r
-			err = h.RawSwitchToMasterModeForcefully(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.switchToMasterModeForcefully", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.switchToMasterModeForcefully")
 		if h.SwitchToMasterModeForcefully != nil {
 			var args SwitchToMasterModeForcefully
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.switchToMasterModeForcefully", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToMasterModeForcefully(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.switchToMasterModeForcefully", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.switchToMasterModeForcefully", err)
 			}
 			return nil
 		}
 	case 0x23c3a87e: // engine.switchToReplicaMode
-		hctx.RequestFunctionName = "engine.switchToReplicaMode"
-		if h.RawSwitchToReplicaMode != nil {
-			hctx.Request = r
-			err = h.RawSwitchToReplicaMode(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.switchToReplicaMode", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.switchToReplicaMode")
 		if h.SwitchToReplicaMode != nil {
 			var args SwitchToReplicaMode
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.switchToReplicaMode", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToReplicaMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.switchToReplicaMode", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.switchToReplicaMode", err)
 			}
 			return nil
 		}
 	case 0x84d5fcb9: // engine.unregisterDynamicLib
-		hctx.RequestFunctionName = "engine.unregisterDynamicLib"
-		if h.RawUnregisterDynamicLib != nil {
-			hctx.Request = r
-			err = h.RawUnregisterDynamicLib(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.unregisterDynamicLib", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.unregisterDynamicLib")
 		if h.UnregisterDynamicLib != nil {
 			var args UnregisterDynamicLib
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.unregisterDynamicLib", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.UnregisterDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.unregisterDynamicLib", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.unregisterDynamicLib", err)
 			}
 			return nil
 		}
 	case 0x1a2e06fa: // engine.version
-		hctx.RequestFunctionName = "engine.version"
-		if h.RawVersion != nil {
-			hctx.Request = r
-			err = h.RawVersion(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.version", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.version")
 		if h.Version != nil {
 			var args Version
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.version", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Version(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.version", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.version", err)
 			}
 			return nil
 		}
 	case 0x58160af4: // engine.writeNop
-		hctx.RequestFunctionName = "engine.writeNop"
-		if h.RawWriteNop != nil {
-			hctx.Request = r
-			err = h.RawWriteNop(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("engine.writeNop", err)
-			}
-			return nil
-		}
+		hctx.SetRequestFunctionName("engine.writeNop")
 		if h.WriteNop != nil {
 			var args WriteNop
-			if _, err = args.Read(r); err != nil {
+			_, err = args.Read(r)
+			if err != nil {
 				return internal.ErrorServerRead("engine.writeNop", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.WriteNop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
 				return internal.ErrorServerHandle("engine.writeNop", err)
 			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
 				return internal.ErrorServerWriteResult("engine.writeNop", err)
 			}
 			return nil

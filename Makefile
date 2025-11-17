@@ -64,13 +64,14 @@ build-deb:
 gen: gen-tl gen-sqlite gen-easyjson
 
 gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/data_model/gen2 -v \
+	go run github.com/vkcom/tl/cmd/tlgen@v1.2.25 --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
- 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
- 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
- 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
- 		--copyrightPath=./copyright \
+		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+		--rawHandlerWhiteList=statshouse.,metadata. \
+		--copyrightPath=./copyright \
 		./internal/data_model/api.tl \
 		./internal/data_model/common.tl \
 		./internal/data_model/engine.tl \
@@ -81,13 +82,13 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 	@go build ./internal/data_model/gen2/...
 
 gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.1.13 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+	go run github.com/vkcom/tl/cmd/tlgen@v1.2.19 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
- 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
- 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
- 		--generateByteVersions=sqlite. \
- 		--copyrightPath=./copyright \
+		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--generateByteVersions=sqlite. \
+		--copyrightPath=./copyright \
 		./internal/data_model/common.tl \
 		./internal/sqlitev2/checkpoint/metainfo.tl
 	@echo "Checking that generated code actually compiles..."

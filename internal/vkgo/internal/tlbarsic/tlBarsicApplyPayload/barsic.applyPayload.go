@@ -52,15 +52,7 @@ func (item *BarsicApplyPayload) Reset() {
 }
 
 func (item *BarsicApplyPayload) FillRandom(rg *basictl.RandGenerator) {
-	var maskFieldsMask uint32
-	maskFieldsMask = basictl.RandomUint(rg)
-	item.FieldsMask = 0
-	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
-		item.FieldsMask |= (1 << 1)
-	}
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.Offset = basictl.RandomLong(rg)
 	item.Payload = basictl.RandomString(rg)
 }
@@ -112,36 +104,35 @@ func (item *BarsicApplyPayload) WriteResult(w []byte, ret tlTrue.True) (_ []byte
 }
 
 func (item *BarsicApplyPayload) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayload) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *BarsicApplyPayload) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *BarsicApplyPayload) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *BarsicApplyPayload) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
-func (item *BarsicApplyPayload) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -160,6 +151,11 @@ func (item BarsicApplyPayload) String() string {
 }
 
 func (item *BarsicApplyPayload) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicApplyPayload) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var trueTypeCommitASAPPresented bool
 	var trueTypeCommitASAPValue bool
@@ -248,24 +244,25 @@ func (item *BarsicApplyPayload) ReadJSON(legacyTypeNames bool, in *basictl.JsonL
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCommitASAPPresented && !trueTypeCommitASAPValue && (item.FieldsMask&(1<<0) != 0) {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCommittedPresented && !trueTypeCommittedValue && (item.FieldsMask&(1<<1) != 0) {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicApplyPayload) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicApplyPayload) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicApplyPayload) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicApplyPayload) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicApplyPayload) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -354,15 +351,7 @@ func (item *BarsicApplyPayloadBytes) Reset() {
 }
 
 func (item *BarsicApplyPayloadBytes) FillRandom(rg *basictl.RandGenerator) {
-	var maskFieldsMask uint32
-	maskFieldsMask = basictl.RandomUint(rg)
-	item.FieldsMask = 0
-	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
-		item.FieldsMask |= (1 << 1)
-	}
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.Offset = basictl.RandomLong(rg)
 	item.Payload = basictl.RandomStringBytes(rg)
 }
@@ -414,36 +403,35 @@ func (item *BarsicApplyPayloadBytes) WriteResult(w []byte, ret tlTrue.True) (_ [
 }
 
 func (item *BarsicApplyPayloadBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *BarsicApplyPayloadBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -462,6 +450,11 @@ func (item BarsicApplyPayloadBytes) String() string {
 }
 
 func (item *BarsicApplyPayloadBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicApplyPayloadBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var trueTypeCommitASAPPresented bool
 	var trueTypeCommitASAPValue bool
@@ -550,24 +543,25 @@ func (item *BarsicApplyPayloadBytes) ReadJSON(legacyTypeNames bool, in *basictl.
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCommitASAPPresented && !trueTypeCommitASAPValue && (item.FieldsMask&(1<<0) != 0) {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCommittedPresented && !trueTypeCommittedValue && (item.FieldsMask&(1<<1) != 0) {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicApplyPayloadBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicApplyPayloadBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicApplyPayloadBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicApplyPayloadBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

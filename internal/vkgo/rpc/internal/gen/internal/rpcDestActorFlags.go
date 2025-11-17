@@ -69,6 +69,11 @@ func (item RpcDestActorFlags) String() string {
 }
 
 func (item *RpcDestActorFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *RpcDestActorFlags) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propActorIdPresented bool
 	var propExtraPresented bool
 
@@ -93,7 +98,7 @@ func (item *RpcDestActorFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 				if propExtraPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestActorFlags", "extra")
 				}
-				if err := item.Extra.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Extra.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propExtraPresented = true
@@ -117,14 +122,15 @@ func (item *RpcDestActorFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *RpcDestActorFlags) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *RpcDestActorFlags) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *RpcDestActorFlags) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *RpcDestActorFlags) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *RpcDestActorFlags) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexActorId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -135,7 +141,7 @@ func (item *RpcDestActorFlags) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	w = item.Extra.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Extra.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 
