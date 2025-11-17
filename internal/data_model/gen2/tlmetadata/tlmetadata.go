@@ -738,7 +738,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetNewMappings != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetNewMappings(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -754,7 +754,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetNewMappings(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
