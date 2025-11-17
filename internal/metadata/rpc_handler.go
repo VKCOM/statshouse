@@ -79,7 +79,6 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 func (h *Handler) CancelLongpoll(lh rpc.LongpollHandle) {
 	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel"}, 1)
 	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, lh)
 	h.getJournalMx.Unlock()
 
