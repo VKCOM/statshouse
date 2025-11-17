@@ -69,6 +69,11 @@ func (item ExactlyOnceSlotResponse) String() string {
 }
 
 func (item *ExactlyOnceSlotResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *ExactlyOnceSlotResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPersistentQueryUuidPresented bool
 	var propPersistentSlotUuidPresented bool
 
@@ -85,7 +90,7 @@ func (item *ExactlyOnceSlotResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propPersistentQueryUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.slotResponse", "persistent_query_uuid")
 				}
-				if err := item.PersistentQueryUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentQueryUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentQueryUuidPresented = true
@@ -93,7 +98,7 @@ func (item *ExactlyOnceSlotResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propPersistentSlotUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.slotResponse", "persistent_slot_uuid")
 				}
-				if err := item.PersistentSlotUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentSlotUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentSlotUuidPresented = true
@@ -117,21 +122,22 @@ func (item *ExactlyOnceSlotResponse) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *ExactlyOnceSlotResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *ExactlyOnceSlotResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *ExactlyOnceSlotResponse) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *ExactlyOnceSlotResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *ExactlyOnceSlotResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_query_uuid":`...)
-	w = item.PersistentQueryUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentQueryUuid.WriteJSONOpt(tctx, w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_slot_uuid":`...)
-	w = item.PersistentSlotUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentSlotUuid.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

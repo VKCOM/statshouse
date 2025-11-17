@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseApiPointMetaWrite(w []byte, vec []StatshouseApiPoint
 	return w
 }
 
-func BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
+func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames bool, in *basic
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames bool, in *basic
 }
 
 func BuiltinVectorStatshouseApiPointMetaWriteJSON(w []byte, vec []StatshouseApiPointMeta) []byte {
-	return BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiPointMeta) []byte {
+func BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiPointMeta) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -102,7 +103,7 @@ func (item *StatshouseApiPointMeta) ClearWhat() {
 	item.What.Reset()
 	item.FieldsMask &^= 1 << 1
 }
-func (item StatshouseApiPointMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseApiPointMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiPointMeta) Reset() {
 	item.FieldsMask = 0
@@ -139,7 +140,6 @@ func (item *StatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiPointMeta) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -163,7 +163,6 @@ func (item *StatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiPointMeta) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -178,6 +177,11 @@ func (item StatshouseApiPointMeta) String() string {
 }
 
 func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propTimeShiftPresented bool
 	var propFromPresented bool
@@ -230,7 +234,7 @@ func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.J
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Tags); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -238,7 +242,7 @@ func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.J
 				if propWhatPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "what")
 				}
-				if err := item.What.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.What.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propWhatPresented = true
@@ -277,14 +281,15 @@ func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiPointMeta) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseApiPointMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseApiPointMeta) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseApiPointMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseApiPointMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -317,14 +322,14 @@ func (item *StatshouseApiPointMeta) WriteJSONOpt(newTypeNames bool, short bool, 
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Tags)
+	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = item.What.WriteJSONOpt(newTypeNames, short, w)
+		w = item.What.WriteJSONOpt(tctx, w)
 	}
 	return append(w, '}')
 }

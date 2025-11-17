@@ -43,7 +43,7 @@ func BuiltinTuple8Write(w []byte, vec *[8]uint32) []byte {
 	return w
 }
 
-func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]uint32) error {
+func BuiltinTuple8ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[8]uint32) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -71,9 +71,10 @@ func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]
 }
 
 func BuiltinTuple8WriteJSON(w []byte, vec *[8]uint32) []byte {
-	return BuiltinTuple8WriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinTuple8WriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]uint32) []byte {
+func BuiltinTuple8WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[8]uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -84,7 +85,7 @@ func BuiltinTuple8WriteJSONOpt(newTypeNames bool, short bool, w []byte, vec *[8]
 
 func BuiltinVectorFillRandom(rg *basictl.RandGenerator, vec *[]uint32) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([]uint32, l)
 	for i := range *vec {
 		(*vec)[i] = basictl.RandomUint(rg)
@@ -120,7 +121,7 @@ func BuiltinVectorWrite(w []byte, vec []uint32) []byte {
 	return w
 }
 
-func BuiltinVectorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]uint32) error {
+func BuiltinVectorReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -149,9 +150,10 @@ func BuiltinVectorReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]u
 }
 
 func BuiltinVectorWriteJSON(w []byte, vec []uint32) []byte {
-	return BuiltinVectorWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []uint32) []byte {
+func BuiltinVectorWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

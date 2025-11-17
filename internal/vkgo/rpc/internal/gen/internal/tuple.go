@@ -62,25 +62,31 @@ func (item Tuple8) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *Tuple8) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[8]uint32)(item)
-	if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := BuiltinTuple8ReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *Tuple8) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *Tuple8) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *Tuple8) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *Tuple8) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *Tuple8) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[8]uint32)(item)
-	w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, ptr)
+	w = BuiltinTuple8WriteJSONOpt(tctx, w, ptr)
 	return w
 }
 func (item *Tuple8) MarshalJSON() ([]byte, error) {

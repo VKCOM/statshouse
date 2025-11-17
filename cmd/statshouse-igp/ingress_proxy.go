@@ -530,7 +530,6 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			constants.StatshouseGetTagMapping2,
 			constants.StatshouseSendKeepAlive2,
 			constants.StatshouseSendKeepAlive3,
-			constants.StatshouseSendSourceBucket2,
 			constants.StatshouseSendSourceBucket3,
 			constants.StatshouseTestConnection2,
 			constants.StatshouseGetTargets2,
@@ -579,7 +578,7 @@ func (p *proxyConn) logClientError(tag string, err error, lastPackets rpc.Packet
 	var addr string
 	var encrypted bool
 	if p.clientConn != nil {
-		addr = p.clientConn.RemoteAddr()
+		addr = p.clientConn.RemoteAddr().String()
 		encrypted = p.clientConn.Encrypted()
 	}
 	log.Printf("error %s, client addr %s, version %d, encrypted %t, key 0x%X: %v, %s\n", tag, addr, p.clientProtocolVersion, encrypted, p.clientCryptoKeyID, err, lastPackets.String())
@@ -593,7 +592,7 @@ func (p *proxyConn) logUpstreamError(tag string, err error, lastPackets rpc.Pack
 	var version uint32
 	var encrypted bool
 	if p.upstreamConn != nil {
-		addr = p.upstreamConn.RemoteAddr()
+		addr = p.upstreamConn.RemoteAddr().String()
 		version = p.upstreamConn.ProtocolVersion()
 		encrypted = p.upstreamConn.Encrypted()
 	}

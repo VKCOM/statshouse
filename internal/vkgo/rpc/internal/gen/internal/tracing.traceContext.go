@@ -111,33 +111,7 @@ func (item *TracingTraceContext) Reset() {
 }
 
 func (item *TracingTraceContext) FillRandom(rg *basictl.RandGenerator) {
-	var maskFieldsMask uint32
-	maskFieldsMask = basictl.RandomUint(rg)
-	item.FieldsMask = 0
-	if maskFieldsMask&(1<<0) != 0 {
-		item.FieldsMask |= (1 << 0)
-	}
-	if maskFieldsMask&(1<<1) != 0 {
-		item.FieldsMask |= (1 << 1)
-	}
-	if maskFieldsMask&(1<<2) != 0 {
-		item.FieldsMask |= (1 << 2)
-	}
-	if maskFieldsMask&(1<<3) != 0 {
-		item.FieldsMask |= (1 << 3)
-	}
-	if maskFieldsMask&(1<<4) != 0 {
-		item.FieldsMask |= (1 << 4)
-	}
-	if maskFieldsMask&(1<<5) != 0 {
-		item.FieldsMask |= (1 << 5)
-	}
-	if maskFieldsMask&(1<<6) != 0 {
-		item.FieldsMask |= (1 << 6)
-	}
-	if maskFieldsMask&(1<<7) != 0 {
-		item.FieldsMask |= (1 << 7)
-	}
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111111)
 	item.TraceId.FillRandom(rg)
 	if item.FieldsMask&(1<<2) != 0 {
 		item.ParentId = basictl.RandomLong(rg)
@@ -212,6 +186,11 @@ func (item TracingTraceContext) String() string {
 }
 
 func (item *TracingTraceContext) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *TracingTraceContext) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propTraceIdPresented bool
 	var propParentIdPresented bool
@@ -250,7 +229,7 @@ func (item *TracingTraceContext) ReadJSON(legacyTypeNames bool, in *basictl.Json
 				if propTraceIdPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("tracing.traceContext", "trace_id")
 				}
-				if err := item.TraceId.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.TraceId.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propTraceIdPresented = true
@@ -378,40 +357,41 @@ func (item *TracingTraceContext) ReadJSON(legacyTypeNames bool, in *basictl.Json
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReservedStatus0Presented && !trueTypeReservedStatus0Value && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReservedStatus1Presented && !trueTypeReservedStatus1Value && (item.FieldsMask&(1<<1) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReservedLevel0Presented && !trueTypeReservedLevel0Value && (item.FieldsMask&(1<<4) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.4 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReservedLevel1Presented && !trueTypeReservedLevel1Value && (item.FieldsMask&(1<<5) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.5 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeReservedLevel2Presented && !trueTypeReservedLevel2Value && (item.FieldsMask&(1<<6) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.6 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDebugFlagPresented && !trueTypeDebugFlagValue && (item.FieldsMask&(1<<7) != 0) {
-		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("tracing.traceContext", "fieldmask bit item.FieldsMask.7 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *TracingTraceContext) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *TracingTraceContext) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *TracingTraceContext) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *TracingTraceContext) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *TracingTraceContext) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -422,7 +402,7 @@ func (item *TracingTraceContext) WriteJSONOpt(newTypeNames bool, short bool, w [
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"trace_id":`...)
-	w = item.TraceId.WriteJSONOpt(newTypeNames, short, w)
+	w = item.TraceId.WriteJSONOpt(tctx, w)
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"parent_id":`...)

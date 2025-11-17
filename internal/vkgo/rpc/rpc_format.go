@@ -141,10 +141,7 @@ func (hctx *HandlerContext) fillInvokeReqInternals(opts *ServerOptions) {
 	// We calculate timeout before handler can change hctx.RequestExtra
 	if hctx.RequestExtra.CustomTimeoutMs > 0 { // implies hctx.RequestExtra.IsSetCustomTimeoutMs()
 		// CustomTimeoutMs <= 0 means forever/maximum. TODO - harmonize condition with C engines
-		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - opts.ResponseTimeoutAdjust
-		if customTimeout < time.Millisecond { // TODO - adjustable minimum timeout
-			customTimeout = time.Millisecond
-		}
+		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs) * time.Millisecond
 		hctx.timeout = customTimeout
 	} else {
 		hctx.timeout = opts.DefaultResponseTimeout

@@ -42,7 +42,7 @@ func BuiltinVectorStatshouseCentroidFloatWrite(w []byte, vec []StatshouseCentroi
 	return w
 }
 
-func BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseCentroidFloat) error {
+func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseCentroidFloat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames bool, in *basi
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorStatshouseCentroidFloatReadJSON(legacyTypeNames bool, in *basi
 }
 
 func BuiltinVectorStatshouseCentroidFloatWriteJSON(w []byte, vec []StatshouseCentroidFloat) []byte {
-	return BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseCentroidFloat) []byte {
+func BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseCentroidFloat) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -102,7 +103,6 @@ func (item *StatshouseCentroidFloat) Read(w []byte) (_ []byte, err error) {
 	return basictl.FloatRead(w, &item.Count)
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseCentroidFloat) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -120,7 +120,6 @@ func (item *StatshouseCentroidFloat) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseCentroidFloat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -135,6 +134,11 @@ func (item StatshouseCentroidFloat) String() string {
 }
 
 func (item *StatshouseCentroidFloat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *StatshouseCentroidFloat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propValuePresented bool
 	var propCountPresented bool
 
@@ -183,14 +187,15 @@ func (item *StatshouseCentroidFloat) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseCentroidFloat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *StatshouseCentroidFloat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *StatshouseCentroidFloat) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseCentroidFloat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *StatshouseCentroidFloat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

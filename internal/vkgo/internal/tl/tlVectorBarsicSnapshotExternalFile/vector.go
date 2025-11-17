@@ -66,25 +66,31 @@ func (item VectorBarsicSnapshotExternalFile) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotExternalFile) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorBarsicSnapshotExternalFile) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotExternalFile) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorBarsicSnapshotExternalFile) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorBarsicSnapshotExternalFile) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorBarsicSnapshotExternalFile) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorBarsicSnapshotExternalFile) MarshalJSON() ([]byte, error) {
@@ -159,25 +165,31 @@ func (item VectorBarsicSnapshotExternalFileBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotExternalFileBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorBarsicSnapshotExternalFileBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorBarsicSnapshotExternalFileBytes) MarshalJSON() ([]byte, error) {

@@ -66,25 +66,31 @@ func (item VectorBarsicSnapshotDependency) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorBarsicSnapshotDependency) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]tlBarsicSnapshotDependency.BarsicSnapshotDependency)(item)
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotDependency) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorBarsicSnapshotDependency) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotDependency) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorBarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorBarsicSnapshotDependency) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]tlBarsicSnapshotDependency.BarsicSnapshotDependency)(item)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorBarsicSnapshotDependency) MarshalJSON() ([]byte, error) {
@@ -159,25 +165,31 @@ func (item VectorBarsicSnapshotDependencyBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorBarsicSnapshotDependencyBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes)(item)
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSON(w), nil
+func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotDependencyBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
 
-func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes)(item)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *VectorBarsicSnapshotDependencyBytes) MarshalJSON() ([]byte, error) {

@@ -17,7 +17,7 @@ var _ = internal.ErrorInvalidEnumTag
 
 func BuiltinVectorStringFillRandom(rg *basictl.RandGenerator, vec *[]string) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([]string, l)
 	for i := range *vec {
 		(*vec)[i] = basictl.RandomString(rg)
@@ -117,7 +117,7 @@ func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err 
 	return r, nil
 }
 
-func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
+func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -146,9 +146,10 @@ func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, ve
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) []byte {
-	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStringWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) []byte {
+func BuiltinVectorStringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -159,7 +160,7 @@ func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, ve
 
 func BuiltinVectorStringBytesFillRandom(rg *basictl.RandGenerator, vec *[][]byte) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([][]byte, l)
 	for i := range *vec {
 		(*vec)[i] = basictl.RandomStringBytes(rg)
@@ -259,7 +260,7 @@ func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte,
 	return r, nil
 }
 
-func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {
+func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -288,9 +289,10 @@ func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexe
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) []byte {
-	return BuiltinVectorStringBytesWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorStringBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) []byte {
+func BuiltinVectorStringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

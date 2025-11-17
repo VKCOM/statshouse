@@ -30,7 +30,7 @@ func (item *MetadataEditEntitynew) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item MetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *MetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *MetadataEditEntitynew) SetDelete(v bool) {
 	if v {
@@ -39,7 +39,7 @@ func (item *MetadataEditEntitynew) SetDelete(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item MetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *MetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *MetadataEditEntitynew) Reset() {
 	item.FieldsMask = 0
@@ -56,7 +56,6 @@ func (item *MetadataEditEntitynew) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *MetadataEditEntitynew) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -74,7 +73,6 @@ func (item *MetadataEditEntitynew) ReadBoxed(w []byte) (_ []byte, err error) {
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *MetadataEditEntitynew) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -94,36 +92,29 @@ func (item *MetadataEditEntitynew) WriteResult(w []byte, ret MetadataEvent) (_ [
 }
 
 func (item *MetadataEditEntitynew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
-	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
+	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataEditEntitynew) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	return item.writeResultJSON(true, false, w, ret)
+	tctx := basictl.JSONWriteContext{}
+	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *MetadataEditEntitynew) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(newTypeNames, short, w)
+func (item *MetadataEditEntitynew) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataEvent) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataEvent
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *MetadataEditEntitynew) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataEvent
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
+	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
@@ -142,6 +133,11 @@ func (item MetadataEditEntitynew) String() string {
 }
 
 func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *MetadataEditEntitynew) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propEventPresented bool
 	var trueTypeCreatePresented bool
@@ -170,7 +166,7 @@ func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.Js
 				if propEventPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "event")
 				}
-				if err := item.Event.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Event.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propEventPresented = true
@@ -218,24 +214,25 @@ func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.Js
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDeletePresented && !trueTypeDeleteValue && (item.FieldsMask&(1<<1) != 0) {
-		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataEditEntitynew) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *MetadataEditEntitynew) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *MetadataEditEntitynew) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *MetadataEditEntitynew) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -246,7 +243,7 @@ func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"event":`...)
-	w = item.Event.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Event.WriteJSONOpt(tctx, w)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)

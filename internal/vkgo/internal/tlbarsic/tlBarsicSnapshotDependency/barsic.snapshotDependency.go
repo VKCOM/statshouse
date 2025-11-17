@@ -85,6 +85,11 @@ func (item BarsicSnapshotDependency) String() string {
 }
 
 func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicSnapshotDependency) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
@@ -157,14 +162,15 @@ func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicSnapshotDependency) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicSnapshotDependency) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicSnapshotDependency) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicSnapshotDependency) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -286,6 +292,11 @@ func (item BarsicSnapshotDependencyBytes) String() string {
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *BarsicSnapshotDependencyBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propClusterIdPresented bool
 	var propShardIdPresented bool
@@ -358,14 +369,15 @@ func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *ba
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicSnapshotDependencyBytes) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *BarsicSnapshotDependencyBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

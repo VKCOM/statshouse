@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"unsafe"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
@@ -33,6 +34,16 @@ type serverConnTCP struct {
 }
 
 var _ HandlerContextConnection = &serverConnTCP{}
+
+func (sc *serverConnTCP) ListenAddr() net.Addr      { return sc.listenAddr }
+func (sc *serverConnTCP) LocalAddr() net.Addr       { return sc.conn.LocalAddr() }
+func (sc *serverConnTCP) RemoteAddr() net.Addr      { return sc.conn.RemoteAddr() }
+func (sc *serverConnTCP) KeyID() [4]byte            { return sc.conn.KeyID() }
+func (sc *serverConnTCP) ProtocolVersion() uint32   { return sc.conn.ProtocolVersion() }
+func (sc *serverConnTCP) ProtocolTransportID() byte { return protocolTCP }
+func (sc *serverConnTCP) ConnectionID() uintptr {
+	return uintptr(unsafe.Pointer(sc))
+}
 
 func (sc *serverConnTCP) pushUnlock(hctx *HandlerContext) {
 	wasLen := len(sc.writeQ)
@@ -116,17 +127,17 @@ func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
 	resp := hctx.Response
 	extraStart := hctx.extraStart
 
-	if err := conn.writePacketHeaderUnlocked(tl.RpcReqResultHeader{}.TLTag(), len(resp), DefaultPacketTimeout); err != nil {
+	if err := conn.WritePacketHeaderUnlocked(tl.RpcReqResultHeader{}.TLTag(), len(resp), DefaultPacketTimeout); err != nil {
 		return err
 	}
 	// we serialize Extra after Body, so we have to twist spacetime a bit
-	if err := conn.writePacketBodyUnlocked(resp[extraStart:]); err != nil {
+	if err := conn.WritePacketBodyUnlocked(resp[extraStart:]); err != nil {
 		return err
 	}
-	if err := conn.writePacketBodyUnlocked(resp[:extraStart]); err != nil {
+	if err := conn.WritePacketBodyUnlocked(resp[:extraStart]); err != nil {
 		return err
 	}
-	conn.writePacketTrailerUnlocked()
+	conn.WritePacketTrailerUnlocked()
 	return nil
 }
 
@@ -140,15 +151,7 @@ func (sc *serverConnTCP) acquireHandlerCtx() *HandlerContext {
 	sc.inFlight++
 	sc.mu.Unlock()
 
-	hctx := sc.server.acquireHandlerCtx(protocolTCP)
-
-	hctx.commonConn = sc
-	hctx.listenAddr = sc.listenAddr
-	hctx.localAddr = sc.conn.conn.LocalAddr()
-	hctx.remoteAddr = sc.conn.conn.RemoteAddr()
-	hctx.keyID = sc.conn.keyID
-	hctx.protocolVersion = sc.conn.ProtocolVersion()
-	return hctx
+	return sc.server.acquireHandlerCtx(sc, protocolTCP)
 }
 
 func (sc *serverConnTCP) releaseHandlerCtx(hctx *HandlerContext) {

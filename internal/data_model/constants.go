@@ -51,9 +51,9 @@ const (
 	// set to >1300ms only after all libraries which send at 0.5 calendar second are updated
 	AgentWindow = 1300 * time.Millisecond // must be 1..2 seconds.
 
-	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
-	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
-	MaxHistoricWindow = 6 * 3600 // 1 day to send historic data, then drop. TODO - return to 86400 after ZK is faster and/or seconds table is partitioned by 12h
+	MaxShortWindow    = 5         // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
+	FutureWindow      = 4         // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
+	MaxHistoricWindow = 48 * 3600 // Must be enough. We do not want very old historic seconds anyway.
 
 	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.

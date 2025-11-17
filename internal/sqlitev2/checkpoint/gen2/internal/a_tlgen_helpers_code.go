@@ -78,6 +78,10 @@ func ErrorInvalidJSONWithDuplicatingKeys(typeName string, field string) error {
 	return fmt.Errorf("invalid json for type %q: %q repeats several times", typeName, field)
 }
 
+func ErrorTL2SerializersNotGenerated(typeName string) error {
+	return fmt.Errorf("serializers for TL2 were not generated for type %q", typeName)
+}
+
 func ErrorInvalidJSONExcessElement(typeName string, key string) error {
 	return fmt.Errorf("invalid json object key %q", key)
 }

@@ -48,10 +48,6 @@ type PacketHeaderCircularBuffer struct {
 	x, n int
 }
 
-func (p packetHeader) String() string {
-	return fmt.Sprintf(`{"len":%d,"seq":%d,"tip":"0x%08X"}`, p.length, p.seqNum, p.tip)
-}
-
 func (res ForwardPacketsResult) String() string {
 	return fmt.Sprintf(`{"read":%v,"write":%v,"clientFin":%t,"serverFin":%t}`, res.ReadErr, res.WriteErr, res.ClientWantsFin, res.ServerWantsFin)
 }
@@ -123,7 +119,7 @@ func ForwardPackets(ctx context.Context, dst, src *PacketConn) ForwardPacketsRes
 
 func ForwardPacket(dst, src *PacketConn, copyBodyBuf []byte, opt forwardPacketOptions) (res ForwardPacketResult) {
 	src.readMu.Lock()
-	_, isBuiltin, _, err := src.readPacketHeaderUnlocked(&res.packetHeader, DefaultPacketTimeout)
+	_, isBuiltin, _, err := src.ReadPacketHeaderUnlocked(&res.packetHeader, DefaultPacketTimeout)
 	src.readMu.Unlock()
 	if err != nil {
 		res.ReadErr = err
@@ -165,7 +161,7 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader, copyBodyBuf []byt
 		legacyWriteAlignTo4 = -bodySize & 3
 		bodySize += legacyWriteAlignTo4
 	}
-	if err := dst.writePacketHeaderUnlocked(header.tip, int(bodySize), DefaultPacketTimeout); err != nil {
+	if err := dst.WritePacketHeaderUnlocked(header.tip, int(bodySize), DefaultPacketTimeout); err != nil {
 		res.WriteErr = err
 		return res
 	}
@@ -174,13 +170,13 @@ func forwardPacket(dst, src *PacketConn, header *packetHeader, copyBodyBuf []byt
 		return res
 	}
 	if 0 < legacyWriteAlignTo4 && legacyWriteAlignTo4 < 4 {
-		if err := dst.writePacketBodyUnlocked(forwardPacketTrailer[legacyWriteAlignTo4]); err != nil {
+		if err := dst.WritePacketBodyUnlocked(forwardPacketTrailer[legacyWriteAlignTo4]); err != nil {
 			res.WriteErr = err
 			return res
 		}
 	}
 	// write CRC and padding
-	dst.writePacketTrailerUnlocked()
+	dst.WritePacketTrailerUnlocked()
 	res.WriteErr = dst.FlushUnlocked()
 	return res
 }
@@ -250,26 +246,13 @@ func (hctx *HandlerContext) WriteReponseAndFlush(conn *PacketConn, err error) er
 	if err != nil {
 		return err
 	}
-	conn.writeMu.Lock()
-	defer conn.writeMu.Unlock()
-	err = hctx.writeReponseUnlocked(conn)
-	if err != nil {
-		return err
-	}
-	conn.FlushUnlocked()
-	return nil
+	return hctx.writeReponse(conn)
 }
 
 func (hctx *HandlerContext) ForwardAndFlush(conn *PacketConn, tip uint32, timeout time.Duration) error {
 	switch tip {
 	case tl.RpcCancelReq{}.TLTag(), tl.RpcClientWantsFin{}.TLTag():
-		conn.writeMu.Lock()
-		defer conn.writeMu.Unlock()
-		err := writeCustomPacketUnlocked(conn, tip, hctx.Request, timeout)
-		if err != nil {
-			return err
-		}
-		return conn.FlushUnlocked()
+		return conn.WritePacket(tip, hctx.Request, timeout)
 	case tl.RpcInvokeReqHeader{}.TLTag():
 		req := Request{
 			Body:    hctx.Request,
@@ -280,38 +263,15 @@ func (hctx *HandlerContext) ForwardAndFlush(conn *PacketConn, tip uint32, timeou
 			return err
 		}
 		hctx.Request = req.Body[:0] // buffer reuse
-		conn.writeMu.Lock()
-		defer conn.writeMu.Unlock()
-		if err := writeRequestUnlocked(conn, &req, timeout); err != nil {
-			return err
-		}
-		if err := conn.FlushUnlocked(); err != nil {
-			return err
-		}
-		return nil
+		return writeRequest(conn, &req, timeout)
 	default:
 		return fmt.Errorf("unknown packet type 0x%x", tip)
 	}
 }
 
-func (hctx *HandlerContext) writeReponseUnlocked(conn *PacketConn) error {
-	resp := hctx.Response
-	extraStart := hctx.extraStart
-
-	if err := conn.writePacketHeaderUnlocked(tl.RpcReqResultHeader{}.TLTag(), len(resp), DefaultPacketTimeout); err != nil {
-		return err
-	}
+func (hctx *HandlerContext) writeReponse(conn *PacketConn) error {
 	// we serialize Extra after Body, so we have to twist spacetime a bit
-	if err := conn.writePacketBodyUnlocked(resp[extraStart:]); err != nil {
-		return err
-	}
-	if err := conn.writePacketBodyUnlocked(resp[:extraStart]); err != nil {
-		return err
-	}
-	conn.writePacketTrailerUnlocked()
-	return nil
-}
-
-func (pc *PacketConn) Encrypted() bool {
-	return pc.w.isEncrypted()
+	body := hctx.Response[hctx.extraStart:]
+	body2 := hctx.Response[:hctx.extraStart]
+	return conn.WritePacket2(tl.RpcReqResultHeader{}.TLTag(), body, body2, DefaultPacketTimeout)
 }

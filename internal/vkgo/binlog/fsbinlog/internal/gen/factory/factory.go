@@ -31,6 +31,7 @@ func CreateObjectFromName(name string) meta.Object {
 }
 
 func init() {
+	// TL
 	meta.SetGlobalFactoryCreateForObject(0x044c644b, func() meta.Object { var ret internal.FsbinlogLevStart; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xb75009a0, func() meta.Object { var ret internal.FsbinlogLevUpgradeToGms; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x6b49d850, func() meta.Object { var ret internal.FsbinlogSnapshotMeta; return &ret })

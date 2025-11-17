@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.1.13" }
+func SchemaGenerator() string { return "v1.2.22" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -27,24 +27,25 @@ type Object interface {
 
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
-	WriteGeneral(w []byte) ([]byte, error)      // appends bytes of type's bare TL representation to the end of w and returns it, plus error
-	WriteBoxedGeneral(w []byte) ([]byte, error) // same as Write, but writes TLTag first (this method is general version of WriteBoxed, use it only when you are working with interface)
+	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it (this method is general version of WriteBoxed, use it only when you are working with interface)
+	// like MarshalJSON, but appends to w and returns it
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
 }
 
 type Function interface {
 	Object
 
-	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
-
-	// For transcoding short-long version during Long ID and newTypeNames transition
-	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 }
 
 func GetAllTLItems() []TLItem {
@@ -129,6 +130,7 @@ type TLItem struct {
 	tag         uint32
 	annotations uint32
 	tlName      string
+	isTL2       bool
 
 	resultTypeContainsUnionTypes    bool
 	argumentsTypesContainUnionTypes bool
@@ -143,6 +145,7 @@ type TLItem struct {
 
 func (item TLItem) TLTag() uint32            { return item.tag }
 func (item TLItem) TLName() string           { return item.tlName }
+func (item TLItem) IsTL2() bool              { return item.isTL2 }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
@@ -157,9 +160,10 @@ func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLon
 // Annotations
 func (item TLItem) AnnotationAny() bool       { return item.annotations&0x1 != 0 }
 func (item TLItem) AnnotationInternal() bool  { return item.annotations&0x2 != 0 }
-func (item TLItem) AnnotationRead() bool      { return item.annotations&0x4 != 0 }
-func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x8 != 0 }
-func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x10 != 0 }
+func (item TLItem) AnnotationKphp() bool      { return item.annotations&0x4 != 0 }
+func (item TLItem) AnnotationRead() bool      { return item.annotations&0x8 != 0 }
+func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x10 != 0 }
+func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 0 }
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                                {}
@@ -188,7 +192,8 @@ func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
-func (item *TLItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+
+func (item *TLItem) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
 	return item.WriteJSON(w), nil
 }
 func (item *TLItem) WriteJSON(w []byte) []byte {
@@ -204,7 +209,6 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]
 }
@@ -235,6 +239,14 @@ func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object)
 	item.createObject = createObject
 }
 
+func SetGlobalFactoryCreateForObjectTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
+	}
+	item.createObject = createObject
+}
+
 func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item := itemsByTag[itemTag]
 	if item == nil {
@@ -257,6 +269,14 @@ func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Ob
 	item := itemsByTag[itemTag]
 	if item == nil {
 		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForObjectBytesTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
 	}
 	item.createObjectBytes = createObject
 }
@@ -297,6 +317,15 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
 }
 
+func fillObjectTL2(item *TLItem) {
+	itemsByName[item.tlName] = item
+	if item.tag != 0 {
+		itemsByTag[item.tag] = item
+	}
+	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
+}
+
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
@@ -304,174 +333,172 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("boolStat#92cbcbfa", "#92cbcbfa", &TLItem{tag: 0x92cbcbfa, annotations: 0x0, tlName: "boolStat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.alreadyInMasterMode#402409cb", "#402409cb", &TLItem{tag: 0x402409cb, annotations: 0x0, tlName: "engine.alreadyInMasterMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.alreadyInReplicaMode#ebd80142", "#ebd80142", &TLItem{tag: 0xebd80142, annotations: 0x0, tlName: "engine.alreadyInReplicaMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.binlogPrefix#4c09c894", "#4c09c894", &TLItem{tag: 0x4c09c894, annotations: 0x0, tlName: "engine.binlogPrefix", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.count#19d0f020", "#19d0f020", &TLItem{tag: 0x19d0f020, annotations: 0x1, tlName: "engine.count", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.dumpForceQueries#f1f90880", "#f1f90880", &TLItem{tag: 0xf1f90880, annotations: 0x3, tlName: "engine.dumpForceQueries", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.dumpLastQueries#c060a29f", "#c060a29f", &TLItem{tag: 0xc060a29f, annotations: 0x3, tlName: "engine.dumpLastQueries", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.dumpNextQueries#e65872ad", "#e65872ad", &TLItem{tag: 0xe65872ad, annotations: 0x3, tlName: "engine.dumpNextQueries", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.enableMetafilesAnalyzer#88836cdc", "#88836cdc", &TLItem{tag: 0x88836cdc, annotations: 0x3, tlName: "engine.enableMetafilesAnalyzer", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.failedToSwitchMode#17418662", "#17418662", &TLItem{tag: 0x17418662, annotations: 0x0, tlName: "engine.failedToSwitchMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.getBinlogPrefixes#ef14db93", "#ef14db93", &TLItem{tag: 0xef14db93, annotations: 0x3, tlName: "engine.getBinlogPrefixes", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.getExpectedMetafilesStats#0342f391", "#0342f391", &TLItem{tag: 0x0342f391, annotations: 0x3, tlName: "engine.getExpectedMetafilesStats", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.getReadWriteMode#61b3f593", "#61b3f593", &TLItem{tag: 0x61b3f593, annotations: 0x1, tlName: "engine.getReadWriteMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.getReindexStatus#f492042e", "#f492042e", &TLItem{tag: 0xf492042e, annotations: 0x3, tlName: "engine.getReindexStatus", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.httpQuery#58300321", "#58300321", &TLItem{tag: 0x58300321, annotations: 0x0, tlName: "engine.httpQuery", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.httpQueryResponse#284852fc", "#284852fc", &TLItem{tag: 0x284852fc, annotations: 0x0, tlName: "engine.httpQueryResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.invokeHttpQuery#f4c73c0b", "#f4c73c0b", &TLItem{tag: 0xf4c73c0b, annotations: 0x3, tlName: "engine.invokeHttpQuery", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.isProduction#ccdea0ac", "#ccdea0ac", &TLItem{tag: 0xccdea0ac, annotations: 0x1, tlName: "engine.isProduction", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.metafilesOneMemoryStat#c292e4a6", "#c292e4a6", &TLItem{tag: 0xc292e4a6, annotations: 0x0, tlName: "engine.metafilesOneMemoryStat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.metafilesStatData#b673669b", "#b673669b", &TLItem{tag: 0xb673669b, annotations: 0x0, tlName: "engine.metafilesStatData", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.nop#166bb7c6", "#166bb7c6", &TLItem{tag: 0x166bb7c6, annotations: 0x1, tlName: "engine.nop", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.pushStat#f4b19fa2", "#f4b19fa2", &TLItem{tag: 0xf4b19fa2, annotations: 0x12, tlName: "engine.pushStat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.queryResult#ac4d6fe9", "#ac4d6fe9", &TLItem{tag: 0xac4d6fe9, annotations: 0x0, tlName: "engine.queryResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.queryResultAio#ee2879b0", "#ee2879b0", &TLItem{tag: 0xee2879b0, annotations: 0x0, tlName: "engine.queryResultAio", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.queryResultError#2b4dd0ba", "#2b4dd0ba", &TLItem{tag: 0x2b4dd0ba, annotations: 0x0, tlName: "engine.queryResultError", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.readNop#9d2b841f", "#9d2b841f", &TLItem{tag: 0x9d2b841f, annotations: 0x4, tlName: "engine.readNop", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.recordNextQueries#0001e9d6", "#0001e9d6", &TLItem{tag: 0x0001e9d6, annotations: 0x3, tlName: "engine.recordNextQueries", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.registerDynamicLib#2f86f276", "#2f86f276", &TLItem{tag: 0x2f86f276, annotations: 0x8, tlName: "engine.registerDynamicLib", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusDone#0f67569a", "#0f67569a", &TLItem{tag: 0x0f67569a, annotations: 0x0, tlName: "engine.reindexStatusDone", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusDoneOld#afdbd505", "#afdbd505", &TLItem{tag: 0xafdbd505, annotations: 0x0, tlName: "engine.reindexStatusDoneOld", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusFailed#10533721", "#10533721", &TLItem{tag: 0x10533721, annotations: 0x0, tlName: "engine.reindexStatusFailed", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusNever#7f6a89b9", "#7f6a89b9", &TLItem{tag: 0x7f6a89b9, annotations: 0x0, tlName: "engine.reindexStatusNever", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusRunning#fa198b59", "#fa198b59", &TLItem{tag: 0xfa198b59, annotations: 0x0, tlName: "engine.reindexStatusRunning", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusRunningOld#ac530b46", "#ac530b46", &TLItem{tag: 0xac530b46, annotations: 0x0, tlName: "engine.reindexStatusRunningOld", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reindexStatusSignaled#756e878b", "#756e878b", &TLItem{tag: 0x756e878b, annotations: 0x0, tlName: "engine.reindexStatusSignaled", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.reloadDynamicLib#602d62c1", "#602d62c1", &TLItem{tag: 0x602d62c1, annotations: 0x8, tlName: "engine.reloadDynamicLib", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.reloadDynamicLibOptions#0f3d0fb1", "#0f3d0fb1", &TLItem{tag: 0x0f3d0fb1, annotations: 0x0, tlName: "engine.reloadDynamicLibOptions", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.replaceConfigServer#5fcd8e77", "#5fcd8e77", &TLItem{tag: 0x5fcd8e77, annotations: 0x3, tlName: "engine.replaceConfigServer", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.sendSignal#1a7708a3", "#1a7708a3", &TLItem{tag: 0x1a7708a3, annotations: 0x3, tlName: "engine.sendSignal", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setFsyncInterval#665d2ab7", "#665d2ab7", &TLItem{tag: 0x665d2ab7, annotations: 0x12, tlName: "engine.setFsyncInterval", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setMetafileMemory#7bdcf404", "#7bdcf404", &TLItem{tag: 0x7bdcf404, annotations: 0x6, tlName: "engine.setMetafileMemory", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setNoPersistentConfigArray#5806a520", "#5806a520", &TLItem{tag: 0x5806a520, annotations: 0x3, tlName: "engine.setNoPersistentConfigArray", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setNoPersistentConfigValue#92aaa5b9", "#92aaa5b9", &TLItem{tag: 0x92aaa5b9, annotations: 0x3, tlName: "engine.setNoPersistentConfigValue", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setPersistentConfigArray#fc99af0b", "#fc99af0b", &TLItem{tag: 0xfc99af0b, annotations: 0x12, tlName: "engine.setPersistentConfigArray", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setPersistentConfigValue#4cc8953f", "#4cc8953f", &TLItem{tag: 0x4cc8953f, annotations: 0x12, tlName: "engine.setPersistentConfigValue", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setVerbosity#9d980926", "#9d980926", &TLItem{tag: 0x9d980926, annotations: 0x3, tlName: "engine.setVerbosity", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setVerbosityType#5388c0ae", "#5388c0ae", &TLItem{tag: 0x5388c0ae, annotations: 0x3, tlName: "engine.setVerbosityType", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.switchToMasterMode#8cdcb5f9", "#8cdcb5f9", &TLItem{tag: 0x8cdcb5f9, annotations: 0x3, tlName: "engine.switchToMasterMode", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.switchToMasterModeForcefully#1973fa8f", "#1973fa8f", &TLItem{tag: 0x1973fa8f, annotations: 0x3, tlName: "engine.switchToMasterModeForcefully", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.switchToReplicaMode#23c3a87e", "#23c3a87e", &TLItem{tag: 0x23c3a87e, annotations: 0x3, tlName: "engine.switchToReplicaMode", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.switchedToMasterMode#95b13964", "#95b13964", &TLItem{tag: 0x95b13964, annotations: 0x0, tlName: "engine.switchedToMasterMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.switchedToMasterModeForcefully#ec61b4be", "#ec61b4be", &TLItem{tag: 0xec61b4be, annotations: 0x0, tlName: "engine.switchedToMasterModeForcefully", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("engine.switchedToReplicaMode#ad642a0b", "#ad642a0b", &TLItem{tag: 0xad642a0b, annotations: 0x0, tlName: "engine.switchedToReplicaMode", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.unregisterDynamicLib#84d5fcb9", "#84d5fcb9", &TLItem{tag: 0x84d5fcb9, annotations: 0x8, tlName: "engine.unregisterDynamicLib", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.writeNop#58160af4", "#58160af4", &TLItem{tag: 0x58160af4, annotations: 0x10, tlName: "engine.writeNop", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.createEntityEvent#1a345674", "#1a345674", &TLItem{tag: 0x1a345674, annotations: 0x0, tlName: "metadata.createEntityEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.createMappingEvent#12345678", "#12345678", &TLItem{tag: 0x12345678, annotations: 0x0, tlName: "metadata.createMappingEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.createMetricEvent#12345674", "#12345674", &TLItem{tag: 0x12345674, annotations: 0x0, tlName: "metadata.createMetricEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.editEntityEvent#1234b677", "#1234b677", &TLItem{tag: 0x1234b677, annotations: 0x0, tlName: "metadata.editEntityEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.editEntitynew#86df475f", "#86df475f", &TLItem{tag: 0x86df475f, annotations: 0x8, tlName: "metadata.editEntitynew", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.editMetricEvent#12345677", "#12345677", &TLItem{tag: 0x12345677, annotations: 0x0, tlName: "metadata.editMetricEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.event#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "metadata.event", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getEntity#72b132f8", "#72b132f8", &TLItem{tag: 0x72b132f8, annotations: 0x4, tlName: "metadata.getEntity", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getHistoryShortInfo#22ff6a79", "#22ff6a79", &TLItem{tag: 0x22ff6a79, annotations: 0x8, tlName: "metadata.getHistoryShortInfo", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getInvertMapping#9faf5280", "#9faf5280", &TLItem{tag: 0x9faf5280, annotations: 0x4, tlName: "metadata.getInvertMapping", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getJournalnew#93ba92f8", "#93ba92f8", &TLItem{tag: 0x93ba92f8, annotations: 0x4, tlName: "metadata.getJournalnew", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getMapping#9dfa7a83", "#9dfa7a83", &TLItem{tag: 0x9dfa7a83, annotations: 0x8, tlName: "metadata.getMapping", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getMetrics#93ba92f5", "#93ba92f5", &TLItem{tag: 0x93ba92f5, annotations: 0x4, tlName: "metadata.getMetrics", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getNewMappings#93ba92f7", "#93ba92f7", &TLItem{tag: 0x93ba92f7, annotations: 0x4, tlName: "metadata.getNewMappings", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.getTagMappingBootstrap#5fc81a9b", "#5fc81a9b", &TLItem{tag: 0x5fc81a9b, annotations: 0x8, tlName: "metadata.getTagMappingBootstrap", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.putBootstrapEvent#5854dfaf", "#5854dfaf", &TLItem{tag: 0x5854dfaf, annotations: 0x0, tlName: "metadata.putBootstrapEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.putMapping#9faf5281", "#9faf5281", &TLItem{tag: 0x9faf5281, annotations: 0x8, tlName: "metadata.putMapping", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.putMappingEvent#12345676", "#12345676", &TLItem{tag: 0x12345676, annotations: 0x0, tlName: "metadata.putMappingEvent", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.putMappingResponse#9286abfe", "#9286abfe", &TLItem{tag: 0x9286abfe, annotations: 0x0, tlName: "metadata.putMappingResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.putTagMappingBootstrap#5fc8ab9b", "#5fc8ab9b", &TLItem{tag: 0x5fc8ab9b, annotations: 0x8, tlName: "metadata.putTagMappingBootstrap", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.resetFlood#9faf5282", "#9faf5282", &TLItem{tag: 0x9faf5282, annotations: 0x8, tlName: "metadata.resetFlood", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("metadata.resetFlood2#88d0fd5e", "#88d0fd5e", &TLItem{tag: 0x88d0fd5e, annotations: 0x8, tlName: "metadata.resetFlood2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.resetFloodResponse#9286abee", "#9286abee", &TLItem{tag: 0x9286abee, annotations: 0x0, tlName: "metadata.resetFloodResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("metadata.resetFloodResponse2#9286abef", "#9286abef", &TLItem{tag: 0x9286abef, annotations: 0x0, tlName: "metadata.resetFloodResponse2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.addMetricsBatch#56580239", "#56580239", &TLItem{tag: 0x56580239, annotations: 0x10, tlName: "statshouse.addMetricsBatch", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.filter#511276a6", "#511276a6", &TLItem{tag: 0x511276a6, annotations: 0x0, tlName: "statshouseApi.filter", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.flagAuto#2a6e4c14", "#2a6e4c14", &TLItem{tag: 0x2a6e4c14, annotations: 0x0, tlName: "statshouseApi.flagAuto", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.flagMapped#670ab89c", "#670ab89c", &TLItem{tag: 0x670ab89c, annotations: 0x0, tlName: "statshouseApi.flagMapped", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.flagRaw#4ca979c0", "#4ca979c0", &TLItem{tag: 0x4ca979c0, annotations: 0x0, tlName: "statshouseApi.flagRaw", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnAvg#6323c2f6", "#6323c2f6", &TLItem{tag: 0x6323c2f6, annotations: 0x0, tlName: "statshouseApi.fnAvg", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnCount#89689775", "#89689775", &TLItem{tag: 0x89689775, annotations: 0x0, tlName: "statshouseApi.fnCount", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnCountNorm#60e68b5c", "#60e68b5c", &TLItem{tag: 0x60e68b5c, annotations: 0x0, tlName: "statshouseApi.fnCountNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnCumulAvg#f4d9ad09", "#f4d9ad09", &TLItem{tag: 0xf4d9ad09, annotations: 0x0, tlName: "statshouseApi.fnCumulAvg", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnCumulCount#871201c4", "#871201c4", &TLItem{tag: 0x871201c4, annotations: 0x0, tlName: "statshouseApi.fnCumulCount", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnCumulSum#42fc39b6", "#42fc39b6", &TLItem{tag: 0x42fc39b6, annotations: 0x0, tlName: "statshouseApi.fnCumulSum", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeAvg#60d2b603", "#60d2b603", &TLItem{tag: 0x60d2b603, annotations: 0x0, tlName: "statshouseApi.fnDerivativeAvg", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeCount#e617771c", "#e617771c", &TLItem{tag: 0xe617771c, annotations: 0x0, tlName: "statshouseApi.fnDerivativeCount", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "#bfb5f7fc", &TLItem{tag: 0xbfb5f7fc, annotations: 0x0, tlName: "statshouseApi.fnDerivativeCountNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeMax#43eeb810", "#43eeb810", &TLItem{tag: 0x43eeb810, annotations: 0x0, tlName: "statshouseApi.fnDerivativeMax", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeMin#4817df2b", "#4817df2b", &TLItem{tag: 0x4817df2b, annotations: 0x0, tlName: "statshouseApi.fnDerivativeMin", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeSum#a3a43781", "#a3a43781", &TLItem{tag: 0xa3a43781, annotations: 0x0, tlName: "statshouseApi.fnDerivativeSum", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeSumNorm#96683390", "#96683390", &TLItem{tag: 0x96683390, annotations: 0x0, tlName: "statshouseApi.fnDerivativeSumNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeUnique#5745a0a3", "#5745a0a3", &TLItem{tag: 0x5745a0a3, annotations: 0x0, tlName: "statshouseApi.fnDerivativeUnique", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "#4bd4f327", &TLItem{tag: 0x4bd4f327, annotations: 0x0, tlName: "statshouseApi.fnDerivativeUniqueNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnMax#f90de384", "#f90de384", &TLItem{tag: 0xf90de384, annotations: 0x0, tlName: "statshouseApi.fnMax", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnMaxCountHost#885e665b", "#885e665b", &TLItem{tag: 0x885e665b, annotations: 0x0, tlName: "statshouseApi.fnMaxCountHost", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnMaxHost#b4790064", "#b4790064", &TLItem{tag: 0xb4790064, annotations: 0x0, tlName: "statshouseApi.fnMaxHost", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnMin#b4cb2644", "#b4cb2644", &TLItem{tag: 0xb4cb2644, annotations: 0x0, tlName: "statshouseApi.fnMin", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP01#381b1cee", "#381b1cee", &TLItem{tag: 0x381b1cee, annotations: 0x0, tlName: "statshouseApi.fnP01", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP1#bbb36a23", "#bbb36a23", &TLItem{tag: 0xbbb36a23, annotations: 0x0, tlName: "statshouseApi.fnP1", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP10#56071d39", "#56071d39", &TLItem{tag: 0x56071d39, annotations: 0x0, tlName: "statshouseApi.fnP10", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP25#cf9ad7bf", "#cf9ad7bf", &TLItem{tag: 0xcf9ad7bf, annotations: 0x0, tlName: "statshouseApi.fnP25", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP5#bcdeae3a", "#bcdeae3a", &TLItem{tag: 0xbcdeae3a, annotations: 0x0, tlName: "statshouseApi.fnP5", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP50#77c5de5c", "#77c5de5c", &TLItem{tag: 0x77c5de5c, annotations: 0x0, tlName: "statshouseApi.fnP50", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP75#0e674272", "#0e674272", &TLItem{tag: 0x0e674272, annotations: 0x0, tlName: "statshouseApi.fnP75", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP90#d4c8c793", "#d4c8c793", &TLItem{tag: 0xd4c8c793, annotations: 0x0, tlName: "statshouseApi.fnP90", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP95#9a92b76f", "#9a92b76f", &TLItem{tag: 0x9a92b76f, annotations: 0x0, tlName: "statshouseApi.fnP95", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP99#71992e9a", "#71992e9a", &TLItem{tag: 0x71992e9a, annotations: 0x0, tlName: "statshouseApi.fnP99", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnP999#a3434c26", "#a3434c26", &TLItem{tag: 0xa3434c26, annotations: 0x0, tlName: "statshouseApi.fnP999", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnStddev#2043e480", "#2043e480", &TLItem{tag: 0x2043e480, annotations: 0x0, tlName: "statshouseApi.fnStddev", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnSum#80ce3cf1", "#80ce3cf1", &TLItem{tag: 0x80ce3cf1, annotations: 0x0, tlName: "statshouseApi.fnSum", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnSumNorm#361963d5", "#361963d5", &TLItem{tag: 0x361963d5, annotations: 0x0, tlName: "statshouseApi.fnSumNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnUnique#f20fb854", "#f20fb854", &TLItem{tag: 0xf20fb854, annotations: 0x0, tlName: "statshouseApi.fnUnique", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.fnUniqueNorm#9ceb6f68", "#9ceb6f68", &TLItem{tag: 0x9ceb6f68, annotations: 0x0, tlName: "statshouseApi.fnUniqueNorm", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouseApi.getChunk#52721884", "#52721884", &TLItem{tag: 0x52721884, annotations: 0x4, tlName: "statshouseApi.getChunk", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.chunkResponse#63928b42", "#63928b42", &TLItem{tag: 0x63928b42, annotations: 0x0, tlName: "statshouseApi.chunkResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouseApi.getQuery#0c7349bb", "#0c7349bb", &TLItem{tag: 0x0c7349bb, annotations: 0x8, tlName: "statshouseApi.getQuery", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
-	fillFunction("statshouseApi.getQueryPoint#0c7348bb", "#0c7348bb", &TLItem{tag: 0x0c7348bb, annotations: 0x4, tlName: "statshouseApi.getQueryPoint", resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
-	fillObject("statshouseApi.queryPointResponse#4487e41a", "#4487e41a", &TLItem{tag: 0x4487e41a, annotations: 0x0, tlName: "statshouseApi.queryPointResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.pointMeta#5c2bf296", "#5c2bf296", &TLItem{tag: 0x5c2bf296, annotations: 0x0, tlName: "statshouseApi.pointMeta", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.query#c9951bb9", "#c9951bb9", &TLItem{tag: 0xc9951bb9, annotations: 0x0, tlName: "statshouseApi.query", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.queryPoint#c9951bbb", "#c9951bbb", &TLItem{tag: 0xc9951bbb, annotations: 0x0, tlName: "statshouseApi.queryPoint", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouseApi.releaseChunks#62adc773", "#62adc773", &TLItem{tag: 0x62adc773, annotations: 0x10, tlName: "statshouseApi.releaseChunks", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.releaseChunksResponse#d12dc2bd", "#d12dc2bd", &TLItem{tag: 0xd12dc2bd, annotations: 0x0, tlName: "statshouseApi.releaseChunksResponse", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.series#07a3e919", "#07a3e919", &TLItem{tag: 0x07a3e919, annotations: 0x0, tlName: "statshouseApi.series", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouseApi.tagValue#43eeb763", "#43eeb763", &TLItem{tag: 0x43eeb763, annotations: 0x0, tlName: "statshouseApi.tagValue", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.autoCreate#28bea524", "#28bea524", &TLItem{tag: 0x28bea524, annotations: 0x8, tlName: "statshouse.autoCreate", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.centroidFloat#73fd01e0", "#73fd01e0", &TLItem{tag: 0x73fd01e0, annotations: 0x0, tlName: "statshouse.centroidFloat", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getConfig2#4285ff57", "#4285ff57", &TLItem{tag: 0x4285ff57, annotations: 0x8, tlName: "statshouse.getConfig2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getConfig3#7d7b4991", "#7d7b4991", &TLItem{tag: 0x7d7b4991, annotations: 0x8, tlName: "statshouse.getConfig3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.getConfigResult3#f13698cb", "#f13698cb", &TLItem{tag: 0xf13698cb, annotations: 0x0, tlName: "statshouse.getConfigResult3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getMetrics3#42855554", "#42855554", &TLItem{tag: 0x42855554, annotations: 0x8, tlName: "statshouse.getMetrics3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.getMetricsResult#0c803d05", "#0c803d05", &TLItem{tag: 0x0c803d05, annotations: 0x0, tlName: "statshouse.getMetricsResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getTagMapping2#4285ff56", "#4285ff56", &TLItem{tag: 0x4285ff56, annotations: 0x8, tlName: "statshouse.getTagMapping2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getTagMappingBootstrap#75a7f68e", "#75a7f68e", &TLItem{tag: 0x75a7f68e, annotations: 0x8, tlName: "statshouse.getTagMappingBootstrap", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.getTagMappingBootstrapResult#486a40de", "#486a40de", &TLItem{tag: 0x486a40de, annotations: 0x0, tlName: "statshouse.getTagMappingBootstrapResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.getTagMappingResult#1a7d91fd", "#1a7d91fd", &TLItem{tag: 0x1a7d91fd, annotations: 0x0, tlName: "statshouse.getTagMappingResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.getTargets2#41df72a3", "#41df72a3", &TLItem{tag: 0x41df72a3, annotations: 0x8, tlName: "statshouse.getTargets2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.ingestion_status2#2e17a6d3", "#2e17a6d3", &TLItem{tag: 0x2e17a6d3, annotations: 0x0, tlName: "statshouse.ingestion_status2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.mapping#bf401d4b", "#bf401d4b", &TLItem{tag: 0xbf401d4b, annotations: 0x0, tlName: "statshouse.mapping", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.metric#3325d884", "#3325d884", &TLItem{tag: 0x3325d884, annotations: 0x0, tlName: "statshouse.metric", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0x0c803e07, annotations: 0x0, tlName: "statshouse.multi_item", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.putTagMappingBootstrapResult#486affde", "#486affde", &TLItem{tag: 0x486affde, annotations: 0x0, tlName: "statshouse.putTagMappingBootstrapResult", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.sample_factor#4f7b7822", "#4f7b7822", &TLItem{tag: 0x4f7b7822, annotations: 0x0, tlName: "statshouse.sample_factor", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.sendKeepAlive2#4285ff53", "#4285ff53", &TLItem{tag: 0x4285ff53, annotations: 0x8, tlName: "statshouse.sendKeepAlive2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.sendKeepAlive3#4285ff54", "#4285ff54", &TLItem{tag: 0x4285ff54, annotations: 0x8, tlName: "statshouse.sendKeepAlive3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.sendSourceBucket2#44575940", "#44575940", &TLItem{tag: 0x44575940, annotations: 0x8, tlName: "statshouse.sendSourceBucket2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.sendSourceBucket3#0d04aa3f", "#0d04aa3f", &TLItem{tag: 0x0d04aa3f, annotations: 0x8, tlName: "statshouse.sendSourceBucket3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.sendSourceBucket3Response#0e177acc", "#0e177acc", &TLItem{tag: 0x0e177acc, annotations: 0x0, tlName: "statshouse.sendSourceBucket3Response", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.shutdownInfo#4124cf9c", "#4124cf9c", &TLItem{tag: 0x4124cf9c, annotations: 0x0, tlName: "statshouse.shutdownInfo", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.sourceBucket2#3af6e822", "#3af6e822", &TLItem{tag: 0x3af6e822, annotations: 0x0, tlName: "statshouse.sourceBucket2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.sourceBucket3#16c4dd7b", "#16c4dd7b", &TLItem{tag: 0x16c4dd7b, annotations: 0x0, tlName: "statshouse.sourceBucket3", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("statshouse.testConnection2#4285ff58", "#4285ff58", &TLItem{tag: 0x4285ff58, annotations: 0x8, tlName: "statshouse.testConnection2", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.top_element#9ffdea42", "#9ffdea42", &TLItem{tag: 0x9ffdea42, annotations: 0x0, tlName: "statshouse.top_element", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	// TL
+	fillObject("boolStat#92cbcbfa", "#92cbcbfa", &TLItem{tag: 0x92cbcbfa, annotations: 0x0, tlName: "boolStat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.alreadyInMasterMode#402409cb", "#402409cb", &TLItem{tag: 0x402409cb, annotations: 0x0, tlName: "engine.alreadyInMasterMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.alreadyInReplicaMode#ebd80142", "#ebd80142", &TLItem{tag: 0xebd80142, annotations: 0x0, tlName: "engine.alreadyInReplicaMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.binlogPrefix#4c09c894", "#4c09c894", &TLItem{tag: 0x4c09c894, annotations: 0x0, tlName: "engine.binlogPrefix", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.count#19d0f020", "#19d0f020", &TLItem{tag: 0x19d0f020, annotations: 0x1, tlName: "engine.count", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.dumpForceQueries#f1f90880", "#f1f90880", &TLItem{tag: 0xf1f90880, annotations: 0x3, tlName: "engine.dumpForceQueries", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.dumpLastQueries#c060a29f", "#c060a29f", &TLItem{tag: 0xc060a29f, annotations: 0x3, tlName: "engine.dumpLastQueries", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.dumpNextQueries#e65872ad", "#e65872ad", &TLItem{tag: 0xe65872ad, annotations: 0x3, tlName: "engine.dumpNextQueries", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.enableMetafilesAnalyzer#88836cdc", "#88836cdc", &TLItem{tag: 0x88836cdc, annotations: 0x3, tlName: "engine.enableMetafilesAnalyzer", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.failedToSwitchMode#17418662", "#17418662", &TLItem{tag: 0x17418662, annotations: 0x0, tlName: "engine.failedToSwitchMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.getBinlogPrefixes#ef14db93", "#ef14db93", &TLItem{tag: 0xef14db93, annotations: 0x3, tlName: "engine.getBinlogPrefixes", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.getExpectedMetafilesStats#0342f391", "#0342f391", &TLItem{tag: 0x0342f391, annotations: 0x3, tlName: "engine.getExpectedMetafilesStats", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.getReadWriteMode#61b3f593", "#61b3f593", &TLItem{tag: 0x61b3f593, annotations: 0x1, tlName: "engine.getReadWriteMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.getReindexStatus#f492042e", "#f492042e", &TLItem{tag: 0xf492042e, annotations: 0x3, tlName: "engine.getReindexStatus", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.httpQuery#58300321", "#58300321", &TLItem{tag: 0x58300321, annotations: 0x0, tlName: "engine.httpQuery", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.httpQueryResponse#284852fc", "#284852fc", &TLItem{tag: 0x284852fc, annotations: 0x0, tlName: "engine.httpQueryResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.invokeHttpQuery#f4c73c0b", "#f4c73c0b", &TLItem{tag: 0xf4c73c0b, annotations: 0x3, tlName: "engine.invokeHttpQuery", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.isProduction#ccdea0ac", "#ccdea0ac", &TLItem{tag: 0xccdea0ac, annotations: 0x1, tlName: "engine.isProduction", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.metafilesOneMemoryStat#c292e4a6", "#c292e4a6", &TLItem{tag: 0xc292e4a6, annotations: 0x0, tlName: "engine.metafilesOneMemoryStat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.metafilesStatData#b673669b", "#b673669b", &TLItem{tag: 0xb673669b, annotations: 0x0, tlName: "engine.metafilesStatData", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.nop#166bb7c6", "#166bb7c6", &TLItem{tag: 0x166bb7c6, annotations: 0x1, tlName: "engine.nop", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.pushStat#f4b19fa2", "#f4b19fa2", &TLItem{tag: 0xf4b19fa2, annotations: 0x22, tlName: "engine.pushStat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.queryResult#ac4d6fe9", "#ac4d6fe9", &TLItem{tag: 0xac4d6fe9, annotations: 0x0, tlName: "engine.queryResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.queryResultAio#ee2879b0", "#ee2879b0", &TLItem{tag: 0xee2879b0, annotations: 0x0, tlName: "engine.queryResultAio", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.queryResultError#2b4dd0ba", "#2b4dd0ba", &TLItem{tag: 0x2b4dd0ba, annotations: 0x0, tlName: "engine.queryResultError", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.readNop#9d2b841f", "#9d2b841f", &TLItem{tag: 0x9d2b841f, annotations: 0x8, tlName: "engine.readNop", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.recordNextQueries#0001e9d6", "#0001e9d6", &TLItem{tag: 0x0001e9d6, annotations: 0x3, tlName: "engine.recordNextQueries", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.registerDynamicLib#2f86f276", "#2f86f276", &TLItem{tag: 0x2f86f276, annotations: 0x10, tlName: "engine.registerDynamicLib", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusDone#0f67569a", "#0f67569a", &TLItem{tag: 0x0f67569a, annotations: 0x0, tlName: "engine.reindexStatusDone", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusDoneOld#afdbd505", "#afdbd505", &TLItem{tag: 0xafdbd505, annotations: 0x0, tlName: "engine.reindexStatusDoneOld", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusFailed#10533721", "#10533721", &TLItem{tag: 0x10533721, annotations: 0x0, tlName: "engine.reindexStatusFailed", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusNever#7f6a89b9", "#7f6a89b9", &TLItem{tag: 0x7f6a89b9, annotations: 0x0, tlName: "engine.reindexStatusNever", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusRunning#fa198b59", "#fa198b59", &TLItem{tag: 0xfa198b59, annotations: 0x0, tlName: "engine.reindexStatusRunning", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusRunningOld#ac530b46", "#ac530b46", &TLItem{tag: 0xac530b46, annotations: 0x0, tlName: "engine.reindexStatusRunningOld", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reindexStatusSignaled#756e878b", "#756e878b", &TLItem{tag: 0x756e878b, annotations: 0x0, tlName: "engine.reindexStatusSignaled", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.reloadDynamicLib#602d62c1", "#602d62c1", &TLItem{tag: 0x602d62c1, annotations: 0x10, tlName: "engine.reloadDynamicLib", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.reloadDynamicLibOptions#0f3d0fb1", "#0f3d0fb1", &TLItem{tag: 0x0f3d0fb1, annotations: 0x0, tlName: "engine.reloadDynamicLibOptions", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.replaceConfigServer#5fcd8e77", "#5fcd8e77", &TLItem{tag: 0x5fcd8e77, annotations: 0x3, tlName: "engine.replaceConfigServer", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.sendSignal#1a7708a3", "#1a7708a3", &TLItem{tag: 0x1a7708a3, annotations: 0x3, tlName: "engine.sendSignal", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setFsyncInterval#665d2ab7", "#665d2ab7", &TLItem{tag: 0x665d2ab7, annotations: 0x22, tlName: "engine.setFsyncInterval", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setMetafileMemory#7bdcf404", "#7bdcf404", &TLItem{tag: 0x7bdcf404, annotations: 0xa, tlName: "engine.setMetafileMemory", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setNoPersistentConfigArray#5806a520", "#5806a520", &TLItem{tag: 0x5806a520, annotations: 0x3, tlName: "engine.setNoPersistentConfigArray", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setNoPersistentConfigValue#92aaa5b9", "#92aaa5b9", &TLItem{tag: 0x92aaa5b9, annotations: 0x3, tlName: "engine.setNoPersistentConfigValue", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setPersistentConfigArray#fc99af0b", "#fc99af0b", &TLItem{tag: 0xfc99af0b, annotations: 0x22, tlName: "engine.setPersistentConfigArray", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setPersistentConfigValue#4cc8953f", "#4cc8953f", &TLItem{tag: 0x4cc8953f, annotations: 0x22, tlName: "engine.setPersistentConfigValue", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setVerbosity#9d980926", "#9d980926", &TLItem{tag: 0x9d980926, annotations: 0x3, tlName: "engine.setVerbosity", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.setVerbosityType#5388c0ae", "#5388c0ae", &TLItem{tag: 0x5388c0ae, annotations: 0x3, tlName: "engine.setVerbosityType", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.switchToMasterMode#8cdcb5f9", "#8cdcb5f9", &TLItem{tag: 0x8cdcb5f9, annotations: 0x3, tlName: "engine.switchToMasterMode", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.switchToMasterModeForcefully#1973fa8f", "#1973fa8f", &TLItem{tag: 0x1973fa8f, annotations: 0x3, tlName: "engine.switchToMasterModeForcefully", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.switchToReplicaMode#23c3a87e", "#23c3a87e", &TLItem{tag: 0x23c3a87e, annotations: 0x3, tlName: "engine.switchToReplicaMode", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.switchedToMasterMode#95b13964", "#95b13964", &TLItem{tag: 0x95b13964, annotations: 0x0, tlName: "engine.switchedToMasterMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.switchedToMasterModeForcefully#ec61b4be", "#ec61b4be", &TLItem{tag: 0xec61b4be, annotations: 0x0, tlName: "engine.switchedToMasterModeForcefully", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("engine.switchedToReplicaMode#ad642a0b", "#ad642a0b", &TLItem{tag: 0xad642a0b, annotations: 0x0, tlName: "engine.switchedToReplicaMode", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.unregisterDynamicLib#84d5fcb9", "#84d5fcb9", &TLItem{tag: 0x84d5fcb9, annotations: 0x10, tlName: "engine.unregisterDynamicLib", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("engine.writeNop#58160af4", "#58160af4", &TLItem{tag: 0x58160af4, annotations: 0x20, tlName: "engine.writeNop", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.createEntityEvent#1a345674", "#1a345674", &TLItem{tag: 0x1a345674, annotations: 0x0, tlName: "metadata.createEntityEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.createMappingEvent#12345678", "#12345678", &TLItem{tag: 0x12345678, annotations: 0x0, tlName: "metadata.createMappingEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.createMetricEvent#12345674", "#12345674", &TLItem{tag: 0x12345674, annotations: 0x0, tlName: "metadata.createMetricEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.editEntityEvent#1234b677", "#1234b677", &TLItem{tag: 0x1234b677, annotations: 0x0, tlName: "metadata.editEntityEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.editEntitynew#86df475f", "#86df475f", &TLItem{tag: 0x86df475f, annotations: 0x10, tlName: "metadata.editEntitynew", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.editMetricEvent#12345677", "#12345677", &TLItem{tag: 0x12345677, annotations: 0x0, tlName: "metadata.editMetricEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.event#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "metadata.event", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getEntity#72b132f8", "#72b132f8", &TLItem{tag: 0x72b132f8, annotations: 0x8, tlName: "metadata.getEntity", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getHistoryShortInfo#22ff6a79", "#22ff6a79", &TLItem{tag: 0x22ff6a79, annotations: 0x10, tlName: "metadata.getHistoryShortInfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getInvertMapping#9faf5280", "#9faf5280", &TLItem{tag: 0x9faf5280, annotations: 0x8, tlName: "metadata.getInvertMapping", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getJournalnew#93ba92f8", "#93ba92f8", &TLItem{tag: 0x93ba92f8, annotations: 0x8, tlName: "metadata.getJournalnew", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getMapping#9dfa7a83", "#9dfa7a83", &TLItem{tag: 0x9dfa7a83, annotations: 0x10, tlName: "metadata.getMapping", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getMetrics#93ba92f5", "#93ba92f5", &TLItem{tag: 0x93ba92f5, annotations: 0x8, tlName: "metadata.getMetrics", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.getTagMappingBootstrap#5fc81a9b", "#5fc81a9b", &TLItem{tag: 0x5fc81a9b, annotations: 0x10, tlName: "metadata.getTagMappingBootstrap", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.putBootstrapEvent#5854dfaf", "#5854dfaf", &TLItem{tag: 0x5854dfaf, annotations: 0x0, tlName: "metadata.putBootstrapEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.putMapping#9faf5281", "#9faf5281", &TLItem{tag: 0x9faf5281, annotations: 0x10, tlName: "metadata.putMapping", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.putMappingEvent#12345676", "#12345676", &TLItem{tag: 0x12345676, annotations: 0x0, tlName: "metadata.putMappingEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.putMappingResponse#9286abfe", "#9286abfe", &TLItem{tag: 0x9286abfe, annotations: 0x0, tlName: "metadata.putMappingResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.putTagMappingBootstrap#5fc8ab9b", "#5fc8ab9b", &TLItem{tag: 0x5fc8ab9b, annotations: 0x10, tlName: "metadata.putTagMappingBootstrap", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.resetFlood#9faf5282", "#9faf5282", &TLItem{tag: 0x9faf5282, annotations: 0x10, tlName: "metadata.resetFlood", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("metadata.resetFlood2#88d0fd5e", "#88d0fd5e", &TLItem{tag: 0x88d0fd5e, annotations: 0x10, tlName: "metadata.resetFlood2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.resetFloodResponse#9286abee", "#9286abee", &TLItem{tag: 0x9286abee, annotations: 0x0, tlName: "metadata.resetFloodResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("metadata.resetFloodResponse2#9286abef", "#9286abef", &TLItem{tag: 0x9286abef, annotations: 0x0, tlName: "metadata.resetFloodResponse2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.addMetricsBatch#56580239", "#56580239", &TLItem{tag: 0x56580239, annotations: 0x20, tlName: "statshouse.addMetricsBatch", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.filter#511276a6", "#511276a6", &TLItem{tag: 0x511276a6, annotations: 0x0, tlName: "statshouseApi.filter", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.flagAuto#2a6e4c14", "#2a6e4c14", &TLItem{tag: 0x2a6e4c14, annotations: 0x0, tlName: "statshouseApi.flagAuto", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.flagMapped#670ab89c", "#670ab89c", &TLItem{tag: 0x670ab89c, annotations: 0x0, tlName: "statshouseApi.flagMapped", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.flagRaw#4ca979c0", "#4ca979c0", &TLItem{tag: 0x4ca979c0, annotations: 0x0, tlName: "statshouseApi.flagRaw", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnAvg#6323c2f6", "#6323c2f6", &TLItem{tag: 0x6323c2f6, annotations: 0x0, tlName: "statshouseApi.fnAvg", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnCount#89689775", "#89689775", &TLItem{tag: 0x89689775, annotations: 0x0, tlName: "statshouseApi.fnCount", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnCountNorm#60e68b5c", "#60e68b5c", &TLItem{tag: 0x60e68b5c, annotations: 0x0, tlName: "statshouseApi.fnCountNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnCumulAvg#f4d9ad09", "#f4d9ad09", &TLItem{tag: 0xf4d9ad09, annotations: 0x0, tlName: "statshouseApi.fnCumulAvg", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnCumulCount#871201c4", "#871201c4", &TLItem{tag: 0x871201c4, annotations: 0x0, tlName: "statshouseApi.fnCumulCount", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnCumulSum#42fc39b6", "#42fc39b6", &TLItem{tag: 0x42fc39b6, annotations: 0x0, tlName: "statshouseApi.fnCumulSum", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeAvg#60d2b603", "#60d2b603", &TLItem{tag: 0x60d2b603, annotations: 0x0, tlName: "statshouseApi.fnDerivativeAvg", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeCount#e617771c", "#e617771c", &TLItem{tag: 0xe617771c, annotations: 0x0, tlName: "statshouseApi.fnDerivativeCount", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "#bfb5f7fc", &TLItem{tag: 0xbfb5f7fc, annotations: 0x0, tlName: "statshouseApi.fnDerivativeCountNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeMax#43eeb810", "#43eeb810", &TLItem{tag: 0x43eeb810, annotations: 0x0, tlName: "statshouseApi.fnDerivativeMax", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeMin#4817df2b", "#4817df2b", &TLItem{tag: 0x4817df2b, annotations: 0x0, tlName: "statshouseApi.fnDerivativeMin", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeSum#a3a43781", "#a3a43781", &TLItem{tag: 0xa3a43781, annotations: 0x0, tlName: "statshouseApi.fnDerivativeSum", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeSumNorm#96683390", "#96683390", &TLItem{tag: 0x96683390, annotations: 0x0, tlName: "statshouseApi.fnDerivativeSumNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeUnique#5745a0a3", "#5745a0a3", &TLItem{tag: 0x5745a0a3, annotations: 0x0, tlName: "statshouseApi.fnDerivativeUnique", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "#4bd4f327", &TLItem{tag: 0x4bd4f327, annotations: 0x0, tlName: "statshouseApi.fnDerivativeUniqueNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnMax#f90de384", "#f90de384", &TLItem{tag: 0xf90de384, annotations: 0x0, tlName: "statshouseApi.fnMax", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnMaxCountHost#885e665b", "#885e665b", &TLItem{tag: 0x885e665b, annotations: 0x0, tlName: "statshouseApi.fnMaxCountHost", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnMaxHost#b4790064", "#b4790064", &TLItem{tag: 0xb4790064, annotations: 0x0, tlName: "statshouseApi.fnMaxHost", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnMin#b4cb2644", "#b4cb2644", &TLItem{tag: 0xb4cb2644, annotations: 0x0, tlName: "statshouseApi.fnMin", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP01#381b1cee", "#381b1cee", &TLItem{tag: 0x381b1cee, annotations: 0x0, tlName: "statshouseApi.fnP01", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP1#bbb36a23", "#bbb36a23", &TLItem{tag: 0xbbb36a23, annotations: 0x0, tlName: "statshouseApi.fnP1", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP10#56071d39", "#56071d39", &TLItem{tag: 0x56071d39, annotations: 0x0, tlName: "statshouseApi.fnP10", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP25#cf9ad7bf", "#cf9ad7bf", &TLItem{tag: 0xcf9ad7bf, annotations: 0x0, tlName: "statshouseApi.fnP25", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP5#bcdeae3a", "#bcdeae3a", &TLItem{tag: 0xbcdeae3a, annotations: 0x0, tlName: "statshouseApi.fnP5", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP50#77c5de5c", "#77c5de5c", &TLItem{tag: 0x77c5de5c, annotations: 0x0, tlName: "statshouseApi.fnP50", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP75#0e674272", "#0e674272", &TLItem{tag: 0x0e674272, annotations: 0x0, tlName: "statshouseApi.fnP75", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP90#d4c8c793", "#d4c8c793", &TLItem{tag: 0xd4c8c793, annotations: 0x0, tlName: "statshouseApi.fnP90", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP95#9a92b76f", "#9a92b76f", &TLItem{tag: 0x9a92b76f, annotations: 0x0, tlName: "statshouseApi.fnP95", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP99#71992e9a", "#71992e9a", &TLItem{tag: 0x71992e9a, annotations: 0x0, tlName: "statshouseApi.fnP99", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnP999#a3434c26", "#a3434c26", &TLItem{tag: 0xa3434c26, annotations: 0x0, tlName: "statshouseApi.fnP999", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnStddev#2043e480", "#2043e480", &TLItem{tag: 0x2043e480, annotations: 0x0, tlName: "statshouseApi.fnStddev", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnSum#80ce3cf1", "#80ce3cf1", &TLItem{tag: 0x80ce3cf1, annotations: 0x0, tlName: "statshouseApi.fnSum", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnSumNorm#361963d5", "#361963d5", &TLItem{tag: 0x361963d5, annotations: 0x0, tlName: "statshouseApi.fnSumNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnUnique#f20fb854", "#f20fb854", &TLItem{tag: 0xf20fb854, annotations: 0x0, tlName: "statshouseApi.fnUnique", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.fnUniqueNorm#9ceb6f68", "#9ceb6f68", &TLItem{tag: 0x9ceb6f68, annotations: 0x0, tlName: "statshouseApi.fnUniqueNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouseApi.getChunk#52721884", "#52721884", &TLItem{tag: 0x52721884, annotations: 0x8, tlName: "statshouseApi.getChunk", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.chunkResponse#63928b42", "#63928b42", &TLItem{tag: 0x63928b42, annotations: 0x0, tlName: "statshouseApi.chunkResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouseApi.getQuery#0c7349bb", "#0c7349bb", &TLItem{tag: 0x0c7349bb, annotations: 0x10, tlName: "statshouseApi.getQuery", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
+	fillFunction("statshouseApi.getQueryPoint#0c7348bb", "#0c7348bb", &TLItem{tag: 0x0c7348bb, annotations: 0x8, tlName: "statshouseApi.getQueryPoint", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
+	fillObject("statshouseApi.queryPointResponse#4487e41a", "#4487e41a", &TLItem{tag: 0x4487e41a, annotations: 0x0, tlName: "statshouseApi.queryPointResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.pointMeta#5c2bf296", "#5c2bf296", &TLItem{tag: 0x5c2bf296, annotations: 0x0, tlName: "statshouseApi.pointMeta", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.query#c9951bb9", "#c9951bb9", &TLItem{tag: 0xc9951bb9, annotations: 0x0, tlName: "statshouseApi.query", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.queryPoint#c9951bbb", "#c9951bbb", &TLItem{tag: 0xc9951bbb, annotations: 0x0, tlName: "statshouseApi.queryPoint", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouseApi.releaseChunks#62adc773", "#62adc773", &TLItem{tag: 0x62adc773, annotations: 0x20, tlName: "statshouseApi.releaseChunks", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.releaseChunksResponse#d12dc2bd", "#d12dc2bd", &TLItem{tag: 0xd12dc2bd, annotations: 0x0, tlName: "statshouseApi.releaseChunksResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.series#07a3e919", "#07a3e919", &TLItem{tag: 0x07a3e919, annotations: 0x0, tlName: "statshouseApi.series", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouseApi.tagValue#43eeb763", "#43eeb763", &TLItem{tag: 0x43eeb763, annotations: 0x0, tlName: "statshouseApi.tagValue", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.autoCreate#28bea524", "#28bea524", &TLItem{tag: 0x28bea524, annotations: 0x10, tlName: "statshouse.autoCreate", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.centroidFloat#73fd01e0", "#73fd01e0", &TLItem{tag: 0x73fd01e0, annotations: 0x0, tlName: "statshouse.centroidFloat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getConfig2#4285ff57", "#4285ff57", &TLItem{tag: 0x4285ff57, annotations: 0x10, tlName: "statshouse.getConfig2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getConfig3#7d7b4991", "#7d7b4991", &TLItem{tag: 0x7d7b4991, annotations: 0x10, tlName: "statshouse.getConfig3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.getConfigResult3#f13698cb", "#f13698cb", &TLItem{tag: 0xf13698cb, annotations: 0x0, tlName: "statshouse.getConfigResult3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getMetrics3#42855554", "#42855554", &TLItem{tag: 0x42855554, annotations: 0x10, tlName: "statshouse.getMetrics3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.getMetricsResult#0c803d05", "#0c803d05", &TLItem{tag: 0x0c803d05, annotations: 0x0, tlName: "statshouse.getMetricsResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getTagMapping2#4285ff56", "#4285ff56", &TLItem{tag: 0x4285ff56, annotations: 0x10, tlName: "statshouse.getTagMapping2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getTagMappingBootstrap#75a7f68e", "#75a7f68e", &TLItem{tag: 0x75a7f68e, annotations: 0x10, tlName: "statshouse.getTagMappingBootstrap", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.getTagMappingBootstrapResult#486a40de", "#486a40de", &TLItem{tag: 0x486a40de, annotations: 0x0, tlName: "statshouse.getTagMappingBootstrapResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.getTagMappingResult#1a7d91fd", "#1a7d91fd", &TLItem{tag: 0x1a7d91fd, annotations: 0x0, tlName: "statshouse.getTagMappingResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.getTargets2#41df72a3", "#41df72a3", &TLItem{tag: 0x41df72a3, annotations: 0x10, tlName: "statshouse.getTargets2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.ingestion_status2#2e17a6d3", "#2e17a6d3", &TLItem{tag: 0x2e17a6d3, annotations: 0x0, tlName: "statshouse.ingestion_status2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.mapping#bf401d4b", "#bf401d4b", &TLItem{tag: 0xbf401d4b, annotations: 0x0, tlName: "statshouse.mapping", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.metric#3325d884", "#3325d884", &TLItem{tag: 0x3325d884, annotations: 0x0, tlName: "statshouse.metric", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0x0c803e07, annotations: 0x0, tlName: "statshouse.multi_item", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.putTagMappingBootstrapResult#486affde", "#486affde", &TLItem{tag: 0x486affde, annotations: 0x0, tlName: "statshouse.putTagMappingBootstrapResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.sample_factor#4f7b7822", "#4f7b7822", &TLItem{tag: 0x4f7b7822, annotations: 0x0, tlName: "statshouse.sample_factor", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.sendKeepAlive2#4285ff53", "#4285ff53", &TLItem{tag: 0x4285ff53, annotations: 0x10, tlName: "statshouse.sendKeepAlive2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.sendKeepAlive3#4285ff54", "#4285ff54", &TLItem{tag: 0x4285ff54, annotations: 0x10, tlName: "statshouse.sendKeepAlive3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.sendSourceBucket3#0d04aa3f", "#0d04aa3f", &TLItem{tag: 0x0d04aa3f, annotations: 0x10, tlName: "statshouse.sendSourceBucket3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.sendSourceBucket3Response#0e177acc", "#0e177acc", &TLItem{tag: 0x0e177acc, annotations: 0x0, tlName: "statshouse.sendSourceBucket3Response", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.shutdownInfo#4124cf9c", "#4124cf9c", &TLItem{tag: 0x4124cf9c, annotations: 0x0, tlName: "statshouse.shutdownInfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.sourceBucket3#16c4dd7b", "#16c4dd7b", &TLItem{tag: 0x16c4dd7b, annotations: 0x0, tlName: "statshouse.sourceBucket3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouse.testConnection2#4285ff58", "#4285ff58", &TLItem{tag: 0x4285ff58, annotations: 0x10, tlName: "statshouse.testConnection2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.top_element#9ffdea42", "#9ffdea42", &TLItem{tag: 0x9ffdea42, annotations: 0x0, tlName: "statshouse.top_element", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

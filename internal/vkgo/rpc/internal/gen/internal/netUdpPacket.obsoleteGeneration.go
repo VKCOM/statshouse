@@ -69,6 +69,11 @@ func (item NetUdpPacketObsoleteGeneration) String() string {
 }
 
 func (item *NetUdpPacketObsoleteGeneration) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketObsoleteGeneration) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPidPresented bool
 	var propGenerationPresented bool
 
@@ -85,7 +90,7 @@ func (item *NetUdpPacketObsoleteGeneration) ReadJSON(legacyTypeNames bool, in *b
 				if propPidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.obsoleteGeneration", "pid")
 				}
-				if err := item.Pid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Pid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPidPresented = true
@@ -117,18 +122,19 @@ func (item *NetUdpPacketObsoleteGeneration) ReadJSON(legacyTypeNames bool, in *b
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketObsoleteGeneration) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketObsoleteGeneration) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketObsoleteGeneration) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketObsoleteGeneration) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketObsoleteGeneration) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pid":`...)
-	w = item.Pid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Pid.WriteJSONOpt(tctx, w)
 	backupIndexGeneration := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"generation":`...)

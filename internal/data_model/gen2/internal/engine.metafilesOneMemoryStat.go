@@ -42,7 +42,7 @@ func BuiltinVectorEngineMetafilesOneMemoryStatWrite(w []byte, vec []EngineMetafi
 	return w
 }
 
-func BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
+func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -56,7 +56,7 @@ func BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames bool, in 
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -71,13 +71,14 @@ func BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames bool, in 
 }
 
 func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSON(w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
-	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
+func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -107,7 +108,6 @@ func (item *EngineMetafilesOneMemoryStat) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.TotalAioBytes)
 }
 
-// This method is general version of Write, use it instead!
 func (item *EngineMetafilesOneMemoryStat) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
@@ -126,7 +126,6 @@ func (item *EngineMetafilesOneMemoryStat) ReadBoxed(w []byte) (_ []byte, err err
 	return item.Read(w)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *EngineMetafilesOneMemoryStat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
@@ -141,6 +140,11 @@ func (item EngineMetafilesOneMemoryStat) String() string {
 }
 
 func (item *EngineMetafilesOneMemoryStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *EngineMetafilesOneMemoryStat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propMemoryMegabytesPresented bool
 	var propTotalAioQueriesPresented bool
 	var propTotalAioBytesPresented bool
@@ -201,14 +205,15 @@ func (item *EngineMetafilesOneMemoryStat) ReadJSON(legacyTypeNames bool, in *bas
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineMetafilesOneMemoryStat) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *EngineMetafilesOneMemoryStat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *EngineMetafilesOneMemoryStat) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMemoryMegabytes := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

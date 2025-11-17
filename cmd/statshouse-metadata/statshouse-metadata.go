@@ -336,6 +336,8 @@ func run() error {
 		rpc.ServerWithHandler(rpc.ChainHandler(h.Handle, engineHandler.Handle)),
 		rpc.ServerWithSyncHandler(sh.Handle),
 		rpc.ServerWithLogf(log.Printf),
+		// meta is accessible via RPC proxy, so needs some timeout for long poll contexts clean up
+		rpc.ServerWithDefaultResponseTimeout(5*time.Minute),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
 		metrics.ServerWithMetrics,

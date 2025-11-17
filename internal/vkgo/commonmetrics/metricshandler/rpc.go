@@ -19,7 +19,7 @@ func CommonRPC(hctx *rpc.HandlerContext, err error) {
 	var tags statshouse.Tags
 	commonmetrics.AttachBaseS(tags[:])
 	AttachRPC(tags[:], hctx, err)
-	ResponseTimeRaw(tags, time.Since(hctx.RequestTime))
+	ResponseTimeRaw(tags, time.Since(hctx.RequestTime()))
 	ResponseSizeRaw(tags, len(hctx.Response))
 	RequestSizeRaw(tags, len(hctx.Request))
 }

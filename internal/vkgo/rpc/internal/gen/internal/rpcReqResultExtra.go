@@ -157,36 +157,7 @@ func (item *RpcReqResultExtra) Reset() {
 }
 
 func (item *RpcReqResultExtra) FillRandom(rg *basictl.RandGenerator) {
-	var maskFlags uint32
-	maskFlags = basictl.RandomUint(rg)
-	item.Flags = 0
-	if maskFlags&(1<<0) != 0 {
-		item.Flags |= (1 << 0)
-	}
-	if maskFlags&(1<<1) != 0 {
-		item.Flags |= (1 << 1)
-	}
-	if maskFlags&(1<<2) != 0 {
-		item.Flags |= (1 << 2)
-	}
-	if maskFlags&(1<<3) != 0 {
-		item.Flags |= (1 << 3)
-	}
-	if maskFlags&(1<<4) != 0 {
-		item.Flags |= (1 << 4)
-	}
-	if maskFlags&(1<<5) != 0 {
-		item.Flags |= (1 << 5)
-	}
-	if maskFlags&(1<<6) != 0 {
-		item.Flags |= (1 << 6)
-	}
-	if maskFlags&(1<<7) != 0 {
-		item.Flags |= (1 << 14)
-	}
-	if maskFlags&(1<<8) != 0 {
-		item.Flags |= (1 << 27)
-	}
+	item.Flags = basictl.RandomFieldMask(rg, 0b1000000000000100000001111111)
 	if item.Flags&(1<<0) != 0 {
 		item.BinlogPos = basictl.RandomLong(rg)
 	} else {
@@ -391,6 +362,11 @@ func (item RpcReqResultExtra) String() string {
 }
 
 func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *RpcReqResultExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propBinlogPosPresented bool
 	var propBinlogTimePresented bool
@@ -441,7 +417,7 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 				if propEnginePidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "engine_pid")
 				}
-				if err := item.EnginePid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.EnginePid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propEnginePidPresented = true
@@ -481,7 +457,7 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 				if propStatsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "stats")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Stats); err != nil {
+				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Stats); err != nil {
 					return err
 				}
 				propStatsPresented = true
@@ -489,7 +465,7 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 				if propShardsBinlogPosPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "shards_binlog_pos")
 				}
-				if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, &item.ShardsBinlogPos); err != nil {
+				if err := BuiltinVectorDictionaryFieldLongReadJSONGeneral(tctx, in, &item.ShardsBinlogPos); err != nil {
 					return err
 				}
 				propShardsBinlogPosPresented = true
@@ -592,14 +568,15 @@ func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *RpcReqResultExtra) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *RpcReqResultExtra) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *RpcReqResultExtra) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *RpcReqResultExtra) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -621,7 +598,7 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_pid":`...)
-		w = item.EnginePid.WriteJSONOpt(newTypeNames, short, w)
+		w = item.EnginePid.WriteJSONOpt(tctx, w)
 	}
 	if item.Flags&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -646,12 +623,12 @@ func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []b
 	if item.Flags&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stats":`...)
-		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats)
+		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Stats)
 	}
 	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"shards_binlog_pos":`...)
-		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos)
+		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(tctx, w, item.ShardsBinlogPos)
 	}
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

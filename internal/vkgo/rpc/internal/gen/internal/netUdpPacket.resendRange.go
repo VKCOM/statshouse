@@ -15,7 +15,7 @@ var _ = basictl.NatWrite
 
 func BuiltinVectorNetUdpPacketResendRangeFillRandom(rg *basictl.RandGenerator, vec *[]NetUdpPacketResendRange) {
 	rg.IncreaseDepth()
-	l := rg.LimitValue(basictl.RandomUint(rg))
+	l := basictl.RandomSize(rg)
 	*vec = make([]NetUdpPacketResendRange, l)
 	for i := range *vec {
 		(*vec)[i].FillRandom(rg)
@@ -51,7 +51,7 @@ func BuiltinVectorNetUdpPacketResendRangeWrite(w []byte, vec []NetUdpPacketResen
 	return w
 }
 
-func BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]NetUdpPacketResendRange) error {
+func BuiltinVectorNetUdpPacketResendRangeReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]NetUdpPacketResendRange) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -65,7 +65,7 @@ func BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames bool, in *basi
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -80,13 +80,14 @@ func BuiltinVectorNetUdpPacketResendRangeReadJSON(legacyTypeNames bool, in *basi
 }
 
 func BuiltinVectorNetUdpPacketResendRangeWriteJSON(w []byte, vec []NetUdpPacketResendRange) []byte {
-	return BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(true, false, w, vec)
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []NetUdpPacketResendRange) []byte {
+func BuiltinVectorNetUdpPacketResendRangeWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []NetUdpPacketResendRange) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(newTypeNames, short, w)
+		w = elem.WriteJSONOpt(tctx, w)
 	}
 	return append(w, ']')
 }
@@ -147,6 +148,11 @@ func (item NetUdpPacketResendRange) String() string {
 }
 
 func (item *NetUdpPacketResendRange) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketResendRange) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPacketNumFromPresented bool
 	var propPacketNumToPresented bool
 
@@ -195,14 +201,15 @@ func (item *NetUdpPacketResendRange) ReadJSON(legacyTypeNames bool, in *basictl.
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketResendRange) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketResendRange) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketResendRange) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketResendRange) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketResendRange) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPacketNumFrom := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

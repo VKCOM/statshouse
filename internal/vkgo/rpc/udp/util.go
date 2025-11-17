@@ -9,7 +9,10 @@ package udp
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"hash/crc64"
+	"net/netip"
+	"strconv"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnet"
@@ -20,7 +23,7 @@ var (
 	ecmaTable = crc64.MakeTable(crc64.ECMA)
 )
 
-func CalcHash(localPid *tlnet.Pid, remotePid *tlnet.Pid, generation uint32) uint64 {
+func CalcHash(localPid tlnet.Pid, remotePid tlnet.Pid, generation uint32) uint64 {
 	var buffer []byte
 	var byteLocalPid []byte
 	var byteRemotePid []byte
@@ -74,4 +77,48 @@ func CopyIVFrom(vec *[8]uint32, w [32]byte) {
 	(*vec)[5] = binary.LittleEndian.Uint32(w[20:])
 	(*vec)[6] = binary.LittleEndian.Uint32(w[24:])
 	(*vec)[7] = binary.LittleEndian.Uint32(w[28:])
+}
+
+func getIpUint32(addr netip.AddrPort) uint32 {
+	ipBytes := addr.Addr().As4()
+	return binary.BigEndian.Uint32(ipBytes[:])
+}
+
+func ipPortFromAddr(addr netip.AddrPort) (ip uint32, port uint16) {
+	return getIpUint32(addr), addr.Port()
+}
+
+func portFromNetPid(pid tlnet.Pid) uint16 {
+	return uint16(pid.PortPid & ((1 << 16) - 1))
+}
+
+func processIdFromNetPid(pid tlnet.Pid) uint16 {
+	return uint16(pid.PortPid >> 16)
+}
+
+func ipPortFromNetPid(pid tlnet.Pid) (ip uint32, port uint16) {
+	return pid.Ip, portFromNetPid(pid)
+}
+
+func ipToBytes(ip uint32) [4]byte {
+	ipBytes := [4]byte{}
+	binary.BigEndian.PutUint32(ipBytes[:], ip)
+	return ipBytes
+}
+
+func printPid(pid tlnet.Pid) string {
+	return fmt.Sprintf("%+v (ip: %d, port: %d, PID: %d, utime: %d)", pid, pid.Ip, portFromNetPid(pid), processIdFromNetPid(pid), pid.Utime)
+}
+
+// Addr is UDP address that satisfies the Addr interface.
+type Addr struct {
+	Ip   uint32
+	Port uint16
+}
+
+func (n Addr) Network() string { return "udp" }
+
+func (n Addr) String() string {
+	ipBytes := ipToBytes(n.Ip)
+	return netip.AddrFrom4(ipBytes).String() + ":" + strconv.Itoa(int(n.Port))
 }

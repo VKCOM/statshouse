@@ -17,58 +17,48 @@ import (
 
 type IncomingMessage struct {
 	data      *[]byte
-	size      uint32 // size equal to len(*data) when IncomingMessage owns data pointer
+	seqNo     uint32
+	parts     uint32
 	remaining uint32
 }
 
 // IncomingChunk seqNo is index in IncomingConnection windowData
 type IncomingChunk struct {
 	message     *IncomingMessage
-	payload     []byte
-	prevParts   uint32
-	nextParts   uint32
-	chunkOffset int64
-	prevLength  uint32
-	nextLength  uint32
-
-	received bool
+	messageSize uint32
 }
+
+func (c IncomingChunk) received() bool {
+	return c.messageSize > 0
+}
+
+// when we receive chunks without prev and next parts
+// and call handler from read buffer, we set message pointer to this fake message
+var fakeMessage = IncomingMessage{}
 
 type IncomingConnection struct {
 	transport *Transport
 	conn      *Connection
 
-	inMemoryWaitersQueue     bool
-	requestedMemorySize      int64
-	requestedChunk           IncomingChunk
-	requestedChunkSeqNo      uint32
-	requestedChunkDataReused []byte
-
-	// TODO replace with IncomingConnectionConfig
-	maxChunkSize  int
-	maxWindowSize int
-
-	firstMessageOffset int64
+	// we use this slice to avoid escaping the `payload` slice to heap in receiveMessageChunk
+	chunkPayloadForMyFriendEscapeAnalyzer []byte
 
 	// Every chunk can have 3 states
-	// 1) Not received and has no pointer to message
-	// 2) Not received but has pointer to message and correct prevParts and nextParts
-	// 3) Received and has all correct fields
-	windowChunks      algo.CircularSlice[IncomingChunk]
-	ackPrefix         uint32 // seqNo of first chunk in windowChunks
-	messagesTotalSize int64
-
-	messagesPool []*IncomingMessage
-	// when we receive chunks without prev and next parts
-	// and call handler from read buffer, we set message pointer to this fake message
-	fakeMessage IncomingMessage
-
-	chunk IncomingChunk
+	// 1) has no pointer to message:                    no chunk of this message is received
+	// 2) has pointer to message but messageSize == 0:  not received
+	// 3) has message pointer and messageSize > 0:      received
+	windowChunks         algo.TreeMap[uint32, IncomingChunk, seqNumCompT]
+	ackPrefix            uint32 // seqNo of first chunk in windowChunks
+	nextSeqNo            uint32 // seqNo of first chunk after windowChunks
+	messagesBeginOffset  int64
+	messagesTotalOffset  int64
+	inMemoryWaitersQueue bool
+	requestedMemorySize  int64
 
 	windowControl int64 // seqNo of first chunk that sender should not send
 }
 
-func handleUdpMsgIfAny(data []byte, resendReq *tlnetUdpPacket.ResendRequest) bool {
+func handleUdpMsgIfAny(t *Transport, data []byte, resendReq *tlnetUdpPacket.ResendRequest) bool {
 	if len(data) >= 4 {
 		var tag uint32
 		_, err := basictl.NatRead(data, &tag)
@@ -80,14 +70,17 @@ func handleUdpMsgIfAny(data []byte, resendReq *tlnetUdpPacket.ResendRequest) boo
 		case tlnetUdpPacket.ObsoletePid{}.TLTag():
 			// We do not deserialize obsolete pid and do not compare it with our known remote pid, because
 			// if we really have obsolete remote pid, we close connection in processIncomingDatagramPid
+			t.stats.ObsoletePidReceived.Add(1)
 			return true
 		case tlnetUdpPacket.ObsoleteGeneration{}.TLTag():
 			// We do not deserialize obsolete generation and do not compare it with ours, because
 			// if we really have obsolete generation, we update it in processIncomingDatagramPid
+			t.stats.ObsoleteGenerationReceived.Add(1)
 			return true
 		case tlnetUdpPacket.ObsoleteHash{}.TLTag():
 			// We do not deserialize obsolete hash and do not compare it with ours, because
 			// if we really have obsolete hash, we update remote pid at first and then recalculate new hash
+			t.stats.ObsoleteHashReceived.Add(1)
 			return true
 		case tlnetUdpPacket.ResendRequest{}.TLTag():
 			if resendReq == nil {
@@ -98,82 +91,114 @@ func handleUdpMsgIfAny(data []byte, resendReq *tlnetUdpPacket.ResendRequest) boo
 				// TODO
 				log.Panicf("incorrect resend request: %+v", err)
 			}
+			t.stats.ResendRequestReceived.Add(1)
 			return true
-		case 0x6e321c96:
+		case 0x6e321c96: // udp wait
 			return true
 		}
 	}
 	return false
 }
 
-func (c *IncomingConnection) ReceiveMessageChunk(resendReq *tlnetUdpPacket.ResendRequest, seqNo uint32) bool {
+func (c *IncomingConnection) receiveMessageChunk(
+	resendReq *tlnetUdpPacket.ResendRequest,
+	seqNo uint32,
+	prevParts uint32,
+	nextParts uint32,
+	chunkOffset int64,
+	prevLength uint32,
+	nextLength uint32,
+	chunk IncomingChunk,
+	payload []byte,
+) bool {
 	if seqNo == ^uint32(0) {
-		if !handleUdpMsgIfAny(c.chunk.payload, resendReq) {
+		c.transport.stats.UnreliableMessagesReceived.Add(1)
+		if !handleUdpMsgIfAny(c.transport, payload, resendReq) {
 			// We do not call c.conn.MessageHandle(&chunk.payload, false), because this will force escape analyzer to allocate chunk on heap
-			c.fakeMessage.data = &c.chunk.payload
-			// Should we allow call handler on unreliable udp messages or restrict it?
-			c.conn.MessageHandle(c.fakeMessage.data, false)
+			c.chunkPayloadForMyFriendEscapeAnalyzer = payload
+			c.conn.MessageHandle(&c.chunkPayloadForMyFriendEscapeAnalyzer, false)
+			c.chunkPayloadForMyFriendEscapeAnalyzer = nil
+			// we do not increment c.transport.stats.MessageHandlerCalled, because it is unreliable message
 		}
 		return true
 	}
 	if seqNo < c.ackPrefix {
 		return true
 	}
-	if !c.ensureWindowSize(c.chunk, seqNo) {
+	if !c.ensureWindowSize(seqNo, prevParts, nextParts, chunkOffset, prevLength, nextLength, chunk, payload) {
 		return false
 	}
 
-	chunkIndex := int(seqNo - c.ackPrefix)
-	chunkWas := c.windowChunks.Index(chunkIndex)
-	if !chunkWas.received {
+	chunkWas, _ := c.windowChunks.Get(seqNo)
+	if !chunkWas.received() {
 		message := chunkWas.message
 		if message == nil {
-			if c.chunk.prevParts == 0 && c.chunk.nextParts == 0 && !c.conn.StreamLikeIncoming {
+			c.transport.stats.NewIncomingMessages.Add(1)
+			c.transport.stats.IncomingMessagesInflight.Add(1)
+			if prevParts == 0 && nextParts == 0 && !c.conn.StreamLikeIncoming {
 				// optimization for small one-chunk messages: call handler right from read buffer
 				// without allocation of IncomingMessage and its data slice
-				c.conn.MessageHandle(&c.chunk.payload, false)
+				c.chunkPayloadForMyFriendEscapeAnalyzer = payload
+				c.conn.MessageHandle(&c.chunkPayloadForMyFriendEscapeAnalyzer, false)
+				c.chunkPayloadForMyFriendEscapeAnalyzer = nil
 
-				c.chunk.message = &c.fakeMessage
-				c.chunk.received = true
-				*c.windowChunks.IndexRef(chunkIndex) = c.chunk
+				c.transport.stats.MessageHandlerCalled.Add(1)
+				c.transport.stats.MessageReleased.Add(1)
+				c.transport.releaseMemory(int64(len(payload)))
+				c.transport.stats.IncomingMessagesInflight.Add(-1)
+				chunk.message = &fakeMessage
+				chunk.messageSize = uint32(len(payload))
+				c.windowChunks.Set(seqNo, chunk)
 
 				c.moveWindowPrefix()
 				return true
 			}
 
-			if n := len(c.messagesPool) - 1; n >= 0 {
-				message = c.messagesPool[n]
-				c.messagesPool = c.messagesPool[:n]
+			if n := len(c.transport.incomingMessagesPool) - 1; n >= 0 {
+				message = c.transport.incomingMessagesPool[n]
+				c.transport.incomingMessagesPool = c.transport.incomingMessagesPool[:n]
 			} else {
 				message = &IncomingMessage{}
 			}
 
-			message.size = c.chunk.prevLength + uint32(len(c.chunk.payload)) + c.chunk.nextLength
-			message.data = c.transport.messageAllocator(int(message.size))
-			message.remaining = c.chunk.prevParts + 1 + c.chunk.nextParts
+			messageSize := prevLength + uint32(len(payload)) + nextLength
+			message.data = c.transport.messageAllocator(int(messageSize))
+			message.seqNo = seqNo - prevParts
+			message.parts = prevParts + 1 + nextParts
+			message.remaining = message.parts
 
-			firstChunkIndex := max(0, chunkIndex-int(c.chunk.prevParts))
-			lastChunkIndex := min(c.windowChunks.Len()-1, chunkIndex+int(c.chunk.nextParts))
-			for i := firstChunkIndex; i <= lastChunkIndex; i++ {
-				c.windowChunks.IndexRef(i).message = message
-				seqNoDelta := uint32(chunkIndex - i)
-				c.windowChunks.IndexRef(i).prevParts = c.chunk.prevParts - seqNoDelta
-				c.windowChunks.IndexRef(i).nextParts = c.chunk.nextParts + seqNoDelta
+			firstChunkSeqNo := max(c.ackPrefix, seqNo-prevParts)
+			lastChunkSeqNo := min(c.nextSeqNo-1, seqNo+nextParts)
+			for s := firstChunkSeqNo; s <= lastChunkSeqNo; s++ {
+				chunkPtr := c.windowChunks.GetPtr(s)
+				if chunkPtr == nil {
+					c.windowChunks.Set(s, IncomingChunk{
+						message:     message,
+						messageSize: 0,
+					})
+				} else {
+					chunkPtr.message = message
+				}
 			}
 		}
 
-		c.chunk.message = message
-		c.chunk.received = true
-		*c.windowChunks.IndexRef(chunkIndex) = c.chunk
+		chunk.message = message
+		chunk.messageSize = uint32(len(*message.data))
+		c.windowChunks.Set(seqNo, chunk)
 
-		copy((*message.data)[c.chunk.prevLength:], c.chunk.payload)
-		// TODO clear chunk.payload field to reduce read buffer pointers count
+		copy((*message.data)[prevLength:], payload)
 		message.remaining--
 		if message.remaining == 0 {
 			if !c.conn.StreamLikeIncoming {
-				if !handleUdpMsgIfAny(*message.data, nil) {
+				messageSize := int64(len(*message.data))
+				if !handleUdpMsgIfAny(c.transport, *message.data, nil) {
 					c.conn.MessageHandle(message.data, true)
 				}
+				c.transport.stats.MessageHandlerCalled.Add(1)
+				c.transport.stats.MessageReleased.Add(1)
+				c.transport.releaseMemory(messageSize)
+				c.transport.stats.IncomingMessagesInflight.Add(-1)
+				message.data = nil
 			}
 		}
 
@@ -184,71 +209,80 @@ func (c *IncomingConnection) ReceiveMessageChunk(resendReq *tlnetUdpPacket.Resen
 
 // OnAcquiredMemory called from Transport::checkMemoryWaiters when there is enough free memory
 func (c *IncomingConnection) OnAcquiredMemory() {
-	c.extendWindow(int(c.requestedChunkSeqNo - c.ackPrefix + 1))
-	c.messagesTotalSize += c.requestedMemorySize
-	c.chunk = c.requestedChunk
-	c.ReceiveMessageChunk(nil, c.requestedChunkSeqNo)
+	c.messagesTotalOffset += c.requestedMemorySize
+	c.requestedMemorySize = 0
 }
 
 func (c *IncomingConnection) moveWindowPrefix() {
-	for c.windowChunks.Len() > 0 && c.windowChunks.Front().received {
-		chunk := c.windowChunks.Front()
+	for {
+		if c.windowChunks.Empty() {
+			return
+		}
+		frontEntry := c.windowChunks.Front()
+		chunk := frontEntry.V
+		if c.ackPrefix < frontEntry.K || !chunk.received() {
+			return
+		}
+
 		message := chunk.message
-		c.windowChunks.PopFront()
+		c.windowChunks.Delete(frontEntry.K)
 		c.ackPrefix++
 
-		if chunk.nextParts > 0 {
-			// To leave pointer to message
-			if c.windowChunks.Len() == 0 {
-				c.windowChunks.PushBack(IncomingChunk{})
+		if chunk.message != &fakeMessage && c.ackPrefix < chunk.message.seqNo+chunk.message.parts {
+			if c.windowChunks.Empty() {
+				// To leave pointer to message
+				c.windowChunks.Set(c.nextSeqNo, IncomingChunk{message, 0})
+				c.nextSeqNo++
 			}
-			nextChunk := c.windowChunks.IndexRef(0)
-			nextChunk.message = message
-			nextChunk.prevParts = chunk.prevParts + 1
-			nextChunk.nextParts = chunk.nextParts - 1
 		} else {
 			if c.conn.StreamLikeIncoming {
-				if !handleUdpMsgIfAny(*message.data, nil) {
+				messageSize := int64(len(*message.data))
+				// `chunk` is the last chunk of message, so it's time to call handler
+				if !handleUdpMsgIfAny(c.transport, *message.data, nil) {
 					c.conn.MessageHandle(message.data, true)
 				}
+				c.transport.stats.MessageHandlerCalled.Add(1)
+				c.transport.stats.MessageReleased.Add(1)
+				c.transport.releaseMemory(messageSize)
+				c.transport.stats.IncomingMessagesInflight.Add(-1)
+				message.data = nil
 			}
-			var messageSize uint32
-			if message == &c.fakeMessage {
-				messageSize = uint32(len(chunk.payload))
-			} else {
-				messageSize = message.size
-				c.messagesPool = append(c.messagesPool, message)
+			messageSize := chunk.messageSize
+			if message != &fakeMessage {
+				c.transport.incomingMessagesPool = append(c.transport.incomingMessagesPool, message)
 			}
-			c.firstMessageOffset += int64(messageSize)
-			c.messagesTotalSize -= int64(messageSize)
-			c.transport.releaseMemory(int64(messageSize))
+			c.messagesBeginOffset += int64(messageSize)
 		}
 	}
 }
 
-func (c *IncomingConnection) ensureWindowSize(chunk IncomingChunk, seqNo uint32) bool {
-	chunkIndex := int(seqNo - c.ackPrefix)
-	if chunkIndex < c.windowChunks.Len() {
+func (c *IncomingConnection) ensureWindowSize(
+	seqNo uint32,
+	prevParts uint32,
+	nextParts uint32,
+	chunkOffset int64,
+	prevLength uint32,
+	nextLength uint32,
+	chunk IncomingChunk,
+	payload []byte,
+) bool {
+	if seqNo < c.nextSeqNo {
 		return true
 	}
 
-	if chunkIndex >= c.maxWindowSize {
+	if int(seqNo-c.ackPrefix+1) > c.transport.maxIncomingWindowSize {
 		return false
 	}
 
-	messageEndOffset := chunk.chunkOffset + int64(len(chunk.payload)) + int64(chunk.nextLength)
-	needMessagesTotalSize := messageEndOffset - c.firstMessageOffset
-	if needMessagesTotalSize < 0 {
-		log.Panicf("incorrect chunk.chunkOffset or chunk.nextLength: new message end offset %d < first message offset %d", messageEndOffset, c.firstMessageOffset)
-	}
-	needMemoryDelta := needMessagesTotalSize - c.messagesTotalSize
-	if needMemoryDelta == 0 {
-		// no new messages
-		c.extendWindow(chunkIndex + 1)
+	messageEndOffset := chunkOffset + int64(len(payload)) + int64(nextLength)
+	needMemoryDelta := messageEndOffset - c.messagesTotalOffset
+	if needMemoryDelta <= 0 {
+		// enough memory
+		c.extendWindow(seqNo)
 		return true
 	}
 
-	if c.inMemoryWaitersQueue {
+	if c.conn.incoming.inMemoryWaitersQueue {
 		if needMemoryDelta >= c.requestedMemorySize {
 			// we will better not request more memory than we wanted earlier
 			// TODO window control ?????
@@ -258,47 +292,41 @@ func (c *IncomingConnection) ensureWindowSize(chunk IncomingChunk, seqNo uint32)
 	}
 
 	c.requestedMemorySize = needMemoryDelta
-	c.requestedChunk = chunk
-	c.requestedChunkSeqNo = seqNo
-	c.requestedChunkDataReused = algo.ResizeSlice(c.requestedChunkDataReused, len(chunk.payload))
-	copy(c.requestedChunkDataReused, chunk.payload)
-	c.requestedChunk.payload = c.requestedChunkDataReused
-	c.requestedChunkDataReused = c.requestedChunkDataReused[:0]
-
-	if !c.transport.tryAcquireMemory(c) {
+	if !c.transport.tryAcquireMemory(c.conn) {
 		// window control just at the beginning of this chunk message
-		c.windowControl = int64(seqNo - chunk.prevParts)
+		c.windowControl = int64(seqNo - prevParts)
 		return false
 	}
 
-	c.extendWindow(chunkIndex + 1)
-	c.messagesTotalSize += c.requestedMemorySize
+	c.extendWindow(seqNo)
+	c.messagesTotalOffset += c.requestedMemorySize
 
 	c.requestedMemorySize = 0
-	c.requestedChunk = IncomingChunk{}
-	c.requestedChunkSeqNo = 0
 	return true
 }
 
-func (c *IncomingConnection) extendWindow(size int) {
+func (c *IncomingConnection) extendWindow(seqNo uint32) {
 	c.windowControl = -1
-	if c.windowChunks.Cap() < size {
-		c.windowChunks.Reserve(max(size, c.windowChunks.Cap()*2)) // to amortize reallocate overhead
-	}
-	// create all chunks before current
-	for i := c.windowChunks.Len(); i < size; i++ {
-		thisChunk := IncomingChunk{}
-		if i > 0 {
-			prevChunk := c.windowChunks.Index(i - 1)
-			// if previous chunk is part of our message and has message pointer
-			// then we can set pointer to existing message
-			if prevChunk.message != nil && prevChunk.nextParts > 0 {
-				thisChunk.message = prevChunk.message
-				thisChunk.prevParts = prevChunk.prevParts + 1
-				thisChunk.nextParts = prevChunk.nextParts - 1
-			}
+	var lastMessage *IncomingMessage
+	var lastMessageChunkSeqNo uint32
+	if !c.windowChunks.Empty() {
+		lastMessage = c.windowChunks.Back().V.message
+		if lastMessage == &fakeMessage {
+			lastMessage = nil
+		} else if lastMessage != nil {
+			lastMessageChunkSeqNo = lastMessage.seqNo + lastMessage.parts - 1
 		}
-		c.windowChunks.PushBack(thisChunk)
+	}
+	// to propagate last message pointer till necessary
+	if lastMessage != nil {
+		for c.nextSeqNo <= min(seqNo, lastMessageChunkSeqNo) {
+			c.windowChunks.Set(c.nextSeqNo, IncomingChunk{message: lastMessage})
+			c.nextSeqNo++
+		}
+	}
+	if lastMessage == nil || lastMessageChunkSeqNo < seqNo {
+		c.windowChunks.Set(seqNo, IncomingChunk{})
+		c.nextSeqNo = seqNo + 1
 	}
 }
 
@@ -358,19 +386,19 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 			nextLength = enc.NextLength
 		}
 
-		c.chunk = IncomingChunk{
-			message:     nil,
-			payload:     packet[:partSize],
-			prevParts:   prev,
-			nextParts:   next,
-			chunkOffset: offset,
-			prevLength:  prevLength,
-			nextLength:  nextLength,
-			received:    false,
+		chunk := IncomingChunk{
+			message: nil,
 		}
-		received := c.ReceiveMessageChunk(
+		received := c.receiveMessageChunk(
 			resendReq,
 			seqNo,
+			prev,
+			next,
+			offset,
+			prevLength,
+			nextLength,
+			chunk,
+			packet[:partSize],
 		)
 		if received {
 			if !anyReceived {
@@ -399,10 +427,4 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 	}
 
 	return nil
-}
-
-func (c *IncomingConnection) haveHoles() bool {
-	// first chunk in window is never received (invariant)
-	// when windowChunks.Len() > 1, then last chunk in window is always received (invariant)
-	return c.windowChunks.Len() > 1
 }

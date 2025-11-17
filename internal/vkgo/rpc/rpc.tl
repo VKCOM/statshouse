@@ -74,6 +74,7 @@ rpcInvokeReqExtra#f3ef81a9
   return_failed_subqueries:flags.4?%True
   return_query_stats:flags.6?%True
   no_result:flags.7?%True // Currently for proxy only. Client goes to proxy, it clears this bit and sends query to engine. Client does not wait for answer.
+  must_be_master:flags.8?%True // The engine should execute the query only if it is ready master, otherwise it should respond with TL_ERROR_NOT_MASTER error
   return_shards_binlog_pos:flags.14?%True
   // Bits 17, 22, 24 was used in before, but their support was dropped
   wait_shards_binlog_pos:flags.15?%(Dictionary long)
@@ -169,6 +170,8 @@ netUdpPacket.encHeader#251a7bfd
   next_length:flags.25?#
   single_rpc_msg:flags.26?%True
   multiple_rpc_msgs:flags.27?%True
+  zero_padding_1_byte:flags.18?%True
+  zero_padding_2_bytes:flags.19?%True
   zero_padding_4_bytes:flags.28?%True
   zero_padding_8_bytes:flags.29?%True
   packet_offset:flags.30?long

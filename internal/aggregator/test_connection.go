@@ -36,11 +36,11 @@ type testConnectionClient struct {
 
 type TestConnection struct {
 	clientsMu             sync.Mutex // Always taken after mu
-	testConnectionClients map[*rpc.HandlerContext]testConnectionClient
+	testConnectionClients map[rpc.LongpollHandle]testConnectionClient
 }
 
 func MakeTestConnection() *TestConnection {
-	result := &TestConnection{testConnectionClients: map[*rpc.HandlerContext]testConnectionClient{}}
+	result := &TestConnection{testConnectionClients: map[rpc.LongpollHandle]testConnectionClient{}}
 	go result.goRun()
 	return result
 }
@@ -52,30 +52,45 @@ func (ms *TestConnection) goRun() {
 	}
 }
 
-func (ms *TestConnection) CancelHijack(hctx *rpc.HandlerContext) {
+func (ms *TestConnection) CancelLongpoll(lh rpc.LongpollHandle) {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	delete(ms.testConnectionClients, hctx)
+	delete(ms.testConnectionClients, lh)
+}
+
+func (ms *TestConnection) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	ms.clientsMu.Lock()
+	defer ms.clientsMu.Unlock()
+	tcc, ok := ms.testConnectionClients[lh]
+	if !ok {
+		return nil
+	}
+	delete(ms.testConnectionClients, lh)
+	var err error
+	hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
+	return err
 }
 
 func (ms *TestConnection) broadcastResponses() {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
 	now := time.Now()
-	for hctx, tcc := range ms.testConnectionClients {
-		if now.Sub(tcc.requestTime) < time.Duration(tcc.args.ResponseTimeoutSec)*time.Second { // still waiting, copy to start of array
+	for lh, tcc := range ms.testConnectionClients {
+		if now.Sub(tcc.requestTime) < time.Duration(tcc.args.ResponseTimeoutSec)*time.Second { // still waiting
 			continue
 		}
-		delete(ms.testConnectionClients, hctx)
-		var err error
-		hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
-		hctx.SendHijackedResponse(err)
+		delete(ms.testConnectionClients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			var err error
+			hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
+			hctx.SendLongpollResponse(err)
+		}
 	}
 }
 
 func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext) error {
 	var tcc testConnectionClient
-	tcc.requestTime = hctx.RequestTime
+	tcc.requestTime = hctx.RequestTime()
 	_, err := tcc.args.Read(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
@@ -87,7 +102,7 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 		return fmt.Errorf("max supported response_timeout_sec is %d", MaxTestResponseTimeoutSec)
 	}
 	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime.UnixNano()))
+	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime().UnixNano()))
 	hctx.Response, _ = tcc.args.WriteResult(hctx.Response, buf[:])
 	if tcc.args.ResponseTimeoutSec <= 0 {
 		hctx.Response = append(hctx.Response, testResponse[:tcc.args.ResponseSize]...) // approximate
@@ -95,6 +110,7 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.testConnectionClients[hctx] = tcc
-	return hctx.HijackResponse(ms)
+	lh, hijackErr := hctx.StartLongpoll(ms)
+	ms.testConnectionClients[lh] = tcc
+	return hijackErr
 }

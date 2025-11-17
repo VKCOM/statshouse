@@ -62,6 +62,11 @@ func (item ExactlyOnceAckResponse) String() string {
 }
 
 func (item *ExactlyOnceAckResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *ExactlyOnceAckResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPersistentQueryUuidPresented bool
 
 	if in != nil {
@@ -77,7 +82,7 @@ func (item *ExactlyOnceAckResponse) ReadJSON(legacyTypeNames bool, in *basictl.J
 				if propPersistentQueryUuidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("exactlyOnce.ackResponse", "persistent_query_uuid")
 				}
-				if err := item.PersistentQueryUuid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.PersistentQueryUuid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propPersistentQueryUuidPresented = true
@@ -98,18 +103,19 @@ func (item *ExactlyOnceAckResponse) ReadJSON(legacyTypeNames bool, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *ExactlyOnceAckResponse) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *ExactlyOnceAckResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *ExactlyOnceAckResponse) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *ExactlyOnceAckResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *ExactlyOnceAckResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"persistent_query_uuid":`...)
-	w = item.PersistentQueryUuid.WriteJSONOpt(newTypeNames, short, w)
+	w = item.PersistentQueryUuid.WriteJSONOpt(tctx, w)
 	return append(w, '}')
 }
 

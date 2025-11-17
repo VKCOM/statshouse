@@ -34,7 +34,7 @@ func (item *StatshouseApiGetQueryResponse) SetExcessPointLeft(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item StatshouseApiGetQueryResponse) IsSetExcessPointLeft() bool {
+func (item *StatshouseApiGetQueryResponse) IsSetExcessPointLeft() bool {
 	return item.FieldsMask&(1<<0) != 0
 }
 
@@ -45,7 +45,7 @@ func (item *StatshouseApiGetQueryResponse) SetExcessPointRight(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item StatshouseApiGetQueryResponse) IsSetExcessPointRight() bool {
+func (item *StatshouseApiGetQueryResponse) IsSetExcessPointRight() bool {
 	return item.FieldsMask&(1<<1) != 0
 }
 
@@ -80,7 +80,6 @@ func (item *StatshouseApiGetQueryResponse) Read(w []byte, nat_query_fields_mask 
 	return w, nil
 }
 
-// This method is general version of Write, use it instead!
 func (item *StatshouseApiGetQueryResponse) WriteGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	return item.Write(w, nat_query_fields_mask), nil
 }
@@ -102,7 +101,6 @@ func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte, nat_query_fields_
 	return item.Read(w, nat_query_fields_mask)
 }
 
-// This method is general version of WriteBoxed, use it instead!
 func (item *StatshouseApiGetQueryResponse) WriteBoxedGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	return item.WriteBoxed(w, nat_query_fields_mask), nil
 }
@@ -112,7 +110,7 @@ func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte, nat_query_fields
 	return item.Write(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
+func (item *StatshouseApiGetQueryResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
 	var propFieldsMaskPresented bool
 	var propSeriesPresented bool
 	var rawSeriesMeta []byte
@@ -145,7 +143,7 @@ func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *ba
 				if propSeriesPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "series")
 				}
-				if err := item.Series.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.Series.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propSeriesPresented = true
@@ -161,7 +159,7 @@ func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *ba
 				if propChunkIdsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "chunk_ids")
 				}
-				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.ChunkIds); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.ChunkIds); err != nil {
 					return err
 				}
 				propChunkIdsPresented = true
@@ -237,30 +235,31 @@ func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *ba
 	if rawSeriesMeta != nil {
 		inSeriesMetaPointer = &inSeriesMeta
 	}
-	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames, inSeriesMetaPointer, &item.SeriesMeta, nat_query_fields_mask); err != nil {
+	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx, inSeriesMetaPointer, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return err
 	}
 
 	// tries to set bit to zero if it is 1
 	if trueTypeExcessPointLeftPresented && !trueTypeExcessPointLeftValue && (item.FieldsMask&(1<<0) != 0) {
-		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit item.FieldsMask.0 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeExcessPointRightPresented && !trueTypeExcessPointRightValue && (item.FieldsMask&(1<<1) != 0) {
-		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit item.FieldsMask.1 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiGetQueryResponse) WriteJSONGeneral(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask), nil
+func (item *StatshouseApiGetQueryResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_query_fields_mask), nil
 }
 
 func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) []byte {
-	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) []byte {
+func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -271,18 +270,18 @@ func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series":`...)
-	w = item.Series.WriteJSONOpt(newTypeNames, short, w)
+	w = item.Series.WriteJSONOpt(tctx, w)
 	backupIndexSeriesMeta := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series_meta":`...)
-	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames, short, w, item.SeriesMeta, nat_query_fields_mask)
+	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(tctx, w, item.SeriesMeta, nat_query_fields_mask)
 	if (len(item.SeriesMeta) != 0) == false {
 		w = w[:backupIndexSeriesMeta]
 	}
 	backupIndexChunkIds := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"chunk_ids":`...)
-	w = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.ChunkIds)
+	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.ChunkIds)
 	if (len(item.ChunkIds) != 0) == false {
 		w = w[:backupIndexChunkIds]
 	}

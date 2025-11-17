@@ -53,6 +53,7 @@ func newUdpClient(client *ClientImpl) *udpClient {
 		/*TODO tune max incoming memory*/ 1000000000,
 		[]string{client.opts.CryptoKey},
 		conn,
+		conn.LocalAddr(),
 		uniqueStartTime(),
 		func(_ *udp.Connection) {}, // acceptHandlerUDP
 		c.closeHandler,
@@ -127,8 +128,13 @@ func (c *udpClient) Do(ctx context.Context, network string, address string, req 
 }
 
 func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*udpClientConn, *Response, error) {
-	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
-		return nil, nil, ErrClientDropRequest
+	var err error
+	if req.hookState != nil {
+		err = req.hookState.BeforeSend(ctx, address, req)
+	}
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if req.Extra.IsSetNoResult() {
@@ -197,7 +203,6 @@ func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request
 			mu:        sync.Mutex{},
 			calls:     make(map[int64]*Response),
 			addresses: make(map[NetAddr]struct{}),
-			// TODO add this udpClientConn to conn to delete udpClientConn when closeConnection
 		}
 		conn, err := c.transport.ConnectTo(
 			netip.AddrPortFrom(

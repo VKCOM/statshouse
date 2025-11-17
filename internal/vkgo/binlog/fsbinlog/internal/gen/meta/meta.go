@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.2.2" }
+func SchemaGenerator() string { return "v1.2.22" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -34,17 +34,18 @@ type Object interface {
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
-	WriteJSONGeneral(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
+	// like MarshalJSON, but appends to w and returns it
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
 }
 
 type Function interface {
 	Object
 
-	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
-
-	// For transcoding short-long version during Long ID and newTypeNames transition
-	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
+	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
+	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 }
 
 func GetAllTLItems() []TLItem {
@@ -129,6 +130,7 @@ type TLItem struct {
 	tag         uint32
 	annotations uint32
 	tlName      string
+	isTL2       bool
 
 	resultTypeContainsUnionTypes    bool
 	argumentsTypesContainUnionTypes bool
@@ -143,6 +145,7 @@ type TLItem struct {
 
 func (item TLItem) TLTag() uint32            { return item.tag }
 func (item TLItem) TLName() string           { return item.tlName }
+func (item TLItem) IsTL2() bool              { return item.isTL2 }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
@@ -155,6 +158,12 @@ func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLon
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
 
 // Annotations
+func (item TLItem) AnnotationAny() bool       { return item.annotations&0x1 != 0 }
+func (item TLItem) AnnotationInternal() bool  { return item.annotations&0x2 != 0 }
+func (item TLItem) AnnotationKphp() bool      { return item.annotations&0x4 != 0 }
+func (item TLItem) AnnotationRead() bool      { return item.annotations&0x8 != 0 }
+func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x10 != 0 }
+func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 0 }
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                                {}
@@ -183,7 +192,8 @@ func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
-func (item *TLItem) WriteJSONGeneral(w []byte) (_ []byte, err error) {
+
+func (item *TLItem) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
 	return item.WriteJSON(w), nil
 }
 func (item *TLItem) WriteJSON(w []byte) []byte {
@@ -229,6 +239,14 @@ func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object)
 	item.createObject = createObject
 }
 
+func SetGlobalFactoryCreateForObjectTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
+	}
+	item.createObject = createObject
+}
+
 func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
 	item := itemsByTag[itemTag]
 	if item == nil {
@@ -251,6 +269,14 @@ func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Ob
 	item := itemsByTag[itemTag]
 	if item == nil {
 		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+	}
+	item.createObjectBytes = createObject
+}
+
+func SetGlobalFactoryCreateForObjectBytesTL2(itemName string, createObject func() Object) {
+	item := itemsByName[itemName]
+	if item == nil {
+		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
 	}
 	item.createObjectBytes = createObject
 }
@@ -291,6 +317,15 @@ func fillObject(n1 string, n2 string, item *TLItem) {
 	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
 }
 
+func fillObjectTL2(item *TLItem) {
+	itemsByName[item.tlName] = item
+	if item.tag != 0 {
+		itemsByTag[item.tag] = item
+	}
+	item.createObject = pleaseImportFactoryObject
+	item.createObjectBytes = pleaseImportFactoryBytesObject
+}
+
 func fillFunction(n1 string, n2 string, item *TLItem) {
 	fillObject(n1, n2, item)
 	item.createFunction = pleaseImportFactoryFunction
@@ -298,7 +333,8 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x044c644b, annotations: 0x0, tlName: "fsbinlog.levStart", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta", resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	// TL
+	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x044c644b, annotations: 0x0, tlName: "fsbinlog.levStart", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

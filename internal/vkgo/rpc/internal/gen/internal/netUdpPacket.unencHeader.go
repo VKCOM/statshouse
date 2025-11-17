@@ -127,30 +127,7 @@ func (item *NetUdpPacketUnencHeader) Reset() {
 }
 
 func (item *NetUdpPacketUnencHeader) FillRandom(rg *basictl.RandGenerator) {
-	var maskFlags uint32
-	maskFlags = basictl.RandomUint(rg)
-	item.Flags = 0
-	if maskFlags&(1<<0) != 0 {
-		item.Flags |= (1 << 0)
-	}
-	if maskFlags&(1<<1) != 0 {
-		item.Flags |= (1 << 2)
-	}
-	if maskFlags&(1<<2) != 0 {
-		item.Flags |= (1 << 3)
-	}
-	if maskFlags&(1<<3) != 0 {
-		item.Flags |= (1 << 4)
-	}
-	if maskFlags&(1<<4) != 0 {
-		item.Flags |= (1 << 5)
-	}
-	if maskFlags&(1<<5) != 0 {
-		item.Flags |= (1 << 7)
-	}
-	if maskFlags&(1<<6) != 0 {
-		item.Flags |= (1 << 8)
-	}
+	item.Flags = basictl.RandomFieldMask(rg, 0b110111101)
 	if item.Flags&(1<<0) != 0 {
 		item.LocalPid.FillRandom(rg)
 	} else {
@@ -280,6 +257,11 @@ func (item NetUdpPacketUnencHeader) String() string {
 }
 
 func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *NetUdpPacketUnencHeader) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propLocalPidPresented bool
 	var propRemotePidPresented bool
@@ -315,7 +297,7 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propLocalPidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "local_pid")
 				}
-				if err := item.LocalPid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.LocalPid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propLocalPidPresented = true
@@ -323,7 +305,7 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propRemotePidPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "remote_pid")
 				}
-				if err := item.RemotePid.ReadJSON(legacyTypeNames, in); err != nil {
+				if err := item.RemotePid.ReadJSONGeneral(tctx, in); err != nil {
 					return err
 				}
 				propRemotePidPresented = true
@@ -363,7 +345,7 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 				if propCryptoRandomPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_random")
 				}
-				if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, &item.CryptoRandom); err != nil {
+				if err := BuiltinTuple8ReadJSONGeneral(tctx, in, &item.CryptoRandom); err != nil {
 					return err
 				}
 				propCryptoRandomPresented = true
@@ -449,28 +431,29 @@ func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeCryptoShaPresented && !trueTypeCryptoShaValue && (item.Flags&(1<<4) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit item.Flags.4 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeEncryptedDataPresented && !trueTypeEncryptedDataValue && (item.Flags&(1<<7) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit item.Flags.7 is indefinite because of the contradictions in values")
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeSupportMsgOffsetsPresented && !trueTypeSupportMsgOffsetsValue && (item.Flags&(1<<8) != 0) {
-		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit flags.0 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("netUdpPacket.unencHeader", "fieldmask bit item.Flags.8 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *NetUdpPacketUnencHeader) WriteJSONGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(true, false, w), nil
+func (item *NetUdpPacketUnencHeader) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
 }
 
 func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) []byte {
-	return item.WriteJSONOpt(true, false, w)
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) []byte {
+func (item *NetUdpPacketUnencHeader) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFlags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -482,12 +465,12 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"local_pid":`...)
-		w = item.LocalPid.WriteJSONOpt(newTypeNames, short, w)
+		w = item.LocalPid.WriteJSONOpt(tctx, w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"remote_pid":`...)
-		w = item.RemotePid.WriteJSONOpt(newTypeNames, short, w)
+		w = item.RemotePid.WriteJSONOpt(tctx, w)
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -511,7 +494,7 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool,
 	if item.Flags&(1<<5) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"crypto_random":`...)
-		w = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.CryptoRandom)
+		w = BuiltinTuple8WriteJSONOpt(tctx, w, &item.CryptoRandom)
 	}
 	if item.Flags&(1<<7) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
