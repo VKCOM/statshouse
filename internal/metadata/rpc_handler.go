@@ -124,12 +124,15 @@ func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerCon
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return err
 	}()
-	//TODO err empty response || fix
-	if err1 != nil {
+	if err1 != nil && !errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) {
 		return err1
 	}
-	if err2 != nil {
+	if err2 != nil && !errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
 		return err2
+	}
+	if errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) && errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
+		// only if we not found anywhere
+		return rpc.ErrLongpollNoEmptyResponse
 	}
 	return nil
 }
