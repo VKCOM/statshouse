@@ -705,7 +705,7 @@ func TestRPCServerBroadcast(t *testing.T) {
 
 	time.Sleep(time.Second)
 	h.getJournalClients.mx.Lock()
-	require.Len(t, h.getJournalClients, 2)
+	require.Len(t, h.getJournalClients.clients, 2)
 	h.getJournalClients.mx.Unlock()
 	resp, _ = putMetricTest(t, rpcClient, "4", 0, 0, "")
 	select {
@@ -743,7 +743,7 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 
 	time.Sleep(time.Second)
 	h.getMappingClients.mx.Lock()
-	require.Len(t, h.getMappingClients, 2)
+	require.Len(t, h.getMappingClients.clients, 2)
 	h.getMappingClients.mx.Unlock()
 
 	mapping4, err := unpackGetMappingUnion(getMapping(rpcClient, "broadcast_test4", "key4", true))
