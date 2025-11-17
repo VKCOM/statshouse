@@ -276,6 +276,6 @@ func (c *ConfigChangeNotifier) CancelLongpoll(lh rpc.LongpollHandle) {
 }
 
 func (c *ConfigChangeNotifier) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	c.CancelLongpoll(lh) // we have infinite timeouts so do not need empty responses
-	return nil
+	c.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }

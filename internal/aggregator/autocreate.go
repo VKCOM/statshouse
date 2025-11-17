@@ -116,8 +116,8 @@ func (ac *autoCreate) CancelLongpoll(lh rpc.LongpollHandle) {
 }
 
 func (ac *autoCreate) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	ac.CancelLongpoll(lh) // we have infinite timeouts, so do not need empty responses
-	return nil
+	ac.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -128,11 +128,14 @@ func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerConte
 	}
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	lh, hijackErr := hctx.StartLongpoll(ac)
+	lh, err := hctx.StartLongpoll(ac)
+	if err != nil {
+		return err
+	}
 	ac.queue = append(ac.queue, lh)
 	ac.args[lh] = args
 	ac.co.Signal()
-	return hijackErr
+	return nil
 }
 
 func (ac *autoCreate) goWork() {

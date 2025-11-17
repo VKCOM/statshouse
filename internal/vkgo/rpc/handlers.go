@@ -314,6 +314,18 @@ func (s *Server) handleEngineAsyncSleep(ctx context.Context, hctx *HandlerContex
 	return err
 }
 
+func (s *Server) handleNetDumpUdpTargets(ctx context.Context, hctx *HandlerContext) (err error) {
+	/*req := tlnet.DumpUdpTargets{}
+	if _, err = req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}*/
+	for _, t := range s.transportsUDP {
+		t.DumpUdpTargets()
+	}
+	hctx.Response = basictl.NatWrite(hctx.Response, 0x3fedd339)
+	return nil
+}
+
 func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
 	resp := fmt.Sprintf("VERSION %v\r\n", s.opts.Version)
 

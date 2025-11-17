@@ -42,7 +42,6 @@ func (pc *udpClientConn) setupCallLocked(req *Request, deadline time.Time, multi
 	cctx.userData = userData
 	cctx.failIfNoConnection = req.FailIfNoConnection
 	cctx.readonly = req.ReadOnly
-	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
 	/* in UDP we don't have pc.closeCC: we either got pc from client.conns and has added call to it, or didn't get pc and created new connect
 	// TODO understand why no pc.closeCC in UDP

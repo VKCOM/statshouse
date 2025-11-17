@@ -143,8 +143,8 @@ func (b *aggregatorBucket) CancelLongpoll(lh rpc.LongpollHandle) {
 }
 
 func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	b.CancelLongpoll(lh) // we have infinite timeouts, so do not need empty response
-	return nil
+	b.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 // aggregator is also run in this method

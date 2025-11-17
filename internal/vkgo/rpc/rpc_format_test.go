@@ -91,9 +91,11 @@ func TestRPCFormat(t *testing.T) {
 	testRPCRequestRoundTrip(t, req, "de00000000000000f7aca5f06f0000000000000000008008ff000000aabbccdd")
 
 	hctx := &HandlerContext{
-		queryID:                222,
-		Response:               []byte{0xa1, 0xb2, 0xc3, 0xd4},
-		requestExtraFieldsmask: requestExtraFieldsmask,
+		queryID:  222,
+		Response: []byte{0xa1, 0xb2, 0xc3, 0xd4},
+		handlerContextFields: handlerContextFields{
+			requestExtraFieldsmask: requestExtraFieldsmask,
+		},
 	}
 	testRPCResponseRoundTrip(t, hctx, nil, "de00000000000000e14cc88c0000000800000000000000000903000000000000a1b2c3d4")
 	testRPCResponseRoundTrip(t, hctx, &Error{Code: 444, Description: "bad"}, "de00000000000000e14cc88c0000000800000000000000000903000000000000f532e47ade00000000000000bc01000003626164")

@@ -51,6 +51,7 @@ func testLongpollServer(t *rapid.T) {
 	s := NewServer(
 		ServerWithSyncHandler(ts.testShutdownHandler),
 		ServerWithCryptoKeys(testCryptoKeys),
+		ServerWithDebugRPC(true),
 		ServerWithMaxConns(len(clients)), //  rapid.IntRange(0, 3).Draw(t, "maxConns")
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
 		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
@@ -131,13 +132,15 @@ func testLongpollServer(t *rapid.T) {
 }
 
 type longpollTestServer struct {
-	mu                  sync.Mutex
-	handleToId          map[LongpollHandle]int
-	idToHandle          map[int]LongpollHandle
-	cancellationsCount  int
-	emptyResponsesCount int
-	handlerCallback     func()
-	customTimeout       time.Duration
+	mu                    sync.Mutex
+	handleToId            map[LongpollHandle]int
+	idToHandle            map[int]LongpollHandle
+	cancellationsCount    int
+	emptyResponsesCount   int
+	handlerCallback       func()
+	cancellationCallback  func()
+	emptyResponseCallback func()
+	customTimeout         time.Duration
 }
 
 type longpollTestServerOption func(lts *longpollTestServer)
@@ -163,31 +166,36 @@ func newLongpollTestServer(opts ...longpollTestServerOption) *longpollTestServer
 
 func (s *longpollTestServer) CancelLongpoll(lh LongpollHandle) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	id, exists := s.handleToId[lh]
 	if !exists {
+		s.mu.Unlock()
 		return
 	}
-
 	s.cancellationsCount++
 	delete(s.handleToId, lh)
 	delete(s.idToHandle, id)
+	s.mu.Unlock()
+	if s.cancellationCallback != nil {
+		s.cancellationCallback()
+	}
 }
 
 func (s *longpollTestServer) WriteEmptyResponse(lh LongpollHandle, resp *HandlerContext) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	id, exists := s.handleToId[lh]
 	if !exists {
-		return nil
+		s.mu.Unlock()
+		return ErrLongpollNoEmptyResponse
 	}
 	s.emptyResponsesCount++
 	delete(s.handleToId, lh)
 	delete(s.idToHandle, id)
+	s.mu.Unlock()
 
 	resp.Response = basictl.StringWrite(resp.Response, emptyBody)
+	if s.emptyResponseCallback != nil {
+		s.emptyResponseCallback()
+	}
 	return nil
 }
 
@@ -227,11 +235,13 @@ func (s *longpollTestServer) Handler(_ context.Context, hctx *HandlerContext) (e
 	}
 
 	var lh LongpollHandle
-	var hjErr error
 	if s.customTimeout != 0 {
-		lh, hjErr = hctx.StartLongpollWithTimeoutDeprecated(s, s.customTimeout)
+		lh, err = hctx.StartLongpollWithTimeoutDeprecated(s, s.customTimeout)
 	} else {
-		lh, hjErr = hctx.StartLongpoll(s)
+		lh, err = hctx.StartLongpoll(s)
+	}
+	if err != nil {
+		return err
 	}
 
 	s.mu.Lock()
@@ -240,7 +250,7 @@ func (s *longpollTestServer) Handler(_ context.Context, hctx *HandlerContext) (e
 	s.handleToId[lh] = int(id)
 	s.idToHandle[int(id)] = lh
 
-	return hjErr
+	return nil
 }
 
 func (s *longpollTestServer) CancellationsCount() int {
@@ -258,7 +268,7 @@ func (s *longpollTestServer) EmptyResponsesCount() int {
 }
 
 func TestLongpollTimeout(t *testing.T) {
-	t.Run("empty body is sended after timeout", func(t *testing.T) {
+	t.Run("empty body is sent after timeout", func(t *testing.T) {
 		ts := newLongpollTestServer()
 		s := NewServer(
 			ServerWithSyncHandler(ts.Handler),
@@ -319,9 +329,13 @@ func TestLongpollTimeout(t *testing.T) {
 
 	t.Run("cancel during waiting", func(t *testing.T) {
 		handleChan := make(chan struct{}, 1)
+		cancelChan := make(chan struct{}, 1)
 		ts := newLongpollTestServer()
 		ts.handlerCallback = func() {
 			handleChan <- struct{}{}
+		}
+		ts.cancellationCallback = func() {
+			cancelChan <- struct{}{}
 		}
 
 		s := NewServer(
@@ -361,8 +375,8 @@ func TestLongpollTimeout(t *testing.T) {
 		if err := <-clientErrCh; err != context.Canceled {
 			t.Fatalf("unexpected err in client do: %s", err.Error())
 		}
-
-		s.Shutdown()
+		// Make sure that cancel was called by the server
+		<-cancelChan
 		if err := s.Close(); err != nil {
 			t.Fatalf("unexpected err in close: %s", err.Error())
 		}
@@ -374,6 +388,74 @@ func TestLongpollTimeout(t *testing.T) {
 
 		if ts.CancellationsCount() != 1 {
 			t.Fatalf("expected exactly one cancel: %d", ts.CancellationsCount())
+		}
+		if s.longpollTree.Size() != 0 {
+			t.Fatalf("longpoll tree expected to be empty")
+		}
+	})
+
+	t.Run("shutdown during waiting", func(t *testing.T) {
+		handleChan := make(chan struct{}, 1)
+		emptyResponseChan := make(chan struct{}, 1)
+		ts := newLongpollTestServer()
+		ts.handlerCallback = func() {
+			handleChan <- struct{}{}
+		}
+		ts.emptyResponseCallback = func() {
+			emptyResponseChan <- struct{}{}
+		}
+
+		s := NewServer(
+			ServerWithSyncHandler(ts.Handler),
+			ServerWithCryptoKeys(testCryptoKeys),
+			ServerWithDebugRPC(true),
+		)
+
+		ln, err := net.Listen("tcp4", "127.0.0.1:")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		errCh := make(chan error)
+		go func() {
+			errCh <- s.Serve(ln)
+		}()
+
+		c := NewClient()
+		req := c.GetRequest()
+		req.FailIfNoConnection = true
+		req.Body = basictl.NatWrite(req.Body, testRequestType)
+
+		n := rand.New().Int31()
+		req.Body = basictl.IntWrite(req.Body, n)
+
+		clientErrCh := make(chan error)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Hour)
+		defer cancel()
+		go func() {
+			_, err = c.Do(ctx, "tcp4", ln.Addr().String(), req)
+			clientErrCh <- err
+		}()
+		// Make sure that request was received by the server
+		<-handleChan
+		s.Shutdown()
+		if err := <-clientErrCh; err != nil {
+			t.Fatalf("unexpected err in client do: %v", err)
+		}
+		// Make sure that cancel was called by the server
+		<-emptyResponseChan
+		if err := s.Close(); err != nil {
+			t.Fatalf("unexpected err in close: %v", err)
+		}
+
+		err = <-errCh
+		if err != nil {
+			t.Fatalf("unexpected error in serve: %s", err.Error())
+		}
+
+		if ts.EmptyResponsesCount() != 1 {
+			t.Fatalf("expected exactly one empty response: %d", ts.EmptyResponsesCount())
 		}
 		if s.longpollTree.Size() != 0 {
 			t.Fatalf("longpoll tree expected to be empty")

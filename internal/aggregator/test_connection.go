@@ -110,7 +110,10 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	lh, hijackErr := hctx.StartLongpoll(ms)
+	lh, err := hctx.StartLongpoll(ms)
+	if err != nil {
+		return err
+	}
 	ms.testConnectionClients[lh] = tcc
-	return hijackErr
+	return nil
 }

@@ -290,9 +290,12 @@ func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 		return err
 	}
 	// long poll, scrape targets will be sent once ready
-	lh, hijackErr := hctx.StartLongpoll(s)
+	lh, err := hctx.StartLongpoll(s)
+	if err != nil {
+		return err
+	}
 	s.requests[lh] = req
-	return hijackErr
+	return nil
 }
 
 func (s *scrapeServer) tryGetNewTargetsLocked(req scrapeRequest) (_ tlstatshouse.GetTargetsResultBytes, changed bool) {
@@ -321,8 +324,8 @@ func (s *scrapeServer) CancelLongpoll(lh rpc.LongpollHandle) {
 }
 
 func (s *scrapeServer) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	s.CancelLongpoll(lh) // we have infinite timeouts here. so do not need empty responses
-	return nil
+	s.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (job *scrapeJobConfig) toPromTargetBytes(addr string, labels []tl.DictionaryFieldStringBytes) tlstatshouse.PromTargetBytes {

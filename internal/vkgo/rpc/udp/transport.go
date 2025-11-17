@@ -7,7 +7,6 @@
 package udp
 
 import (
-	"container/heap"
 	"crypto/cipher"
 	cryptorand "crypto/rand"
 	"encoding/binary"
@@ -447,6 +446,7 @@ type Transport struct {
 	newResendRequestSnds  algo.CircularSlice[*Connection]
 	connectionSendQueue   algo.CircularSlice[*Connection]
 	closedConnections     algo.CircularSlice[*Connection]
+	newDumpUdpTargets     bool
 
 	// accessed only from goWrite
 	// with every step goWrite moves slices above to local copies and iterates over them without locking
@@ -461,15 +461,15 @@ type Transport struct {
 	resendRequestTimersLocal   algo.CircularSlice[*Connection]
 	closedConnectionsLocal     algo.CircularSlice[*Connection]
 
-	resendCV     *sync.Cond // signaled from goWrite when resendTimers has new value
-	resendTimers ResendTimersQueue
+	resendCV     chan struct{} // signaled from goWrite when resendTimers has new min value and from Transport::Close()
+	resendTimers TimersPriorityQueue
 
 	ackTimeout int64
 	ackCV      *sync.Cond // signaled from goRead when ackTimers has new value
 	ackTimers  algo.CircularSlice[*Connection]
 
-	resendRequestCV     *sync.Cond // signaled from goRead when resendRequestTimers has new value
-	resendRequestTimers algo.CircularSlice[*Connection]
+	resendRequestCV     chan struct{} // signaled from goWrite when resendRequestTimers has new value and from Transport::Close()
+	resendRequestTimers TimersPriorityQueue
 
 	regenerateTimeout int64
 	regenerateCV      *sync.Cond // signaled from goWrite when regenerateTimers has new value
@@ -594,6 +594,12 @@ func (t *Transport) GetStats(res *TransportStats) {
 	res.AcquiredMemory.Add(t.stats.AcquiredMemory.Load())
 }
 
+func (t *Transport) DumpUdpTargets() {
+	t.writeMu.Lock()
+	t.newDumpUdpTargets = true
+	t.writeMu.Unlock()
+}
+
 func NewTransport(
 	incomingMessagesMemoryLimit int64,
 	cryptoKeys []string,
@@ -647,9 +653,9 @@ func NewTransport(
 		maxOutgoingPayloadSize:      MaxChunkSize,
 	}
 	t.writeCV = sync.NewCond(&t.writeMu)
-	t.resendCV = sync.NewCond(&t.writeMu)
+	t.resendCV = make(chan struct{}, 1)
 	t.ackCV = sync.NewCond(&t.writeMu)
-	t.resendRequestCV = sync.NewCond(&t.writeMu)
+	t.resendRequestCV = make(chan struct{}, 1)
 	t.regenerateCV = sync.NewCond(&t.writeMu)
 
 	for _, key := range cryptoKeys {
@@ -727,9 +733,18 @@ func (t *Transport) Close() (err error) {
 		err = t.socket.Close()
 	}
 	t.writeCV.Signal()
-	t.resendCV.Signal()
 	t.ackCV.Signal()
-	t.resendRequestCV.Signal()
+
+	select {
+	case t.resendCV <- struct{}{}:
+	default:
+	}
+
+	select {
+	case t.resendRequestCV <- struct{}{}:
+	default:
+	}
+
 	return err
 }
 
@@ -879,7 +894,7 @@ func (t *Transport) goRead() {
 		n, addr, err := t.socket.ReadFromUDPAddrPort(buf)
 		t.stats.DatagramRead.Add(1)
 		if t.debugUdpRPC >= 2 {
-			log.Printf("goRead() <- udp datagram from %s", addr.String())
+			log.Printf("goRead() <- udp datagram from %s (%d bytes)", addr.String(), n)
 		}
 		if err != nil {
 			if commonCloseError(err) {
@@ -1488,7 +1503,7 @@ func (t *Transport) noGoWriteEvents() bool {
 		t.newHdrRcvs.Len() == 0 && t.newResends.Len() == 0 &&
 		t.newAckSnds.Len() == 0 && t.newResendRequestsRcvs.Len() == 0 &&
 		t.newResendRequestSnds.Len() == 0 && t.connectionSendQueue.Len() == 0 &&
-		t.closedConnections.Len() == 0
+		t.closedConnections.Len() == 0 && !t.newDumpUdpTargets
 }
 
 func (t *Transport) goWrite() {
@@ -1507,17 +1522,21 @@ func (t *Transport) goWrite() {
 			return
 		}
 
-		data, conn, needResendTimer, needRegenerateTimer, wasResendTimers, wasResendRequestTimers := t.goWriteStep()
-		if wasResendRequestTimers {
-			t.resendRequestCV.Signal()
+		data, conn, needResendTimer, needRegenerateTimer, needToSignalGoResend, needToSignalGoResendRequest := t.goWriteStep()
+		if needToSignalGoResendRequest {
+			select {
+			case t.resendRequestCV <- struct{}{}:
+			default:
+			}
 		}
 
 		if data != nil {
 			remoteAddr := conn.remoteAddr()
-			_, err := t.socket.WriteToUDPAddrPort(data, netip.AddrPortFrom(netip.AddrFrom4(ipToBytes(remoteAddr.Ip)), remoteAddr.Port))
+			var err error
+			_, err = t.socket.WriteToUDPAddrPort(data, netip.AddrPortFrom(netip.AddrFrom4(ipToBytes(remoteAddr.Ip)), remoteAddr.Port))
 			t.stats.DatagramWritten.Add(1)
 			if t.debugUdpRPC >= 2 {
-				log.Printf("goWrite() -> datagram to %s", remoteAddr.String())
+				log.Printf("goWrite() -> datagram to %s (%d bytes)", remoteAddr.String(), len(data))
 			}
 
 			t.writeMu.Lock()
@@ -1536,7 +1555,10 @@ func (t *Transport) goWrite() {
 			if needResendTimer {
 				conn.resendTimeMs = time.Now().UnixMilli() + conn.resendTimeout
 
-				heap.Push(&t.resendTimers, conn)
+				if t.resendTimers.Len() == 0 || conn.resendTimeMs < t.resendTimers.Min().resendTimeMs {
+					needToSignalGoResend = true
+				}
+				t.resendTimers.Add(conn)
 				conn.SetFlag(inResendQueueFlag, true)
 			}
 			if needRegenerateTimer {
@@ -1548,8 +1570,11 @@ func (t *Transport) goWrite() {
 				t.regenerateCV.Signal()
 			}
 		}
-		if needResendTimer || wasResendTimers {
-			t.resendCV.Signal()
+		if needToSignalGoResend {
+			select {
+			case t.resendCV <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
@@ -1561,7 +1586,7 @@ func (t *Transport) goWrite() {
 // > datagram (and connection) to send if any
 // > needConnResendTimer - whether resend timer for `connToWrite` is required
 // > wasRepeatedResendTimers - were there any resend timers repeated
-func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, needConnResendTimer, needConnRegenerateTimer, wasResendTimers, wasResendRequestTimers bool) {
+func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, needConnResendTimer, needConnRegenerateTimer, needToSignalGoResend, needToSignalGoResendRequest bool) {
 	// When goWrite() wakes up, he moves newHdrRcvs, newMessages and newResends data
 	// to newHdrRcvsLocal, newMessagesLocal and newTimeoutsLocal (just swaps slices pointers),
 	// then unlocks writeMu and then updates OutgoingConnection's state without locking.
@@ -1583,7 +1608,35 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	//
 	// To solve this we save connections in connectionSendQueueLocal
 
+	needToDumpUdpTargets := t.newDumpUdpTargets
+	t.newDumpUdpTargets = false
+
 	t.writeMu.Unlock()
+
+	if needToDumpUdpTargets {
+		var handshakesCopy map[ConnectionID]*Connection
+
+		t.handshakeByPidMu.RLock()
+		handshakesCopy = t.handshakeByPid
+		t.handshakeByPidMu.RUnlock()
+
+		for _, conn := range handshakesCopy {
+			t.writeMu.Lock()
+			println("session: remote_pid", printPid(conn.remotePid()))
+			println("\tgeneration", conn.generation)
+			println("\tconn.status", conn.status)
+			println("\tconn.acks.ackPrefix", conn.acks.ackPrefix)
+			println("\tconn.outgoing.nextSeqNo", conn.outgoing.nextSeqNo)
+			println("\tconn.outgoing.timeoutedSeqNum", conn.outgoing.timeoutedSeqNum)
+			//println("\tmsg_confirm_set_count")
+			//println("\tsince last_received_")
+			//println("\tsince last_ack_")
+			println("\tconn.resendTimeout", conn.resendTimeout)
+			println("\tconn.resendRequestTimeout", conn.resendRequestTimeout)
+			println()
+			t.writeMu.Unlock()
+		}
+	}
 
 	for t.closedConnectionsLocal.Len() > 0 {
 		conn := t.closedConnectionsLocal.PopFront()
@@ -1717,17 +1770,18 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		t.addConnectionToSendQueueLocked(conn)
 	}
 
-	wasResendTimers = false
+	needToSignalGoResend = false
 	for t.resendTimersLocal.Len() > 0 {
 		conn := t.resendTimersLocal.PopFront()
 		if conn.GetFlag(closedFlag) {
 			continue
 		}
 
-		wasResendTimers = true
-
+		if t.resendTimers.Empty() || conn.resendTimeMs < t.resendTimers.Min().resendTimeMs {
+			needToSignalGoResend = true
+		}
 		conn.resendTimeMs = time.Now().UnixMilli() + conn.resendTimeout
-		heap.Push(&t.resendTimers, conn)
+		t.resendTimers.Add(conn)
 		conn.SetFlag(inResendQueueFlag, true)
 	}
 
@@ -1739,10 +1793,12 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 
 		// start resend request timer if have holes
 		if conn.acks.HaveHoles() && !conn.GetFlag(inResendRequestQueueFlag) {
-			wasResendRequestTimers = true
 			conn.resendRequestTimeMs = time.Now().UnixMilli() + conn.resendRequestTimeout
 
-			t.resendRequestTimers.PushBack(conn)
+			if t.resendRequestTimers.Empty() || conn.resendRequestTimeMs < t.resendRequestTimers.Min().resendRequestTimeMs {
+				needToSignalGoResendRequest = true
+			}
+			t.resendRequestTimers.Add(conn)
 			conn.SetFlag(inResendRequestQueueFlag, true)
 
 			conn.resendRequestTimeout = min(MaxResendTimeoutMillis, int64(float64(conn.resendRequestTimeout)*ResendTimeoutCoef))
@@ -1776,7 +1832,7 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 
 		datagram, _ = t.buildDatagram(conn, writeCipher, generation, status, remotePid, hash, false, cm.message)
 
-		return datagram, conn, false, false, wasResendTimers, wasResendRequestTimers
+		return datagram, conn, false, false, needToSignalGoResend, needToSignalGoResendRequest
 	}
 	for t.connectionSendQueue.Len() > 0 {
 		conn := t.popConnectionFromSendQueueLocked()
@@ -1815,11 +1871,11 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		var haveUserPayload bool
 		datagram, haveUserPayload = t.buildDatagram(conn, writeCipher, generation, status, remotePid, hash, withoutPayload, nil)
 
-		return datagram, conn, haveUserPayload && !conn.GetFlag(inResendQueueFlag), haveUserPayload && !conn.GetFlag(inRegenerateQueue), wasResendTimers, wasResendRequestTimers
+		return datagram, conn, haveUserPayload && !conn.GetFlag(inResendQueueFlag), haveUserPayload && !conn.GetFlag(inRegenerateQueue), needToSignalGoResend, needToSignalGoResendRequest
 	}
 
 	// no datagram to send and timer to run
-	return nil, nil, false, false, wasResendTimers, wasResendRequestTimers
+	return nil, nil, false, false, needToSignalGoResend, needToSignalGoResendRequest
 }
 
 func (t *Transport) handleAck(conn *Connection, ack *tlnetUdpPacket.EncHeader) {
@@ -2083,39 +2139,76 @@ func writeEncryptedUnencHeader(payload []byte, unenc tlnetUdpPacket.UnencHeader)
 }
 
 func (t *Transport) goResend() {
-	t.writeMu.Lock()
-
 	defer func() {
-		t.writeMu.Unlock()
 		t.wg.Done()
 	}()
 
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	timerStarted := false
+
 	for {
-		for t.resendTimers.Len() == 0 && !t.closed {
-			t.resendCV.Wait()
-		}
+		t.writeMu.Lock()
 		if t.closed {
+			// transport is closed
+			t.writeMu.Unlock()
+			return
+		}
+
+		now := time.Now().UnixMilli()
+		wasBurntTimers := false
+		var fastestConn *Connection
+		var fastestConnMs int64
+
+		for t.resendTimers.Len() > 0 {
+			conn := t.resendTimers.ExtractMin()
+			if conn.resendTimeMs <= now {
+				if conn.GetFlag(closedFlag) {
+					// this connection is already closed
+					continue
+				}
+				// send timeout action to goWrite
+				t.newResends.PushBack(conn)
+				wasBurntTimers = true
+				continue
+			}
+			// else resend timeout hasn't expired yet - so need to run timer
+			fastestConn = conn
 			break
 		}
-		conn, ok := heap.Pop(&t.resendTimers).(*Connection)
-		if !ok {
-			panic("Pop(t.resendTimers) must return *Connection")
+		if fastestConn != nil {
+			// we will check it again after select emits
+			t.resendTimers.Add(fastestConn)
+			fastestConnMs = fastestConn.resendTimeMs
 		}
-		if conn.GetFlag(closedFlag) {
+
+		t.writeMu.Unlock()
+		if wasBurntTimers {
+			t.writeCV.Signal()
+		}
+
+		if fastestConn != nil {
+			durationMs := fastestConnMs - time.Now().UnixMilli()
+			if durationMs <= 0 {
+				continue
+			}
+			if timerStarted && !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(time.Millisecond * time.Duration(durationMs))
+			timerStarted = true
+		}
+
+		select {
+		case <-t.resendCV:
+			// either new timer, that less than previous min, or transport is closed
+			continue
+		case <-timer.C:
+			timerStarted = false
 			continue
 		}
-
-		durationMs := conn.resendTimeMs - time.Now().UnixMilli()
-		if durationMs > 0 {
-			// to not hold mutex for the long time waiting for the timeout
-			t.writeMu.Unlock()
-			time.Sleep(time.Millisecond * time.Duration(durationMs))
-			t.writeMu.Lock()
-		}
-
-		// send timeout action to goWrite
-		t.newResends.PushBack(conn)
-		t.writeCV.Signal()
 	}
 }
 
@@ -2163,37 +2256,77 @@ func (t *Transport) goAck() {
 }
 
 func (t *Transport) goResendRequest() {
-	t.writeMu.Lock()
-
 	defer func() {
-		t.writeMu.Unlock()
 		t.wg.Done()
 	}()
 
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	timerStarted := false
+
 	for {
-		for t.resendRequestTimers.Len() == 0 && !t.closed {
-			t.resendRequestCV.Wait()
-		}
+		t.writeMu.Lock()
 		if t.closed {
+			// transport is closed
+			t.writeMu.Unlock()
+			return
+		}
+
+		now := time.Now().UnixMilli()
+		wasBurntTimers := false
+		var fastestConn *Connection
+		var fastestConnMs int64
+
+		for t.resendRequestTimers.Len() > 0 {
+			conn := t.resendRequestTimers.ExtractMin()
+			if conn.resendRequestTimeMs <= now {
+				if conn.GetFlag(closedFlag) {
+					// this connection is already closed
+					continue
+				}
+				// send timeout action to goWrite
+				conn.SetFlag(inResendRequestQueueFlag, false)
+				t.newResendRequestSnds.PushBack(conn)
+				wasBurntTimers = true
+				continue
+			}
+			// else resend request timeout hasn't expired yet - so need to run timer
+			fastestConn = conn
 			break
 		}
-		conn := t.resendRequestTimers.PopFront()
-		if conn.GetFlag(closedFlag) {
+		if fastestConn != nil {
+			// we will check it again after select emits
+			t.resendRequestTimers.Add(fastestConn)
+			fastestConnMs = fastestConn.resendRequestTimeMs
+		}
+
+		t.writeMu.Unlock()
+		if wasBurntTimers {
+			t.writeCV.Signal()
+		}
+
+		if fastestConn != nil {
+			durationMs := fastestConnMs - time.Now().UnixMilli()
+			if durationMs <= 0 {
+				continue
+			}
+			if timerStarted && !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(time.Millisecond * time.Duration(durationMs))
+			timerStarted = true
+		}
+
+		select {
+		case <-t.resendRequestCV:
+			// either new timer, that less than previous min, or transport is closed
+			continue
+		case <-timer.C:
+			timerStarted = false
 			continue
 		}
-
-		durationMs := conn.resendRequestTimeMs - time.Now().UnixMilli()
-		if durationMs > 0 {
-			// to not hold mutex for the long time waiting for the timeout
-			t.writeMu.Unlock()
-			time.Sleep(time.Millisecond * time.Duration(durationMs))
-			t.writeMu.Lock()
-		}
-
-		conn.SetFlag(inResendRequestQueueFlag, false)
-		// send resend request action to goWrite
-		t.newResendRequestSnds.PushBack(conn)
-		t.writeCV.Signal()
 	}
 }
 
