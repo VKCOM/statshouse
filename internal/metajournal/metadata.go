@@ -312,7 +312,7 @@ func (l *MetricMetaLoader) GetNewMappings(ctx context.Context, lastVersion int32
 	resp := tlmetadata.GetNewMappingsResponse{}
 	req := tlmetadata.GetNewMappings{
 		From:  lastVersion,
-		Limit: 10000,
+		Limit: 50000,
 	}
 	req.SetReturnIfEmpty(returnIfEmpty)
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
