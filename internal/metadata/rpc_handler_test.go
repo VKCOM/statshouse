@@ -704,9 +704,9 @@ func TestRPCServerBroadcast(t *testing.T) {
 	_, _ = getMetricsAsync(t, rpcClient, math.MaxInt64-1)
 
 	time.Sleep(time.Second)
-	h.getJournalMx.Lock()
-	require.Len(t, h.getJournalClients, 2)
-	h.getJournalMx.Unlock()
+	h.getJournalClients.mx.Lock()
+	require.Len(t, h.getJournalClients.clients, 2)
+	h.getJournalClients.mx.Unlock()
 	resp, _ = putMetricTest(t, rpcClient, "4", 0, 0, "")
 	select {
 	case m := <-metricChannel:
@@ -717,9 +717,9 @@ func TestRPCServerBroadcast(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("expect to get new metrics")
 	}
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
-	require.Len(t, h.getJournalClients, 1)
+	h.getJournalClients.mx.Lock()
+	defer h.getJournalClients.mx.Unlock()
+	require.Len(t, h.getJournalClients.clients, 1)
 }
 
 func TestRPCServerBroadcastMapping(t *testing.T) {
@@ -742,9 +742,9 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 	_, _ = getNewMappingsAsync(t, rpcClient, math.MaxInt32-1)
 
 	time.Sleep(time.Second)
-	h.getMappingMx.Lock()
-	require.Len(t, h.getMappingClients, 2)
-	h.getMappingMx.Unlock()
+	h.getMappingClients.mx.Lock()
+	require.Len(t, h.getMappingClients.clients, 2)
+	h.getMappingClients.mx.Unlock()
 
 	mapping4, err := unpackGetMappingUnion(getMapping(rpcClient, "broadcast_test4", "key4", true))
 	require.NoError(t, err)
@@ -767,9 +767,9 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("expect to get new mappings")
 	}
-	h.getMappingMx.Lock()
-	defer h.getMappingMx.Unlock()
-	require.Len(t, h.getMappingClients, 1)
+	h.getMappingClients.mx.Lock()
+	defer h.getMappingClients.mx.Unlock()
+	require.Len(t, h.getMappingClients.clients, 1)
 }
 
 func TestBootstrap(t *testing.T) {
