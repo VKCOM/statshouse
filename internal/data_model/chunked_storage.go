@@ -11,8 +11,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/zeebo/xxh3"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
 // this is file format used for all metadata
@@ -31,7 +32,7 @@ const ChunkedMagicMappings = 0x83a28d18
 const ChunkedMagicJournal = 0x83a28d1f
 const ChunkedMagicConfig = 0x83a28d1a
 
-const chunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
+const ChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
 const chunkHeaderSize = 4 + 4 // magic + body size
 const chunkHashSize = 16
 
@@ -50,6 +51,72 @@ type ChunkedStorageLoader struct {
 	offset   int64
 	fileSize int64
 	ReadAt   func(b []byte, offset int64) error
+}
+
+// ChunkedStorageShared wraps saver and loader with shared offset
+type ChunkedStorageShared struct {
+	offset int64 // shared offset between saver and loader
+	saver  *ChunkedStorageSaver
+	loader *ChunkedStorageLoader
+}
+
+func NewChunkedStorageShared(writeAt func(offset int64, data []byte) error, truncate func(offset int64) error, readAt func(b []byte, offset int64) error) *ChunkedStorageShared {
+	return &ChunkedStorageShared{
+		saver: &ChunkedStorageSaver{
+			WriteAt:  writeAt,
+			Truncate: truncate,
+		},
+		loader: &ChunkedStorageLoader{
+			ReadAt: readAt,
+		},
+	}
+}
+
+func (c *ChunkedStorageShared) StartWriteWithOffset(magic uint32, maxChunkSize int) []byte {
+	// will reset offset
+	c.saver.offset = c.offset
+	res := c.saver.StartWriteWithOffset(magic, maxChunkSize, c.offset)
+	c.offset = c.saver.offset
+	return res
+}
+
+func (c *ChunkedStorageShared) FinishItem(chunk []byte) ([]byte, error) {
+	c.saver.offset = c.offset
+	chunk, err := c.saver.FinishItem(chunk)
+	if err != nil {
+		c.saver.offset = c.offset
+		return nil, err
+	}
+	c.offset = c.saver.offset
+	return chunk, nil
+}
+
+func (c *ChunkedStorageShared) FinishWrite(chunk []byte) error {
+	c.saver.offset = c.offset
+	err := c.saver.FinishWrite(chunk)
+	if err != nil {
+		c.saver.offset = c.offset
+		return err
+	}
+	c.offset = c.saver.offset
+	return nil
+}
+
+func (c *ChunkedStorageShared) StartRead(fileSize int64, magic uint32) {
+	// will reset offset
+	c.loader.StartRead(fileSize, magic)
+	c.offset = c.loader.offset
+}
+
+func (c *ChunkedStorageShared) ReadNext() (chunk []byte, first bool, err error) {
+	c.loader.offset = c.offset
+	chunk, first, err = c.loader.ReadNext()
+	if err != nil {
+		c.loader.offset = c.offset
+		return nil, false, err
+	}
+	c.offset = c.loader.offset
+	return chunk, first, err
 }
 
 func ChunkedStorageFile(fp *os.File) (writeAt func(offset int64, data []byte) error, truncate func(offset int64) error, readAt func(b []byte, offset int64) error, fileSize int64) {
@@ -93,14 +160,18 @@ func ChunkedStorageSlice(fp *[]byte) (writeAt func(offset int64, data []byte) er
 
 // pass maxChunkSize 0 for default
 func (c *ChunkedStorageSaver) StartWrite(magic uint32, maxChunkSize int) []byte {
-	if maxChunkSize <= 0 || maxChunkSize > chunkSize {
-		maxChunkSize = chunkSize
+	return c.StartWriteWithOffset(magic, maxChunkSize, 0)
+}
+
+func (c *ChunkedStorageSaver) StartWriteWithOffset(magic uint32, maxChunkSize int, offset int64) []byte {
+	if maxChunkSize <= 0 || maxChunkSize > ChunkSize {
+		maxChunkSize = ChunkSize
 	}
-	if cap(c.scratch) < chunkHeaderSize+chunkSize+chunkHashSize {
-		c.scratch = make([]byte, 0, chunkHeaderSize+chunkSize+chunkHashSize)
+	if cap(c.scratch) < chunkHeaderSize+ChunkSize+chunkHashSize {
+		c.scratch = make([]byte, 0, chunkHeaderSize+ChunkSize+chunkHashSize)
 	}
 	c.magic = magic
-	c.offset = 0
+	c.offset = offset
 	c.maxChunkSize = maxChunkSize
 	return c.startChunk(c.scratch)
 }
@@ -130,10 +201,10 @@ func (c *ChunkedStorageSaver) FinishItem(chunk []byte) ([]byte, error) {
 	if len(chunk) < chunkHeaderSize {
 		panic("saver invariant violated, caller must only append to chunk")
 	}
-	if len(chunk) < chunkHeaderSize+chunkSize/2 { // write after half space used
+	if len(chunk) < chunkHeaderSize+ChunkSize/2 { // write after half space used
 		return chunk, nil
 	}
-	if len(chunk) > chunkHeaderSize+chunkSize {
+	if len(chunk) > chunkHeaderSize+ChunkSize {
 		return chunk, fmt.Errorf("too big item(s) - %d bytes", len(chunk))
 	}
 	return c.finishChunk(chunk)
@@ -150,8 +221,8 @@ func (c *ChunkedStorageSaver) FinishWrite(chunk []byte) error {
 }
 
 func (c *ChunkedStorageLoader) StartRead(fileSize int64, magic uint32) {
-	if len(c.scratch) < chunkHeaderSize+chunkSize+chunkHashSize {
-		c.scratch = make([]byte, chunkHeaderSize+chunkSize+chunkHashSize)
+	if len(c.scratch) < chunkHeaderSize+ChunkSize+chunkHashSize {
+		c.scratch = make([]byte, chunkHeaderSize+ChunkSize+chunkHashSize)
 	}
 	c.magic = magic
 	c.offset = 0
@@ -173,8 +244,8 @@ func (c *ChunkedStorageLoader) ReadNext() (chunk []byte, first bool, err error) 
 		return nil, first, fmt.Errorf("chunk at %d invalid magic 0x%x", c.offset, m)
 	}
 	s := int64(binary.LittleEndian.Uint32(c.scratch[4:]))
-	if s > chunkSize {
-		return nil, first, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, chunkSize)
+	if s > ChunkSize {
+		return nil, first, fmt.Errorf("chunk at %d body size %d overflows hard limit %d", c.offset, s, ChunkSize)
 	}
 	nextChunkOffset := c.offset + chunkHeaderSize + s + chunkHashSize
 	if nextChunkOffset > c.fileSize {

@@ -1154,6 +1154,9 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -1180,6 +1183,9 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -1209,6 +1215,9 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 		Description: "token-long",
 	}, {
 		Description: "shard_key", // metric % 16 + 1 for now, experimental
+		RawKind:     "int",
+	}, {
+		Description: "error_code",
 		RawKind:     "int",
 	}},
 }
@@ -2742,6 +2751,9 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDStatusOK:    "ok",
 			TagValueIDStatusError: "error",
 		}),
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -2785,6 +2797,9 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 

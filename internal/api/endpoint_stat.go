@@ -152,7 +152,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaValue, user, table, kind string, isFast, isLight, isHardware bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaValue, user, table, kind string, isFast, isLight, isHardware bool, errCode int, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -172,6 +172,7 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 			6: getStatTokenName(user),
 			7: user,
 			8: strconv.Itoa(int(uint32(metricID)%16) + 1), // to see load distribution if we shard data by metricID
+			9: strconv.Itoa(errCode),
 		},
 		duration.Seconds())
 }
@@ -198,7 +199,7 @@ func ChRateLimit(client *statshouse.Client, versionTag string, stats []chutil.Ra
 	}
 }
 
-func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
+func ChRequestsMetric(shard int, aggHost string, table string, errCode int, ok bool) {
 	status := "1"
 	if !ok {
 		status = "2"
@@ -211,21 +212,22 @@ func ChRequestsMetric(shard int, aggHost string, table string, ok bool) {
 			3: aggHost,
 			4: table,
 			5: status,
+			6: strconv.Itoa(errCode),
 		}, 1)
 }
 
-func ChSelectProfile(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, info proto.Profile, err error) {
-	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectBytes.Name, isFast, isLight, isHardware, float64(info.Bytes), metric, user, table, kind, err)
-	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), metric, user, table, kind, err)
+func ChSelectProfile(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, info proto.Profile, errCode int, err error) {
+	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectBytes.Name, isFast, isLight, isHardware, float64(info.Bytes), metric, user, table, kind, errCode, err)
+	chSelectPushMetricFull(format.BuiltinMetricMetaAPISelectRows.Name, isFast, isLight, isHardware, float64(info.Rows), metric, user, table, kind, errCode, err)
 }
 
-func ChSelectProfileEvents(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, osCPUVirtualTimeMicroseconds uint64, err error) {
+func ChSelectProfileEvents(isFast, isLight, isHardware bool, metric *format.MetricMetaValue, user, table, kind string, osCPUVirtualTimeMicroseconds uint64, errCode int, err error) {
 	chSelectPushMetricFull(
 		format.BuiltinMetricMetaAPISelectOSCPUVirtualTime.Name,
 		isFast, isLight, isHardware,
 		float64(osCPUVirtualTimeMicroseconds)/1e6, // convert to seconds
 		metric, user, table, kind,
-		err,
+		errCode, err,
 	)
 }
 
@@ -245,7 +247,7 @@ func modeStr(isFast, isLight, isHardware bool) string {
 	return mode
 }
 
-func chSelectPushMetricFull(metric string, isFast, isLight, isHardware bool, data float64, mm *format.MetricMetaValue, user, table, kind string, err error) {
+func chSelectPushMetricFull(metric string, isFast, isLight, isHardware bool, data float64, mm *format.MetricMetaValue, user, table, kind string, errCode int, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -264,6 +266,7 @@ func chSelectPushMetricFull(metric string, isFast, isLight, isHardware bool, dat
 			5: ok,
 			6: getStatTokenName(user),
 			7: user,
+			8: strconv.Itoa(errCode),
 		},
 		data,
 	)
