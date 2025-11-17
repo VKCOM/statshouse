@@ -106,8 +106,7 @@ func (pc *clientConn) shutdown() {
 }
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
-func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *Response, cb ClientCallback, userData any) (*Response, error) {
-	cctx := pc.client.getResponse()
+func (pc *clientConn) setupCallLocked(req *Request, cctx *Response, deadline time.Time, multiResult chan *Response, cb ClientCallback, userData any) error {
 	cctx.queryID = req.QueryID()
 	if multiResult != nil {
 		cctx.result = multiResult // overrides single-result channel
@@ -119,14 +118,13 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 	cctx.failIfNoConnection = req.FailIfNoConnection
 	cctx.bodyFormatTL2 = req.BodyFormatTL2
 	cctx.readonly = req.ReadOnly
-	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
 	if pc.closeCC == nil {
-		return cctx, ErrClientClosed
+		return ErrClientClosed
 	}
 
 	if req.FailIfNoConnection && pc.waitingToReconnect {
-		return cctx, ErrClientConnClosedNoSideEffect
+		return ErrClientConnClosedNoSideEffect
 	}
 	// Prints usually too much info for analysis. Uncomment for specific case debugging.
 	// if debugPrint {
@@ -139,7 +137,7 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 
 	// Here cctx is owned by both writeQ and calls map
 
-	return cctx, nil
+	return nil
 }
 
 func (pc *clientConn) cancelCall(queryID int64, deliverError error) (cancelled bool) {
@@ -166,6 +164,7 @@ func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response
 	if !ok {
 		return nil, nil
 	}
+	deadlinePassed := !cctx.deadline.IsZero() && time.Now().After(cctx.deadline)
 	delete(pc.calls, queryID)
 	if cctx.req != nil { // was not sent, residing somewhere in writeQ
 		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
@@ -188,7 +187,7 @@ func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response
 		pc.writeQCond.Signal()
 		return cctx, conn
 	}
-	if pc.conn.FlagCancelReq() {
+	if !deadlinePassed && pc.conn.FlagCancelReq() {
 		pc.writeQ = append(pc.writeQ, writeRespCancel{cancelQueryID: queryID})
 		pc.writeQCond.Signal()
 	}
@@ -545,9 +544,6 @@ func (pc *clientConn) receiveLoop(conn *PacketConn) {
 		if resp != nil {
 			// resp now owns respReuseData, we need to break alias before callback for panic safety
 			respReuseData = pc.client.getResponseData()
-			if resp.hookState != nil {
-				resp.hookState.AfterReceive(resp, resp.err)
-			}
 			resp.deliverResult(pc.client)
 		}
 	}

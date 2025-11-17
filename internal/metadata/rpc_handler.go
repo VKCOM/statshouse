@@ -63,7 +63,7 @@ func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerCon
 	defer h.getJournalMx.Unlock()
 	args, ok := h.getJournalClients[lh]
 	if !ok {
-		return nil
+		return rpc.ErrLongpollNoEmptyResponse
 	}
 	delete(h.getJournalClients, lh)
 	resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
@@ -152,8 +152,11 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", err
 	}
 	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
 	h.getJournalClients[lh] = args
-	return "", err
+	return "", nil
 }
 
 func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {

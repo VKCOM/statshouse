@@ -7,7 +7,6 @@
 package udp
 
 import (
-	"container/heap"
 	"fmt"
 	"log"
 	"net"
@@ -605,7 +604,7 @@ func doGoWriteStep(fctx *FuzzTransportContext, transportId int) {
 
 		if newResendTimer {
 			// resend timer activation
-			heap.Push(&fctx.ts[transportId].resendTimers, conn)
+			fctx.ts[transportId].resendTimers.Add(conn)
 			conn.SetFlag(inResendQueueFlag, true)
 		}
 	} else {
@@ -680,7 +679,7 @@ func doResendTimerBurn(fctx *FuzzTransportContext, transportId int) {
 	if fctx.ts[transportId].resendTimers.Len() == 0 {
 		return
 	}
-	connResendTimeout := heap.Pop(&fctx.ts[transportId].resendTimers).(*Connection)
+	connResendTimeout := fctx.ts[transportId].resendTimers.ExtractMin()
 	fctx.ts[transportId].newResends.PushBack(connResendTimeout)
 }
 
@@ -701,7 +700,7 @@ func doResendRequestTimerBurn(fctx *FuzzTransportContext, transportId int) {
 	if fctx.ts[transportId].resendRequestTimers.Len() == 0 {
 		return
 	}
-	conn := fctx.ts[transportId].resendRequestTimers.PopFront()
+	conn := fctx.ts[transportId].resendRequestTimers.ExtractMin()
 	conn.SetFlag(inResendRequestQueueFlag, false)
 	fctx.ts[transportId].newResendRequestSnds.PushBack(conn)
 }

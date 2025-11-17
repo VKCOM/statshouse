@@ -15,23 +15,28 @@ import (
 	"github.com/google/btree"
 )
 
+type longpollTreeItem struct {
+	lh       LongpollHandle
+	deadline int64 // UnixNano() timestamp
+}
+
 // longpoll tree is used to find the longpoll with the earliest deadline
 type longpollTree struct {
 	mu        sync.Mutex // Protects timeouts
-	timeouts  *btree.BTreeG[LongpollHandle]
+	timeouts  *btree.BTreeG[longpollTreeItem]
 	updatesCh chan struct{}
 }
 
-func handleLess(l, r LongpollHandle) bool {
-	if res := cmp.Compare(l.Deadline, r.Deadline); res != 0 {
-		return cmp.Less(l.Deadline, r.Deadline)
+func handleLess(l, r longpollTreeItem) bool {
+	if res := cmp.Compare(l.deadline, r.deadline); res != 0 {
+		return cmp.Less(l.deadline, r.deadline)
 	}
-	if res := cmp.Compare(l.QueryID, r.QueryID); res != 0 {
-		return cmp.Less(l.QueryID, r.QueryID)
+	if res := cmp.Compare(l.lh.QueryID, r.lh.QueryID); res != 0 {
+		return cmp.Less(l.lh.QueryID, r.lh.QueryID)
 	}
 	// Deadlines could be same
 	// queries ids could be same in different connections
-	return l.CommonConn.ConnectionID() < r.CommonConn.ConnectionID()
+	return l.lh.CommonConn.ConnectionID() < r.lh.CommonConn.ConnectionID()
 }
 
 func newLongpollTree() *longpollTree {
@@ -41,13 +46,14 @@ func newLongpollTree() *longpollTree {
 	}
 }
 
-func (lt *longpollTree) AddLongpoll(lh LongpollHandle) {
+func (lt *longpollTree) AddLongpoll(lh LongpollHandle, deadline int64) {
+	lti := longpollTreeItem{lh: lh, deadline: deadline}
 	lt.mu.Lock()
 	oldMin, exists := lt.timeouts.Min()
-	lt.timeouts.ReplaceOrInsert(lh)
+	lt.timeouts.ReplaceOrInsert(lti)
 	lt.mu.Unlock()
 
-	if exists && oldMin.Deadline <= lh.Deadline {
+	if exists && oldMin.deadline <= lti.deadline {
 		// Don't need to send an update, anyway already waiting
 		return
 	}
@@ -60,7 +66,8 @@ func (lt *longpollTree) AddLongpoll(lh LongpollHandle) {
 	}
 }
 
-func (lt *longpollTree) DeleteLongpoll(lh LongpollHandle) {
+func (lt *longpollTree) DeleteLongpoll(lh LongpollHandle, deadline int64) {
+	lti := longpollTreeItem{lh: lh, deadline: deadline}
 	lt.mu.Lock()
 	defer lt.mu.Unlock()
 
@@ -68,7 +75,7 @@ func (lt *longpollTree) DeleteLongpoll(lh LongpollHandle) {
 	// for, but in this case, nothing bad will happen. This is because
 	// delete is only called once the handle has been removed from the
 	// longpolls map, so sending an empty response will do nothing.
-	lt.timeouts.Delete(lh)
+	lt.timeouts.Delete(lti)
 }
 
 func (lt *longpollTree) Size() int {
@@ -82,15 +89,14 @@ func (lt *longpollTree) deleteExpiredUnlocked(expired []LongpollHandle) []Longpo
 	// NOTE: be careful here, unixNano should be used, not unix
 	now := time.Now().UnixNano()
 	for lt.timeouts.Len() != 0 {
-		if lh, exists := lt.timeouts.Min(); exists {
-			if now >= lh.Deadline {
-				// longpoll is expired
-				expired = append(expired, lh)
-				lt.timeouts.DeleteMin()
-			} else {
+		if lti, exists := lt.timeouts.Min(); exists {
+			if now < lti.deadline {
 				// There are no more expired longpolls
 				return expired
 			}
+			// longpoll is expired
+			expired = append(expired, lti.lh)
+			lt.timeouts.DeleteMin()
 		}
 	}
 
@@ -116,7 +122,7 @@ func (lt *longpollTree) LongpollCheckLoop(ctx context.Context) {
 
 		if exists {
 			// There are some waiting longpolls
-			longpollTimer.Reset(time.Until(time.Unix(0, minLp.Deadline)))
+			longpollTimer.Reset(time.Until(time.Unix(0, minLp.deadline)))
 		}
 
 		select {

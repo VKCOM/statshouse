@@ -111,6 +111,11 @@ func NewDefaultError(description string) *Error {
 	}
 }
 
+// @see https://confluence.vk.team/pages/viewpage.action?pageId=1405042319
+func (err *Error) IsApplicationLevelError() bool {
+	return err.Code >= -5999 && err.Code <= -5000
+}
+
 type tagError struct {
 	tag string // can be empty, but in most cases is not
 	err error  // never nil

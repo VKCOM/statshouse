@@ -431,7 +431,11 @@ func mainTagMapping() int {
 	var (
 		aesPwd = readAESPwd()
 		client = tlmetadata.Client{
-			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+			Client: rpc.NewClient(
+				// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+				rpc.ClientWithLogf(log.Printf),
+				rpc.ClientWithCryptoKey(aesPwd),
+				rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 			Network: argv.metadataNet,
 			Address: argv.metadataAddr,
 			ActorID: argv.metadataActorID,
@@ -487,7 +491,11 @@ func mainPutTagBootstrap() int {
 
 	aesPwd := readAESPwd()
 	client := tlmetadata.Client{
-		Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithLogf(log.Printf),
+			rpc.ClientWithCryptoKey(aesPwd),
+			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		Network: argv.metadataNet,
 		Address: argv.metadataAddr,
 		ActorID: argv.metadataActorID,
@@ -514,6 +522,7 @@ func mainPutTagBootstrap() int {
 func mainPublishTagDrafts() int {
 	client := tlmetadata.Client{
 		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 			rpc.ClientWithCryptoKey(readAESPwd()),
 			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		Network: argv.metadataNet,
@@ -650,6 +659,7 @@ func mainPublishTagDrafts() int {
 func massUpdateMetadata() int {
 	client := tlmetadata.Client{
 		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 			rpc.ClientWithCryptoKey(readAESPwd()),
 			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		Network: argv.metadataNet,

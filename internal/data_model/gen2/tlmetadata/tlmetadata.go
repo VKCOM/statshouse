@@ -472,7 +472,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawEditEntitynew != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawEditEntitynew(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -488,7 +488,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EditEntitynew(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -505,7 +505,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetEntity != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetEntity(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -521,7 +521,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetEntity(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -538,7 +538,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetHistoryShortInfo != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetHistoryShortInfo(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -554,7 +554,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetHistoryShortInfo(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -571,7 +571,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetInvertMapping != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetInvertMapping(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -587,7 +587,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetInvertMapping(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -604,7 +604,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetJournalnew != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetJournalnew(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -620,7 +620,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetJournalnew(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -637,7 +637,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetMapping != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetMapping(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -653,7 +653,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetMapping(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -670,7 +670,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetMetrics != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetMetrics(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -686,7 +686,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetMetrics(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -703,7 +703,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawGetTagMappingBootstrap != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawGetTagMappingBootstrap(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -719,7 +719,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetTagMappingBootstrap(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -736,7 +736,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawPutMapping != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawPutMapping(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -752,7 +752,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.PutMapping(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -769,7 +769,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawPutTagMappingBootstrap != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawPutTagMappingBootstrap(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -785,7 +785,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.PutTagMappingBootstrap(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -802,7 +802,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawResetFlood != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawResetFlood(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -818,7 +818,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ResetFlood(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -835,7 +835,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.RawResetFlood2 != nil && !hctx.BodyFormatTL2() {
 			hctx.Request = r
 			err = h.RawResetFlood2(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -851,7 +851,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ResetFlood2(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {

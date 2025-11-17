@@ -17,7 +17,9 @@ func main() {
 	metric := flag.String("metric", "__heartbeat_version", "")
 	flag.Parse()
 
-	client := rpc.NewClient(rpc.ClientWithLogf(log.Printf))
+	client := rpc.NewClient(
+		rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+		rpc.ClientWithLogf(log.Printf))
 	apiClient := tlstatshouseApi.Client{
 		Client:  client,
 		Network: *net,

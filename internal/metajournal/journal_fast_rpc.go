@@ -87,8 +87,8 @@ func (ms *JournalFast) CancelLongpoll(lh rpc.LongpollHandle) {
 }
 
 func (ms *JournalFast) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	ms.CancelLongpoll(lh) // we have infinite timeouts, so need no empty response support
-	return nil
+	ms.CancelLongpoll(lh)
+	return rpc.ErrLongpollNoEmptyResponse
 }
 
 func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rpc.HandlerContext) error {
@@ -113,7 +113,10 @@ func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rp
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
 	lh, err := hctx.StartLongpoll(ms)
+	if err != nil {
+		return err
+	}
 	ms.metricsVersionClients3[lh] = args
 	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
-	return err
+	return nil
 }

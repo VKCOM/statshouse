@@ -232,7 +232,8 @@ func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, capacity int, s2 *tlsta
 	for _, v := range s2.Top {
 		mi := s.MapStringTopBytes(rng, capacity, TagUnionBytes{S: v.Stag, I: v.Tag}, v.Value.Counter)
 		v.Stag, _ = format.AppendValidStringValue(v.Stag[:0], v.Stag) // TODO - report this error via builtin metrics
-		// we want to validate all incoming strings. In case of encoding error, v.Key will be truncated to 0
+		// We want to validate all incoming strings. In case of encoding error,
+		// v.Stag will be truncated to empty string, merging Value into 'other' strings
 		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
 	}
 	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)

@@ -1016,7 +1016,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 			TagValueIDRPCRequestsStatusOK:          "ok",
 			TagValueIDRPCRequestsStatusErrLocal:    "err_local",
 			TagValueIDRPCRequestsStatusErrUpstream: "err_upstream",
-			TagValueIDRPCRequestsStatusHijack:      "hijacked",
+			TagValueIDRPCRequestsStatusLongpoll:    "start_longpoll",
 			TagValueIDRPCRequestsStatusNoHandler:   "err_no_handler"}),
 	}, { // in the future - error code
 	}, { // in the future - something

@@ -35,7 +35,7 @@ func (s *shutdownTestServer) WriteEmptyResponse(lh LongpollHandle, hctx *Handler
 	defer s.mu.Unlock()
 	delete(s.clients, lh)
 
-	return nil
+	return ErrLongpollNoEmptyResponse
 }
 
 func (s *shutdownTestServer) sendSomeResponses() {
@@ -70,10 +70,13 @@ func (s *shutdownTestServer) testShutdownHandler(_ context.Context, hctx *Handle
 	hctx.Response = basictl.IntWrite(hctx.Response, n)
 	if (n/2)%2 == 0 {
 		s.mu.Lock()
-		lctx, hjErr := hctx.StartLongpoll(s)
+		defer s.mu.Unlock()
+		lctx, err := hctx.StartLongpoll(s)
+		if err != nil {
+			return err
+		}
 		s.clients[lctx] = n
-		s.mu.Unlock()
-		return hjErr
+		return nil
 	}
 	return nil
 }
