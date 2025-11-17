@@ -41,10 +41,10 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	err := a.h.Handle(ctx, hctx)
 	status := int32(format.TagValueIDRPCRequestsStatusOK)
 	str := ""
-	if err == rpc.ErrNoHandler {
+	if hctx.LongpollStarted() {
+		status = format.TagValueIDRPCRequestsStatusLongpoll
+	} else if err == rpc.ErrNoHandler {
 		status = format.TagValueIDRPCRequestsStatusNoHandler
-	} else if rpc.IsHijackedResponse(err) {
-		status = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
 		status = format.TagValueIDRPCRequestsStatusErrLocal
 		str = err.Error()
@@ -136,8 +136,11 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 		a.cfgNotifier.mu.Lock()
 		defer a.cfgNotifier.mu.Unlock()
 		lh, err := hctx.StartLongpoll(a.cfgNotifier)
+		if err != nil {
+			return err
+		}
 		a.cfgNotifier.clients[lh] = struct{}{}
-		return err
+		return nil
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
@@ -185,8 +188,8 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		return nil
 	}
 	str, err, discard := a.handleSendSourceBucket(hctx, args, bucket)
-	if rpc.IsHijackedResponse(err) {
-		return err
+	if hctx.LongpollStarted() {
+		return err // err most likely nil here
 	}
 	// handleSendSourceBucketAny should not return any errors other than hijack for version3
 	writeResponse(str, discard)
@@ -267,8 +270,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		a.mu.Unlock()
 		aggBucket.mu.Lock()
 		defer aggBucket.mu.Unlock()
-		_, errHijack := hctx.StartLongpoll(aggBucket)
-		return "", errHijack, false // must be under bucket lock
+		_, err := hctx.StartLongpoll(aggBucket) // must be under bucket lock
+		return "", err, false
 	}
 
 	oldestTime := a.recentBuckets[0].time
@@ -341,9 +344,12 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			defer aggBucket.sendMu.RUnlock()
 			aggBucket.mu.Lock()
 			defer aggBucket.mu.Unlock()
-			lh, hijackErr := hctx.StartLongpoll(aggBucket)
+			lh, err := hctx.StartLongpoll(aggBucket) // must be under bucket lock
+			if err != nil {
+				return "", nil, false
+			}
 			aggBucket.contributorsSimulatedErrors[lh] = struct{}{} // must be under bucket lock
-			return "", hijackErr, false                            // must be under bucket lock
+			return "", nil, false
 		}
 	}
 
@@ -592,7 +598,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagS]++
 	}
 	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
-	aggBucket.contributors3[lh] = resp             // must be under bucket lock
+	if errHijack == nil {                          // must be always, because we wait for all inserts finish before calling server.Shutdown()
+		aggBucket.contributors3[lh] = resp // must be under bucket lock
+	}
 	compressedSize := len(hctx.Request)
 
 	aggBucket.mu.Unlock()
@@ -702,7 +710,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	// Ingestion statuses, sample factors and badges are written into the same shard as metric itself.
-	// They all simply go to merge shard 0 independent of their keys.
+	// They all simply go to merge shard 0 independent of their tags.
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
@@ -789,7 +797,11 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	defer aggBucket.sendMu.RUnlock()
 
 	aggBucket.mu.Lock()
-	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
+	lh, err := hctx.StartLongpoll(aggBucket) // must be under bucket lock
+	if err != nil {
+		aggBucket.mu.Unlock()
+		return err
+	}
 	if version3 {
 		aggBucket.contributors3[lh] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
 	} else {
@@ -801,5 +813,5 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 		[]int32{},
 		1, hostTag, aera)
 
-	return errHijack
+	return nil
 }

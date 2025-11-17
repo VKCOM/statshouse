@@ -30,7 +30,6 @@ const (
 	maxReconnectDelay = 60 * time.Second
 
 	debugPrint = false // turn on during testing using custom scheduler
-	debugTrace = false // turn on during rapid testing to have trace stored in Server
 )
 
 var (
@@ -53,17 +52,12 @@ type Request struct {
 	FunctionName string // Generated calls fill this during request serialization.
 	ReadOnly     bool   // no side effects, can be retried by client
 
-	queryID   int64       // unique per client, assigned by client
-	hookState ClientHooks // can be nil
+	queryID int64 // unique per client, assigned by client
 }
 
 // QueryID is always non-zero (guaranteed by [ClientImpl.GetRequest]).
 func (req *Request) QueryID() int64 {
 	return req.queryID
-}
-
-func (req *Request) HookState() ClientHooks {
-	return req.hookState
 }
 
 type Response struct {
@@ -88,7 +82,7 @@ type Response struct {
 
 	err error // if set, we have error response, sometimes we have Body and Extra with it. May point to rpcErr.
 
-	hookState ClientHooks // can be nil
+	hook ClientHook
 }
 
 func (resp *Response) QueryID() int64      { return resp.queryID }
@@ -148,6 +142,11 @@ func UnwrapClient(c Client) (*ClientImpl, bool) {
 	return nil, false
 }
 
+type ClientHook interface {
+	BeforeSend(ctx context.Context, addr NetAddr, req *Request) error
+	AfterSend(resp *Response, err error)
+}
+
 type ClientImpl struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	// use an atomic counter instead of pure random to guarantee no ID reuse
@@ -163,6 +162,7 @@ type ClientImpl struct {
 	requestPool      sync.Pool
 	responseDataPool sync.Pool
 	responsePool     sync.Pool
+	hookMaker        func() ClientHook
 
 	wg *semaphore.Weighted // we do not use wait group to reduce # of primitives to implement in custom scheduler
 
@@ -175,7 +175,6 @@ func NewClient(options ...ClientOptionsFunc) Client {
 		ConnReadBufSize:   DefaultClientConnReadBufSize,
 		ConnWriteBufSize:  DefaultClientConnWriteBufSize,
 		PacketTimeout:     DefaultPacketTimeout,
-		Hooks:             func() ClientHooks { return nil },
 		ProtocolVersion:   DefaultProtocolVersion,
 		MaxReconnectDelay: maxReconnectDelay,
 	}
@@ -188,8 +187,9 @@ func NewClient(options ...ClientOptionsFunc) Client {
 	}
 
 	c := &ClientImpl{
-		opts:  opts,
-		conns: map[NetAddr]*clientConn{},
+		opts:      opts,
+		conns:     map[NetAddr]*clientConn{},
+		hookMaker: opts.HookMaker,
 	}
 	c.wg = semaphore.NewWeighted(math.MaxInt64)
 	c.lastQueryID.Store(rand.Uint64())
@@ -199,12 +199,6 @@ func NewClient(options ...ClientOptionsFunc) Client {
 	}
 
 	return c
-}
-
-type ClientHooks interface {
-	Reset()
-	BeforeSend(ctx context.Context, addr NetAddr, req *Request) error
-	AfterReceive(resp *Response, err error)
 }
 
 type TracingInjectFunc func(ctx context.Context, tc *TraceContext)
@@ -239,20 +233,50 @@ func (c *ClientImpl) Logf(format string, args ...any) {
 }
 
 func (c *ClientImpl) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	if c.u != nil && strings.HasPrefix(network, "udp") {
-		return c.u.Do(ctx, network, address, req)
+	var err error
+	var response = c.getResponse()
+	hook := response.hook
+
+	var afterSend = func(response *Response, err error) {
+		if hook == nil {
+			return
+		}
+
+		hook.AfterSend(response, err)
 	}
-	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
+
+	if hook != nil {
+		err = hook.BeforeSend(ctx, NetAddr{
+			Network: network,
+			Address: address,
+		}, req)
+
+		if err != nil {
+			return response, err
+		}
+	}
+
+	if c.u != nil && strings.HasPrefix(network, "udp") {
+		response, err = c.u.Do(ctx, network, address, req)
+		afterSend(response, err)
+		return response, err
+	}
+	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, response, nil, nil, nil)
 	if err != nil { // got ownership of cctx, if not nil
-		return cctx, err
+		afterSend(response, err)
+		return response, err
 	}
 	select {
 	case <-ctx.Done():
-		// TODO - if ctx.Err() is deadline, do not send cancelReq (optimization)
-		_ = pc.cancelCall(cctx.queryID, nil) // do not unblock, reuse normally
+		afterSend(nil, ctx.Err())
+		// We check deadline inside cancelCallImpl to see if we need to send CancelReq packet.
+		// We do not rely on checking ctx.Err().
+		// deliverError=nil because we already unblocked from select, this helps to reuse cctx normally
+		_ = pc.cancelCall(response.queryID, nil)
 		return nil, ctx.Err()
-	case r := <-cctx.result: // got ownership of cctx
-		return cctx, r.err
+	case r := <-response.result: // got ownership of cctx
+		afterSend(response, r.err)
+		return response, r.err
 	}
 }
 
@@ -269,8 +293,9 @@ func (cc CallbackContext) QueryID() int64 { return cc.queryID } // so client wil
 // Either error is returned immediately, or ClientCallback will be called in the future.
 // We add explicit userData, because for many users it will avoid allocation of lambda during capture of userData in cb
 func (c *ClientImpl) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error) {
+	resp := c.getResponse()
 	queryID := req.QueryID() // must not access cctx or req after setupCall, because callback can be already called and cctx reused
-	pc, _, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, cb, userData)
+	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, resp, nil, cb, userData)
 	return CallbackContext{
 		pc:      pc,
 		queryID: queryID,
@@ -288,19 +313,13 @@ func (c *ClientImpl) CancelDoCallback(cc CallbackContext) (cancelled bool) {
 
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, *Response, error) {
+func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, resp *Response, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, error) {
 	var err error
-	if req.hookState != nil {
-		err = req.hookState.BeforeSend(ctx, address, req)
-	}
-
-	if err != nil {
-		return nil, nil, err
-	}
-
 	if req.Extra.IsSetNoResult() {
-		// We consider it antipattern. TODO - implement)
-		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
+		// We consider it antipattern.
+		// If you ever need them, do not implement.
+		// If you still need them, call finishCall from sendLoop after sending for correct in flight accounting.
+		return nil, fmt.Errorf("sending no_result requests is not supported")
 	}
 	hctx := GetHandlerContext(ctx)
 	if hctx != nil {
@@ -321,17 +340,17 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 	}
 	deadline, err := c.fillRequestTimeout(ctx, req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := preparePacket(req); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	c.mu.RLock()
 	// ------ to test RACE detector, replace lines below
 	if c.closed {
 		c.mu.RUnlock()
-		return nil, nil, ErrClientClosed
+		return nil, ErrClientClosed
 	}
 	pc := c.conns[address]
 	// ------ with
@@ -345,22 +364,22 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
-		cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
+		err = pc.setupCallLocked(req, resp, deadline, multiResult, cb, userData)
 		pc.mu.Unlock()
 		pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
-		return pc, cctx, err
+		return pc, err
 	}
 	c.mu.RUnlock()
 
 	if address.Network != "tcp4" && address.Network != "tcp6" && address.Network != "tcp" && address.Network != "unix" { // optimization: check only if not found in c.conns
-		return nil, nil, fmt.Errorf("unsupported network type %q", address.Network)
+		return nil, fmt.Errorf("unsupported network type %q", address.Network)
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock() // for simplicity, this is not a fastpath
 
 	if c.closed {
-		return nil, nil, ErrClientClosed
+		return nil, ErrClientClosed
 	}
 
 	pc = c.conns[address]
@@ -384,10 +403,10 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
-	cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
+	err = pc.setupCallLocked(req, resp, deadline, multiResult, cb, userData)
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
-	return pc, cctx, err
+	return pc, err
 }
 
 func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request) (time.Time, error) {
@@ -485,15 +504,11 @@ func (c *ClientImpl) getRequest() *Request {
 	if v != nil {
 		return v.(*Request)
 	}
-	return &Request{hookState: c.opts.Hooks()}
+	return &Request{}
 }
 
 func (c *ClientImpl) putRequest(req *Request) {
-	if req.hookState != nil {
-		req.hookState.Reset()
-	}
-	*req = Request{Body: req.Body[:0], hookState: req.hookState}
-
+	*req = Request{Body: req.Body[:0]}
 	c.requestPool.Put(req)
 }
 
@@ -520,7 +535,9 @@ func (c *ClientImpl) getResponse() *Response {
 	}
 	cctx := &Response{
 		singleResult: make(chan *Response, 1), // TODO - reuse channel by tracking empty/nonEmpty channel
-		hookState:    c.opts.Hooks(),
+	}
+	if c.hookMaker != nil {
+		cctx.hook = c.hookMaker()
 	}
 	cctx.result = cctx.singleResult
 	return cctx
@@ -531,9 +548,6 @@ func (c *ClientImpl) PutResponse(cctx *Response) {
 		// We sometimes return both error and response, so user can inspect Extra, if parsed successfully
 		return
 	}
-	if cctx.hookState != nil {
-		cctx.hookState.Reset()
-	}
 	if cctx.req != nil {
 		c.putRequest(cctx.req)
 	}
@@ -541,7 +555,7 @@ func (c *ClientImpl) PutResponse(cctx *Response) {
 	*cctx = Response{
 		singleResult: cctx.singleResult,
 		result:       cctx.singleResult,
-		hookState:    cctx.hookState,
+		hook:         cctx.hook,
 	}
 
 	c.responsePool.Put(cctx)

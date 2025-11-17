@@ -79,6 +79,7 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 func (h *Handler) CancelLongpoll(lh rpc.LongpollHandle) {
 	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel"}, 1)
 	h.getJournalMx.Lock()
+	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, lh)
 	h.getJournalMx.Unlock()
 
@@ -94,7 +95,7 @@ func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerCon
 		defer h.getJournalMx.Unlock()
 		args, ok := h.getJournalClients[lh]
 		if !ok {
-			return nil
+			return rpc.ErrLongpollNoEmptyResponse
 		}
 		delete(h.getJournalClients, lh)
 		resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
@@ -107,7 +108,7 @@ func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerCon
 		defer h.getMappingMx.Unlock()
 		args, ok := h.getMappingClients[lh]
 		if !ok {
-			return nil
+			return rpc.ErrLongpollNoEmptyResponse
 		}
 		delete(h.getMappingClients, lh)
 
@@ -123,6 +124,7 @@ func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerCon
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return err
 	}()
+	//TODO err empty response || fix
 	if err1 != nil {
 		return err1
 	}
@@ -271,8 +273,11 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", err
 	}
 	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
 	h.getJournalClients[lh] = args
-	return "", err
+	return "", nil
 }
 
 func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
@@ -333,8 +338,11 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 		return "", err
 	}
 	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
 	h.getMappingClients[lh] = args
-	return "", err
+	return "", nil
 }
 
 func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {

@@ -1319,7 +1319,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.AsyncSleep(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1341,7 +1341,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Count(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1363,7 +1363,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpForceQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1385,7 +1385,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpLastQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1407,7 +1407,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.DumpNextQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1429,7 +1429,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EnableMetafilesAnalyzer(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1451,7 +1451,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.FilteredStat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1473,7 +1473,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetBinlogPrefixes(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1495,7 +1495,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetExpectedMetafilesStats(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1517,7 +1517,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetReadWriteMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1539,7 +1539,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.GetReindexStatus(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1561,7 +1561,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.InvokeHttpQuery(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1583,7 +1583,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.IsProduction(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1605,7 +1605,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Nop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1627,7 +1627,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Pid(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1649,7 +1649,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.PushStat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1671,7 +1671,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReadNop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1693,7 +1693,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.RecordNextQueries(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1715,7 +1715,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.RegisterDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1737,7 +1737,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReloadDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1759,7 +1759,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ReplaceConfigServer(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1781,7 +1781,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SendSignal(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1803,7 +1803,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetFsyncInterval(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1825,7 +1825,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetMetafileMemory(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1847,7 +1847,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetNoPersistentConfigArray(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1869,7 +1869,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetNoPersistentConfigValue(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1891,7 +1891,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetPersistentConfigArray(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1913,7 +1913,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetPersistentConfigValue(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1935,7 +1935,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetVerbosity(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1957,7 +1957,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SetVerbosityType(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -1979,7 +1979,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Sleep(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2001,7 +2001,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Stat(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2023,7 +2023,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToMasterMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2045,7 +2045,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToMasterModeForcefully(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2067,7 +2067,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.SwitchToReplicaMode(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2089,7 +2089,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.UnregisterDynamicLib(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2111,7 +2111,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Version(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {
@@ -2133,7 +2133,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.WriteNop(ctx, args)
-			if rpc.IsHijackedResponse(err) {
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
 				return err
 			}
 			if err != nil {

@@ -129,20 +129,18 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 		if s.opts.DebugUdpRPC >= 1 {
 			log.Printf("new udp connection accept listenAddr:%s localAddr:%s remoteAddr:%s", listenAddr.String(), conn.LocalAddr(), conn.RemoteAddr())
 		}
+
 		closeCtx, cancelCloseCtx := context.WithCancelCause(context.Background())
 		sc := &UdpServerConn{
 			serverConnCommon: serverConnCommon{
-				server:            s,
-				closeCtx:          closeCtx,
-				cancelCloseCtx:    cancelCloseCtx,
-				longpollResponses: map[int64]hijackedResponse{},
+				server:         s,
+				closeCtx:       closeCtx,
+				cancelCloseCtx: cancelCloseCtx,
+				longpolls:      map[int64]longpollHctx{},
 			},
 			conn: conn,
 		}
-		sc.acquireHctx = sc.acquireHandlerCtx
-
-		sc.releaseFun = s.releaseHandlerCtx
-		sc.pushUnlockFun = sc.pushUnlock
+		sc.setDebugName("UDP", conn.RemoteAddr(), conn.LocalAddr())
 
 		conn.StreamLikeIncoming = false
 		conn.MessageHandle = func(message *[]byte, canSave bool) {
@@ -166,11 +164,11 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 			var err error
 			reqHeaderTip, hctx.Request, err = basictl.NatReadTag(hctx.Request)
 			if err != nil {
-				s.rareLog(&s.lastReadErrorLog, "rpc: error reading request tag (%d bytes request) from %v, disconnecting: %v", len(hctx.Request), sc.conn.RemoteAddr(), err)
+				s.rareLog(&s.lastReadErrorLog, "rpc: %s error reading request tag (%d bytes request) from %v, disconnecting: %v", sc.debugName, len(hctx.Request), err)
 				return
 			}
 
-			w, ctx := s.handleRequest(reqHeaderTip, &sc.serverConnCommon, hctx)
+			w, ctx := s.handleRequest(sc.closeCtx, reqHeaderTip, hctx)
 			if w != nil {
 				if !canSave {
 					// if we call Handler in worker and don't own the message, then we must copy it
@@ -178,7 +176,7 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 					hctx.request, hctx.Request = s.acquireRequestBuf(len(hctx.Request))
 					copy(hctx.Request, parsedReq)
 				}
-				w.ch <- workerWork{sc: &sc.serverConnCommon, hctx: hctx, ctx: ctx}
+				w.ch <- workerWork{hctx: hctx, ctx: ctx}
 			}
 		}
 		conn.UserData = sc
@@ -198,7 +196,7 @@ func (s *Server) closeHandlerUDP(conn *udp.Connection) {
 	s.protocolStats[protocolUDP].connectionsCurrent.Add(-1)
 	if conn.UserData != nil {
 		if sc, ok := conn.UserData.(*UdpServerConn); ok {
-			sc.cancelAllLongpollResponses(false)
+			sc.cancelAllLongpollResponses()
 			sc.cancelCloseCtx(errUdpConnClose)
 		}
 	}

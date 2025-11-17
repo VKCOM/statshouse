@@ -73,7 +73,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	defer func() {
 		var code int // "0" means "success"
 		if r := recover(); r != nil {
-			w.savePanic(hctx.RequestFunctionName, r, debug.Stack())
+			w.savePanic(hctx.RequestFunctionName(), r, debug.Stack())
 			code = rpc.TlErrorInternal
 			err = &rpc.Error{Code: rpc.TlErrorInternal}
 		} else if err != nil {
@@ -87,19 +87,19 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	tag, req, _ = basictl.NatReadTag(hctx.Request)
 	switch tag {
 	case 0x0c7349bb:
-		hctx.RequestFunctionName = "statshouseApi.getQuery"
+		hctx.SetRequestFunctionName("statshouseApi.getQuery")
 		hfn = w.rawGetQuery
 		w.endpointStat.endpoint = EndpointQuery
 	case 0x0c7348bb:
-		hctx.RequestFunctionName = "statshouseApi.getQueryPoint"
+		hctx.SetRequestFunctionName("statshouseApi.getQueryPoint")
 		hfn = w.rawGetQueryPoint
 		w.endpointStat.endpoint = EndpointPoint
 	case 0x52721884:
-		hctx.RequestFunctionName = "statshouseApi.getChunk"
+		hctx.SetRequestFunctionName("statshouseApi.getChunk")
 		hfn = w.rawGetChunk
 		w.endpointStat.endpoint = endpointChunk
 	case 0x62adc773:
-		hctx.RequestFunctionName = "statshouseApi.releaseChunks"
+		hctx.SetRequestFunctionName("statshouseApi.releaseChunks")
 		w.endpointStat.endpoint = endpointChunk
 		hfn = w.rawReleaseChunks
 	default:
@@ -107,7 +107,7 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	}
 	hctx.Request = req
 	if err = hfn(ctx, hctx); err != nil {
-		return fmt.Errorf("failed to handle %s: %w", hctx.RequestFunctionName, err)
+		return fmt.Errorf("failed to handle %s: %w", hctx.RequestFunctionName(), err)
 	}
 	return nil
 }

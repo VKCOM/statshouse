@@ -128,15 +128,6 @@ func (c *udpClient) Do(ctx context.Context, network string, address string, req 
 }
 
 func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*udpClientConn, *Response, error) {
-	var err error
-	if req.hookState != nil {
-		err = req.hookState.BeforeSend(ctx, address, req)
-	}
-
-	if err != nil {
-		return nil, nil, err
-	}
-
 	if req.Extra.IsSetNoResult() {
 		// We consider it antipattern. TODO - implement)
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")

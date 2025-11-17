@@ -13,7 +13,6 @@ import (
 
 type ClientOptions struct {
 	Logf                LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	Hooks               func() ClientHooks
 	TracingInject       TracingInjectFunc
 	TrustedSubnetGroups [][]*net.IPNet
 	ForceEncryption     bool
@@ -26,6 +25,7 @@ type ClientOptions struct {
 	localUDPAddress     string        // experimental, for tests only
 	MaxReconnectDelay   time.Duration
 	DebugUdp            int
+	HookMaker           func() ClientHook
 
 	trustedSubnetGroupsParseErrors []error
 }
@@ -38,9 +38,9 @@ func ClientWithLogf(f LoggerFunc) ClientOptionsFunc {
 	}
 }
 
-func ClientWithHooks(hooks func() ClientHooks) ClientOptionsFunc {
+func ClientWithHooks(hookMaker func() ClientHook) ClientOptionsFunc {
 	return func(o *ClientOptions) {
-		o.Hooks = hooks
+		o.HookMaker = hookMaker
 	}
 }
 

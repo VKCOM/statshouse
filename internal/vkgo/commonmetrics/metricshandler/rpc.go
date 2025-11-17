@@ -26,7 +26,7 @@ func CommonRPC(hctx *rpc.HandlerContext, err error) {
 
 func AttachRPC(tags []string, hctx *rpc.HandlerContext, err error) []string {
 	status := commonmetrics.StatusFromError(err)
-	method := internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName)
+	method := internal.ParseStringAsMethod(hctx.RequestTag(), hctx.RequestFunctionName())
 	tags[4] = commonmetrics.ProtocolRPC
 	tags[5] = method.Group
 	tags[6] = method.Name

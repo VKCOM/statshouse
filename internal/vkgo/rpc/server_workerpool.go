@@ -17,7 +17,6 @@ import (
 const workerGCDuration = time.Second * 60
 
 type workerWork struct {
-	sc   *serverConnCommon
 	hctx *HandlerContext
 	ctx  context.Context
 }
@@ -28,10 +27,11 @@ type worker struct {
 	gcTime     time.Time
 }
 
-func (w *worker) run(wg *semaphore.Weighted) {
+func (w *worker) run(s *Server, wg *semaphore.Weighted) {
 	defer wg.Release(1)
 	for work := range w.ch {
-		work.sc.handle(work.ctx, work.hctx)
+		err := s.callHandler(work.ctx, work.hctx)
+		work.hctx.SendLongpollResponse(err)
 		w.workerPool.Put(w)
 	}
 }

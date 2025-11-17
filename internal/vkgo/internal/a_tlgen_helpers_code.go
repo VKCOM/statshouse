@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -263,7 +264,7 @@ func JsonReadBool(j interface{}, dst *bool) error {
 	}
 	jj, ok := j.(bool)
 	if !ok {
-		return fmt.Errorf("invalid json for bool")
+		return errors.New("invalid json for bool")
 	}
 	*dst = jj
 	return nil
@@ -293,17 +294,17 @@ func JsonReadString(j interface{}, dst *string) error {
 	case map[string]interface{}:
 		iface, ok := jj["base64"]
 		if !ok {
-			return fmt.Errorf("invalid json for string: base64 encoded didn't match as string")
+			return errors.New("invalid json for string: base64 encoded didn't match as string")
 		}
 		str, ok := iface.(string)
 		if !ok {
-			return fmt.Errorf("invalid json for string: unexpected binary string's object")
+			return errors.New("invalid json for string: unexpected binary string's object")
 		}
 		buf, err := base64.StdEncoding.DecodeString(str)
 		*dst = string(buf)
 		return err
 	default:
-		return fmt.Errorf("invalid json for string")
+		return errors.New("invalid json for string")
 	}
 }
 
@@ -319,17 +320,17 @@ func JsonReadStringBytes(j interface{}, dst *[]byte) error {
 	case map[string]interface{}:
 		iface, ok := jj["base64"]
 		if !ok {
-			return fmt.Errorf("invalid json for string: base64 encoded didn't match as string")
+			return errors.New("invalid json for string: base64 encoded didn't match as string")
 		}
 		str, ok := iface.(string)
 		if !ok {
-			return fmt.Errorf("invalid json for string: unexpected binary string's object")
+			return errors.New("invalid json for string: unexpected binary string's object")
 		}
 		buf, err := base64.StdEncoding.DecodeString(str)
 		*dst = buf
 		return err
 	default:
-		return fmt.Errorf("invalid json for string")
+		return errors.New("invalid json for string")
 	}
 }
 
@@ -355,12 +356,12 @@ func Json2ReadString(in *jlexer.Lexer, dst *string) error {
 			switch key {
 			case "base64":
 				if findValue {
-					return fmt.Errorf("base64 repeats several times")
+					return errors.New("base64 repeats several times")
 				}
 				*dst = string(in.Bytes())
 				findValue = true
 			default:
-				return fmt.Errorf("unexpected field \"" + key + "\"")
+				return errors.New("unexpected field \"" + key + "\"")
 			}
 
 			in.WantComma()
@@ -371,10 +372,10 @@ func Json2ReadString(in *jlexer.Lexer, dst *string) error {
 		}
 
 		if !findValue {
-			return fmt.Errorf("base64 is absent")
+			return errors.New("base64 is absent")
 		}
 	default:
-		return fmt.Errorf("invalid json for string")
+		return errors.New("invalid json for string")
 	}
 	return nil
 }
@@ -401,12 +402,12 @@ func Json2ReadStringBytes(in *jlexer.Lexer, dst *[]byte) error {
 			switch key {
 			case "base64":
 				if findValue {
-					return fmt.Errorf("base64 repeats several times")
+					return errors.New("base64 repeats several times")
 				}
 				*dst = in.Bytes()
 				findValue = true
 			default:
-				return fmt.Errorf("unexpected field \"" + key + "\"")
+				return errors.New("unexpected field \"" + key + "\"")
 			}
 
 			in.WantComma()
@@ -417,10 +418,10 @@ func Json2ReadStringBytes(in *jlexer.Lexer, dst *[]byte) error {
 		}
 
 		if !findValue {
-			return fmt.Errorf("base64 is absent")
+			return errors.New("base64 is absent")
 		}
 	default:
-		return fmt.Errorf("invalid json for string")
+		return errors.New("invalid json for string")
 	}
 	return nil
 }
@@ -442,7 +443,7 @@ func JsonReadUint32(j interface{}, dst *uint32) error {
 	}
 	jj, ok := jsonNumberOrString(j)
 	if !ok {
-		return fmt.Errorf("invalid json for uint32")
+		return errors.New("invalid json for uint32")
 	}
 	val, err := strconv.ParseUint(jj, 10, 32)
 	if err != nil {
@@ -469,7 +470,7 @@ func Json2ReadUint32(in *jlexer.Lexer, dst *uint32) error {
 	case jlexer.TokenNumber:
 		*dst = in.Uint32()
 	default:
-		return fmt.Errorf("invalid json for uint32")
+		return errors.New("invalid json for uint32")
 	}
 	if !in.Ok() {
 		return in.Error()
@@ -484,7 +485,7 @@ func JsonReadInt32(j interface{}, dst *int32) error {
 	}
 	jj, ok := jsonNumberOrString(j)
 	if !ok {
-		return fmt.Errorf("invalid json for int32")
+		return errors.New("invalid json for int32")
 	}
 	val, err := strconv.ParseInt(jj, 10, 32)
 	if err != nil {
@@ -511,7 +512,7 @@ func Json2ReadInt32(in *jlexer.Lexer, dst *int32) error {
 	case jlexer.TokenNumber:
 		*dst = in.Int32()
 	default:
-		return fmt.Errorf("invalid json for int32")
+		return errors.New("invalid json for int32")
 	}
 	if !in.Ok() {
 		return in.Error()
@@ -526,7 +527,7 @@ func JsonReadInt64(j interface{}, dst *int64) error {
 	}
 	jj, ok := jsonNumberOrString(j)
 	if !ok {
-		return fmt.Errorf("invalid json for int64")
+		return errors.New("invalid json for int64")
 	}
 	val, err := strconv.ParseInt(jj, 10, 64)
 	if err != nil {
@@ -553,7 +554,7 @@ func Json2ReadInt64(in *jlexer.Lexer, dst *int64) error {
 	case jlexer.TokenNumber:
 		*dst = in.Int64()
 	default:
-		return fmt.Errorf("invalid json for int64")
+		return errors.New("invalid json for int64")
 	}
 	if !in.Ok() {
 		return in.Error()
@@ -568,7 +569,7 @@ func JsonReadFloat32(j interface{}, dst *float32) error {
 	}
 	jj, ok := jsonNumberOrString(j)
 	if !ok {
-		return fmt.Errorf("invalid json for float32")
+		return errors.New("invalid json for float32")
 	}
 	val, err := strconv.ParseFloat(jj, 32)
 	if err != nil {
@@ -595,7 +596,7 @@ func Json2ReadFloat32(in *jlexer.Lexer, dst *float32) error {
 	case jlexer.TokenNumber:
 		*dst = in.Float32()
 	default:
-		return fmt.Errorf("invalid json for float32")
+		return errors.New("invalid json for float32")
 	}
 	if !in.Ok() {
 		return in.Error()
@@ -610,7 +611,7 @@ func JsonReadFloat64(j interface{}, dst *float64) error {
 	}
 	jj, ok := jsonNumberOrString(j)
 	if !ok {
-		return fmt.Errorf("invalid json for float64")
+		return errors.New("invalid json for float64")
 	}
 	val, err := strconv.ParseFloat(jj, 64)
 	if err != nil {
@@ -637,7 +638,7 @@ func Json2ReadFloat64(in *jlexer.Lexer, dst *float64) error {
 	case jlexer.TokenNumber:
 		*dst = in.Float64()
 	default:
-		return fmt.Errorf("invalid json for float64")
+		return errors.New("invalid json for float64")
 	}
 	if !in.Ok() {
 		return in.Error()
