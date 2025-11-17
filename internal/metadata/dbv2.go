@@ -156,7 +156,7 @@ const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
 const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
-const mappingCountReadLimit int64 = 10000
+const mappingCountReadLimit int64 = 50000 // we want to catch metricBytesReadLimit
 
 func OpenDB(
 	path string,
@@ -291,6 +291,7 @@ func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([
 	}
 	maxID := fromID
 	result := make([]tlstatshouse.Mapping, 0)
+	var bytesRead = int64(4) // maxID
 	err := db.eng.Do(ctx, "get_new_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("select_mapping", "SELECT id, name FROM mappings WHERE id > $id ORDER BY id asc LIMIT $limit;",
 			sqlite.Int64("$id", int64(fromID)),
@@ -309,6 +310,10 @@ func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([
 				Value: int32(id),
 				Str:   name,
 			})
+			bytesRead += int64(len(name)) + 4
+			if bytesRead > metricBytesReadLimit {
+				break
+			}
 		}
 
 		row := conn.Query("select_max_mapping_id", "SELECT MAX(id) FROM mappings")
