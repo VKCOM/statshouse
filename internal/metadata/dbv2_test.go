@@ -411,6 +411,51 @@ func TestDB_GetOrCreateMapping(t *testing.T) {
 	})
 }
 
+func TestDB_GetNewMappings(t *testing.T) {
+	ctx := context.Background()
+	newDB := func(t *testing.T) *DBV2 {
+		path := t.TempDir()
+		db, _ := initD1b(t, path, "db", true, nil)
+		t.Cleanup(func() {
+			require.NoError(t, db.Close())
+		})
+		return db
+	}
+
+	t.Run("empty database", func(t *testing.T) {
+		db := newDB(t)
+		mappings, maxID, err := db.GetNewMappings(ctx, 0, 10)
+		require.NoError(t, err)
+		require.Empty(t, mappings)
+		require.Equal(t, int32(0), maxID)
+	})
+
+	t.Run("filters by id and respects page limit", func(t *testing.T) {
+		db := newDB(t)
+		require.NoError(t, db.PutMapping(ctx, []string{"tag1", "tag2", "tag3"}, []int32{1, 3, 5}))
+
+		mappings, maxID, err := db.GetNewMappings(ctx, 1, 10)
+		require.NoError(t, err)
+		require.Equal(t, int32(5), maxID)
+		require.Equal(t, []tlstatshouse.Mapping{
+			{Value: 3, Str: "tag2"},
+			{Value: 5, Str: "tag3"},
+		}, mappings)
+
+		pageLimited, maxIDLimited, err := db.GetNewMappings(ctx, 0, 1)
+		require.NoError(t, err)
+		require.Equal(t, int32(5), maxIDLimited)
+		require.Equal(t, []tlstatshouse.Mapping{
+			{Value: 1, Str: "tag1"},
+		}, pageLimited)
+
+		emptyResp, maxIDSame, err := db.GetNewMappings(ctx, 5, 10)
+		require.NoError(t, err)
+		require.Empty(t, emptyResp)
+		require.Equal(t, int32(5), maxIDSame)
+	})
+}
+
 func TestDB_ResetFlood(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)

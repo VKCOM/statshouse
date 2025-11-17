@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -23,12 +24,21 @@ import (
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
+const mappingCacheSize = 500
 
 type Handler struct {
 	db *DBV2
 
 	getJournalMx      sync.Mutex
 	getJournalClients map[rpc.LongpollHandle]tlmetadata.GetJournalnew // by getJournalMx
+
+	getMappingMx      sync.Mutex
+	getMappingClients map[rpc.LongpollHandle]tlmetadata.GetNewMappings // by getMappingMx
+
+	mappingCacheMx sync.RWMutex
+	mappingCache   [mappingCacheSize]tlstatshouse.Mapping // by mappingCacheMx, ASC
+	mappingHead    int                                    // by mappingCacheMx
+	mappingTail    int                                    // by mappingCacheMx
 
 	host string
 	log  func(s string, args ...interface{})
@@ -38,14 +48,30 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 	h := &Handler{
 		db:                db,
 		getJournalClients: map[rpc.LongpollHandle]tlmetadata.GetJournalnew{},
+		getMappingClients: map[rpc.LongpollHandle]tlmetadata.GetNewMappings{},
+		mappingCache:      [mappingCacheSize]tlstatshouse.Mapping{},
 		log:               log,
 		host:              host,
 	}
+	h.mappingCacheMx.Lock()
+	defer h.mappingCacheMx.Unlock()
+	h.bootStrapMappingCacheUnlocked(context.Background())
+
 	statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 		h.getJournalMx.Lock()
 		qLength := len(h.getJournalClients)
 		h.getJournalMx.Unlock()
 		client.Value(format.BuiltinMetricMetaMetaClientWaits.Name, statshouse.Tags{1: h.host}, float64(qLength))
+
+		h.getMappingMx.Lock()
+		mLength := len(h.getMappingClients)
+		h.getMappingMx.Unlock()
+		client.Value(format.BuiltinMetricMetaMappingClientWaits.Name, statshouse.Tags{1: h.host}, float64(mLength))
+
+		h.mappingCacheMx.RLock()
+		lastV := h.mappingCache[h.mappingTail].Value
+		h.mappingCacheMx.RUnlock()
+		client.Value(format.BuiltinMetricMetaMappingCacheVersion.Name, statshouse.Tags{1: h.host}, float64(lastV))
 	})
 	return h
 }
@@ -55,21 +81,60 @@ func (h *Handler) CancelLongpoll(lh rpc.LongpollHandle) {
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
 	delete(h.getJournalClients, lh)
+	h.getJournalMx.Unlock()
+
+	h.getMappingMx.Lock()
+	delete(h.getMappingClients, lh)
+	h.getMappingMx.Unlock()
 }
 
 func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
 	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "empty"}, 1)
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
-	args, ok := h.getJournalClients[lh]
-	if !ok {
+	err1 := func() error {
+		h.getJournalMx.Lock()
+		defer h.getJournalMx.Unlock()
+		args, ok := h.getJournalClients[lh]
+		if !ok {
+			return rpc.ErrLongpollNoEmptyResponse
+		}
+		delete(h.getJournalClients, lh)
+		resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
+		var err error
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return err
+	}()
+	err2 := func() error {
+		h.getMappingMx.Lock()
+		defer h.getMappingMx.Unlock()
+		args, ok := h.getMappingClients[lh]
+		if !ok {
+			return rpc.ErrLongpollNoEmptyResponse
+		}
+		delete(h.getMappingClients, lh)
+
+		h.mappingCacheMx.RLock()
+		lastVersion := h.mappingCache[h.mappingTail].Value
+		h.mappingCacheMx.RUnlock()
+
+		resp := tlmetadata.GetNewMappingsResponse{
+			CurrentVersion: args.From,
+			LastVersion:    lastVersion,
+		}
+		var err error
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return err
+	}()
+	if err1 != nil && !errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) {
+		return err1
+	}
+	if err2 != nil && !errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
+		return err2
+	}
+	if errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) && errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
+		// only if we not found anywhere
 		return rpc.ErrLongpollNoEmptyResponse
 	}
-	delete(h.getJournalClients, lh)
-	resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
-	var err error
-	hctx.Response, err = args.WriteResult(hctx.Response, resp)
-	return err
+	return nil
 }
 
 func (h *Handler) broadcastJournal() {
@@ -112,7 +177,62 @@ func (h *Handler) broadcastJournal() {
 		clientGotResponseCount++
 	}
 	if clientGotResponseCount > 0 {
-		h.log("[info] client got response count: %d", clientGotResponseCount)
+		h.log("[info] client got journal response count: %d", clientGotResponseCount)
+	}
+}
+
+func (h *Handler) broadcastMapping() {
+	// for correctness, we read and update mapping and waiting clients under a single lock
+	h.getMappingMx.Lock()
+	defer h.getMappingMx.Unlock()
+	if len(h.getMappingClients) == 0 {
+		return
+	}
+	minVersion := int32(math.MaxInt32)
+	for _, args := range h.getMappingClients {
+		minVersion = min(minVersion, args.From)
+	}
+	h.mappingCacheMx.RLock()
+	m := append(append([]tlstatshouse.Mapping{}, h.mappingCache[h.mappingHead:]...), h.mappingCache[:h.mappingHead]...)
+	lastVersion := h.mappingCache[h.mappingTail].Value
+	minCacheVersion := h.mappingCache[h.mappingHead].Value
+	cacheEnabled := h.mappingHead != h.mappingTail
+	h.mappingCacheMx.RUnlock()
+
+	var err error
+	if !cacheEnabled || minCacheVersion > minVersion+1 {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		m, lastVersion, err = h.db.GetNewMappings(ctx, minVersion, 100)
+		if err != nil {
+			return
+		}
+	}
+	if len(m) == 0 {
+		return
+	}
+	clientGotResponseCount := 0
+	for lh, args := range h.getMappingClients {
+		resp := tlmetadata.GetNewMappingsResponse{
+			CurrentVersion: m[len(m)-1].Value,
+			LastVersion:    lastVersion,
+			Pairs:          m,
+		}
+		for len(resp.Pairs) != 0 && resp.Pairs[0].Value <= args.From { // minVersion is almost the same, so this is not slow
+			resp.Pairs = resp.Pairs[1:]
+		}
+		if len(resp.Pairs) == 0 {
+			continue
+		}
+		delete(h.getMappingClients, lh)
+		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+			hctx.Response, err = args.WriteResult(hctx.Response, resp)
+			hctx.SendLongpollResponse(err)
+		}
+		clientGotResponseCount++
+	}
+	if clientGotResponseCount > 0 {
+		h.log("[info] client got mapping response count: %d", clientGotResponseCount)
 	}
 }
 
@@ -133,6 +253,10 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 			Events:         m,
 		}
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return "", err
+	}
+	if args.IsSetReturnIfEmpty() {
+		hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.GetJournalResponsenew{CurrentVersion: args.From})
 		return "", err
 	}
 	// but if we get 0, we must take lock and repeat getting events, to see if any appeared
@@ -156,6 +280,71 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", err
 	}
 	h.getJournalClients[lh] = args
+	return "", nil
+}
+
+func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetNewMappings
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetNewMappings request: %w", err)
+	}
+	var lastV int32
+	var m []tlstatshouse.Mapping
+	getNew := func() error {
+		h.mappingCacheMx.RLock()
+		m = append(append(m[:0], h.mappingCache[h.mappingHead:]...), h.mappingCache[:h.mappingHead]...)
+		lastV = h.mappingCache[h.mappingTail].Value
+		minVersion := h.mappingCache[h.mappingHead].Value
+		cacheEnabled := h.mappingHead != h.mappingTail
+		h.mappingCacheMx.RUnlock()
+
+		if cacheEnabled && minVersion <= args.From+1 {
+			for len(m) != 0 && m[0].Value <= args.From {
+				m = m[1:]
+			}
+			return nil
+		}
+		m, lastV, err = h.db.GetNewMappings(ctx, args.From, args.Limit)
+		return err
+	}
+	if err = getNew(); err != nil {
+		return "", fmt.Errorf("failed to get metrics update: %w", err)
+	}
+	if len(m) > 0 {
+		resp := tlmetadata.GetNewMappingsResponse{
+			CurrentVersion: m[len(m)-1].Value,
+			LastVersion:    lastV,
+			Pairs:          m,
+		}
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return "", err
+	}
+	if args.IsSetReturnIfEmpty() {
+		hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.GetNewMappingsResponse{CurrentVersion: args.From, LastVersion: lastV})
+		return "", err
+	}
+	// but if we get 0, we must take lock and repeat getting events, to see if any appeared
+	// while we were not holding lock
+	h.getMappingMx.Lock()
+	defer h.getMappingMx.Unlock() // HijackResponse must be under our lock
+	if err = getNew(); err != nil {
+		return "", fmt.Errorf("failed to get metrics update: %w", err)
+	}
+	if len(m) > 0 {
+		resp := tlmetadata.GetNewMappingsResponse{
+			CurrentVersion: m[len(m)-1].Value,
+			LastVersion:    lastV,
+			Pairs:          m,
+		}
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		return "", err
+	}
+	lh, err := hctx.StartLongpoll(h)
+	if err != nil {
+		return "", err
+	}
+	h.getMappingClients[lh] = args
 	return "", nil
 }
 
@@ -235,13 +424,16 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 		mapping = tlmetadata.GetMappingResponseKeyNotExists{}.AsUnion()
 	}
 	status := "load_mapping"
-	if mapping.IsCreated() {
+	if m, ok := mapping.AsCreated(); ok {
 		status = "create_mapping"
+		h.updateMappingCache(ctx, tlstatshouse.Mapping{Str: args.Key, Value: m.Id})
+		h.broadcastMapping()
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, mapping)
 	return status, err
 }
 
+// RawPutMapping Agent cache, Aggregator cache and Aggregator mapping replica DB will not know about changes!
 func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.PutMapping
 	_, err := args.Read(hctx.Request)
@@ -252,8 +444,44 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", err
 	}
+
+	// force bootstrap
+	h.updateMappingCache(ctx, tlstatshouse.Mapping{Value: math.MaxInt32})
+	h.broadcastMapping()
 	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.PutMappingResponse{})
 	return "", err
+}
+
+func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapping) {
+	h.mappingCacheMx.Lock()
+	defer h.mappingCacheMx.Unlock()
+
+	if h.mappingHead == h.mappingTail {
+		h.bootStrapMappingCacheUnlocked(ctx)
+		return
+	}
+	if h.mappingCache[h.mappingTail].Value >= pair.Value {
+		return
+	}
+	if h.mappingCache[h.mappingTail].Value == pair.Value-1 {
+		h.mappingCache[h.mappingHead] = pair
+		h.mappingTail = h.mappingHead
+		h.mappingHead = normalizeCircleIndex(h.mappingHead+1, mappingCacheSize)
+		return
+	}
+	h.bootStrapMappingCacheUnlocked(ctx)
+}
+
+func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
+	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
+	if err != nil || len(mappings) != mappingCacheSize {
+		h.mappingHead, h.mappingTail = 0, 0
+		h.log("[err] failed to bootstrap mapping cache: %v", err)
+		return
+	}
+	copy(h.mappingCache[:], mappings)
+	h.mappingHead = 0
+	h.mappingTail = mappingCacheSize - 1
 }
 
 func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
@@ -343,4 +571,12 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, string, error) {
 	count, err := h.db.PutBootstrap(ctx, args.Mappings)
 	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, "put_bootstrap", err
+}
+
+func normalizeCircleIndex(ind, len int) int {
+	ind %= len
+	if ind >= 0 {
+		return ind
+	}
+	return len + ind
 }

@@ -1276,6 +1276,32 @@ var BuiltinMetricMetaMetaClientWaits = &MetricMetaValue{ // TODO - harmonize
 	}},
 }
 
+var BuiltinMetricMetaMappingClientWaits = &MetricMetaValue{ // TODO - harmonize
+	Name:                    "__meta_load_mapping_client_waits",
+	Kind:                    MetricKindValue,
+	Description:             "Number of clients waiting mapping updates",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
+
+var BuiltinMetricMetaMappingCacheVersion = &MetricMetaValue{
+	Name:                    "__meta_load_mapping_cache_version",
+	Kind:                    MetricKindValue,
+	Description:             "Last version in metadata mapping cache",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "host",
+	}},
+}
+
 var BuiltinMetricMetaAgentUDPReceiveBufferSize = &MetricMetaValue{
 	Name:                    "__src_udp_receive_buffer_size",
 	Kind:                    MetricKindValue,
