@@ -157,8 +157,10 @@ var (
 		BuiltinMetricIDMigrationLog:             BuiltinMetricMetaMigrationLog,
 		-142:                                    BuiltinMetricMetaAPISelectOSCPUVirtualTime,
 		-143:                                    BuiltinMetricMetaAPIRateLimit,
-		-144:                                    BuiltinMetricMappingStorageVersion,
-		-145:                                    BuiltinMetricMappingStoragePending,
+		-144:                                    BuiltinMetricMetaMappingClientWaits,
+		-145:                                    BuiltinMetricMetaMappingCacheVersion,
+		-146:                                    BuiltinMetricMappingStorageVersion,
+		-147:                                    BuiltinMetricMappingStoragePending,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly
