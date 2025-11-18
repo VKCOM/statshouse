@@ -26,14 +26,23 @@ import (
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const mappingCacheSize = 500
 
+type GetMappingClients struct {
+	host    string
+	mx      sync.Mutex
+	clients map[rpc.LongpollHandle]tlmetadata.GetNewMappings // by getMappingMx
+}
+
+type GetJournalClients struct {
+	host    string
+	mx      sync.Mutex
+	clients map[rpc.LongpollHandle]tlmetadata.GetJournalnew // by getJournalMx
+}
+
 type Handler struct {
 	db *DBV2
 
-	getJournalMx      sync.Mutex
-	getJournalClients map[rpc.LongpollHandle]tlmetadata.GetJournalnew // by getJournalMx
-
-	getMappingMx      sync.Mutex
-	getMappingClients map[rpc.LongpollHandle]tlmetadata.GetNewMappings // by getMappingMx
+	getJournalClients *GetJournalClients
+	getMappingClients *GetMappingClients
 
 	mappingCacheMx sync.RWMutex
 	mappingCache   [mappingCacheSize]tlstatshouse.Mapping // by mappingCacheMx, ASC
@@ -46,26 +55,32 @@ type Handler struct {
 
 func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) *Handler {
 	h := &Handler{
-		db:                db,
-		getJournalClients: map[rpc.LongpollHandle]tlmetadata.GetJournalnew{},
-		getMappingClients: map[rpc.LongpollHandle]tlmetadata.GetNewMappings{},
-		mappingCache:      [mappingCacheSize]tlstatshouse.Mapping{},
-		log:               log,
-		host:              host,
+		db: db,
+		getJournalClients: &GetJournalClients{
+			host:    host,
+			clients: map[rpc.LongpollHandle]tlmetadata.GetJournalnew{},
+		},
+		getMappingClients: &GetMappingClients{
+			host:    host,
+			clients: map[rpc.LongpollHandle]tlmetadata.GetNewMappings{},
+		},
+		mappingCache: [mappingCacheSize]tlstatshouse.Mapping{},
+		log:          log,
+		host:         host,
 	}
 	h.mappingCacheMx.Lock()
 	defer h.mappingCacheMx.Unlock()
 	h.bootStrapMappingCacheUnlocked(context.Background())
 
 	statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
-		h.getJournalMx.Lock()
-		qLength := len(h.getJournalClients)
-		h.getJournalMx.Unlock()
+		h.getJournalClients.mx.Lock()
+		qLength := len(h.getJournalClients.clients)
+		h.getJournalClients.mx.Unlock()
 		client.Value(format.BuiltinMetricMetaMetaClientWaits.Name, statshouse.Tags{1: h.host}, float64(qLength))
 
-		h.getMappingMx.Lock()
-		mLength := len(h.getMappingClients)
-		h.getMappingMx.Unlock()
+		h.getMappingClients.mx.Lock()
+		mLength := len(h.getMappingClients.clients)
+		h.getMappingClients.mx.Unlock()
 		client.Value(format.BuiltinMetricMetaMappingClientWaits.Name, statshouse.Tags{1: h.host}, float64(mLength))
 
 		h.mappingCacheMx.RLock()
@@ -76,76 +91,59 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 	return h
 }
 
-func (h *Handler) CancelLongpoll(lh rpc.LongpollHandle) {
-	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel"}, 1)
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
-	delete(h.getJournalClients, lh)
-	h.getJournalMx.Unlock()
-
-	h.getMappingMx.Lock()
-	delete(h.getMappingClients, lh)
-	h.getMappingMx.Unlock()
+func (h *GetJournalClients) CancelLongpoll(lh rpc.LongpollHandle) {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel", 3: "journal"}, 1)
+	h.mx.Lock()
+	defer h.mx.Unlock()
+	delete(h.clients, lh)
 }
 
-func (h *Handler) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
-	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "empty"}, 1)
-	err1 := func() error {
-		h.getJournalMx.Lock()
-		defer h.getJournalMx.Unlock()
-		args, ok := h.getJournalClients[lh]
-		if !ok {
-			return rpc.ErrLongpollNoEmptyResponse
-		}
-		delete(h.getJournalClients, lh)
-		resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, resp)
-		return err
-	}()
-	err2 := func() error {
-		h.getMappingMx.Lock()
-		defer h.getMappingMx.Unlock()
-		args, ok := h.getMappingClients[lh]
-		if !ok {
-			return rpc.ErrLongpollNoEmptyResponse
-		}
-		delete(h.getMappingClients, lh)
+func (h *GetMappingClients) CancelLongpoll(lh rpc.LongpollHandle) {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "cancel", 3: "mapping"}, 1)
+	h.mx.Lock()
+	defer h.mx.Unlock()
+	delete(h.clients, lh)
+}
 
-		h.mappingCacheMx.RLock()
-		lastVersion := h.mappingCache[h.mappingTail].Value
-		h.mappingCacheMx.RUnlock()
-
-		resp := tlmetadata.GetNewMappingsResponse{
-			CurrentVersion: args.From,
-			LastVersion:    lastVersion,
-		}
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, resp)
-		return err
-	}()
-	if err1 != nil && !errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) {
-		return err1
-	}
-	if err2 != nil && !errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
-		return err2
-	}
-	if errors.Is(err1, rpc.ErrLongpollNoEmptyResponse) && errors.Is(err2, rpc.ErrLongpollNoEmptyResponse) {
-		// only if we not found anywhere
+func (h *GetJournalClients) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "empty", 3: "journal"}, 1)
+	h.mx.Lock()
+	defer h.mx.Unlock()
+	args, ok := h.clients[lh]
+	if !ok {
 		return rpc.ErrLongpollNoEmptyResponse
 	}
-	return nil
+	delete(h.clients, lh)
+	resp := tlmetadata.GetJournalResponsenew{CurrentVersion: args.From}
+	var err error
+	hctx.Response, err = args.WriteResult(hctx.Response, resp)
+	return err
+}
+
+func (h *GetMappingClients) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.HandlerContext) error {
+	statshouse.Count("meta_cancel_hijack", statshouse.Tags{1: h.host, 2: "empty", 3: "mapping"}, 1)
+	h.mx.Lock()
+	defer h.mx.Unlock()
+	args, ok := h.clients[lh]
+	if !ok {
+		return rpc.ErrLongpollNoEmptyResponse
+	}
+	delete(h.clients, lh)
+	resp := tlmetadata.GetNewMappingsResponse{CurrentVersion: args.From}
+	var err error
+	hctx.Response, err = args.WriteResult(hctx.Response, resp)
+	return err
 }
 
 func (h *Handler) broadcastJournal() {
 	// for correctness, we read and update journal and waiting clients under a single lock
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
-	if len(h.getJournalClients) == 0 {
+	h.getJournalClients.mx.Lock()
+	defer h.getJournalClients.mx.Unlock()
+	if len(h.getJournalClients.clients) == 0 {
 		return
 	}
 	minVersion := int64(math.MaxInt64)
-	for _, args := range h.getJournalClients {
+	for _, args := range h.getJournalClients.clients {
 		minVersion = min(minVersion, args.From)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -158,7 +156,7 @@ func (h *Handler) broadcastJournal() {
 		return
 	}
 	clientGotResponseCount := 0
-	for lh, args := range h.getJournalClients {
+	for lh, args := range h.getJournalClients.clients {
 		resp := tlmetadata.GetJournalResponsenew{
 			CurrentVersion: journalNew[len(journalNew)-1].Version,
 			Events:         journalNew,
@@ -169,7 +167,7 @@ func (h *Handler) broadcastJournal() {
 		if len(resp.Events) == 0 {
 			continue
 		}
-		delete(h.getJournalClients, lh)
+		delete(h.getJournalClients.clients, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 			hctx.Response, err = args.WriteResult(hctx.Response, resp)
 			hctx.SendLongpollResponse(err)
@@ -183,13 +181,13 @@ func (h *Handler) broadcastJournal() {
 
 func (h *Handler) broadcastMapping() {
 	// for correctness, we read and update mapping and waiting clients under a single lock
-	h.getMappingMx.Lock()
-	defer h.getMappingMx.Unlock()
-	if len(h.getMappingClients) == 0 {
+	h.getMappingClients.mx.Lock()
+	defer h.getMappingClients.mx.Unlock()
+	if len(h.getMappingClients.clients) == 0 {
 		return
 	}
 	minVersion := int32(math.MaxInt32)
-	for _, args := range h.getMappingClients {
+	for _, args := range h.getMappingClients.clients {
 		minVersion = min(minVersion, args.From)
 	}
 	h.mappingCacheMx.RLock()
@@ -212,7 +210,7 @@ func (h *Handler) broadcastMapping() {
 		return
 	}
 	clientGotResponseCount := 0
-	for lh, args := range h.getMappingClients {
+	for lh, args := range h.getMappingClients.clients {
 		resp := tlmetadata.GetNewMappingsResponse{
 			CurrentVersion: m[len(m)-1].Value,
 			LastVersion:    lastVersion,
@@ -224,7 +222,7 @@ func (h *Handler) broadcastMapping() {
 		if len(resp.Pairs) == 0 {
 			continue
 		}
-		delete(h.getMappingClients, lh)
+		delete(h.getMappingClients.clients, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 			hctx.Response, err = args.WriteResult(hctx.Response, resp)
 			hctx.SendLongpollResponse(err)
@@ -261,8 +259,8 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	}
 	// but if we get 0, we must take lock and repeat getting events, to see if any appeared
 	// while we were not holding lock
-	h.getJournalMx.Lock()
-	defer h.getJournalMx.Unlock()
+	h.getJournalClients.mx.Lock()
+	defer h.getJournalClients.mx.Unlock()
 	m, err = h.db.JournalEvents(ctx, args.From, args.Limit)
 	if err != nil {
 		return "", fmt.Errorf("failed to get metrics update: %w", err)
@@ -275,11 +273,11 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return "", err
 	}
-	lh, err := hctx.StartLongpoll(h)
+	lh, err := hctx.StartLongpoll(h.getJournalClients)
 	if err != nil {
 		return "", err
 	}
-	h.getJournalClients[lh] = args
+	h.getJournalClients.clients[lh] = args
 	return "", nil
 }
 
@@ -326,8 +324,8 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 	}
 	// but if we get 0, we must take lock and repeat getting events, to see if any appeared
 	// while we were not holding lock
-	h.getMappingMx.Lock()
-	defer h.getMappingMx.Unlock() // HijackResponse must be under our lock
+	h.getMappingClients.mx.Lock()
+	defer h.getMappingClients.mx.Unlock() // HijackResponse must be under our lock
 	if err = getNew(); err != nil {
 		return "", fmt.Errorf("failed to get metrics update: %w", err)
 	}
@@ -340,11 +338,11 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return "", err
 	}
-	lh, err := hctx.StartLongpoll(h)
+	lh, err := hctx.StartLongpoll(h.getMappingClients)
 	if err != nil {
 		return "", err
 	}
-	h.getMappingClients[lh] = args
+	h.getMappingClients.clients[lh] = args
 	return "", nil
 }
 
