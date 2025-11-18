@@ -744,13 +744,9 @@ func (h *Handler) Close() error {
 	statshouse.StopRegularMeasurement(h.rmID)
 	h.cacheInvalidateTicker.Stop()
 
-	log.Printf("start saving mapping storage")
 	if _, err := h.mappingsStorage.Save(); err != nil {
 		log.Printf("Periodic mappings storage save failed: %v", err)
-	} else {
-		log.Printf("Periodic mappings storage save completed")
 	}
-
 	ch := make(chan struct{})
 	h.cacheInvalidateStop <- ch
 	<-ch

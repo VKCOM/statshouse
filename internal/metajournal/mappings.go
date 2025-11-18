@@ -292,7 +292,7 @@ func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsL
 		default:
 		}
 		if err := ms.updateMappings(); err != nil {
-			log.Printf("failed to full update mapping storage: %v", err)
+			log.Printf("failed to full update mapping storage: %v. So start anyway", err)
 			break
 		}
 		ms.mu.RLock()
@@ -391,7 +391,6 @@ func (ms *MappingsStorage) updateMappings() error {
 			[]int32{0, ms.component, 0, format.TagValueIDMappingStorageVersionLastKnown},
 			float64(newLastV), 1)
 	}
-	log.Printf("Updated mappings: loaded %d new mappings, current version: %d", len(mappings), newCurV)
 	return nil
 }
 
