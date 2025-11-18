@@ -204,8 +204,6 @@ type (
 		indexSettings         string
 		ch                    map[string]*chutil.ClickHouse
 		metricsStorage        *metajournal.MetricsStorage
-		tagValueCache         *pcache.Cache
-		tagValueIDCache       *pcache.Cache
 		cache2                *cache2
 		cache2Mu              sync.RWMutex
 		pointsCache           *pointsCache
@@ -214,6 +212,7 @@ type (
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
 		metadataLoader        *metajournal.MetricMetaLoader
+		mappingsStorage       *metajournal.MappingsStorage
 		jwtHelper             *vkuth.JWTHelper
 		plotRenderSem         *semaphore.Weighted
 		plotTemplate          *ttemplate.Template
@@ -592,7 +591,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache pcache.DiskCache, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -609,12 +608,13 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	journal := metajournal.MakeJournal(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache,
 		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
 	h := &Handler{
-		HandlerOptions: opt,
-		showInvisible:  showInvisible,
-		staticDir:      http.FS(staticDir),
-		indexTemplate:  tmpl,
-		indexSettings:  string(settings),
-		metadataLoader: metadataLoader,
+		HandlerOptions:  opt,
+		showInvisible:   showInvisible,
+		staticDir:       http.FS(staticDir),
+		indexTemplate:   tmpl,
+		indexSettings:   string(settings),
+		metadataLoader:  metadataLoader,
+		mappingsStorage: mappingsStorage,
 		ch: map[string]*chutil.ClickHouse{
 			Version1: chV1,
 			Version2: chV2,
@@ -625,42 +625,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		blockedMetricPrefixes: cfg.BlockedMetricPrefixes,
 		blockedUsers:          cfg.BlockedUsers,
 		availableShards:       cfg.AvailableShards,
-		tagValueCache: &pcache.Cache{
-			Loader: tagValueInverseLoader{
-				loadTimeout: metajournal.DefaultMetaTimeout,
-				metaClient:  metadataClient,
-			}.load,
-			DiskCache:               diskCache,
-			DiskCacheNamespace:      data_model.TagValueInvertDiskNamespace + diskCacheSuffix,
-			MaxMemCacheSize:         data_model.MappingMaxMemCacheSize,
-			SpreadCacheTTL:          true,
-			DefaultCacheTTL:         data_model.MappingCacheTTLMinimum,
-			DefaultNegativeCacheTTL: data_model.MappingNegativeCacheTTL,
-			LoadMinInterval:         data_model.MappingMinInterval,
-			LoadBurst:               1000,
-			Empty: func() pcache.Value {
-				var empty pcache.StringValue
-				return &empty
-			},
-		},
-		tagValueIDCache: &pcache.Cache{
-			Loader: tagValueLoader{
-				loadTimeout: metajournal.DefaultMetaTimeout,
-				metaClient:  metadataClient,
-			}.load,
-			DiskCache:               diskCache,
-			DiskCacheNamespace:      data_model.TagValueDiskNamespace + diskCacheSuffix,
-			MaxMemCacheSize:         data_model.MappingMaxMemCacheSize,
-			SpreadCacheTTL:          true,
-			DefaultCacheTTL:         data_model.MappingCacheTTLMinimum,
-			DefaultNegativeCacheTTL: data_model.MappingNegativeCacheTTL,
-			LoadMinInterval:         data_model.MappingMinInterval,
-			LoadBurst:               1000,
-			Empty: func() pcache.Value {
-				var empty pcache.Int32Value
-				return &empty
-			},
-		},
 		cacheInvalidateTicker: time.NewTicker(cacheInvalidateCheckInterval),
 		cacheInvalidateStop:   make(chan chan struct{}),
 		jwtHelper:             jwtHelper,
@@ -701,6 +665,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	applyCfg(cfg)
 	cl.AddChangeCB(applyCfg)
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
+	mappingsStorage.StartPeriodicSaving()
+	mappingsStorage.Start(format.TagValueIDComponentAPI, nil, metadataLoader.GetNewMappings)
+
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
 	go h.invalidateLoop()
@@ -777,6 +744,9 @@ func (h *Handler) Close() error {
 	statshouse.StopRegularMeasurement(h.rmID)
 	h.cacheInvalidateTicker.Stop()
 
+	if _, err := h.mappingsStorage.Save(); err != nil {
+		log.Printf("Periodic mappings storage save failed: %v", err)
+	}
 	ch := make(chan struct{})
 	h.cacheInvalidateStop <- ch
 	<-ch
@@ -924,10 +894,10 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	info, err := h.ch[version].Select(ctx, meta, query)
 	h.endpointStat.reportTiming("ch-select", info.QueryDuration)
 	h.endpointStat.reportTiming("wait-lock", info.WaitLockDuration)
-	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, err)
-	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.Profile, err)
-	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, err)
-	ChRequestsMetric(info.Shard, info.Host, meta.Table, err == nil)
+	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, info.ErrorCode, err)
+	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.Profile, info.ErrorCode, err)
+	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, info.ErrorCode, err)
+	ChRequestsMetric(info.Shard, info.Host, meta.Table, info.ErrorCode, err == nil)
 
 	return err
 }
@@ -997,8 +967,11 @@ func (h *Handler) getMetricIDForStat(metricName string) int32 {
 }
 
 func (h *Handler) getTagValue(tagValueID int32) (string, error) {
-	r := h.tagValueCache.GetOrLoad(time.Now(), strconv.FormatInt(int64(tagValueID), 10), nil)
-	return pcache.ValueToString(r.Value), r.Err
+	str, ok := h.mappingsStorage.GetString(tagValueID)
+	if !ok {
+		return "", fmt.Errorf("tag value for %d not found", tagValueID)
+	}
+	return str, nil
 }
 
 func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version string, tagID string, valueID int64) string {
@@ -1054,8 +1027,11 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 }
 
 func (h *Handler) getTagValueID(tagValue string) (int32, error) {
-	r := h.tagValueIDCache.GetOrLoad(time.Now(), tagValue, nil)
-	return pcache.ValueToInt32(r.Value), r.Err
+	valueID, ok := h.mappingsStorage.GetValue(tagValue)
+	if !ok {
+		return 0, fmt.Errorf("tag value ID for %q not found", tagValue)
+	}
+	return valueID, nil
 }
 
 func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version string, tagValue string) (int64, error) {

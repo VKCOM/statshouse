@@ -18,24 +18,27 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 
 	"github.com/VKCOM/statshouse/internal/api"
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/config"
+	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
 )
 
@@ -106,6 +109,8 @@ var argv struct {
 	metadataActorID          int64
 	metadataAddr             string
 	metadataNet              string
+	cluster                  string
+	mappingsFileCount        int
 
 	api.HandlerOptions
 	api.Config
@@ -141,6 +146,8 @@ func run() int {
 	}
 	defer tf.Stop()
 
+	sigCtx, sigCancel := context.WithCancel(context.Background())
+	defer sigCancel()
 	go func() {
 		ch := make(chan os.Signal, 3)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -149,6 +156,7 @@ func run() int {
 			case syscall.SIGINT, syscall.SIGTERM:
 				log.Printf("got %v, exiting...", sig)
 				tf.Stop()
+				sigCancel()
 			case syscall.SIGHUP:
 				log.Printf("got %v, upgrading...", sig)
 				err := tf.Upgrade()
@@ -232,6 +240,23 @@ func run() int {
 		}
 	}()
 
+	var mappingFiles []*os.File
+	for i := 0; i < argv.mappingsFileCount; i++ {
+		// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
+		fpmc, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s-%d.cache", argv.cluster, i)), os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			log.Printf("failed to open mappings storage file %v", err)
+			return 1
+		}
+		defer fpmc.Close()
+		mappingFiles = append(mappingFiles, fpmc)
+	}
+	mappingsStorage, err := metajournal.LoadMappingsFiles(sigCtx, mappingFiles, data_model.JournalDDOSProtectionTimeout, true)
+	if err != nil {
+		log.Printf("failed to load mappings storage from %v", err)
+		return 1
+	}
+
 	statshouse.ConfigureNetwork(log.Printf, argv.statsHouseNetwork, argv.statsHouseAddr, argv.statsHouseEnv)
 	defer func() { _ = statshouse.Close() }()
 	var rpcCryptoKeys []string
@@ -299,6 +324,7 @@ func run() int {
 			ActorID: argv.metadataActorID,
 		},
 		dc,
+		mappingsStorage,
 		jwtHelper,
 		argv.HandlerOptions,
 		&argv.Config,
@@ -547,6 +573,8 @@ func parseCommandLine() (err error) {
 	flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
+	flag.StringVar(&argv.cluster, "cluster", "statlogs2", "cluster name used for cache file names")
+	flag.IntVar(&argv.mappingsFileCount, "mappings-file-count", 16, "count of files for sharding metadata mappings")
 	argv.HandlerOptions.Bind(flag.CommandLine)
 	argv.Config.Bind(flag.CommandLine, api.DefaultConfig())
 	flag.Parse()
@@ -556,6 +584,9 @@ func parseCommandLine() (err error) {
 	}
 	if len(argv.chV2Addrs) == 0 {
 		return fmt.Errorf("--clickhouse-v2-addrs must be specified")
+	}
+	if argv.cacheDir == "" {
+		return fmt.Errorf("--cache-dir must be specified")
 	}
 
 	if math.Abs(float64(argv.utcOffsetHours)) > 168 { // hours in week (24*7=168)

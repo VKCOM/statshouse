@@ -16,7 +16,7 @@ import (
 	"time"
 	_ "unsafe" // to access clickhouse.bind
 
-	"github.com/ClickHouse/ch-go"
+	chgo "github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/chpool"
 	"github.com/ClickHouse/ch-go/proto"
 	_ "github.com/ClickHouse/clickhouse-go/v2" // to access clickhouse.bind
@@ -70,6 +70,7 @@ type QueryHandleInfo struct {
 	OSCPUVirtualTimeMicroseconds uint64
 	Host                         string
 	Shard                        int
+	ErrorCode                    int
 }
 
 type ConnLimits struct {
@@ -162,11 +163,11 @@ func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rt
 			for _, pool := range ch1.namedPools[user] {
 				server, err := chpool.New(context.Background(), chpool.Options{
 					MaxConns: int32(pool.maxActiveQuery),
-					ClientOptions: ch.Options{
+					ClientOptions: chgo.Options{
 						Address:          addr,
 						User:             ch1.opt.User,
 						Password:         ch1.opt.Password,
-						Compression:      ch.CompressionLZ4,
+						Compression:      chgo.CompressionLZ4,
 						DialTimeout:      ch1.opt.DialTimeout,
 						HandshakeTimeout: 10 * time.Second,
 					}})
@@ -341,7 +342,7 @@ func QueryKind(isFast, isLight, isHardware bool) int {
 	}
 	return slowHeavy
 }
-func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
+func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query chgo.Query) (info QueryHandleInfo, err error) {
 	pool := ch1.resolvePoolBy(meta)
 	return pool.selectCH(ctx, ch1, meta, query)
 }
@@ -360,7 +361,7 @@ func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
 	return ch1.namedPools[defaultUserName][kind]
 }
 
-func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
+func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
 		return nil
@@ -422,7 +423,11 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 					Duration:  info.QueryDuration,
 				})
 				servers = slices.Delete(servers, i, i+1)
+				info.ErrorCode = 0
 				break // succeeded
+			}
+			if code, ok := chgo.AsException(err); ok {
+				info.ErrorCode = int(code.Code)
 			}
 			if ctx.Err() != nil {
 				return // failed
@@ -496,7 +501,7 @@ func pickHealthServer(s []serverCH, r *rand.Rand) (int, error) {
 	return i2, nil
 }
 
-func pickCheckServer(s []serverCH, query ch.Query, r *rand.Rand, timeout time.Duration) {
+func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.Duration) {
 	var checks []serverCH
 	for i := 0; i < len(s); i++ {
 		if s[i].rate.ShouldCheck() {

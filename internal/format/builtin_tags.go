@@ -395,6 +395,9 @@ const (
 	TagValueIDMappingQueueEventCreateMapAdd      = 5
 	TagValueIDMappingQueueEventCreateMapRemove   = 6
 
+	TagValueIDMappingStorageVersionCurrent   = 1
+	TagValueIDMappingStorageVersionLastKnown = 2
+
 	TagSourceTokenFromClient = 1
 	TagSourceTokenFromVkuth  = 2
 )

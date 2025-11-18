@@ -1154,6 +1154,9 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -1180,6 +1183,9 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -1209,6 +1215,9 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 		Description: "token-long",
 	}, {
 		Description: "shard_key", // metric % 16 + 1 for now, experimental
+		RawKind:     "int",
+	}, {
+		Description: "error_code",
 		RawKind:     "int",
 	}},
 }
@@ -2625,6 +2634,44 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	}},
 }
 
+var BuiltinMetricMappingStorageVersion = &MetricMetaValue{
+	Name:                    "__mapping_storage_version",
+	Kind:                    MetricKindValue,
+	Description:             "Current and last known mapping versions observed by mapping storage.",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "host",
+	}, {
+		Description: "version",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDMappingStorageVersionCurrent:   "current",
+			TagValueIDMappingStorageVersionLastKnown: "last_known",
+		}),
+	}},
+}
+
+var BuiltinMetricMappingStoragePending = &MetricMetaValue{
+	Name:                    "__mapping_storage_pending",
+	Kind:                    MetricKindValue,
+	Description:             "Byte size of pending mappings before drop to disk.",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "host",
+	}},
+}
+
 var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
 	Name:                    "__src_timings",
 	Kind:                    MetricKindValue,
@@ -2742,6 +2789,9 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDStatusOK:    "ok",
 			TagValueIDStatusError: "error",
 		}),
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
@@ -2785,6 +2835,9 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
+	}, {
+		Description: "error_code",
+		RawKind:     "int",
 	}},
 }
 
