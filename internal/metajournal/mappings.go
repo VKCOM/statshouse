@@ -432,7 +432,7 @@ func (ms *MappingsStorage) goAddReverseShardValues(wg *sync.WaitGroup) []chan tl
 			defer shard.mu.Unlock()
 			for p := range ch {
 				if prev, ok := shard.mappings[p.Value]; ok {
-					log.Printf("Duplicate mapping found: %s, old: %d, new: %d", p.Str, prev, p.Value)
+					log.Printf("Duplicate mapping found: %d, old: %s, new: %s", p.Value, prev, p.Str)
 					delete(shard.mappings, p.Value)
 				}
 				shard.mappings[p.Value] = p.Str
