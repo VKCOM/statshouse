@@ -182,10 +182,10 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 	for _, ch := range revChs {
 		close(ch)
 	}
+	wg.Wait()
 	if err != nil {
 		return err
 	}
-	wg.Wait()
 
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
