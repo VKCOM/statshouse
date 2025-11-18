@@ -12,16 +12,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/zeebo/xxh3"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
 const (
@@ -52,7 +57,8 @@ type MappingsStorage struct {
 	lastKnownVersion int32 // last known version in metadata, under mu
 
 	// metrics
-	sh2 *agent.Agent // not available for API
+	sh2       *agent.Agent // not available for API
+	component int32
 }
 
 type mappingShard struct {
@@ -252,12 +258,30 @@ func (ms *MappingsStorage) Save() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if ms.sh2 != nil {
+		ms.sh2.AddValueCounter(0, format.BuiltinMetricMappingStoragePending, []int32{0, ms.component}, float64(allSize), 1)
+	}
 	return true, nil
 }
 
-func (ms *MappingsStorage) Start(sh2 *agent.Agent, mappingsLoader MappingsLoader) {
+func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsLoader MappingsLoader) {
+	ms.component = componentTag
 	ms.mappingsLoader = mappingsLoader
-	ms.sh2 = sh2 // can be nil
+	ms.sh2 = sh2
+
+	mID := 0
+	if sh2 == nil {
+		mID = ms.startMetrics() // API
+	}
+	go func() {
+		<-ms.ctx.Done()
+		if sh2 != nil {
+			ms.sh2.Close()
+		} else {
+			statshouse.StopRegularMeasurement(mID)
+		}
+	}()
+
 	if mappingsLoader == nil {
 		return
 	}
@@ -325,13 +349,14 @@ func (ms *MappingsStorage) updateMappings() error {
 		}
 		return fmt.Errorf("failed to load new mappings: %w", err)
 	}
-	if isDead && len(mappings) == 0 {
-		ms.mu.Lock()
-		ms.metadataDead = false
-		ms.mu.Unlock()
+	if len(mappings) == 0 {
+		if isDead {
+			ms.mu.Lock()
+			ms.metadataDead = false
+			ms.mu.Unlock()
+		}
 		return nil
 	}
-
 	var wg sync.WaitGroup
 	chs := ms.goAddShardValues(&wg)
 	revChs := ms.goAddReverseShardValues(&wg)
@@ -358,6 +383,14 @@ func (ms *MappingsStorage) updateMappings() error {
 	ms.pendingByteSize += size
 	ms.mu.Unlock()
 
+	if ms.sh2 != nil {
+		ms.sh2.AddValueCounter(0, format.BuiltinMetricMappingStorageVersion,
+			[]int32{0, ms.component, 0, format.TagValueIDMappingStorageVersionCurrent},
+			float64(newCurV), 1)
+		ms.sh2.AddValueCounter(0, format.BuiltinMetricMappingStorageVersion,
+			[]int32{0, ms.component, 0, format.TagValueIDMappingStorageVersionLastKnown},
+			float64(newLastV), 1)
+	}
 	log.Printf("Updated mappings: loaded %d new mappings, current version: %d", len(mappings), newCurV)
 	return nil
 }
@@ -427,6 +460,32 @@ func (ms *MappingsStorage) goUpdateMappings() {
 		log.Printf("Failed to update mappings from metadata, will retry: %v", err)
 		time.Sleep(backoffTimeout)
 	}
+}
+
+func (ms *MappingsStorage) startMetrics() int {
+	return statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
+		ms.mu.RLock()
+		cur := ms.currentVersion
+		last := ms.lastKnownVersion
+		bytes := ms.pendingByteSize
+		ms.mu.RUnlock()
+
+		client.Value(format.BuiltinMetricMappingStorageVersion.Name, statshouse.Tags{
+			1: strconv.Itoa(int(ms.component)),
+			2: srvfunc.HostnameForStatshouse(),
+			3: strconv.Itoa(format.TagValueIDMappingStorageVersionCurrent),
+		}, float64(cur))
+		client.Value(format.BuiltinMetricMappingStorageVersion.Name, statshouse.Tags{
+			1: strconv.Itoa(int(ms.component)),
+			2: srvfunc.HostnameForStatshouse(),
+			3: strconv.Itoa(format.TagValueIDMappingStorageVersionLastKnown),
+		}, float64(last))
+
+		client.Value(format.BuiltinMetricMappingStoragePending.Name, statshouse.Tags{
+			1: strconv.Itoa(int(ms.component)),
+			2: srvfunc.HostnameForStatshouse(),
+		}, float64(bytes))
+	})
 }
 
 func (ms *MappingsStorage) GetValue(str string) (int32, bool) {

@@ -666,7 +666,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	cl.AddChangeCB(applyCfg)
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
 	mappingsStorage.StartPeriodicSaving()
-	mappingsStorage.Start(nil, metadataLoader.GetNewMappings)
+	mappingsStorage.Start(format.TagValueIDComponentAPI, nil, metadataLoader.GetNewMappings)
 
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
