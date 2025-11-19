@@ -130,7 +130,7 @@ func mainAggregator() int {
 		defer f.Close()
 		mappingStorageFiles = append(mappingStorageFiles, f)
 	}
-	mappingsStorage, err := metajournal.LoadMappingsFiles(ctx, mappingStorageFiles, data_model.JournalDDOSProtectionTimeout, true)
+	mappingsStorage, err := metajournal.LoadMappingsFiles(ctx, mappingStorageFiles, data_model.JournalDDOSProtectionTimeout, false)
 	if err != nil {
 		log.Printf("failed to load mappings storage from %v", err)
 		return 1
