@@ -14,9 +14,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/compress"
 	"go4.org/mem"
 	"pgregory.net/rand"
+
+	"github.com/VKCOM/statshouse/internal/compress"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -106,7 +107,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	hostTag := data_model.TagUnion{S: args.Header.HostName}
-	if mapped, ok := a.mappingsCache.GetValue(nowUnix, args.Header.HostName); ok {
+	if mapped, ok := a.getTagValue(nowUnix, args.Header.HostName); ok {
 		hostTag.I = mapped
 		hostTag.S = ""
 	}
@@ -209,13 +210,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
 	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
-	if mapped, ok := a.mappingsCache.GetValueBytes(nowUnix, args.Header.HostName); ok {
+	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
 		hostTag.I = mapped
 		hostTag.S = nil
 	}
 	hostTagS := data_model.TagUnion{S: string(hostTag.S), I: hostTag.I} // allocate once
 	ownerTag := data_model.TagUnionBytes{S: args.Header.Owner}
-	if mapped, ok := a.mappingsCache.GetValueBytes(nowUnix, args.Header.Owner); ok {
+	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.Owner); ok {
 		ownerTag.I = mapped
 		ownerTag.S = nil
 	}
@@ -403,7 +404,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if len(str) == 0 {
 			return 0
 		}
-		if mapped, ok := a.mappingsCache.GetValueBytes(aggBucket.time, str); ok {
+		if mapped, ok := a.getTagValueBytes(aggBucket.time, str); ok {
 			mappingHits++
 			if len(sendMappings) < configR.MaxSendTagsToAgent {
 				sendMappings[string(str)] = mapped
@@ -584,7 +585,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		resp.Mappings = append(resp.Mappings, tlstatshouse.Mapping{Str: k, Value: v})
 	}
 
-	unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits := a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
+	var avgRemovedHits float64
+	var unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd int
+	if configR.EnableMappingStorage {
+		unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits = a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
+	} else {
+		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
+	}
 
 	aggBucket.mu.Lock()
 
@@ -763,7 +770,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
-	if mapped, ok := a.mappingsCache.GetValueBytes(nowUnix, args.Header.HostName); ok {
+	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
 		hostTag.I = mapped
 		hostTag.S = nil
 	}

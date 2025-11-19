@@ -264,7 +264,7 @@ func (ms *MappingsStorage) Save() (bool, error) {
 	return true, nil
 }
 
-func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsLoader MappingsLoader) {
+func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsLoader MappingsLoader, preload bool) {
 	ms.component = componentTag
 	ms.mappingsLoader = mappingsLoader
 	ms.sh2 = sh2
@@ -285,7 +285,7 @@ func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsL
 	if mappingsLoader == nil {
 		return
 	}
-	for {
+	for preload {
 		select {
 		case <-ms.ctx.Done():
 			return

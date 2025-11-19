@@ -40,8 +40,9 @@ type ConfigAggregatorRemote struct {
 	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
 	MigrationDelaySec    int    // delay in seconds between migration steps
 	ClusterShardsAddrs   []string
+	EnableMappingStorage bool
 
-	configTagsMapper2
+	configTagsMapper3
 }
 
 type ConfigAggregator struct {
@@ -98,7 +99,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MigrationTimeRange:   "", // empty means migration disabled
 			MigrationDelaySec:    30, // 30 seconds delay between migration steps
 
-			configTagsMapper2: configTagsMapper2{
+			configTagsMapper3: configTagsMapper3{
 				MaxUnknownTagsInBucket:    1024,
 				MaxCreateTagsPerIteration: 128,
 				MaxLoadTagsPerIteration:   128,
@@ -163,6 +164,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
+		f.BoolVar(&c.EnableMappingStorage, "enable-mapping-storage", d.EnableMappingStorage, "Enable full mapping inmemory&disk storage")
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
 		f.IntVar(&c.MaxLoadTagsPerIteration, "mapping-queue-load-tags-per-iteration", d.MaxLoadTagsPerIteration, "Mapping queue will load no more tags per iteration (roughly second).")
