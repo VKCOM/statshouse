@@ -26,5 +26,6 @@ func main() {
 			return
 		}
 	}
+
 	usage()
 }
