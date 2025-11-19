@@ -73,6 +73,8 @@ type ConfigAggregator struct {
 	AutoCreate                 bool
 	AutoCreateDefaultNamespace bool
 	DisableRemoteConfig        bool
+
+	MappingsFileCount int
 }
 
 func DefaultConfigAggregator() ConfigAggregator {

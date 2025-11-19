@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -21,16 +22,18 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/aggregator"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/platform"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
-	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
@@ -73,6 +76,7 @@ func mainAggregator() int {
 	}
 	logRotate()
 
+	ctx := makeInterruptibleContext()
 	// Read AES password
 	var aesPwd string
 	if argv.aesPwdFile == "" {
@@ -114,6 +118,23 @@ func mainAggregator() int {
 		return 1
 	}
 	defer fpmc.Close()
+
+	var mappingStorageFiles []*os.File
+	for i := 0; i < argv.MappingsFileCount; i++ {
+		// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
+		f, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s-%d.cache", argv.Cluster, i)), os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			log.Printf("failed to open mappings storage file %v", err)
+			return 1
+		}
+		defer f.Close()
+		mappingStorageFiles = append(mappingStorageFiles, f)
+	}
+	mappingsStorage, err := metajournal.LoadMappingsFiles(ctx, mappingStorageFiles, data_model.JournalDDOSProtectionTimeout, true)
+	if err != nil {
+		log.Printf("failed to load mappings storage from %v", err)
+		return 1
+	}
 	// we do not want to confuse journal from different clusters, this would be a disaster
 	fj, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.Cluster)), os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -131,7 +152,7 @@ func mainAggregator() int {
 	// we ignore error because cache can be damaged
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.RemoteInitial.MappingCacheSize, argv.RemoteInitial.MappingCacheTTL)
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
@@ -241,6 +262,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.KHUser, "kh-user", "", "clickhouse user")
 	flag.StringVar(&argv.KHPasswordFile, "kh-password-file", "", "file with clickhouse password")
 	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
+	flag.IntVar(&argv.MappingsFileCount, "mappings-file-count", 16, "count of files for sharding metadata mappings")
 	build.FlagParseShowVersionHelp()
 
 	if len(argv.aggAddr) == 0 {
@@ -269,4 +291,15 @@ func runPprof() {
 	if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
 		log.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
 	}
+}
+
+func makeInterruptibleContext() context.Context {
+	signals := make(chan os.Signal, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signals
+		cancel()
+	}()
+	return ctx
 }
