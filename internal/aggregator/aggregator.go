@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeebo/xxh3"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -35,7 +37,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
-	"github.com/zeebo/xxh3"
 
 	"pgregory.net/rand"
 )
@@ -108,12 +109,14 @@ type (
 		configMu    sync.RWMutex
 		cfgNotifier *ConfigChangeNotifier
 
-		metricStorage  *metajournal.MetricsStorage
-		journalFast    *metajournal.JournalFast
-		journalCompact *metajournal.JournalFast
-		testConnection *TestConnection
-		tagsMapper2    *tagsMapper2
-		mappingsCache  *pcache.MappingsCache
+		metricStorage   *metajournal.MetricsStorage
+		journalFast     *metajournal.JournalFast
+		journalCompact  *metajournal.JournalFast
+		testConnection  *TestConnection
+		tagsMapper2     *tagsMapper2 // deprecated
+		tagsMapper3     *tagsMapper3
+		mappingsCache   *pcache.MappingsCache // deprecated
+		mappingsStorage *metajournal.MappingsStorage
 
 		scrape     *scrapeServer
 		autoCreate *autoCreate
@@ -148,7 +151,7 @@ func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.H
 }
 
 // aggregator is also run in this method
-func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
+func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache, mappingsStorage *metajournal.MappingsStorage,
 	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	if len(localAddresses) != 1 {
@@ -251,6 +254,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
+		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
@@ -341,9 +345,12 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	}
 	a.journalFast.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 	a.journalCompact.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
+	a.mappingsStorage.StartPeriodicSaving()
+	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, metricMetaLoader.GetNewMappings, false)
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
+	a.tagsMapper3 = NewTagsMapper3(a, a.sh2, a.metricStorage, metricMetaLoader)
 
 	a.aggregatorHostTag, err = loadAggregatorTag(mappingsCache, metricMetaLoader, hostName)
 	if err != nil {
@@ -363,6 +370,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 
 	a.updateConfigRemotelyExperimental()
 	go a.tagsMapper2.goRun()
+	go a.tagsMapper3.goRun()
 	go a.goTicker()
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
@@ -379,6 +387,28 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	mappingsCache.StartPeriodicSaving()
 
 	return a, nil
+}
+
+func (a *Aggregator) getTagValueBytes(unix uint32, tagValue []byte) (int32, bool) {
+	a.configMu.RLock()
+	useStorage := a.configR.EnableMappingStorage
+	a.configMu.RUnlock()
+
+	if !useStorage {
+		return a.mappingsCache.GetValueBytes(unix, tagValue)
+	}
+	return a.mappingsStorage.GetValue(string(tagValue))
+}
+
+func (a *Aggregator) getTagValue(unix uint32, tagValue string) (int32, bool) {
+	a.configMu.RLock()
+	useStorage := a.configR.EnableMappingStorage
+	a.configMu.RUnlock()
+
+	if !useStorage {
+		return a.mappingsCache.GetValue(unix, tagValue)
+	}
+	return a.mappingsStorage.GetValue(tagValue)
 }
 
 func (a *Aggregator) SaveJournals() {
@@ -584,6 +614,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
 		[]int32{},
 		float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
+		[]int32{},
+		float64(a.tagsMapper3.UnknownTagsLen()), 1, a.aggregatorHostTag)
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()
@@ -1088,5 +1121,6 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.configR = config
 	a.configMu.Unlock()
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
-	a.tagsMapper2.SetConfig(config.configTagsMapper2)
+	a.tagsMapper2.SetConfig(config.configTagsMapper3)
+	a.tagsMapper3.SetConfig(config.configTagsMapper3)
 }

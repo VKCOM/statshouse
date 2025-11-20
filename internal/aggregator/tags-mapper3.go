@@ -15,28 +15,37 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/pcache"
 )
 
-// deprecated
-type tagsMapper2 struct {
+type unknownTag struct { // fits well into cache line
+	time uint32
+	hits uint32
+}
+
+type configTagsMapper3 struct {
+	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
+	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
+	MaxLoadTagsPerIteration   int // deprecated: keep for low at first, then increase gradually
+	TagHitsToCreate           int // if used in 10 different seconds, then create
+	MaxUnknownTagsToKeep      int
+	MaxSendTagsToAgent        int
+}
+
+type tagsMapper3 struct {
 	agg           *Aggregator
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
 	loader        *metajournal.MetricMetaLoader
 
-	mu              sync.Mutex
-	unknownTags     map[string]unknownTag // collect statistics here
-	unknownTagsList []string              // ordered list of keys. IF unknownTags is large, but does not change, we will try to load each key once and stop until new keys are added.
-	createTags      map[string]data_model.CreateMappingExtra
+	mu          sync.Mutex
+	unknownTags map[string]unknownTag // collect statistics here
+	createTags  map[string]data_model.CreateMappingExtra
 
 	config configTagsMapper3
 }
 
-// TODO make unknownTagsList algo.CircularSlice[string]
-
-func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper2 {
-	ms := &tagsMapper2{
+func NewTagsMapper3(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper3 {
+	ms := &tagsMapper3{
 		agg:           agg,
 		sh2:           sh2,
 		metricStorage: metricStorage,
@@ -48,20 +57,20 @@ func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajourna
 	return ms
 }
 
-func (ms *tagsMapper2) SetConfig(c configTagsMapper3) {
+func (ms *tagsMapper3) SetConfig(c configTagsMapper3) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.config = c
 }
 
-func (ms *tagsMapper2) UnknownTagsLen() int {
+func (ms *tagsMapper3) UnknownTagsLen() int {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	return len(ms.unknownTags)
 }
 
-func (ms *tagsMapper2) AddUnknownTags(unknownTags map[string]data_model.CreateMappingExtra, time uint32) (
-	unknownMapRemove int, unknownMapAdd int, unknownListAdd int, createMapAdd int, avgRemovedHits float64) {
+func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]data_model.CreateMappingExtra, time uint32) (
+	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	var sumHits int64
@@ -77,7 +86,7 @@ func (ms *tagsMapper2) AddUnknownTags(unknownTags map[string]data_model.CreateMa
 		avgRemovedHits = float64(sumHits) / float64(unknownMapRemove)
 	}
 	for k, v := range unknownTags {
-		u, ok := ms.unknownTags[k]
+		u := ms.unknownTags[k]
 		if time > u.time {
 			u.time = time
 			u.hits++
@@ -90,44 +99,27 @@ func (ms *tagsMapper2) AddUnknownTags(unknownTags map[string]data_model.CreateMa
 			}
 			ms.unknownTags[k] = u
 			unknownMapAdd++
-			if !ok && len(ms.unknownTagsList) < ms.config.MaxUnknownTagsToKeep {
-				unknownListAdd++
-				ms.unknownTagsList = append(ms.unknownTagsList, k)
-			}
 		}
 	}
 	return
 }
 
-func (ms *tagsMapper2) goRun() {
-	var pairs []pcache.MappingPair
+func (ms *tagsMapper3) goRun() {
 	for { // no reason for graceful shutdown
 		time.Sleep(500 * time.Millisecond) // arbitrary delay to reduce meta DDOS
-		createTags, loadTags, maxCreateTagsPerIteration := ms.getTagsToCreateOrLoad()
-		pairs = pairs[:0]
+		createTags, maxCreateTagsPerIteration := ms.getTagsToCreate()
 		counter := 0
 		for str, extra := range createTags {
 			counter++
 			if counter > maxCreateTagsPerIteration {
 				break // simply forget the rest, will load/create more on the next iteration
 			}
-			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
-			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
+			ms.createTag(str, extra)
 		}
-		for _, str := range loadTags { // also limited to maxCreateOrLoadTagsPerIteration
-			extra := data_model.CreateMappingExtra{
-				Create:  false, // for documenting intent
-				HostTag: ms.agg.aggregatorHostTag,
-			}
-			tagValue := ms.createTag(str, extra) // tagValue might be 0 or -1, they are ignored by AddValues
-			pairs = append(pairs, pcache.MappingPair{Str: str, Value: tagValue})
-		}
-		nowUnix := uint32(time.Now().Unix())
-		ms.agg.mappingsCache.AddValues(nowUnix, pairs)
 	}
 }
 
-func (ms *tagsMapper2) createTag(str string, extra data_model.CreateMappingExtra) int32 {
+func (ms *tagsMapper3) createTag(str string, extra data_model.CreateMappingExtra) {
 	var metricID int32
 	metricName := ""
 	var unknownMetricID int32
@@ -149,18 +141,11 @@ func (ms *tagsMapper2) createTag(str string, extra data_model.CreateMappingExtra
 	ms.sh2.AddValueCounterHostAERA(0, format.BuiltinMetricMetaAggMappingCreated,
 		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
 		float64(keyValue), 1, extra.HostTag, extra.Aera)
-	return keyValue
 }
-
-func (ms *tagsMapper2) getTagsToCreateOrLoad() (map[string]data_model.CreateMappingExtra, []string, int) {
+func (ms *tagsMapper3) getTagsToCreate() (map[string]data_model.CreateMappingExtra, int) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	createTags := ms.createTags
 	ms.createTags = map[string]data_model.CreateMappingExtra{}
-	loadTags := ms.unknownTagsList
-	if len(loadTags) > ms.config.MaxLoadTagsPerIteration {
-		loadTags = loadTags[:ms.config.MaxLoadTagsPerIteration]
-	}
-	ms.unknownTagsList = ms.unknownTagsList[len(loadTags):]
-	return createTags, loadTags, ms.config.MaxCreateTagsPerIteration
+	return createTags, ms.config.MaxCreateTagsPerIteration
 }
