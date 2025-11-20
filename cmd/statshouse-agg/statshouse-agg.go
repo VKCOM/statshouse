@@ -122,7 +122,7 @@ func mainAggregator() int {
 	var mappingStorageFiles []*os.File
 	for i := 0; i < argv.MappingsFileCount; i++ {
 		// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
-		f, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s-%d.cache", argv.Cluster, i)), os.O_CREATE|os.O_RDWR, 0666)
+		f, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("mappings-%s-%d-%d.cache", argv.Cluster, argv.MappingsFileCount, i)), os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			log.Printf("failed to open mappings storage file %v", err)
 			return 1
