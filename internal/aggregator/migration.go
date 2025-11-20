@@ -342,9 +342,10 @@ func processV2Chunk(reader *bufio.Reader, output io.Writer) (rowsProcessed int, 
 	rowData := make([]byte, 0, 4096) // Buffer for single converted row
 	log.Printf("[migration] Starting to process V2 rows...")
 
+	var v2row v2Row
 	for {
 		// Try to parse one V2 row
-		v2Row, parseErr := parseV2Row(reader)
+		parseErr := parseV2Row(reader, &v2row)
 		if parseErr != nil {
 			if errors.Is(parseErr, io.EOF) {
 				// End of input, we're done
@@ -363,7 +364,7 @@ func processV2Chunk(reader *bufio.Reader, output io.Writer) (rowsProcessed int, 
 
 		// Convert to V3 format
 		rowData = rowData[:0] // Reset buffer
-		rowData = convertRowV2ToV3(rowData, v2Row)
+		rowData = convertRowV2ToV3(rowData, &v2row)
 
 		// Write converted row
 		if _, writeErr := output.Write(rowData); writeErr != nil {
@@ -387,45 +388,43 @@ type v2Row struct {
 	max       float64
 	sum       float64
 	sumsquare float64
-	perc      *data_model.ChDigest
-	uniq      *data_model.ChUnique
+	perc      data_model.ChDigest
+	uniq      data_model.ChUnique
 	min_host  data_model.ArgMinInt32Float32
 	max_host  data_model.ArgMaxInt32Float32
 }
 
 // parseV2Row parses a single V2 row from rowbinary data using io.ByteReader
-func parseV2Row(reader *bufio.Reader) (*v2Row, error) {
-	row := &v2Row{}
-
+func parseV2Row(reader *bufio.Reader, row *v2Row) error {
 	// Parse metric (Int32)
 	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Parse time (DateTime = UInt32)
 	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Parse all 16 keys (key0 through key15)
 	for i := 0; i < 16; i++ {
 		if err := binary.Read(reader, binary.LittleEndian, &row.keys[i]); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	// Parse skey (String) - LEB128 varint format
 	skeyLen, err := binary.ReadUvarint(reader)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Bounds check for skey in order to avoid huge allocations in case of a bug
 	if skeyLen > 4096 {
-		return nil, fmt.Errorf("invalid skey length: %d", skeyLen)
+		return fmt.Errorf("invalid skey length: %d", skeyLen)
 	}
 	skeyBytes := make([]byte, skeyLen)
 	if _, err := io.ReadFull(reader, skeyBytes); err != nil {
-		return nil, err
+		return err
 	}
 	row.skey = string(skeyBytes)
 	skeyBytes = nil
@@ -433,53 +432,51 @@ func parseV2Row(reader *bufio.Reader) (*v2Row, error) {
 	// Parse simple aggregates (Float64 each)
 	// count
 	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
-		return nil, err
+		return err
 	}
 
 	// min
 	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
-		return nil, err
+		return err
 	}
 
 	// max
 	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
-		return nil, err
+		return err
 	}
 
 	// sum
 	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
-		return nil, err
+		return err
 	}
 
 	// sumsquare
 	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Parse aggregate fields from ClickHouse internal format
 	// percentiles
-	row.perc = &data_model.ChDigest{}
 	if err := row.perc.ReadFrom(reader); err != nil {
-		return nil, fmt.Errorf("failed to parse percentiles: %w", err)
+		return fmt.Errorf("failed to parse percentiles: %w", err)
 	}
 
 	// uniq_state
-	row.uniq = &data_model.ChUnique{}
 	if err := row.uniq.ReadFrom(reader); err != nil {
-		return nil, fmt.Errorf("failed to parse uniq_state: %w", err)
+		return fmt.Errorf("failed to parse uniq_state: %w", err)
 	}
 
 	// min_host
 	if err := row.min_host.ReadFrom(reader); err != nil {
-		return nil, fmt.Errorf("failed to parse min_host: %w", err)
+		return fmt.Errorf("failed to parse min_host: %w", err)
 	}
 
 	// max_host
 	if err := row.max_host.ReadFrom(reader); err != nil {
-		return nil, fmt.Errorf("failed to parse max_host: %w", err)
+		return fmt.Errorf("failed to parse max_host: %w", err)
 	}
 
-	return row, nil
+	return nil
 }
 
 // convertRowV2ToV3 converts a single V2 row to V3 rowbinary format

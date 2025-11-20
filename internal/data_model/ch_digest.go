@@ -35,7 +35,11 @@ func (cd *ChDigest) ReadFrom(r io.ByteReader) error {
 	}
 
 	// Create new digest
-	cd.Digest = tdigest.New()
+	if cd.Digest != nil && cd.Digest.Compression == 1000 {
+		cd.Digest.Reset()
+	} else {
+		cd.Digest = tdigest.New()
+	}
 
 	// Use sampleFactor = 1.0 as default, similar to how it's used in aggregator
 	sampleFactor := float32(1.0)

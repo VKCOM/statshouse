@@ -306,54 +306,52 @@ func TestV2DataParsingIntegration(t *testing.T) {
 	t.Logf("Step 5: Query executed successfully, starting to read response")
 
 	// Parse the RowBinary response using the complete parseV2Row function
-	var parsedRows []*v2Row
+	var parsedRows int
 	bufReader := bufio.NewReader(resp)
-	for {
-		t.Logf("Step 5: Attempting to parse row %d...", len(parsedRows)+1)
-		row, err := parseV2Row(bufReader)
+	var row v2Row
+	for ; ; parsedRows++ {
+		t.Logf("Step 5: Attempting to parse row %d...", parsedRows+1)
+		err := parseV2Row(bufReader, &row)
 		if err != nil {
-			t.Logf("Step 5: Parse error for row %d: %v", len(parsedRows)+1, err)
+			t.Logf("Step 5: Parse error for row %d: %v", parsedRows+1, err)
 			if errors.Is(err, io.EOF) {
-				t.Logf("Step 5: Reached EOF after parsing %d rows", len(parsedRows))
+				t.Logf("Step 5: Reached EOF after parsing %d rows", parsedRows)
 				break
 			}
 			require.NoError(t, err)
 		}
-		parsedRows = append(parsedRows, row)
 		t.Logf("Step 5: Parsed row %d: metric=%d, time=%d, key0=%d, skey=%s, count=%.2f, min=%.2f, max=%.2f, sum=%.2f, sumsquare=%.2f, min_host=(%d,%.2f), max_host=(%d,%.2f)",
-			len(parsedRows)-1, row.metric, row.time, row.keys[0], row.skey, row.count, row.min, row.max, row.sum, row.sumsquare,
+			parsedRows, row.metric, row.time, row.keys[0], row.skey, row.count, row.min, row.max, row.sum, row.sumsquare,
 			row.min_host.Arg, row.min_host.Val, row.max_host.Arg, row.max_host.Val)
+		expected := testData[parsedRows]
+		actual := row
+		require.Equal(t, expected.metric, actual.metric, "metric mismatch at row %d", parsedRows)
+		require.Equal(t, expected.time, actual.time, "time mismatch at row %d", parsedRows)
+		require.Equal(t, expected.keys, actual.keys, "keys mismatch at row %d", parsedRows)
+		require.Equal(t, expected.skey, actual.skey, "skey mismatch at row %d", parsedRows)
+		require.Equal(t, expected.count, actual.count, "count mismatch at row %d", parsedRows)
+		require.Equal(t, expected.min, actual.min, "min mismatch at row %d", parsedRows)
+		require.Equal(t, expected.max, actual.max, "max mismatch at row %d", parsedRows)
+		require.Equal(t, expected.sum, actual.sum, "sum mismatch at row %d", parsedRows)
+		require.Equal(t, expected.sumsquare, actual.sumsquare, "sumsquare mismatch at row %d", parsedRows)
+		require.Equal(t, expected.min_host.Arg, actual.min_host.Arg, "min_host.Arg mismatch at row %d", parsedRows)
+		require.Equal(t, expected.min_host.Val, actual.min_host.Val, "min_host.Val mismatch at row %d", parsedRows)
+		require.Equal(t, expected.max_host.Arg, actual.max_host.Arg, "max_host.Arg mismatch at row %d", parsedRows)
+		require.Equal(t, expected.max_host.Val, actual.max_host.Val, "max_host.Val mismatch at row %d", parsedRows)
+		// compare two float64s with 1e-6 precision
+		if expected.perc.Digest != nil && actual.perc.Digest != nil {
+			require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6, "percentile 0.5 mismatch at row %d", parsedRows)
+			require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6, "percentile 0.99 mismatch at row %d", parsedRows)
+		} else {
+			require.Nil(t, actual.perc.Digest, "percentiles should be nil at row %d", parsedRows)
+		}
+		require.Equal(t, expected.uniq.ItemsCount(), actual.uniq.ItemsCount(), "uniq_state mismatch at row %d", parsedRows)
 	}
 
 	// Validate parsed data matches original
-	require.Equal(t, len(testData), len(parsedRows), "Should parse same number of rows")
+	require.Equal(t, len(testData), parsedRows, "Should parse same number of rows")
 
-	for i, expected := range testData {
-		actual := parsedRows[i]
-		require.Equal(t, expected.metric, actual.metric, "metric mismatch at row %d", i)
-		require.Equal(t, expected.time, actual.time, "time mismatch at row %d", i)
-		require.Equal(t, expected.keys, actual.keys, "keys mismatch at row %d", i)
-		require.Equal(t, expected.skey, actual.skey, "skey mismatch at row %d", i)
-		require.Equal(t, expected.count, actual.count, "count mismatch at row %d", i)
-		require.Equal(t, expected.min, actual.min, "min mismatch at row %d", i)
-		require.Equal(t, expected.max, actual.max, "max mismatch at row %d", i)
-		require.Equal(t, expected.sum, actual.sum, "sum mismatch at row %d", i)
-		require.Equal(t, expected.sumsquare, actual.sumsquare, "sumsquare mismatch at row %d", i)
-		require.Equal(t, expected.min_host.Arg, actual.min_host.Arg, "min_host.Arg mismatch at row %d", i)
-		require.Equal(t, expected.min_host.Val, actual.min_host.Val, "min_host.Val mismatch at row %d", i)
-		require.Equal(t, expected.max_host.Arg, actual.max_host.Arg, "max_host.Arg mismatch at row %d", i)
-		require.Equal(t, expected.max_host.Val, actual.max_host.Val, "max_host.Val mismatch at row %d", i)
-		// compare two float64s with 1e-6 precision
-		if expected.perc.Digest != nil && actual.perc.Digest != nil {
-			require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6, "percentile 0.5 mismatch at row %d", i)
-			require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6, "percentile 0.99 mismatch at row %d", i)
-		} else {
-			require.Nil(t, actual.perc.Digest, "percentiles should be nil at row %d", i)
-		}
-		require.Equal(t, expected.uniq.ItemsCount(), actual.uniq.ItemsCount(), "uniq_state mismatch at row %d", i)
-	}
-
-	t.Logf("Step 5 SUCCESS: Validated %d rows with complete parseV2Row function", len(parsedRows))
+	t.Logf("Step 5 SUCCESS: Validated %d rows with complete parseV2Row function", parsedRows)
 }
 
 // TestV2ToV3Conversion tests that convertRowV2ToV3 works correctly and generates data that can be inserted into V3 table
@@ -574,8 +572,8 @@ func generateRandomTDigest(rnd *rand.Rand) *tdigest.TDigest {
 }
 
 // generateRandomUnique creates a random unique state
-func generateRandomUnique(rnd *rand.Rand) *data_model.ChUnique {
-	uniq := &data_model.ChUnique{}
+func generateRandomUnique(rnd *rand.Rand) data_model.ChUnique {
+	uniq := data_model.ChUnique{}
 	numItems := rnd.Intn(100) + 1 // 1-100 unique items
 
 	for i := 0; i < numItems; i++ {
@@ -662,20 +660,20 @@ func createTestData() []*v2Row {
 		minHost, maxHost := generateRandomHostAggregates(rnd)
 
 		// Always initialize pointers, but randomly decide content
-		var perc *data_model.ChDigest
+		var perc data_model.ChDigest
 		if rnd.Float64() < 0.8 { // 80% chance of having percentiles
-			perc = &data_model.ChDigest{Digest: generateRandomTDigest(rnd)}
+			perc = data_model.ChDigest{Digest: generateRandomTDigest(rnd)}
 		} else {
 			// Initialize with empty digest
-			perc = &data_model.ChDigest{Digest: tdigest.New()}
+			perc = data_model.ChDigest{Digest: tdigest.New()}
 		}
 
-		var uniq *data_model.ChUnique
+		var uniq data_model.ChUnique
 		if rnd.Float64() < 0.8 { // 80% chance of having unique state
 			uniq = generateRandomUnique(rnd)
 		} else {
 			// Initialize with empty unique state
-			uniq = &data_model.ChUnique{}
+			uniq = data_model.ChUnique{}
 		}
 
 		// Create row with random data
@@ -1047,8 +1045,8 @@ func createShardBuiltinTestData(metricID int32, timestamp int64, shardByTag int3
 			}
 
 			// Create test digest and unique state
-			perc := &data_model.ChDigest{Digest: createTestDigest()}
-			uniq := &data_model.ChUnique{}
+			perc := data_model.ChDigest{Digest: createTestDigest()}
+			uniq := data_model.ChUnique{}
 			uniq.Insert(uint64(shard*1000 + i))
 
 			// Create host aggregates
@@ -1100,8 +1098,8 @@ func createContributorsLogTestData(timestamp int64, numShards int) []*v2Row {
 		}
 
 		// Create test digest and unique state
-		perc := &data_model.ChDigest{Digest: createTestDigest()}
-		uniq := &data_model.ChUnique{}
+		perc := data_model.ChDigest{Digest: createTestDigest()}
+		uniq := data_model.ChUnique{}
 		uniq.Insert(uint64(shard))
 
 		// Create host aggregates
