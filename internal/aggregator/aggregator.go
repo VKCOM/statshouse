@@ -254,6 +254,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 		mappingsCache:               mappingsCache,
+		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
@@ -344,8 +345,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	}
 	a.journalFast.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 	a.journalCompact.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
-	mappingsStorage.StartPeriodicSaving()
-	mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, metricMetaLoader.GetNewMappings, false)
+	a.mappingsStorage.StartPeriodicSaving()
+	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, metricMetaLoader.GetNewMappings, false)
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
