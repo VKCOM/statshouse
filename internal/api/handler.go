@@ -969,7 +969,7 @@ func (h *Handler) getMetricIDForStat(metricName string) int32 {
 func (h *Handler) getTagValue(tagValueID int32) (string, error) {
 	str, ok := h.mappingsStorage.GetString(tagValueID)
 	if !ok {
-		return "", fmt.Errorf("tag value for %d not found", tagValueID)
+		return "", httpErr(http.StatusNotFound, fmt.Errorf("tag value for %v not found", tagValueID))
 	}
 	return str, nil
 }
@@ -1029,7 +1029,7 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 func (h *Handler) getTagValueID(tagValue string) (int32, error) {
 	valueID, ok := h.mappingsStorage.GetValue(tagValue)
 	if !ok {
-		return 0, fmt.Errorf("tag value ID for %q not found", tagValue)
+		return 0, httpErr(http.StatusNotFound, fmt.Errorf("tag value ID for %q not found", tagValue))
 	}
 	return valueID, nil
 }
