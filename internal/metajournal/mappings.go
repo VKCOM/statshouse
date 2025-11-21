@@ -414,13 +414,11 @@ func (ms *MappingsStorage) goAddShardValues(wg *sync.WaitGroup) []chan tlstatsho
 			shard.mu.Lock()
 			defer shard.mu.Unlock()
 			for p := range ch {
-				if prev, ok := shard.mappings[p.Str]; ok {
-					log.Printf("Duplicate mapping found: %s, old: %d, new: %d", p.Str, prev, p.Value)
-					delete(shard.mappings, p.Str)
+				if _, ok := shard.mappings[p.Str]; !ok {
+					shard.pendingPairs = append(shard.pendingPairs, p)
+					shard.pendingByteSize += int64(len(p.Str) + 4)
 				}
 				shard.mappings[p.Str] = p.Value
-				shard.pendingPairs = append(shard.pendingPairs, p)
-				shard.pendingByteSize += int64(len(p.Str) + 4)
 			}
 		}(ms.shards[i], shardChans[i])
 	}
@@ -440,10 +438,6 @@ func (ms *MappingsStorage) goAddReverseShardValues(wg *sync.WaitGroup) []chan tl
 			shard.mu.Lock()
 			defer shard.mu.Unlock()
 			for p := range ch {
-				if prev, ok := shard.mappings[p.Value]; ok {
-					log.Printf("Duplicate mapping found: %d, old: %s, new: %s", p.Value, prev, p.Str)
-					delete(shard.mappings, p.Value)
-				}
 				shard.mappings[p.Value] = p.Str
 			}
 		}(ms.reverseShards[i], reverseShardChans[i])
