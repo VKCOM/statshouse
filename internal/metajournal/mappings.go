@@ -190,7 +190,7 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 	defer ms.mu.Unlock()
 	ms.currentVersion = version
 	ms.lastKnownVersion = version
-	log.Printf("Finish loading mappings file size %d", fileSize)
+	log.Printf("Finish loading mappings file size %d, version: %d", fileSize, version)
 	return err
 }
 
@@ -354,9 +354,7 @@ func (ms *MappingsStorage) updateMappings() error {
 	var wg sync.WaitGroup
 	chs := ms.goAddShardValues(&wg)
 	revChs := ms.goAddReverseShardValues(&wg)
-	size := int64(0)
 	for _, m := range mappings {
-		size += int64(len(m.Str) + 4)
 		shard := int(xxh3.HashString(m.Str) % uint64(len(ms.shards)))
 		chs[shard] <- m
 		if ms.reverseEnable {
@@ -374,7 +372,6 @@ func (ms *MappingsStorage) updateMappings() error {
 	ms.mu.Lock()
 	ms.currentVersion = newCurV
 	ms.lastKnownVersion = newLastV
-	ms.pendingByteSize += size
 	ms.mu.Unlock()
 
 	if ms.sh2 != nil {
@@ -406,15 +403,25 @@ func (ms *MappingsStorage) goAddShardValues(wg *sync.WaitGroup) []chan tlstatsho
 		wg.Add(1)
 		go func(shard *mappingShard, ch chan tlstatshouse.Mapping) {
 			defer wg.Done()
-			shard.mu.Lock()
-			defer shard.mu.Unlock()
-			for p := range ch {
-				if _, ok := shard.mappings[p.Str]; !ok {
-					shard.pendingPairs = append(shard.pendingPairs, p)
-					shard.pendingByteSize += int64(len(p.Str) + 4)
+			size := int64(0)
+			func() {
+				shard.mu.Lock()
+				defer shard.mu.Unlock()
+				for p := range ch {
+					if _, ok := shard.mappings[p.Str]; !ok {
+						s := int64(len(p.Str) + 4)
+						shard.pendingPairs = append(shard.pendingPairs, p)
+						shard.pendingByteSize += s
+						size += s
+					}
+					shard.mappings[p.Str] = p.Value
 				}
-				shard.mappings[p.Str] = p.Value
-			}
+			}()
+			func() {
+				ms.mu.Lock()
+				defer ms.mu.Unlock()
+				ms.pendingByteSize += size
+			}()
 		}(ms.shards[i], shardChans[i])
 	}
 	return shardChans
