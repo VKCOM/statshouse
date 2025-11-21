@@ -107,7 +107,7 @@ func journalOrderLess(a, b journalOrder) bool {
 	return a.version < b.version
 }
 
-func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) *JournalFast {
+func MakeJournalFast(storage *data_model.ChunkedStorage2, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) *JournalFast {
 	return &JournalFast{
 		periodicSaveInterval:   time.Hour,
 		journalRequestDelay:    journalRequestDelay,
@@ -116,21 +116,22 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[rpc.LongpollHandle]tlstatshouse.GetMetrics3{},
 		compact:                compact,
+		storage:                storage,
 	}
 }
 
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
 func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
-	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
 	storage := data_model.NewChunkedStorage2File(fp)
-	return c, c.Load(storage)
+	c := MakeJournalFast(storage, journalRequestDelay, compact, applyEvent)
+	return c, c.load(storage)
 }
 
 func LoadJournalFastSlice(fp *[]byte, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
-	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
 	storage := data_model.NewChunkedStorage2Slice(fp)
-	return c, c.Load(storage)
+	c := MakeJournalFast(storage, journalRequestDelay, compact, applyEvent)
+	return c, c.load(storage)
 }
 
 func (ms *JournalFast) SetDumpPathPrefix(dumpPathPrefix string) {
@@ -148,11 +149,7 @@ func (ms *JournalFast) applyEvents(src []tlmetadata.Event) {
 	}
 }
 
-func (ms *JournalFast) Load(storage *data_model.ChunkedStorage2) error {
-	if ms.storage != nil {
-		panic("cannot load more than once")
-	}
-	ms.storage = storage
+func (ms *JournalFast) load(storage *data_model.ChunkedStorage2) error {
 	var loaderVersion, lastEventVersion int64
 	src, err := ms.loadImpl(&loaderVersion, &lastEventVersion)                       // in case of error, returns events to apply
 	if lastEventVersion == ms.currentVersion && loaderVersion >= ms.currentVersion { // fully read journal, so can believe loader version

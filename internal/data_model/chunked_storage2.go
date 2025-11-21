@@ -35,7 +35,7 @@ const chunkHeaderSize = 4 + 4 // magic + body size
 const chunkHashSize = 16
 
 type ChunkedStorage2 struct {
-	scratch []byte
+	scratch []byte // first bytes are reserved for efficient hash calculation
 
 	// common part, writer start at the point reader finished
 	offset int64
@@ -49,9 +49,10 @@ type ChunkedStorage2 struct {
 
 	// writer part
 	magic        uint32
-	maxChunkSize int                                   // limit for tests
-	WriteAt      func(offset int64, data []byte) error // we use it as flag that write error happened
+	maxChunkSize int // limit for tests
+	WriteAt      func(offset int64, data []byte) error
 	Truncate     func(offset int64) error
+	writeErr     error // if we add chunks and get error, adding chunks is NOP until reset to start of file
 }
 
 // after creating ChunkedStorage2, you must first read everything, calling ReadNext() until it
@@ -167,6 +168,7 @@ func (c *ChunkedStorage2) ReadNext(magic uint32) (chunk []byte, err error) {
 func (c *ChunkedStorage2) ResetToStartOfFile() {
 	c.hash = xxh3.Uint128{}
 	c.offset = 0
+	c.writeErr = nil
 }
 
 func (c *ChunkedStorage2) StartWriteChunk(magic uint32, maxChunkSize int) []byte {
@@ -197,14 +199,14 @@ func (c *ChunkedStorage2) finishChunk(chunk []byte) ([]byte, error) {
 	h := xxh3.Hash128(chunk)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Hi)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Lo)
-	if c.WriteAt == nil {
-		return c.startChunk(), fmt.Errorf("chunk storage discarded chunk due to previous write error")
+	if c.writeErr != nil {
+		return c.startChunk(), fmt.Errorf("chunk storage discarded chunk due to previous write error: %v", c.writeErr)
 	}
 	if err := c.WriteAt(c.offset, chunk[chunkHashSize:]); err != nil {
 		// we must discard chunk, otherwise it grows beyond panic
 		// after that file is forever broken, so we simply stop writing until restart
-		c.WriteAt = nil
-		return c.startChunk(), err
+		c.writeErr = err
+		return c.startChunk(), fmt.Errorf("chunk storage write error: %v", c.writeErr)
 	}
 	c.hash = h
 	c.offset += int64(len(chunk) - chunkHashSize)

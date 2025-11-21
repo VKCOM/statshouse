@@ -90,12 +90,13 @@ func elementSizeMem(s string) int64 {
 	return int64(len(s)*5/4 + 32) // some simple approximation of actual cache element memory cost
 }
 
-func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
+func NewMappingsCache(storage *data_model.ChunkedStorage2, maxSize int64, maxTTL int) *MappingsCache {
 	c := &MappingsCache{
 		cache:                map[string]cacheValue{},
 		rnd:                  rand.New(),
 		accessTSGran:         1, // seconds
 		periodicSaveInterval: time.Hour,
+		storage:              storage,
 	}
 	c.maxSize.Store(maxSize)
 	c.maxTTL.Store(int64(maxTTL))
@@ -105,15 +106,15 @@ func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
 func LoadMappingsCacheFile(fp *os.File, maxSize int64, maxTTL int) (*MappingsCache, error) {
-	c := NewMappingsCache(maxSize, maxTTL)
 	storage := data_model.NewChunkedStorage2File(fp)
-	return c, c.Load(storage)
+	c := NewMappingsCache(storage, maxSize, maxTTL)
+	return c, c.load(storage)
 }
 
 func LoadMappingsCacheSlice(fp *[]byte, maxSize int64) (*MappingsCache, error) {
-	c := NewMappingsCache(maxSize, 0)
 	storage := data_model.NewChunkedStorage2Slice(fp)
-	return c, c.Load(storage)
+	c := NewMappingsCache(storage, maxSize, 0)
+	return c, c.load(storage)
 }
 
 // Sensitive to latency
@@ -483,12 +484,7 @@ func (c *MappingsCache) Save() (bool, error) {
 
 // callers are expected to ignore error from this method
 // if file tail is broken, it will be truncated on the next save
-func (c *MappingsCache) Load(storage *data_model.ChunkedStorage2) error {
-	if c.storage != nil {
-		panic("cannot load more than once")
-	}
-	c.storage = storage
-
+func (c *MappingsCache) load(storage *data_model.ChunkedStorage2) error {
 	c.modifyMu.Lock()
 	defer c.modifyMu.Unlock()
 
