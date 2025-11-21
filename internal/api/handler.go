@@ -605,10 +605,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	cl := config.NewConfigListener(format.StatshouseAPIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(nil)
-	// we ignore errors because cache can be damaged
-	journal, _ := metajournal.LoadJournalFastFile(journalFile, data_model.JournalDDOSProtectionTimeout, false,
-		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
-	journal.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-%s", cluster)))
 	h := &Handler{
 		HandlerOptions:  opt,
 		showInvisible:   showInvisible,
@@ -623,7 +619,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			Version3: chV2,
 		},
 		metricsStorage:        metricStorage,
-		journalFast:           journal,
 		selectSettings:        cfg.BuildSelectSettings(),
 		blockedMetricPrefixes: cfg.BlockedMetricPrefixes,
 		blockedUsers:          cfg.BlockedUsers,
@@ -667,8 +662,14 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	applyCfg(cfg)
 	cl.AddChangeCB(applyCfg)
-	journal.Start(nil, nil, metadataLoader.LoadJournal)
-	journal.StartPeriodicSaving()
+
+	// we ignore errors because cache can be damaged
+	h.journalFast, _ = metajournal.LoadJournalFastFile(journalFile, data_model.JournalDDOSProtectionTimeout, false,
+		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
+	h.journalFast.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-%s", cluster)))
+	h.journalFast.Start(nil, nil, metadataLoader.LoadJournal)
+	h.journalFast.StartPeriodicSaving()
+
 	mappingsStorage.StartPeriodicSaving()
 	mappingsStorage.Start(format.TagValueIDComponentAPI, nil, metadataLoader.GetNewMappings, true)
 
