@@ -34,7 +34,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/pcache/sqlitecache"
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
@@ -52,8 +51,6 @@ const (
 	httpIdleTimeout       = 5 * time.Minute
 
 	chDialTimeout = 5 * time.Second
-
-	diskCacheTxDuration = 5 * time.Second
 )
 
 var argv struct {
@@ -87,7 +84,6 @@ var argv struct {
 	adminDash                int
 	eventPreset              []string
 	defaultNumSeries         int
-	diskCache                string // TODO: remove, use "cacheDir"
 	cacheDir                 string
 	help                     bool
 	listenHTTPAddr           string
@@ -228,18 +224,6 @@ func run() int {
 		rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	defer func() { _ = c.Close() }()
 
-	dc, err := sqlitecache.OpenSqliteDiskCache(argv.diskCache, diskCacheTxDuration)
-	if err != nil {
-		log.Printf("failed to open disk cache: %v", err)
-		return 1
-	}
-	defer func() {
-		err := dc.Close()
-		if err != nil {
-			log.Printf("failed to close disk cache: %v", err)
-		}
-	}()
-
 	var mappingFiles []*os.File
 	for i := 0; i < argv.mappingsFileCount; i++ {
 		// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
@@ -256,6 +240,14 @@ func run() int {
 		log.Printf("failed to load mappings storage from %v", err)
 		return 1
 	}
+
+	// we do not want to confuse journal from different clusters, this would be a disaster
+	fj, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("failed to open journal cache: %v", err)
+		return 1
+	}
+	defer fj.Close()
 
 	statshouse.ConfigureNetwork(log.Printf, argv.statsHouseNetwork, argv.statsHouseAddr, argv.statsHouseEnv)
 	defer func() { _ = statshouse.Close() }()
@@ -323,7 +315,9 @@ func run() int {
 			Address: argv.metadataAddr,
 			ActorID: argv.metadataActorID,
 		},
-		dc,
+		fj,
+		argv.cacheDir,
+		argv.cluster,
 		mappingsStorage,
 		jwtHelper,
 		argv.HandlerOptions,
@@ -550,7 +544,6 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.adminDash, "admin-dash-id", 0, "hardware metric dashboard")
 	config.StringSliceVar(flag.CommandLine, &argv.eventPreset, "event-preset", "", "event preset")
 	flag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
-	flag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Directory to store metric metadata cache.")
 	flag.BoolVar(&argv.help, "help", false, "print usage instructions and exit")
 	flag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
