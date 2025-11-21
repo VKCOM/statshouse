@@ -587,7 +587,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 
 	var avgRemovedHits float64
 	var unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd int
-	if configR.EnableMappingStorage {
+	if !configR.EnableMappingStorage {
 		unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits = a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
 	} else {
 		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
