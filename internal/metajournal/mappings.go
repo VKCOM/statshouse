@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"sync"
@@ -129,7 +130,7 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 	revChs := ms.goAddReverseShardValues(&wg)
 
 	mu := sync.Mutex{}
-	version := int32(-1)
+	version := int32(math.MaxInt32)
 	eg := errgroup.Group{}
 	for i, s := range ms.shards {
 		num := i
@@ -156,6 +157,7 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 				if len(chunk) == 0 {
 					break
 				}
+				var val int32
 				if err = parseMappingChunkInplace(chunk, func(str string, value int32) {
 					// Replace if already exists (shouldn't happen in normal case)
 					if prev, ok := shard.mappings[str]; ok {
@@ -169,11 +171,12 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 							Value: value,
 						}
 					}
-					v = max(v, value)
+					val = value
 				}); err != nil {
 					resErr = err
 					break
 				}
+				v = max(v, val)
 				shard.storage.FinishReadChunk()
 			}
 			mu.Lock()
