@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -52,7 +53,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/VKCOM/statshouse/internal/promql/parser"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
@@ -204,6 +204,7 @@ type (
 		indexSettings         string
 		ch                    map[string]*chutil.ClickHouse
 		metricsStorage        *metajournal.MetricsStorage
+		journalFast           *metajournal.JournalFast
 		cache2                *cache2
 		cache2Mu              sync.RWMutex
 		pointsCache           *pointsCache
@@ -591,9 +592,8 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, diskCache pcache.DiskCache, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
 	tmpl, err := template.ParseFS(staticDir, "index.html")
 	if err != nil {
@@ -605,8 +605,10 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	cl := config.NewConfigListener(format.StatshouseAPIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(nil)
-	journal := metajournal.MakeJournal(diskCacheSuffix, data_model.JournalDDOSProtectionTimeout, diskCache,
-		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
+	// we ignore errors because cache can be damaged
+	journal, _ := metajournal.LoadJournalFastFile(journalFile, data_model.JournalDDOSProtectionTimeout, false,
+		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
+	journal.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-%s", cluster)))
 	h := &Handler{
 		HandlerOptions:  opt,
 		showInvisible:   showInvisible,
@@ -621,6 +623,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 			Version3: chV2,
 		},
 		metricsStorage:        metricStorage,
+		journalFast:           journal,
 		selectSettings:        cfg.BuildSelectSettings(),
 		blockedMetricPrefixes: cfg.BlockedMetricPrefixes,
 		blockedUsers:          cfg.BlockedUsers,
@@ -665,6 +668,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	applyCfg(cfg)
 	cl.AddChangeCB(applyCfg)
 	journal.Start(nil, nil, metadataLoader.LoadJournal)
+	journal.StartPeriodicSaving()
 	mappingsStorage.StartPeriodicSaving()
 	mappingsStorage.Start(format.TagValueIDComponentAPI, nil, metadataLoader.GetNewMappings, true)
 
@@ -744,6 +748,9 @@ func (h *Handler) Close() error {
 	statshouse.StopRegularMeasurement(h.rmID)
 	h.cacheInvalidateTicker.Stop()
 
+	if _, _, err := h.journalFast.Save(); err != nil {
+		log.Printf("journal save failed: %v", err)
+	}
 	if _, err := h.mappingsStorage.Save(); err != nil {
 		log.Printf("Periodic mappings storage save failed: %v", err)
 	}

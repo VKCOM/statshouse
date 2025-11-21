@@ -271,6 +271,7 @@ func (ms *MappingsStorage) Start(componentTag int32, sh2 *agent.Agent, mappingsL
 	ms.mappingsLoader = mappingsLoader
 	ms.sh2 = sh2
 
+	return
 	if mappingsLoader == nil {
 		return
 	}

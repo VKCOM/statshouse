@@ -428,8 +428,11 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			}
 			if code, ok := chgo.AsException(err); ok {
 				info.ErrorCode = int(code.Code)
+			} else {
+				info.ErrorCode = -1
 			}
 			if ctx.Err() != nil {
+				info.ErrorCode = -2
 				return // failed
 			}
 			servers[i].rate.RecordEvent(Event{
