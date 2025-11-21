@@ -467,8 +467,8 @@ func (ms *MappingsStorage) goUpdateMappings() {
 
 func (ms *MappingsStorage) GetValue(str string) (int32, bool) {
 	shard := int(xxh3.HashString(str) % uint64(len(ms.shards)))
-	ms.shards[shard].mu.Lock()
-	defer ms.shards[shard].mu.Unlock()
+	ms.shards[shard].mu.RLock()
+	defer ms.shards[shard].mu.RUnlock()
 	val, ok := ms.shards[shard].mappings[str]
 	return val, ok
 }
@@ -478,8 +478,8 @@ func (ms *MappingsStorage) GetString(value int32) (string, bool) {
 		return "", false
 	}
 	shard := int(value) % len(ms.reverseShards)
-	ms.reverseShards[shard].mu.Lock()
-	defer ms.reverseShards[shard].mu.Unlock()
+	ms.reverseShards[shard].mu.RLock()
+	defer ms.reverseShards[shard].mu.RUnlock()
 	str, ok := ms.reverseShards[shard].mappings[value]
 	return str, ok
 }
