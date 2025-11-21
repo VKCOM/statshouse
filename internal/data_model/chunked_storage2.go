@@ -35,18 +35,23 @@ const chunkHeaderSize = 4 + 4 // magic + body size
 const chunkHashSize = 16
 
 type ChunkedStorage2 struct {
-	magic        uint32
-	maxChunkSize int // limit for tests
-	scratch      []byte
-	offset       int64
-	hash         xxh3.Uint128
-	WriteAt      func(offset int64, data []byte) error
-	Truncate     func(offset int64) error
+	scratch []byte
 
+	// common part, writer start at the point reader finished
+	offset int64
+	hash   xxh3.Uint128
+
+	// reading part
 	ReadAt          func(b []byte, offset int64) error // we use it as flag that reading complete
 	nextOffset      int64
 	nextHash        xxh3.Uint128
 	initialFileSize int64
+
+	// writer part
+	magic        uint32
+	maxChunkSize int                                   // limit for tests
+	WriteAt      func(offset int64, data []byte) error // we use it as flag that write error happened
+	Truncate     func(offset int64) error
 }
 
 // after creating ChunkedStorage2, you must first read everything, calling ReadNext() until it
@@ -168,6 +173,7 @@ func (c *ChunkedStorage2) StartWriteChunk(magic uint32, maxChunkSize int) []byte
 	if maxChunkSize <= 0 || maxChunkSize > ChunkSize {
 		maxChunkSize = ChunkSize
 	}
+	c.ReadAt = nil // prevent subsequent reading, if ReadNext was not called to the end
 	c.magic = magic
 	c.maxChunkSize = maxChunkSize
 	return c.startChunk()
