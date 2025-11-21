@@ -159,11 +159,6 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 				}
 				var val int32
 				if err = parseMappingChunkInplace(chunk, func(str string, value int32) {
-					// Replace if already exists (shouldn't happen in normal case)
-					if prev, ok := shard.mappings[str]; ok {
-						log.Printf("Duplicate mapping found: %s, old: %d, new: %d", str, prev, value)
-						delete(shard.mappings, str)
-					}
 					shard.mappings[str] = value
 					if ms.reverseEnable {
 						revChs[int(value)%len(revChs)] <- tlstatshouse.Mapping{
