@@ -22,7 +22,7 @@ func (tm *TestModel) addMapping() {
 
 func (tm *TestModel) load(storage *data_model.ChunkedStorage2) error {
 	for {
-		chunk, err := storage.ReadNext()
+		chunk, err := storage.ReadNext(chunkedMagicTest)
 		if err != nil {
 			return err
 		}
@@ -53,7 +53,7 @@ func (tm *TestModel) save(storage *data_model.ChunkedStorage2) (err error) {
 	if tm.value <= tm.lastSavedVal {
 		return nil
 	}
-	chunk := storage.StartWriteChunk()
+	chunk := storage.StartWriteChunk(chunkedMagicTest, 0)
 	if storage.IsFirst() {
 		chunk = basictl.NatWrite(chunk, 0x123)
 	}
@@ -68,7 +68,7 @@ func (tm *TestModel) save(storage *data_model.ChunkedStorage2) (err error) {
 
 func TestChunkedStorageSlice(t *testing.T) {
 	var fp []byte
-	storage := data_model.ChunkedStorage2Slice(chunkedMagicTest, 0, &fp)
+	storage := data_model.NewChunkedStorage2Slice(&fp)
 	{
 		var tm TestModel
 		err := tm.load(storage)
@@ -81,7 +81,7 @@ func TestChunkedStorageSlice(t *testing.T) {
 		err = tm.save(storage)
 		t.Logf("tm: %d %d err: %v\n", tm.value, tm.lastSavedVal, err)
 	}
-	storage = data_model.ChunkedStorage2Slice(chunkedMagicTest, 0, &fp)
+	storage = data_model.NewChunkedStorage2Slice(&fp)
 	{
 		var tm TestModel
 		err := tm.load(storage)
@@ -90,7 +90,7 @@ func TestChunkedStorageSlice(t *testing.T) {
 		err = tm.save(storage)
 		t.Logf("tm: %d %d err: %v\n", tm.value, tm.lastSavedVal, err)
 	}
-	storage = data_model.ChunkedStorage2Slice(chunkedMagicTest, 0, &fp)
+	storage = data_model.NewChunkedStorage2Slice(&fp)
 	{
 		var tm TestModel
 		err := tm.load(storage)

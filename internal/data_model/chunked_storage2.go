@@ -55,44 +55,43 @@ type ChunkedStorage2 struct {
 // then, you can write chunk at any moment you like by calling
 //
 
-func NewChunkedStorage2File(magic uint32, maxChunkSize int, fp *os.File) *ChunkedStorage2 {
-	if maxChunkSize <= 0 || maxChunkSize > ChunkSize {
-		maxChunkSize = ChunkSize
+func NewChunkedStorageNop() *ChunkedStorage2 {
+	return &ChunkedStorage2{
+		scratch:  make([]byte, chunkHashSize+chunkHeaderSize+ChunkSize+chunkHashSize),
+		WriteAt:  func(offset int64, data []byte) error { return nil },
+		Truncate: func(offset int64) error { return nil },
+		ReadAt:   func(b []byte, offset int64) error { return nil },
 	}
-	result := &ChunkedStorage2{
-		magic:        magic,
-		maxChunkSize: maxChunkSize,
-		scratch:      make([]byte, chunkHashSize+chunkHeaderSize+ChunkSize+chunkHashSize),
-	}
-	if fp == nil {
-		result.WriteAt = func(offset int64, data []byte) error { return nil }
-		result.Truncate = func(offset int64) error { return nil }
-		result.ReadAt = func(b []byte, offset int64) error { return nil }
-		return result
-	}
-	result.WriteAt = func(offset int64, data []byte) error {
-		_, err := fp.WriteAt(data, offset)
-		return err
-	}
-	result.Truncate = func(offset int64) error {
-		return fp.Truncate(offset)
-	}
-	result.ReadAt = func(b []byte, offset int64) error {
-		_, err := fp.ReadAt(b, offset)
-		return err
-	}
-	result.initialFileSize, _ = fp.Seek(0, 2) // should be never, but we do not care
-	return result
 }
 
-func ChunkedStorage2Slice(magic uint32, maxChunkSize int, fp *[]byte) *ChunkedStorage2 {
-	if maxChunkSize <= 0 || maxChunkSize > ChunkSize {
-		maxChunkSize = ChunkSize
+func NewChunkedStorage2File(fp *os.File) *ChunkedStorage2 {
+	if fp == nil {
+		return NewChunkedStorageNop()
+	}
+	initialFileSize, _ := fp.Seek(0, 2) // if this fails, we do not care
+	return &ChunkedStorage2{
+		scratch: make([]byte, chunkHashSize+chunkHeaderSize+ChunkSize+chunkHashSize),
+		WriteAt: func(offset int64, data []byte) error {
+			_, err := fp.WriteAt(data, offset)
+			return err
+		},
+		Truncate: func(offset int64) error {
+			return fp.Truncate(offset)
+		},
+		ReadAt: func(b []byte, offset int64) error {
+			_, err := fp.ReadAt(b, offset)
+			return err
+		},
+		initialFileSize: initialFileSize,
+	}
+}
+
+func NewChunkedStorage2Slice(fp *[]byte) *ChunkedStorage2 {
+	if fp == nil {
+		return NewChunkedStorageNop()
 	}
 	return &ChunkedStorage2{
-		magic:        magic,
-		maxChunkSize: maxChunkSize,
-		scratch:      make([]byte, chunkHashSize+chunkHeaderSize+ChunkSize+chunkHashSize),
+		scratch: make([]byte, chunkHashSize+chunkHeaderSize+ChunkSize+chunkHashSize),
 		WriteAt: func(offset int64, data []byte) error {
 			if len(*fp) < int(offset)+len(data) {
 				*fp = append(*fp, make([]byte, int(offset)+len(data)-len(*fp))...)
@@ -116,7 +115,7 @@ func (c *ChunkedStorage2) IsFirst() bool {
 	return c.offset == 0
 }
 
-func (c *ChunkedStorage2) ReadNext() (chunk []byte, err error) {
+func (c *ChunkedStorage2) ReadNext(magic uint32) (chunk []byte, err error) {
 	if c.ReadAt == nil { // reading finished, we do not interference with writing
 		return nil, nil
 	}
@@ -136,8 +135,8 @@ func (c *ChunkedStorage2) ReadNext() (chunk []byte, err error) {
 	if err := c.ReadAt(currentChunk[:chunkHeaderSize], c.offset); err != nil {
 		return nil, err
 	}
-	if m := binary.LittleEndian.Uint32(currentChunk); m != c.magic {
-		return nil, fmt.Errorf("chunk at %d invalid magic 0x%x", c.offset, m)
+	if m := binary.LittleEndian.Uint32(currentChunk); m != magic {
+		return nil, fmt.Errorf("chunk at %d invalid magic 0x%x, expected 0x%x", c.offset, m, magic)
 	}
 	s := int64(binary.LittleEndian.Uint32(currentChunk[4:]))
 	if s > ChunkSize {
@@ -160,10 +159,22 @@ func (c *ChunkedStorage2) ReadNext() (chunk []byte, err error) {
 	return currentChunk[chunkHeaderSize : chunkHeaderSize+s], nil
 }
 
-func (c *ChunkedStorage2) StartWriteChunk() []byte {
-	putHash(c.scratch, c.hash)
-	binary.LittleEndian.PutUint32(c.scratch[chunkHashSize:], c.magic)
-	binary.LittleEndian.PutUint32(c.scratch[chunkHashSize+4:], 0) // body size
+func (c *ChunkedStorage2) ResetToStartOfFile() {
+	c.hash = xxh3.Uint128{}
+	c.offset = 0
+}
+
+func (c *ChunkedStorage2) StartWriteChunk(magic uint32, maxChunkSize int) []byte {
+	if maxChunkSize <= 0 || maxChunkSize > ChunkSize {
+		maxChunkSize = ChunkSize
+	}
+	c.magic = magic
+	c.maxChunkSize = maxChunkSize
+	return c.startChunk()
+}
+
+func (c *ChunkedStorage2) startChunk() []byte {
+	copy(c.scratch, make([]byte, chunkHashSize+chunkHeaderSize)) // keep it tidy
 	return c.scratch[:chunkHashSize+chunkHeaderSize]
 }
 
@@ -174,22 +185,24 @@ func (c *ChunkedStorage2) finishChunk(chunk []byte) ([]byte, error) {
 	if len(chunk) == chunkHashSize+chunkHeaderSize {
 		return chunk, nil
 	}
+	putHash(chunk, c.hash)
+	binary.LittleEndian.PutUint32(chunk[chunkHashSize:], c.magic)
 	binary.LittleEndian.PutUint32(chunk[chunkHashSize+4:], uint32(len(chunk)-chunkHashSize-chunkHeaderSize))
 	h := xxh3.Hash128(chunk)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Hi)
 	chunk = binary.BigEndian.AppendUint64(chunk, h.Lo)
 	if c.WriteAt == nil {
-		return c.StartWriteChunk(), fmt.Errorf("chunk storage discarded chunk due to previous write error")
+		return c.startChunk(), fmt.Errorf("chunk storage discarded chunk due to previous write error")
 	}
 	if err := c.WriteAt(c.offset, chunk[chunkHashSize:]); err != nil {
 		// we must discard chunk, otherwise it grows beyond panic
 		// after that file is forever broken, so we simply stop writing until restart
 		c.WriteAt = nil
-		return c.StartWriteChunk(), err
+		return c.startChunk(), err
 	}
 	c.hash = h
 	c.offset += int64(len(chunk) - chunkHashSize)
-	return c.StartWriteChunk(), nil
+	return c.startChunk(), nil
 }
 
 func (c *ChunkedStorage2) FinishItem(chunk []byte) ([]byte, error) {

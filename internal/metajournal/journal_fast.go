@@ -82,9 +82,7 @@ type JournalFast struct {
 	BuiltinJournalUpdateOK    data_model.ItemValue
 	BuiltinJournalUpdateError data_model.ItemValue
 
-	// custom FS
-	writeAt  func(offset int64, data []byte) error
-	truncate func(offset int64) error
+	storage *data_model.ChunkedStorage2
 }
 
 func MetricMetaFromEvent(e tlmetadata.Event) (*format.MetricMetaValue, error) {
@@ -118,8 +116,6 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent
 		applyEvent:             applyEvent,
 		metricsVersionClients3: map[rpc.LongpollHandle]tlstatshouse.GetMetrics3{},
 		compact:                compact,
-		writeAt:                func(offset int64, data []byte) error { return nil },
-		truncate:               func(offset int64) error { return nil },
 	}
 }
 
@@ -127,20 +123,14 @@ func MakeJournalFast(journalRequestDelay time.Duration, compact bool, applyEvent
 // if fp nil, then cache works in memory-only mode
 func LoadJournalFastFile(fp *os.File, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
 	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
-	w, t, r, fs := data_model.ChunkedStorageFile(fp)
-	c.writeAt = w
-	c.truncate = t
-	err := c.load(fs, r)
-	return c, err
+	storage := data_model.NewChunkedStorage2File(fp)
+	return c, c.Load(storage)
 }
 
 func LoadJournalFastSlice(fp *[]byte, journalRequestDelay time.Duration, compact bool, applyEvent []ApplyEvent) (*JournalFast, error) {
 	c := MakeJournalFast(journalRequestDelay, compact, applyEvent)
-	w, t, r, fs := data_model.ChunkedStorageSlice(fp)
-	c.writeAt = w
-	c.truncate = t
-	err := c.load(fs, r)
-	return c, err
+	storage := data_model.NewChunkedStorage2Slice(fp)
+	return c, c.Load(storage)
 }
 
 func (ms *JournalFast) SetDumpPathPrefix(dumpPathPrefix string) {
@@ -158,9 +148,13 @@ func (ms *JournalFast) applyEvents(src []tlmetadata.Event) {
 	}
 }
 
-func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
+func (ms *JournalFast) Load(storage *data_model.ChunkedStorage2) error {
+	if ms.storage != nil {
+		panic("cannot load more than once")
+	}
+	ms.storage = storage
 	var loaderVersion, lastEventVersion int64
-	src, err := ms.loadImpl(fileSize, readAt, &loaderVersion, &lastEventVersion)     // in case of error, returns events to apply
+	src, err := ms.loadImpl(&loaderVersion, &lastEventVersion)                       // in case of error, returns events to apply
 	if lastEventVersion == ms.currentVersion && loaderVersion >= ms.currentVersion { // fully read journal, so can believe loader version
 		ms.loaderVersion = loaderVersion
 	} else {
@@ -172,20 +166,18 @@ func (ms *JournalFast) load(fileSize int64, readAt func(b []byte, offset int64) 
 	return err
 }
 
-func (ms *JournalFast) loadImpl(fileSize int64, readAt func(b []byte, offset int64) error, loaderVersion *int64, lastEventVersion *int64) ([]tlmetadata.Event, error) {
-	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
-	loader.StartRead(fileSize, data_model.ChunkedMagicJournal)
+func (ms *JournalFast) loadImpl(loaderVersion *int64, lastEventVersion *int64) ([]tlmetadata.Event, error) {
 	var scratch []byte
 	var src []tlmetadata.Event
 	for {
-		chunk, first, err := loader.ReadNext()
+		chunk, err := ms.storage.ReadNext(data_model.ChunkedMagicJournal)
 		if err != nil {
 			return src, err
 		}
 		if len(chunk) == 0 {
 			break
 		}
-		if first {
+		if ms.storage.IsFirst() {
 			if chunk, err = basictl.LongRead(chunk, loaderVersion); err != nil {
 				return src, fmt.Errorf("error parsing journal loader version: %v", err)
 			}
@@ -221,11 +213,7 @@ func (ms *JournalFast) Save() (bool, int64, error) {
 	if ms.lastSavedVersion == ms.currentVersion {
 		return false, ms.currentVersion, nil
 	}
-	saver := data_model.ChunkedStorageSaver{
-		WriteAt:  ms.writeAt,
-		Truncate: ms.truncate,
-	}
-	err := ms.save(&saver, 0)
+	err := ms.save(ms.storage, 0)
 	if err != nil {
 		return false, ms.currentVersion, err
 	}
@@ -233,8 +221,9 @@ func (ms *JournalFast) Save() (bool, int64, error) {
 	return true, ms.currentVersion, nil
 }
 
-func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver, maxChunkSize int) error {
-	chunk := saver.StartWrite(data_model.ChunkedMagicJournal, maxChunkSize)
+func (ms *JournalFast) save(storage *data_model.ChunkedStorage2, maxChunkSize int) error {
+	storage.ResetToStartOfFile() // we save the whole journal always
+	chunk := storage.StartWriteChunk(data_model.ChunkedMagicJournal, maxChunkSize)
 	chunk = basictl.LongWrite(chunk, ms.loaderVersion)  // we need explicit version, because compact journal skips many events, and we must not ask them again from loader
 	chunk = basictl.LongWrite(chunk, ms.currentVersion) // we must not use loaderVersion if file tail with some events was corrupted/cut, so we remember it
 	// we do not FinishItem after version because version is small
@@ -246,13 +235,13 @@ func (ms *JournalFast) save(saver *data_model.ChunkedStorageSaver, maxChunkSize 
 			panic(fmt.Sprintf("journal order violation - entry not found %s", order.key.key()))
 		}
 		chunk = event.WriteBoxed(chunk)
-		chunk, iteratorError = saver.FinishItem(chunk)
+		chunk, iteratorError = storage.FinishItem(chunk)
 		return iteratorError == nil // ok, save only elements that fit
 	})
 	if iteratorError != nil {
 		return iteratorError
 	}
-	return saver.FinishWrite(chunk)
+	return storage.FinishWriteChunk(chunk)
 }
 
 func (ms *JournalFast) dump() error {
@@ -272,13 +261,8 @@ func (ms *JournalFast) dump() error {
 		return err
 	}
 	defer fp.Close()
-	w, t, _, _ := data_model.ChunkedStorageFile(fp)
-
-	saver := data_model.ChunkedStorageSaver{
-		WriteAt:  w,
-		Truncate: t,
-	}
-	return ms.save(&saver, 0)
+	storage := data_model.NewChunkedStorage2File(fp)
+	return ms.save(storage, 0)
 }
 
 func (ms *JournalFast) Compare(ms2 *JournalFast) {

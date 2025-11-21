@@ -43,11 +43,8 @@ func FuzzCompactJournal(f *testing.F) {
 			if len(journal.journal) > 3 {
 				fmt.Printf("aja")
 			}
-			saver := data_model.ChunkedStorageSaver{
-				WriteAt:  journal.writeAt,
-				Truncate: journal.truncate,
-			}
-			if err := journal.save(&saver, 1); err != nil { // maxChunkSize 1 so each event is in its own chunk
+			saver := data_model.NewChunkedStorage2Slice(fj)
+			if err := journal.save(saver, 1); err != nil { // maxChunkSize 1 so each event is in its own chunk
 				t.Error(err)
 			}
 			truncateLen := int(arg) * 40 // approximate event size
