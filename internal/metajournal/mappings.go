@@ -245,8 +245,8 @@ func (ms *MappingsStorage) Save() (bool, error) {
 					rollback()
 					return err
 				}
-				pairs = pairs[1:]
 				sizeDone += int64(len(pairs[0].Str) + 4)
+				pairs = pairs[1:]
 			}
 			err := shard.storage.FinishWrite(chunk)
 			if err != nil {
