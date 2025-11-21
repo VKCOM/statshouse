@@ -607,7 +607,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	metricStorage := metajournal.MakeMetricsStorage(nil)
 	// we ignore errors because cache can be damaged
 	journal, _ := metajournal.LoadJournalFastFile(journalFile, data_model.JournalDDOSProtectionTimeout, false,
-		[]metajournal.ApplyEvent{metricStorage.ApplyEvent})
+		[]metajournal.ApplyEvent{metricStorage.ApplyEvent, cl.ApplyEventCB})
 	journal.SetDumpPathPrefix(filepath.Join(cacheDir, fmt.Sprintf("journal-%s", cluster)))
 	h := &Handler{
 		HandlerOptions:  opt,
