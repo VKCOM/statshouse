@@ -31,8 +31,7 @@ import (
 )
 
 const (
-	averagePairSize    = 24
-	defaultMappingSize = 150000000
+	defaultMappingSize = 150000000 // TODO: add in 2027
 )
 
 // MappingsLoader is a function that loads new mappings from metadata service
@@ -67,9 +66,9 @@ type mappingShard struct {
 	mappings map[string]int32 // under mu
 
 	// periodic saving
-	pendingByteSize int64                            // byte size of pendingPairs, under mu
-	pendingPairs    []tlstatshouse.Mapping           // new mappings, under mu
-	storage         *data_model.ChunkedStorageShared // under MappingsStorage.storageMu
+	pendingByteSize int64                       // byte size of pendingPairs, under mu
+	pendingPairs    []tlstatshouse.Mapping      // new mappings, under mu
+	storage         *data_model.ChunkedStorage2 // under MappingsStorage.storageMu
 }
 
 type reverseMappingShard struct {
@@ -77,10 +76,7 @@ type reverseMappingShard struct {
 	mappings map[int32]string // under mu
 }
 
-func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, reverseMappingsEnable bool, size int, storages []*data_model.ChunkedStorageShared) *MappingsStorage {
-	if size <= 0 {
-		size = defaultMappingSize
-	}
+func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, reverseMappingsEnable bool, storages []*data_model.ChunkedStorage2) *MappingsStorage {
 	shardCnt := len(storages)
 	ms := &MappingsStorage{
 		ctx:                  ctx,
@@ -93,12 +89,12 @@ func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, rever
 	}
 	for i, storage := range storages {
 		ms.shards[i] = &mappingShard{
-			mappings:     make(map[string]int32, size/shardCnt),
+			mappings:     make(map[string]int32, defaultMappingSize/shardCnt),
 			pendingPairs: make([]tlstatshouse.Mapping, 0, 100),
 			storage:      storage,
 		}
 		if reverseMappingsEnable {
-			ms.reverseShards[i] = &reverseMappingShard{mappings: make(map[int32]string, size/shardCnt)}
+			ms.reverseShards[i] = &reverseMappingShard{mappings: make(map[int32]string, defaultMappingSize/shardCnt)}
 		}
 	}
 	return ms
@@ -107,24 +103,19 @@ func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, rever
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then storage works in memory-only mode
 func LoadMappingsFiles(ctx context.Context, fps []*os.File, mappingsRequestDelay time.Duration, reverseMappingsEnable bool) (*MappingsStorage, error) {
-	var sumFs int64
-	var fss []int64
-	var storage []*data_model.ChunkedStorageShared
+	var storage []*data_model.ChunkedStorage2
 	for _, fp := range fps {
-		w, t, r, fs := data_model.ChunkedStorageFile(fp)
-		storage = append(storage, data_model.NewChunkedStorageShared(w, t, r))
-		sumFs += fs
-		fss = append(fss, fs)
+		storage = append(storage, data_model.NewChunkedStorage2File(fp))
 	}
-	ms := MakeMappings(ctx, mappingsRequestDelay, reverseMappingsEnable, int(sumFs/averagePairSize), storage)
-	err := ms.load(fss)
+	ms := MakeMappings(ctx, mappingsRequestDelay, reverseMappingsEnable, storage)
+	err := ms.load()
 	return ms, err
 }
 
-func (ms *MappingsStorage) load(fileSize []int64) error {
+func (ms *MappingsStorage) load() error {
 	ms.storageMu.Lock()
 	defer ms.storageMu.Unlock()
-	log.Printf("Start loading mappings file size %d", fileSize)
+	log.Printf("Start loading mappings")
 
 	wg := sync.WaitGroup{}
 	revChs := ms.goAddReverseShardValues(&wg)
@@ -132,8 +123,7 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 	mu := sync.Mutex{}
 	version := int32(math.MaxInt32)
 	eg := errgroup.Group{}
-	for i, s := range ms.shards {
-		num := i
+	for _, s := range ms.shards {
 		shard := s
 		eg.Go(func() error {
 			shard.mu.Lock()
@@ -141,15 +131,13 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 
 			v := int32(-1)
 			var resErr error
-			// Use shared storage loader - it will update shared offset automatically
-			shard.storage.StartRead(fileSize[num], data_model.ChunkedMagicMappings)
 			for {
 				select {
 				case <-ms.ctx.Done():
 					return nil
 				default:
 				}
-				chunk, _, err := shard.storage.ReadNext()
+				chunk, err := shard.storage.ReadNext(data_model.ChunkedMagicAllMappings)
 				if err != nil {
 					resErr = err
 					break
@@ -172,7 +160,6 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 					break
 				}
 				v = max(v, val)
-				shard.storage.FinishReadChunk()
 			}
 			mu.Lock()
 			defer mu.Unlock()
@@ -190,7 +177,7 @@ func (ms *MappingsStorage) load(fileSize []int64) error {
 	defer ms.mu.Unlock()
 	ms.currentVersion = version
 	ms.lastKnownVersion = version
-	log.Printf("Finish loading mappings file size %d, version: %d", fileSize, version)
+	log.Printf("Finish loading mappings, version: %d", version)
 	return err
 }
 
@@ -228,7 +215,7 @@ func (ms *MappingsStorage) Save() (bool, error) {
 				shard.pendingByteSize += size - sizeDone
 			}
 
-			chunk := shard.storage.StartWriteWithOffset(data_model.ChunkedMagicMappings, 0)
+			chunk := shard.storage.StartWriteChunk(data_model.ChunkedMagicAllMappings, 0)
 
 			appendItem := func(k string, v int32) error {
 				// we have big key lens
@@ -246,7 +233,7 @@ func (ms *MappingsStorage) Save() (bool, error) {
 				sizeDone += int64(len(pairs[0].Str) + 4)
 				pairs = pairs[1:]
 			}
-			err := shard.storage.FinishWrite(chunk)
+			err := shard.storage.FinishWriteChunk(chunk)
 			if err != nil {
 				rollback()
 				return err
