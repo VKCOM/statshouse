@@ -113,7 +113,7 @@ func SkewMaxCounterHost(rng *rand.Rand, count float64) float64 {
 // Single machine with value slightly larger than others will reduce # examples to 1.
 // We decided to randomly reduce values by 50%.
 func SkewMinMaxHost(rng *rand.Rand, val float64) float64 {
-	frac := 1 - rng.Float64()/2 // [0.5..1)
+	frac := 1 - rng.Float64()/2 // (0.5..1]
 	return val * frac
 }
 
