@@ -16,25 +16,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-// this is file format used for all metadata
-// it consists of byte chunks protected by magic and xxh3
-// files are saved at the exit (or sometimes periodically) and fsync is never called
-
-// each individual item must be < chunkSize/2
-
-// File format is chunk-based so that reading and writing requires not so much memory.
-// Also, we can start saving changes incrementally later.
-// file: [chunk]...
-// chunk: [magic] [body size] [body] [xxhash of all previous bytes]
-// body:  [element]...
-
-const ChunkedMagicMappings = 0x83a28d18
-const ChunkedMagicJournal = 0x83a28d1f
-const ChunkedMagicConfig = 0x83a28d1a
-
-const ChunkSize = 1024 * 1024 // Never decrease it, otherwise reading will break.
-const chunkHeaderSize = 4 + 4 // magic + body size
-const chunkHashSize = 16
+// this is deprecated and will be removed soon
 
 type ChunkedStorageSaver struct {
 	magic        uint32

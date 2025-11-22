@@ -170,11 +170,10 @@ func clientSaveConfigToCache(cluster string, cacheDir string, dst tlstatshouse.G
 		return fmt.Errorf("failed to open config cache: %v", err)
 	}
 	defer fp.Close()
-	w, t, _, _ := data_model.ChunkedStorageFile(fp)
-	saver := data_model.ChunkedStorageSaver{WriteAt: w, Truncate: t}
-	chunk := saver.StartWrite(data_model.ChunkedMagicConfig, 0)
+	storage := data_model.NewChunkedStorage2File(fp)
+	chunk := storage.StartWriteChunk(data_model.ChunkedMagicConfig, 0)
 	chunk = dst.WriteBoxed(chunk)
-	return saver.FinishWrite(chunk)
+	return storage.FinishWriteChunk(chunk)
 }
 
 func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.GetConfigResult3, error) {
@@ -187,10 +186,8 @@ func clientGetConfigFromCache(cluster string, cacheDir string) (tlstatshouse.Get
 		return res, fmt.Errorf("failed to open config cache: %w", err)
 	}
 	defer fp.Close()
-	_, _, r, fs := data_model.ChunkedStorageFile(fp)
-	loader := data_model.ChunkedStorageLoader{ReadAt: r}
-	loader.StartRead(fs, data_model.ChunkedMagicConfig)
-	chunk, _, err := loader.ReadNext()
+	storage := data_model.NewChunkedStorage2File(fp)
+	chunk, err := storage.ReadNext(data_model.ChunkedMagicConfig)
 	if err != nil {
 		return res, fmt.Errorf("failed to read config cache: %w", err)
 	}
