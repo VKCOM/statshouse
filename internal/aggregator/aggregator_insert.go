@@ -210,14 +210,13 @@ func appendBadge(rng *rand.Rand, res []byte, k *data_model.Key, v data_model.Ite
 }
 
 func appendAggregates(res []byte, c float64, mi float64, ma float64, su float64, su2 float64) []byte {
-	tmp := make([]byte, 0, 6*8) // Most efficient way
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(c))
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(c)) // max_count
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(mi))
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(ma))
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(su))
-	tmp = binary.LittleEndian.AppendUint64(tmp, math.Float64bits(su2))
-	return append(res, tmp[:]...)
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(c))
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(c)) // max_count
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(mi))
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(ma))
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(su))
+	res = binary.LittleEndian.AppendUint64(res, math.Float64bits(su2))
+	return res
 }
 
 func appendValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v data_model.ItemValue, cache *metricIndexCache, bufferedInsert bool) []byte {
