@@ -109,6 +109,14 @@ func SkewMaxCounterHost(rng *rand.Rand, count float64) float64 {
 	return rng.Float64() * math.Log2(1+count)
 }
 
+// Motivation - we want more examples of hosts with large/small values.
+// Single machine with value slightly larger than others will reduce # examples to 1.
+// We decided to randomly reduce values by 50%.
+func SkewMinMaxHost(rng *rand.Rand, val float64) float64 {
+	frac := 1 - rng.Float64()/2 // [0.5..1)
+	return val * frac
+}
+
 func clickhouseTest(rng *rand.Rand, perm []int, examples []ItemCounter) (ff ItemCounter, bb ItemCounter, pp ItemCounter) {
 	// our distribution must not depend on order of events
 	for i, e := range examples {
