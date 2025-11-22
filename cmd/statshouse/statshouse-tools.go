@@ -669,10 +669,10 @@ func massUpdateMetadata() int {
 	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
 	storage := metajournal.MakeMetricsStorage(nil)
 	storage2 := metajournal.MakeMetricsStorage(nil)
-	journal := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, false,
+	journal := metajournal.MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, false,
 		[]metajournal.ApplyEvent{storage.ApplyEvent})
 	journal.Start(nil, nil, loader.LoadJournal)
-	journalCompact := metajournal.MakeJournalFast(data_model.JournalDDOSProtectionTimeout, true,
+	journalCompact := metajournal.MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, true,
 		[]metajournal.ApplyEvent{storage2.ApplyEvent})
 	journalCompact.Start(nil, nil, loader.LoadJournal)
 	fmt.Println("Press <Enter> to start updating metadata")

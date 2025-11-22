@@ -83,22 +83,20 @@ type MappingsCache struct {
 	periodicSaveInterval time.Duration
 
 	// custom FS
-	writeAt  func(offset int64, data []byte) error
-	truncate func(offset int64) error
+	storage *data_model.ChunkedStorage2
 }
 
 func elementSizeMem(s string) int64 {
 	return int64(len(s)*5/4 + 32) // some simple approximation of actual cache element memory cost
 }
 
-func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
+func NewMappingsCache(storage *data_model.ChunkedStorage2, maxSize int64, maxTTL int) *MappingsCache {
 	c := &MappingsCache{
 		cache:                map[string]cacheValue{},
 		rnd:                  rand.New(),
 		accessTSGran:         1, // seconds
 		periodicSaveInterval: time.Hour,
-		writeAt:              func(offset int64, data []byte) error { return nil },
-		truncate:             func(offset int64) error { return nil },
+		storage:              storage,
 	}
 	c.maxSize.Store(maxSize)
 	c.maxTTL.Store(int64(maxTTL))
@@ -108,21 +106,15 @@ func NewMappingsCache(maxSize int64, maxTTL int) *MappingsCache {
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then cache works in memory-only mode
 func LoadMappingsCacheFile(fp *os.File, maxSize int64, maxTTL int) (*MappingsCache, error) {
-	c := NewMappingsCache(maxSize, maxTTL)
-	w, t, r, fs := data_model.ChunkedStorageFile(fp)
-	c.writeAt = w
-	c.truncate = t
-	err := c.load(fs, r)
-	return c, err
+	storage := data_model.NewChunkedStorage2File(fp)
+	c := NewMappingsCache(storage, maxSize, maxTTL)
+	return c, c.load(storage)
 }
 
-func LoadMappingsCacheSlice(fp *[]byte, maxSize int64) *MappingsCache {
-	c := NewMappingsCache(maxSize, 0)
-	w, t, r, fs := data_model.ChunkedStorageSlice(fp)
-	c.writeAt = w
-	c.truncate = t
-	_ = c.load(fs, r)
-	return c
+func LoadMappingsCacheSlice(fp *[]byte, maxSize int64) (*MappingsCache, error) {
+	storage := data_model.NewChunkedStorage2Slice(fp)
+	c := NewMappingsCache(storage, maxSize, 0)
+	return c, c.load(storage)
 }
 
 // Sensitive to latency
@@ -446,20 +438,16 @@ func (c *MappingsCache) Save() (bool, error) {
 	if c.version == c.lastSavedVersion {
 		return false, nil
 	}
+	c.storage.ResetToStartOfFile() // we save the whole cache always
 
-	saver := data_model.ChunkedStorageSaver{
-		WriteAt:  c.writeAt,
-		Truncate: c.truncate,
-	}
-
-	chunk := saver.StartWrite(data_model.ChunkedMagicMappings, 0)
+	chunk := c.storage.StartWriteChunk(data_model.ChunkedMagicMappings, 0)
 
 	appendItem := func(k string, v int32, accessTS uint32) error {
 		chunk = basictl.StringWrite(chunk, k)
 		chunk = basictl.IntWrite(chunk, v)
 		chunk = basictl.NatWrite(chunk, accessTS)
 		var err error
-		chunk, err = saver.FinishItem(chunk)
+		chunk, err = c.storage.FinishItem(chunk)
 		return err
 	}
 
@@ -486,7 +474,7 @@ func (c *MappingsCache) Save() (bool, error) {
 			}
 		}
 	}
-	err := saver.FinishWrite(chunk)
+	err := c.storage.FinishWriteChunk(chunk)
 	if err != nil {
 		return false, err
 	}
@@ -496,18 +484,15 @@ func (c *MappingsCache) Save() (bool, error) {
 
 // callers are expected to ignore error from this method
 // if file tail is broken, it will be truncated on the next save
-func (c *MappingsCache) load(fileSize int64, readAt func(b []byte, offset int64) error) error {
+func (c *MappingsCache) load(storage *data_model.ChunkedStorage2) error {
 	c.modifyMu.Lock()
 	defer c.modifyMu.Unlock()
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	loader := data_model.ChunkedStorageLoader{ReadAt: readAt}
-
-	loader.StartRead(fileSize, data_model.ChunkedMagicMappings)
 	for {
-		chunk, _, err := loader.ReadNext()
+		chunk, err := storage.ReadNext(data_model.ChunkedMagicMappings)
 		if err != nil {
 			return err
 		}

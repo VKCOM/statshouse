@@ -35,7 +35,7 @@ func BenchmarkRand(b *testing.B) {
 }
 
 func newTestMappingsCache(fp *[]byte) *MappingsCache {
-	c := LoadMappingsCacheSlice(fp, 170)
+	c, _ := LoadMappingsCacheSlice(fp, 170)
 	c.deterministic = true
 	return c
 }

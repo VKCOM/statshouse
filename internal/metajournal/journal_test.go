@@ -58,7 +58,7 @@ func Benchmark_LoadJournal(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, false, nil)
+		journal := MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, false, nil)
 		journal.metaLoader = loader
 		for {
 			fin, err := journal.updateJournalIsFinished(nil)
@@ -86,7 +86,7 @@ func Benchmark_LoadJournal(b *testing.B) {
 func Benchmark_SaveJournal(b *testing.B) {
 	loader, _, err := getJournalFileLoader("journal.json")
 	require.NoError(b, err)
-	journal := MakeJournalFast(data_model.JournalDDOSProtectionTimeout, false, nil)
+	journal := MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, false, nil)
 	journal.metaLoader = loader
 	for {
 		fin, err := journal.updateJournalIsFinished(nil)

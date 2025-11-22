@@ -76,7 +76,6 @@ func mainAggregator() int {
 	}
 	logRotate()
 
-	ctx := makeInterruptibleContext()
 	// Read AES password
 	var aesPwd string
 	if argv.aesPwdFile == "" {
@@ -130,7 +129,7 @@ func mainAggregator() int {
 		defer f.Close()
 		mappingStorageFiles = append(mappingStorageFiles, f)
 	}
-	mappingsStorage, err := metajournal.LoadMappingsFiles(ctx, mappingStorageFiles, data_model.JournalDDOSProtectionTimeout, false)
+	mappingsStorage, err := metajournal.LoadMappingsFiles(context.Background(), mappingStorageFiles, data_model.JournalDDOSProtectionTimeout, false)
 	if err != nil {
 		// cache can be damaged
 		log.Printf("failed to load mappings storage from %v", err)
@@ -291,15 +290,4 @@ func runPprof() {
 	if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
 		log.Printf("failed to listen pprof on %q: %v", argv.pprofListenAddr, err)
 	}
-}
-
-func makeInterruptibleContext() context.Context {
-	signals := make(chan os.Signal, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-signals
-		cancel()
-	}()
-	return ctx
 }

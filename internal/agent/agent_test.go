@@ -131,7 +131,7 @@ func Test_AgentQueue(t *testing.T) {
 	agent := &Agent{
 		config:                            config,
 		logF:                              func(f string, a ...any) { fmt.Printf(f, a...) },
-		mappingsCache:                     pcache.NewMappingsCache(1024*1024, 86400),
+		mappingsCache:                     pcache.NewMappingsCache(data_model.NewChunkedStorageNop(), 1024*1024, 86400),
 		shardByMetricCount:                1,
 		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
 		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
@@ -275,7 +275,7 @@ func makeAgent(config Config, nowUnix uint32) *Agent {
 	agent := &Agent{
 		config:        config,
 		logF:          func(f string, a ...any) { fmt.Printf(f, a...) },
-		mappingsCache: pcache.NewMappingsCache(1024*1024, 86400),
+		mappingsCache: pcache.NewMappingsCache(data_model.NewChunkedStorageNop(), 1024*1024, 86400),
 	}
 	agent.Shards = make([]*Shard, 5)
 	for i := range agent.Shards {
