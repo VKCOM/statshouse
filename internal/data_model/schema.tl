@@ -88,8 +88,15 @@ statshouse.getConfigResult#0c803d07 {fields_mask:#}
 statshouse.getConfigResult3#f13698cb
     addresses: (vector string) // 3 replicas for each shard
     shard_by_metric_count: # // should be <= len(addresses), so that we can add 17'th shard without breaking all metrics which are spread automatically between first 16.
-    unused: 12*[int] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
-    unused_s: 4*[string] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
+    fields_mask: #
+    ingress_proxy: fields_mask.0?true
+    agent_ip: 4*[int] // as visible by server during getConfig
+
+    unused: 7*[int] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
+
+    connected_to: string // hostname or other ID of ingress proxy or aggregator
+
+    unused_s: 3*[string] // arbitrary space for extensions, so we can avoid using fields masks and complications with them
 = statshouse.GetConfigResult3;
 
 // proxy uses and fills data in this header for all requests

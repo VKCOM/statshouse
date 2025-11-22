@@ -46,6 +46,9 @@ type Agent struct {
 	ShardReplicas   []*ShardReplica // 3 * number of shards
 	Shards          []*Shard
 	GetConfigResult tlstatshouse.GetConfigResult3 // for ingress proxy
+	agentAddrTag    int32
+	agentAddrV4     int32
+	agentAddrV6     string
 
 	cancelSendsFunc   context.CancelFunc
 	cancelSendsCtx    context.Context
@@ -60,7 +63,8 @@ type Agent struct {
 	cacheDir        string
 	rpcClientConfig rpc.Client
 	diskBucketCache *DiskBucketStorage
-	hostName        []byte
+	hostName        string
+	hostNameBytes   []byte
 	argsHash        int32
 	argsLen         int32
 	args            string
@@ -166,7 +170,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		cancelSendsFunc:                   cancelSendsFunc,
 		cancelFlushCtx:                    cancelFlushCtx,
 		cancelFlushFunc:                   cancelFlushFunc,
-		hostName:                          format.ForceValidStringValue(hostName), // worse alternative is do not run at all
+		hostName:                          string(format.ForceValidStringValue(hostName)), // worse alternative is do not run at all
 		componentTag:                      componentTag,
 		heartBeatEventType:                format.TagValueIDHeartbeatEventStart,
 		heartBeatSecondBucket:             uint32(rnd.Intn(60)),
@@ -190,6 +194,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
 		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
+	result.hostNameBytes = []byte(result.hostName)
 	result.historicWindow.Store(uint32(config.HistoricWindow))
 	result.builtinMetricMetaUsageCPU.Resolution = 1
 	result.builtinMetricMetaUsageCPU.EffectiveResolution = 1
@@ -217,6 +222,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		}
 		result.GetConfigResult = result.getInitialConfig()
 	}
+	result.agentAddrTag, result.agentAddrV4, result.agentAddrV6 = ConfigAgentIPToTags(result.GetConfigResult.AgentIp)
 	result.shardByMetricCount = result.GetConfigResult.ShardByMetricCount
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -650,57 +656,51 @@ func (s *Agent) addBuiltins(nowUnix uint32) {
 	}
 }
 
-func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
-	if count <= 0 {
-		return
-	}
-
-	owner := ""
+func (s *Agent) getOwner() string {
 	if s.envLoader != nil {
 		e := s.envLoader.Load()
-		owner = e.Owner
+		return e.Owner
 	}
+	return ""
+}
+
+func (s *Agent) HostName() string {
+	return s.hostName
+}
+
+func (s *Agent) MapTagForProxy(str string) (int32, bool) {
+	return s.mappingsCache.GetValue(uint32(time.Now().Unix()), str)
+}
+
+func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.startTimestamp)
 
-	tags := [format.MaxTags]int32{
-		1:                    s.componentTag,
-		2:                    s.heartBeatEventType,
-		4:                    int32(build.CommitTag()),
-		6:                    int32(build.CommitTimestamp()),
-		format.AggHostTag:    s.AggregatorHost,
-		format.AggShardTag:   s.AggregatorShardKey,
-		format.AggReplicaTag: s.AggregatorReplicaKey,
-	}
-	sTags := [format.MaxTags]string{
-		7: string(s.hostName),
-	}
-
-	vKey := data_model.Key{
-		Timestamp: nowUnix,
-		Metric:    s.builtinMetricMetaHeartbeatVersion.MetricID, // panics if metricInfo nil
-		Tags:      tags,
-		STags:     sTags,
-	}
-	vKey.STags[9] = owner
-
-	vShardNum, _ := s.shard(&vKey, &s.builtinMetricMetaHeartbeatVersion, nil)
-	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	vShard := s.Shards[vShardNum]
-	vShard.AddValueCounterStringHost(&vKey, 0, data_model.TagUnion{S: build.Commit()}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatVersion)
-
-	aKey := data_model.Key{
-		Timestamp: nowUnix,
-		Metric:    s.builtinMetricMetaHeartbeatArgs.MetricID, // panics if metricInfo nil
-		Tags:      tags,
-		STags:     sTags,
-	}
-	aKey.Tags[3] = s.argsHash
-	aKey.Tags[9] = s.argsLen
-
-	aShardNum, _ := s.shard(&aKey, &s.builtinMetricMetaHeartbeatArgs, nil)
-	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	aShard := s.Shards[aShardNum]
-	aShard.AddValueCounterStringHost(&aKey, 0, data_model.TagUnion{S: s.args}, uptimeSec, count, data_model.TagUnionBytes{}, &s.builtinMetricMetaHeartbeatArgs)
+	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
+		[]int32{
+			1:  s.componentTag,
+			2:  s.heartBeatEventType,
+			4:  int32(build.CommitTag()),
+			6:  int32(build.CommitTimestamp()),
+			16: s.agentAddrTag,
+			17: s.agentAddrV4},
+		[]string{
+			7:  s.hostName,
+			9:  s.getOwner(),
+			18: s.agentAddrV6,
+			19: s.GetConfigResult.ConnectedTo},
+		build.Commit(), uptimeSec, count)
+	s.AddValueCounterString(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
+		[]int32{
+			1: s.componentTag,
+			2: s.heartBeatEventType,
+			3: s.argsHash,
+			4: int32(build.CommitTag()),
+			6: int32(build.CommitTimestamp()),
+			9: s.argsLen},
+		[]string{
+			7: s.hostName,
+		},
+		s.args, uptimeSec, count)
 }
 
 func (s *Agent) goFlushIteration(now time.Time) {
@@ -881,11 +881,21 @@ func (s *Agent) AddCounterHost(t uint32, metricInfo *format.MetricMetaValue, tag
 }
 
 func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
-	if count <= 0 {
-		return
-	}
+	s.AddCounterHostAERAS(t, metricInfo, tags, nil, count, hostTag, aera)
+}
+
+func (s *Agent) fillKey(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, aera data_model.AgentEnvRouteArch) data_model.Key {
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
+	for i, stag := range stags {
+		if stag != "" {
+			if tag, ok := s.mappingsCache.GetValue(t, stag); ok {
+				key.Tags[i] = tag
+			} else {
+				key.STags[i] = stag
+			}
+		}
+	}
 	if metricInfo.WithAggregatorID {
 		key.Tags[format.AggHostTag] = s.AggregatorHost
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey
@@ -896,6 +906,14 @@ func (s *Agent) AddCounterHostAERA(t uint32, metricInfo *format.MetricMetaValue,
 		key.Tags[format.RouteTag] = aera.Route
 		key.Tags[format.BuildArchTag] = aera.BuildArch
 	}
+	return key
+}
+
+func (s *Agent) AddCounterHostAERAS(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, count float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
+	if count <= 0 {
+		return
+	}
+	key := s.fillKey(t, metricInfo, tags, stags, aera)
 	shardNum, _ := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardNum]
@@ -912,18 +930,7 @@ func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.Metri
 	if count <= 0 {
 		return
 	}
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
-	}
-	if metricInfo.WithAgentEnvRouteArch {
-		key.Tags[format.AgentEnvTag] = aera.AgentEnv
-		key.Tags[format.RouteTag] = aera.Route
-		key.Tags[format.BuildArchTag] = aera.BuildArch
-	}
+	key := s.fillKey(t, metricInfo, tags, nil, aera)
 	shardNum, _ := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardNum]
@@ -943,18 +950,7 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 	if counter <= 0 {
 		return
 	}
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
-	}
-	if metricInfo.WithAgentEnvRouteArch {
-		key.Tags[format.AgentEnvTag] = aera.AgentEnv
-		key.Tags[format.RouteTag] = aera.Route
-		key.Tags[format.BuildArchTag] = aera.BuildArch
-	}
+	key := s.fillKey(t, metricInfo, tags, nil, aera)
 	shardNum, _ := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardNum]
@@ -962,26 +958,20 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 }
 
 // value should be not NaN.
-func (s *Agent) AddValueCounterString(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str string, value float64, counter float64) {
-	s.AddValueCounterStringHostAERA(t, metricInfo, tags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
+func (s *Agent) AddValueCounterString(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, str string, value float64, counter float64) {
+	s.AddValueCounterStringHostAERA(t, metricInfo, tags, stags, data_model.TagUnion{S: str, I: 0}, value, counter, data_model.TagUnionBytes{}, data_model.AgentEnvRouteArch{})
 }
 
-func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
+func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.MetricMetaValue, tags []int32, stags []string, topValue data_model.TagUnion, value float64, counter float64, hostTag data_model.TagUnionBytes, aera data_model.AgentEnvRouteArch) {
 	if counter <= 0 {
 		return
 	}
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
+	if topValue.S != "" {
+		if tag, ok := s.mappingsCache.GetValue(t, topValue.S); ok {
+			topValue = data_model.TagUnion{I: tag}
+		}
 	}
-	if metricInfo.WithAgentEnvRouteArch {
-		key.Tags[format.AgentEnvTag] = aera.AgentEnv
-		key.Tags[format.RouteTag] = aera.Route
-		key.Tags[format.BuildArchTag] = aera.BuildArch
-	}
+	key := s.fillKey(t, metricInfo, tags, stags, aera)
 	shardNum, _ := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
 	shard := s.Shards[shardNum]
@@ -1023,18 +1013,7 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 
 // public for aggregator
 func (s *Agent) GetMultiItemAERA(resolutionShard *data_model.MultiItemMap, t uint32, metricInfo *format.MetricMetaValue, tags []int32, aera data_model.AgentEnvRouteArch) *data_model.MultiItem {
-	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID}
-	copy(key.Tags[:], tags)
-	if metricInfo.WithAggregatorID {
-		key.Tags[format.AggHostTag] = s.AggregatorHost
-		key.Tags[format.AggShardTag] = s.AggregatorShardKey
-		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
-	}
-	if metricInfo.WithAgentEnvRouteArch {
-		key.Tags[format.AgentEnvTag] = aera.AgentEnv
-		key.Tags[format.RouteTag] = aera.Route
-		key.Tags[format.BuildArchTag] = aera.BuildArch
-	}
+	key := s.fillKey(t, metricInfo, tags, nil, aera)
 	item, _ := resolutionShard.GetOrCreateMultiItem(&key, metricInfo, nil)
 	return item
 }
