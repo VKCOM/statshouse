@@ -237,8 +237,8 @@ func run() int {
 	}
 	mappingsStorage, err := metajournal.LoadMappingsFiles(sigCtx, mappingFiles, data_model.JournalDDOSProtectionTimeout, true)
 	if err != nil {
+		// cache can be damaged
 		log.Printf("failed to load mappings storage from %v", err)
-		return 1
 	}
 
 	// we do not want to confuse journal from different clusters, this would be a disaster

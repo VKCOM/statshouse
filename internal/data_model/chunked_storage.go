@@ -97,8 +97,11 @@ func (c *ChunkedStorageShared) ReadNext() (chunk []byte, first bool, err error) 
 		c.loader.offset = c.offset
 		return nil, false, err
 	}
-	c.offset = c.loader.offset
 	return chunk, first, err
+}
+
+func (c *ChunkedStorageShared) FinishReadChunk() {
+	c.offset = c.loader.offset
 }
 
 func ChunkedStorageFile(fp *os.File) (writeAt func(offset int64, data []byte) error, truncate func(offset int64) error, readAt func(b []byte, offset int64) error, fileSize int64) {
