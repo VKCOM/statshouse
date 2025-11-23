@@ -293,6 +293,7 @@ func (ms *MappingsStorage) StartPeriodicSaving() {
 }
 
 func (ms *MappingsStorage) goPeriodicSaving() {
+	backoffTimeout := time.Duration(0)
 	for {
 		select {
 		case <-ms.ctx.Done():
@@ -310,8 +311,11 @@ func (ms *MappingsStorage) goPeriodicSaving() {
 		log.Printf("start saving mapping storage")
 		if _, err := ms.Save(); err != nil {
 			log.Printf("Periodic mappings storage save failed: %v", err)
+			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
+			time.Sleep(backoffTimeout)
 			continue
 		}
+		backoffTimeout = 0
 		log.Printf("Periodic mappings storage save completed")
 	}
 }
