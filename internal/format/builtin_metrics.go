@@ -343,8 +343,18 @@ var BuiltinMetricMetaAggOutdatedAgents = &MetricMetaValue{
 	}, {
 		Description: "host",
 	}, {
-		Description: "remote_ip",
+		Description: "remote_ip", // TODO - remove this tag after all agents are December2025 version
 		RawKind:     "ip",
+	}, 15: {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, 16: {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, 17: {
+		Description: "remote_addr_v6",
 	}},
 }
 
@@ -864,10 +874,22 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 	}, {
 		Description: "host",
 	}, {
-		Description: "remote_ip",
+		Description: "remote_ip", // TODO - remove this tag after all agents are December2025 version
 		RawKind:     "ip",
 	}, {
 		Description: "owner",
+	}, 15: {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, 16: {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, 17: {
+		Description: "remote_addr_v6",
+	}, 18: {
+		Description: "connected_to",
 	}},
 }
 
@@ -903,7 +925,7 @@ var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
 	}, {
 		Description: "host",
 	}, {
-		Description: "remote_ip",
+		Description: "remote_ip", // TODO - remove this tag after all agents are December2025 version
 		RawKind:     "ip",
 	}, {
 		Description: "arguments_length",
@@ -2251,6 +2273,7 @@ var BuiltinMetricMetaAggSamplingEngineKeys = &MetricMetaValue{
 	}},
 }
 
+// TODO - not used, remove?
 var BuiltinMetricMetaProxyAcceptHandshakeError = &MetricMetaValue{
 	Name:                    "__igp_accept_handshake_error",
 	Kind:                    MetricKindCounter,

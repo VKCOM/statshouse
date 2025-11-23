@@ -18,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -536,26 +535,6 @@ func (b *aggregatorBucket) lockShard(lockedShard *int, sID int, measurementLocks
 		return &b.shards[sID]
 	}
 	return nil
-}
-
-func addrIPString(remoteAddr net.Addr) (uint32, string) {
-	// ipv4 bytes, or ipv6 lower 4 bytes
-	switch addr := remoteAddr.(type) {
-	case *net.UDPAddr:
-		var v uint32
-		if len(addr.IP) >= 4 {
-			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
-		}
-		return v, addr.IP.String()
-	case *net.TCPAddr:
-		var v uint32
-		if len(addr.IP) >= 4 {
-			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
-		}
-		return v, addr.IP.String()
-	default:
-		return 0, addr.String()
-	}
 }
 
 func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) {
@@ -1112,15 +1091,17 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	}
 	log.Printf("Remote config: updated config from metric %q", format.StatshouseAggregatorRemoteConfigMetric)
 	a.configMu.Lock()
+	before := a.getConfigResult3Locked()
 	if len(config.ClusterShardsAddrs) == 0 {
 		config.ClusterShardsAddrs = a.config.RemoteInitial.ClusterShardsAddrs
 	}
-	if !slices.Equal(config.ClusterShardsAddrs, a.configR.ClusterShardsAddrs) {
-		a.cfgNotifier.notifyConfigChange()
-	}
 	a.configR = config
+	after := a.getConfigResult3Locked()
 	a.configMu.Unlock()
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
 	a.tagsMapper2.SetConfig(config.configTagsMapper3)
 	a.tagsMapper3.SetConfig(config.configTagsMapper3)
+	if !agent.EqualConfigResult3(before, after) {
+		a.cfgNotifier.notifyConfigChange(a.sh2.HostName(), after)
+	}
 }

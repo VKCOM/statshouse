@@ -437,7 +437,7 @@ func (pc *PacketConn) WritePacket2(packetType uint32, body []byte, body2 []byte,
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
 
-	if err := pc.WritePacketHeaderUnlocked(packetType, len(body), timeout); err != nil {
+	if err := pc.WritePacketHeaderUnlocked(packetType, len(body)+len(body2), timeout); err != nil {
 		return err
 	}
 	if err := pc.WritePacketBodyUnlocked(body); err != nil {
