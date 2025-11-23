@@ -11,9 +11,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"slices"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/agent"
 	"go4.org/mem"
 	"pgregory.net/rand"
 
@@ -41,16 +41,14 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	requestLen := len(hctx.Request) // impl will release hctx
 	err := a.h.Handle(ctx, hctx)
 	status := int32(format.TagValueIDRPCRequestsStatusOK)
-	str := ""
 	if hctx.LongpollStarted() {
 		status = format.TagValueIDRPCRequestsStatusLongpoll
 	} else if err == rpc.ErrNoHandler {
 		status = format.TagValueIDRPCRequestsStatusNoHandler
 	} else if err != nil {
 		status = format.TagValueIDRPCRequestsStatusErrLocal
-		str = err.Error()
 	}
-	a.sh2.AddValueCounterString(uint32(hctx.RequestTime().Unix()), format.BuiltinMetricMetaRPCRequests,
+	a.sh2.AddValueCounter(uint32(hctx.RequestTime().Unix()), format.BuiltinMetricMetaRPCRequests,
 		[]int32{
 			1: format.TagValueIDComponentAggregator,
 			2: int32(tag),
@@ -58,7 +56,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 			6: keyIDTag,
 			7: a.aggregatorHostTag.I,
 			8: protocol,
-		}, str, float64(requestLen), 1)
+		}, float64(requestLen), 1)
 	return err
 }
 
@@ -90,11 +88,6 @@ func (a *Aggregator) getAgentEnv(isSetStaging0 bool, isSetStaging1 bool) int32 {
 
 func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) *data_model.Key {
 	return data_model.AggKey(t, m, k, a.aggregatorHostTag.I, a.shardKey, a.replicaKey)
-}
-
-func equalConfigResult3(a, b tlstatshouse.GetConfigResult3) bool {
-	return slices.Equal(a.Addresses, b.Addresses) &&
-		a.ShardByMetricCount == b.ShardByMetricCount
 }
 
 func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContext) error {
@@ -130,7 +123,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	a.configMu.RLock()
 	defer a.configMu.RUnlock()
 	cc := a.getConfigResult3Locked()
-	if args.IsSetPreviousConfig() && equalConfigResult3(args.PreviousConfig, cc) {
+	if args.IsSetPreviousConfig() && agent.EqualConfigResult3(args.PreviousConfig, cc) {
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},
 			1, hostTagBytes, aera)
@@ -146,6 +139,8 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
 		1, hostTagBytes, aera)
+	cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
+	cc.ConnectedTo = a.sh2.HostName()
 	hctx.Response, err = args.WriteResult(hctx.Response, cc)
 	return err
 }
@@ -240,15 +235,15 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		}
 	}
 
-	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
-	if args.Header.AgentIp[3] != 0 {
-		addrIPV4 = uint32(args.Header.AgentIp[3])
+	if args.Header.AgentIp == [4]int32{} {
+		args.Header.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
 	}
-	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
+	agentAddrTag, agentAddrV4, agentAddrV6 := agent.ConfigAgentIPToTags(args.Header.AgentIp)
 
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
-		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents,
-			[]int32{0, 0, 0, 0, ownerTag.I, 0, int32(addrIPV4)},
+		a.sh2.AddCounterHostAERAS(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents,
+			[]int32{4: ownerTag.I, 5: hostTag.I, 6: agentAddrV4, 16: agentAddrTag, 17: agentAddrV4},
+			[]string{4: ownerTagS.S, 5: hostTagS.S, 18: agentAddrV6},
 			1, hostTag, aera)
 		return "agent is too old please update", nil, true
 	}
@@ -488,7 +483,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				k.Tags[format.BuildArchTag] = aera.BuildArch
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion || k.Metric == format.BuiltinMetricIDHeartbeatArgs {
-				k.Tags[8] = int32(addrIPV4)
+				k.Tags[8] = agentAddrV4
 			}
 
 			// TODO - remove

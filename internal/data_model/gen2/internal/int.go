@@ -13,68 +13,6 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinTuple12IntReset(vec *[12]int32) {
-	for i := range *vec {
-		(*vec)[i] = 0
-	}
-}
-
-func BuiltinTuple12IntRead(w []byte, vec *[12]int32) (_ []byte, err error) {
-	for i := range *vec {
-		if w, err = basictl.IntRead(w, &(*vec)[i]); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func BuiltinTuple12IntWrite(w []byte, vec *[12]int32) []byte {
-	for _, elem := range *vec {
-		w = basictl.IntWrite(w, elem)
-	}
-	return w
-}
-
-func BuiltinTuple12IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[12]int32) error {
-	index := 0
-	if in != nil {
-		in.Delim('[')
-		if !in.Ok() {
-			return ErrorInvalidJSON("[12]int32", "expected json array")
-		}
-		for ; !in.IsDelim(']'); index++ {
-			if index == 12 {
-				return ErrorWrongSequenceLength("[12]int32", index+1, 12)
-			}
-			if err := Json2ReadInt32(in, &(*vec)[index]); err != nil {
-				return err
-			}
-			in.WantComma()
-		}
-		in.Delim(']')
-		if !in.Ok() {
-			return ErrorInvalidJSON("[12]int32", "expected json array's end")
-		}
-	}
-	if index != 12 {
-		return ErrorWrongSequenceLength("[12]int32", index+1, 12)
-	}
-	return nil
-}
-
-func BuiltinTuple12IntWriteJSON(w []byte, vec *[12]int32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinTuple12IntWriteJSONOpt(&tctx, w, vec)
-}
-func BuiltinTuple12IntWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[12]int32) []byte {
-	w = append(w, '[')
-	for _, elem := range *vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteInt32(w, elem)
-	}
-	return append(w, ']')
-}
-
 func BuiltinTuple4IntReset(vec *[4]int32) {
 	for i := range *vec {
 		(*vec)[i] = 0
@@ -129,6 +67,68 @@ func BuiltinTuple4IntWriteJSON(w []byte, vec *[4]int32) []byte {
 	return BuiltinTuple4IntWriteJSONOpt(&tctx, w, vec)
 }
 func BuiltinTuple4IntWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[4]int32) []byte {
+	w = append(w, '[')
+	for _, elem := range *vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteInt32(w, elem)
+	}
+	return append(w, ']')
+}
+
+func BuiltinTuple7IntReset(vec *[7]int32) {
+	for i := range *vec {
+		(*vec)[i] = 0
+	}
+}
+
+func BuiltinTuple7IntRead(w []byte, vec *[7]int32) (_ []byte, err error) {
+	for i := range *vec {
+		if w, err = basictl.IntRead(w, &(*vec)[i]); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinTuple7IntWrite(w []byte, vec *[7]int32) []byte {
+	for _, elem := range *vec {
+		w = basictl.IntWrite(w, elem)
+	}
+	return w
+}
+
+func BuiltinTuple7IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[7]int32) error {
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[7]int32", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if index == 7 {
+				return ErrorWrongSequenceLength("[7]int32", index+1, 7)
+			}
+			if err := Json2ReadInt32(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[7]int32", "expected json array's end")
+		}
+	}
+	if index != 7 {
+		return ErrorWrongSequenceLength("[7]int32", index+1, 7)
+	}
+	return nil
+}
+
+func BuiltinTuple7IntWriteJSON(w []byte, vec *[7]int32) []byte {
+	tctx := basictl.JSONWriteContext{}
+	return BuiltinTuple7IntWriteJSONOpt(&tctx, w, vec)
+}
+func BuiltinTuple7IntWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[7]int32) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

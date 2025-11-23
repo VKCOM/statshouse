@@ -13,13 +13,13 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinTuple4StringReset(vec *[4]string) {
+func BuiltinTuple3StringReset(vec *[3]string) {
 	for i := range *vec {
 		(*vec)[i] = ""
 	}
 }
 
-func BuiltinTuple4StringRead(w []byte, vec *[4]string) (_ []byte, err error) {
+func BuiltinTuple3StringRead(w []byte, vec *[3]string) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.StringRead(w, &(*vec)[i]); err != nil {
 			return w, err
@@ -28,23 +28,23 @@ func BuiltinTuple4StringRead(w []byte, vec *[4]string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinTuple4StringWrite(w []byte, vec *[4]string) []byte {
+func BuiltinTuple3StringWrite(w []byte, vec *[3]string) []byte {
 	for _, elem := range *vec {
 		w = basictl.StringWrite(w, elem)
 	}
 	return w
 }
 
-func BuiltinTuple4StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4]string) error {
+func BuiltinTuple3StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3]string) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
 		if !in.Ok() {
-			return ErrorInvalidJSON("[4]string", "expected json array")
+			return ErrorInvalidJSON("[3]string", "expected json array")
 		}
 		for ; !in.IsDelim(']'); index++ {
-			if index == 4 {
-				return ErrorWrongSequenceLength("[4]string", index+1, 4)
+			if index == 3 {
+				return ErrorWrongSequenceLength("[3]string", index+1, 3)
 			}
 			if err := Json2ReadString(in, &(*vec)[index]); err != nil {
 				return err
@@ -53,20 +53,20 @@ func BuiltinTuple4StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 		}
 		in.Delim(']')
 		if !in.Ok() {
-			return ErrorInvalidJSON("[4]string", "expected json array's end")
+			return ErrorInvalidJSON("[3]string", "expected json array's end")
 		}
 	}
-	if index != 4 {
-		return ErrorWrongSequenceLength("[4]string", index+1, 4)
+	if index != 3 {
+		return ErrorWrongSequenceLength("[3]string", index+1, 3)
 	}
 	return nil
 }
 
-func BuiltinTuple4StringWriteJSON(w []byte, vec *[4]string) []byte {
+func BuiltinTuple3StringWriteJSON(w []byte, vec *[3]string) []byte {
 	tctx := basictl.JSONWriteContext{}
-	return BuiltinTuple4StringWriteJSONOpt(&tctx, w, vec)
+	return BuiltinTuple3StringWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple4StringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[4]string) []byte {
+func BuiltinTuple3StringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[3]string) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -75,13 +75,13 @@ func BuiltinTuple4StringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, v
 	return append(w, ']')
 }
 
-func BuiltinTuple4StringBytesReset(vec *[4][]byte) {
+func BuiltinTuple3StringBytesReset(vec *[3][]byte) {
 	for i := range *vec {
 		(*vec)[i] = (*vec)[i][:0]
 	}
 }
 
-func BuiltinTuple4StringBytesRead(w []byte, vec *[4][]byte) (_ []byte, err error) {
+func BuiltinTuple3StringBytesRead(w []byte, vec *[3][]byte) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.StringReadBytes(w, &(*vec)[i]); err != nil {
 			return w, err
@@ -90,23 +90,23 @@ func BuiltinTuple4StringBytesRead(w []byte, vec *[4][]byte) (_ []byte, err error
 	return w, nil
 }
 
-func BuiltinTuple4StringBytesWrite(w []byte, vec *[4][]byte) []byte {
+func BuiltinTuple3StringBytesWrite(w []byte, vec *[3][]byte) []byte {
 	for _, elem := range *vec {
 		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w
 }
 
-func BuiltinTuple4StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4][]byte) error {
+func BuiltinTuple3StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3][]byte) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
 		if !in.Ok() {
-			return ErrorInvalidJSON("[4][]byte", "expected json array")
+			return ErrorInvalidJSON("[3][]byte", "expected json array")
 		}
 		for ; !in.IsDelim(']'); index++ {
-			if index == 4 {
-				return ErrorWrongSequenceLength("[4][]byte", index+1, 4)
+			if index == 3 {
+				return ErrorWrongSequenceLength("[3][]byte", index+1, 3)
 			}
 			if err := Json2ReadStringBytes(in, &(*vec)[index]); err != nil {
 				return err
@@ -115,20 +115,20 @@ func BuiltinTuple4StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 		}
 		in.Delim(']')
 		if !in.Ok() {
-			return ErrorInvalidJSON("[4][]byte", "expected json array's end")
+			return ErrorInvalidJSON("[3][]byte", "expected json array's end")
 		}
 	}
-	if index != 4 {
-		return ErrorWrongSequenceLength("[4][]byte", index+1, 4)
+	if index != 3 {
+		return ErrorWrongSequenceLength("[3][]byte", index+1, 3)
 	}
 	return nil
 }
 
-func BuiltinTuple4StringBytesWriteJSON(w []byte, vec *[4][]byte) []byte {
+func BuiltinTuple3StringBytesWriteJSON(w []byte, vec *[3][]byte) []byte {
 	tctx := basictl.JSONWriteContext{}
-	return BuiltinTuple4StringBytesWriteJSONOpt(&tctx, w, vec)
+	return BuiltinTuple3StringBytesWriteJSONOpt(&tctx, w, vec)
 }
-func BuiltinTuple4StringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[4][]byte) []byte {
+func BuiltinTuple3StringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[3][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
