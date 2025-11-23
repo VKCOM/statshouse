@@ -71,9 +71,9 @@ func NewChunkedStorageNop() *ChunkedStorage2 {
 	}
 }
 
-func NewChunkedStorage2File(fp *os.File) *ChunkedStorage2 {
+func NewChunkedStorage2FileWithSize(fp *os.File) (*ChunkedStorage2, int64) {
 	if fp == nil {
-		return NewChunkedStorageNop()
+		return NewChunkedStorageNop(), 0
 	}
 	initialFileSize, _ := fp.Seek(0, 2) // if this fails, we do not care
 	return &ChunkedStorage2{
@@ -90,7 +90,12 @@ func NewChunkedStorage2File(fp *os.File) *ChunkedStorage2 {
 			return err
 		},
 		initialFileSize: initialFileSize,
-	}
+	}, initialFileSize
+}
+
+func NewChunkedStorage2File(fp *os.File) *ChunkedStorage2 {
+	c, _ := NewChunkedStorage2FileWithSize(fp)
+	return c
 }
 
 func NewChunkedStorage2Slice(fp *[]byte) *ChunkedStorage2 {

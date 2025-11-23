@@ -30,9 +30,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
-const (
-	defaultMappingSize = 150000000 // TODO: add in 2027
-)
+const averagePairSize = 24
 
 // MappingsLoader is a function that loads new mappings from metadata service
 // Returns: mappings, currentVersion (max version returned), lastVersion (max version in metadata storage), error
@@ -76,8 +74,8 @@ type reverseMappingShard struct {
 	mappings map[int32]string // under mu
 }
 
-func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, reverseMappingsEnable bool, storages []*data_model.ChunkedStorage2) *MappingsStorage {
-	shardCnt := len(storages)
+func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, reverseMappingsEnable bool, size int64, storages []*data_model.ChunkedStorage2) *MappingsStorage {
+	shardCnt := int64(len(storages))
 	ms := &MappingsStorage{
 		ctx:                  ctx,
 		mappingsRequestDelay: mappingsRequestDelay,
@@ -89,12 +87,12 @@ func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, rever
 	}
 	for i, storage := range storages {
 		ms.shards[i] = &mappingShard{
-			mappings:     make(map[string]int32, defaultMappingSize/shardCnt),
+			mappings:     make(map[string]int32, size/shardCnt),
 			pendingPairs: make([]tlstatshouse.Mapping, 0, 100),
 			storage:      storage,
 		}
 		if reverseMappingsEnable {
-			ms.reverseShards[i] = &reverseMappingShard{mappings: make(map[int32]string, defaultMappingSize/shardCnt)}
+			ms.reverseShards[i] = &reverseMappingShard{mappings: make(map[int32]string, size/shardCnt)}
 		}
 	}
 	return ms
@@ -103,19 +101,22 @@ func MakeMappings(ctx context.Context, mappingsRequestDelay time.Duration, rever
 // fp, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0666) - recommended flags
 // if fp nil, then storage works in memory-only mode
 func LoadMappingsFiles(ctx context.Context, fps []*os.File, mappingsRequestDelay time.Duration, reverseMappingsEnable bool) (*MappingsStorage, error) {
+	var size int64
 	var storage []*data_model.ChunkedStorage2
 	for _, fp := range fps {
-		storage = append(storage, data_model.NewChunkedStorage2File(fp))
+		st, s := data_model.NewChunkedStorage2FileWithSize(fp)
+		size += s
+		storage = append(storage, st)
 	}
-	ms := MakeMappings(ctx, mappingsRequestDelay, reverseMappingsEnable, storage)
-	err := ms.load()
+	ms := MakeMappings(ctx, mappingsRequestDelay, reverseMappingsEnable, size/averagePairSize, storage)
+	err := ms.load(size)
 	return ms, err
 }
 
-func (ms *MappingsStorage) load() error {
+func (ms *MappingsStorage) load(fileSize int64) error {
 	ms.storageMu.Lock()
 	defer ms.storageMu.Unlock()
-	log.Printf("Start loading mappings")
+	log.Printf("Start loading mappings file size %d", fileSize)
 
 	wg := sync.WaitGroup{}
 	revChs := ms.goAddReverseShardValues(&wg)
