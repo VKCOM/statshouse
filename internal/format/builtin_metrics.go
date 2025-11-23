@@ -30,9 +30,8 @@ Set only if greater than 1.`,
 		Description: "agent_shard",
 		RawKind:     "int",
 	}},
-	PreKeyTagID:    "1",
-	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
-	MetricTagIndex: 1,
+	PreKeyTagID:   "1",
+	ShardStrategy: ShardBuiltinDist, // sharded the same way as metric it describes
 }
 
 const BuiltinMetricIDAggBucketReceiveDelaySec = -2 // Also approximates insert delay, interesting for historic buckets
@@ -153,9 +152,8 @@ So avg() of this metric shows estimated full cardinality with or without groupin
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID:    "4",
-	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metric it describes
-	MetricTagIndex: 4,
+	PreKeyTagID:   "4",
+	ShardStrategy: ShardBuiltinDist, // sharded the same way as metric it describes
 }
 
 const BuiltinMetricIDAggSamplingFactor = -10
@@ -179,9 +177,8 @@ Set only if greater than 1.`,
 			TagValueIDAggSamplingFactorReasonInsertSize: "insert_size",
 		}),
 	}},
-	PreKeyTagID:    "4",
-	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
-	MetricTagIndex: 4,
+	PreKeyTagID:   "4",
+	ShardStrategy: ShardBuiltinDist, // sharded the same way as metrtic it describes
 }
 
 const BuiltinMetricIDIngestionStatus = -11
@@ -242,9 +239,8 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 	}, {
 		Description: "tag_id",
 	}},
-	PreKeyTagID:    "1",
-	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
-	MetricTagIndex: 1,
+	PreKeyTagID:   "1",
+	ShardStrategy: ShardBuiltinDist, // sharded the same way as metrtic it describes
 }
 
 var BuiltinMetricMetaAggInsertTime = &MetricMetaValue{
@@ -711,9 +707,8 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
 	}},
-	PreKeyTagID:    "2",
-	ShardStrategy:  ShardBuiltinDist, // sharded the same way as metrtic it describes
-	MetricTagIndex: 2,
+	PreKeyTagID:   "2",
+	ShardStrategy: ShardBuiltinDist, // sharded the same way as metrtic it describes
 }
 
 var BuiltinMetricMetaAutoConfig = &MetricMetaValue{

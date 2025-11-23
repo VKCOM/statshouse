@@ -8,6 +8,7 @@ package aggregator
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,20 +36,15 @@ const (
 	retryDelay       = 5 * time.Second
 )
 
-func getBuiltinShardingMetrics() map[int32]int {
-	shardingMetrics := make(map[int32]int)
+func getBuiltinMetricsSorted() []*format.MetricMetaValue {
+	var shardingMetrics []*format.MetricMetaValue
 
-	for metricID, metric := range format.BuiltinMetrics {
-		if metric.ShardStrategy == format.ShardBuiltinDist {
-			// For metrics with MetricTagIndex > 0, use the specified tag
-			// For metrics with MetricTagIndex = 0 (like contributors_log), they appear in all shards
-			if metric.MetricTagIndex > 0 {
-				shardingMetrics[metricID] = int(metric.MetricTagIndex)
-			} else {
-				shardingMetrics[metricID] = -1 // Use -1 to indicate "appears in all shards"
-			}
-		}
+	for _, metric := range format.BuiltinMetrics {
+		shardingMetrics = append(shardingMetrics, metric)
 	}
+	slices.SortFunc(shardingMetrics, func(a, b *format.MetricMetaValue) int {
+		return cmp.Compare(a.MetricID, b.MetricID)
+	})
 
 	return shardingMetrics
 }
@@ -56,16 +53,21 @@ func getBuiltinShardingMetrics() map[int32]int {
 // This handles both regular metrics and ShardBuiltinDist metrics in a single query
 func getConditionForSelect(totalShards int, shardKey int32, tagPrefix string) string {
 	// Get all builtin metrics with special sharding
-	shardingMetrics := getBuiltinShardingMetrics()
+	shardingMetrics := getBuiltinMetricsSorted()
 
 	// Collect builtin metric IDs to exclude from regular sharding
 	var builtinMetricIDs []string
 	var builtinConditions []string
 
-	for metricID, tagID := range shardingMetrics {
+	for _, metric := range shardingMetrics {
+		if metric.ShardStrategy != format.ShardBuiltinDist {
+			continue
+		}
+		metricID := metric.MetricID
+		tagID := metric.MetricTagIndex()
 		builtinMetricIDs = append(builtinMetricIDs, fmt.Sprintf("%d", metricID))
 
-		if tagID == -1 {
+		if tagID == 0 {
 			// Special case: contributors_log(_rev) appears in all shards, but we don't know where to put it, so we just skip it
 			continue
 		}
@@ -75,12 +77,12 @@ func getConditionForSelect(totalShards int, shardKey int32, tagPrefix string) st
 	}
 
 	// Regular metrics condition: exclude builtin metrics to avoid duplication
-	regularCondition := fmt.Sprintf("(metric %% %d = %d AND metric NOT IN (%s) AND count > 0)",
+	regularCondition := fmt.Sprintf("(metric %% %d = %d AND metric NOT IN (%s))",
 		totalShards, shardKey-1, strings.Join(builtinMetricIDs, ", "))
 
 	// Combine all conditions with OR
 	allConditions := append([]string{regularCondition}, builtinConditions...)
-	return "(" + strings.Join(allConditions, " OR ") + ")"
+	return "((" + strings.Join(allConditions, " OR ") + ") AND count > 0)"
 }
 
 // getConditionForSelectV2 returns the complete condition for SELECT queries on V2 tables
