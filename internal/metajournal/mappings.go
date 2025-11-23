@@ -191,14 +191,8 @@ func (ms *MappingsStorage) Save() (bool, error) {
 	eg := errgroup.Group{}
 	for _, s := range ms.shards {
 		shard := s
+		// in case error we not need rollback() to return pending pairs. Storage will deny new saves until restart, after that shard continues saving
 		eg.Go(func() error {
-			sizeDone := int64(0)
-			defer func() {
-				mu.Lock()
-				defer mu.Unlock()
-				allSize += sizeDone
-			}()
-
 			shard.mu.Lock()
 			pairs := append([]tlstatshouse.Mapping{}, shard.pendingPairs...)
 			size := shard.pendingByteSize
@@ -206,14 +200,11 @@ func (ms *MappingsStorage) Save() (bool, error) {
 			shard.pendingByteSize = 0
 			shard.mu.Unlock()
 
+			mu.Lock()
+			allSize += size
+			mu.Unlock()
 			if len(pairs) == 0 {
 				return nil
-			}
-			rollback := func() {
-				shard.mu.Lock()
-				defer shard.mu.Unlock()
-				shard.pendingPairs = append(pairs, shard.pendingPairs...)
-				shard.pendingByteSize += size - sizeDone
 			}
 
 			chunk := shard.storage.StartWriteChunk(data_model.ChunkedMagicAllMappings, 0)
@@ -226,17 +217,13 @@ func (ms *MappingsStorage) Save() (bool, error) {
 				chunk, err = shard.storage.FinishItem(chunk)
 				return err
 			}
-			for len(pairs) > 0 {
-				if err := appendItem(pairs[0].Str, pairs[0].Value); err != nil {
-					rollback()
+			for _, p := range pairs {
+				if err := appendItem(p.Str, p.Value); err != nil {
 					return err
 				}
-				sizeDone += int64(len(pairs[0].Str) + 4)
-				pairs = pairs[1:]
 			}
 			err := shard.storage.FinishWriteChunk(chunk)
 			if err != nil {
-				rollback()
 				return err
 			}
 			return nil
@@ -293,7 +280,6 @@ func (ms *MappingsStorage) StartPeriodicSaving() {
 }
 
 func (ms *MappingsStorage) goPeriodicSaving() {
-	backoffTimeout := time.Duration(0)
 	for {
 		select {
 		case <-ms.ctx.Done():
@@ -311,11 +297,8 @@ func (ms *MappingsStorage) goPeriodicSaving() {
 		log.Printf("start saving mapping storage")
 		if _, err := ms.Save(); err != nil {
 			log.Printf("Periodic mappings storage save failed: %v", err)
-			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
-			time.Sleep(backoffTimeout)
 			continue
 		}
-		backoffTimeout = 0
 		log.Printf("Periodic mappings storage save completed")
 	}
 }
