@@ -152,10 +152,10 @@ func parseCommandLine() error {
 	}
 	var dummyVerb bool
 	flag.BoolVar(&dummyVerb, conveyorName, false, "not used, you can safely remote it")
-	var dummyConveyor, dummyHostname, dummyMetadataAddr string
+	var dummyConveyor, dummyMetadataAddr string
 	flag.StringVar(&argv.Version, "ingress-version", "", "ingress version")
 	flag.StringVar(&dummyConveyor, "new-conveyor", "", "not used, you can safely remote it")
-	flag.StringVar(&dummyHostname, "hostname", "", "not used, you can safely remote it")
+	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
 	flag.StringVar(&dummyMetadataAddr, "metadata-addr", "", "not used, you can safely remote it")
 	var dummyMaxResponseMem int
 	flag.IntVar(&dummyMaxResponseMem, "max-response-mem", 0, "not used, you can safely remote it")
@@ -181,6 +181,10 @@ func parseCommandLine() error {
 	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	build.FlagParseShowVersionHelp()
 
+	if argv.customHostName == "" {
+		argv.customHostName = srvfunc.HostnameForStatshouse()
+		log.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
+	}
 	switch dummyConveyor {
 	case "": // ok
 	case conveyorName:

@@ -13,7 +13,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
@@ -261,14 +263,18 @@ func NewConfigChangeNotifier() *ConfigChangeNotifier {
 	}
 }
 
-func (c *ConfigChangeNotifier) notifyConfigChange() {
+func (c *ConfigChangeNotifier) notifyConfigChange(connectedTo string, cc tlstatshouse.GetConfigResult3) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	var args tlstatshouse.GetConfig3 // dummy object, works until we add a fields mask to GetConfig3
 	for lh := range c.clients {
 		delete(c.clients, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-			// TODO - writing response must be here
-			hctx.SendLongpollResponse(nil)
+			cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
+			cc.ConnectedTo = connectedTo
+			var err error
+			hctx.Response, err = args.WriteResult(hctx.Response, cc)
+			hctx.SendLongpollResponse(err)
 		}
 	}
 }

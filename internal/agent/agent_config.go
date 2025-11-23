@@ -8,10 +8,13 @@ package agent
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,6 +33,48 @@ func filterUnusedConfigFields(j string) string {
 func validConfigResult(ret tlstatshouse.GetConfigResult3) bool {
 	return len(ret.Addresses)%3 == 0 && len(ret.Addresses) != 0 &&
 		ret.ShardByMetricCount > 0 && int(ret.ShardByMetricCount) <= len(ret.Addresses)/3
+}
+
+func EqualConfigResult3(a, b tlstatshouse.GetConfigResult3) bool {
+	return slices.Equal(a.Addresses, b.Addresses) &&
+		a.ShardByMetricCount == b.ShardByMetricCount
+}
+
+func ConfigAddrIPs(remoteAddr net.Addr) (result [4]int32) {
+	var ip net.IP
+	switch addr := remoteAddr.(type) {
+	case *net.UDPAddr:
+		ip = addr.IP
+	case *net.TCPAddr:
+		ip = addr.IP
+	default:
+		return
+	}
+	if ip16 := ip.To16(); ip16 != nil { // we use ipv6-mapped variant for ipv4 addresses
+		result[0] = int32(binary.BigEndian.Uint32(ip16))
+		result[1] = int32(binary.BigEndian.Uint32(ip16[4:]))
+		result[2] = int32(binary.BigEndian.Uint32(ip16[8:]))
+		result[3] = int32(binary.BigEndian.Uint32(ip16[12:]))
+	}
+	return
+}
+
+func ConfigAgentIPToTags(agentIP [4]int32) (agentAddrTag int32, agentAddrV4 int32, agentAddrV6 string) {
+	if agentIP == [4]int32{} {
+		return
+	}
+	var configIP net.IP
+	for _, v := range agentIP {
+		configIP = binary.BigEndian.AppendUint32(configIP, uint32(v))
+	}
+	if ipv4 := configIP.To4(); ipv4 != nil {
+		agentAddrTag = 4
+		agentAddrV4 = agentIP[3]
+	} else if ipv6 := configIP.To16(); ipv6 != nil {
+		agentAddrTag = 6
+		agentAddrV6 = ipv6.String()
+	}
+	return
 }
 
 // loads config only in case cannot obtain config from RPC, this is to avoid running with stale config if aggregators are available
@@ -68,13 +113,13 @@ func (s *Agent) getInitialConfig() tlstatshouse.GetConfigResult3 {
 				return dst
 			}
 			// legacy GetConfig2 fallback
-			c2, err := GetConfig(s.network, s.rpcClientConfig, addresses, string(s.hostName), s.stagingLevel, s.componentTag, s.buildArchTag, s.config.Cluster, s.cacheDir, s.logF)
-			if err == nil && len(c2.Addresses) != 0 && len(c2.Addresses)%3 == 0 {
-				return tlstatshouse.GetConfigResult3{
-					Addresses:          c2.Addresses,
-					ShardByMetricCount: uint32(len(c2.Addresses) / 3),
-				}
-			}
+			// c2, err := GetConfig(s.network, s.rpcClientConfig, addresses, s.hostName, s.stagingLevel, s.componentTag, s.buildArchTag, s.config.Cluster, s.cacheDir, s.logF)
+			// if err == nil && len(c2.Addresses) != 0 && len(c2.Addresses)%3 == 0 {
+			//	return tlstatshouse.GetConfigResult3{
+			//		Addresses:          c2.Addresses,
+			//		ShardByMetricCount: uint32(len(c2.Addresses) / 3),
+			//	}
+			// }
 			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
 			s.logF("Configuration: failed autoconfiguration from all addresses (%q), and no getConfigResult in disc cache, will retry after %v delay",
 				strings.Join(addresses, ","), backoffTimeout)
@@ -133,7 +178,7 @@ func (s *Agent) clientGetAndSaveConfig(ctxParent context.Context, client *tlstat
 		Cluster: s.config.Cluster,
 		Header: tlstatshouse.CommonProxyHeader{
 			ShardReplica: 0, // we do not know
-			HostName:     string(s.hostName),
+			HostName:     s.hostName,
 			ComponentTag: s.componentTag,
 			BuildArch:    s.buildArchTag,
 		},

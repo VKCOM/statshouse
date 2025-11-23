@@ -118,15 +118,14 @@ func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatsh
 	*header = tlstatshouse.CommonProxyHeaderBytes{
 		ShardReplica:      int32(s.ShardReplicaNum),
 		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
-		HostName:          s.agent.hostName,
+		AgentIp:           s.agent.GetConfigResult.AgentIp,
+		HostName:          s.agent.hostNameBytes,
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
 	}
-	if s.agent.envLoader != nil {
-		e := s.agent.envLoader.Load()
-		if len(e.Owner) != 0 {
-			header.SetOwner([]byte(e.Owner), fieldsMask)
-		}
+	header.SetIngressProxy(s.agent.GetConfigResult.IsSetIngressProxy(), fieldsMask)
+	if owner := s.agent.getOwner(); owner != "" {
+		header.SetOwner([]byte(owner), fieldsMask)
 	}
 	data_model.SetProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
@@ -135,15 +134,14 @@ func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.
 	*header = tlstatshouse.CommonProxyHeader{
 		ShardReplica:      int32(s.ShardReplicaNum),
 		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
-		HostName:          string(s.agent.hostName),
+		AgentIp:           s.agent.GetConfigResult.AgentIp,
+		HostName:          s.agent.hostName,
 		ComponentTag:      s.agent.componentTag,
 		BuildArch:         s.agent.buildArchTag,
 	}
-	if s.agent.envLoader != nil {
-		e := s.agent.envLoader.Load()
-		if len(e.Owner) != 0 {
-			header.SetOwner(e.Owner, fieldsMask)
-		}
+	header.SetIngressProxy(s.agent.GetConfigResult.IsSetIngressProxy(), fieldsMask)
+	if owner := s.agent.getOwner(); owner != "" {
+		header.SetOwner(owner, fieldsMask)
 	}
 	data_model.SetProxyHeaderStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
