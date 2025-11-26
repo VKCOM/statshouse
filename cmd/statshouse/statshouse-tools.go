@@ -749,25 +749,34 @@ func massUpdateMetadata() int {
 	//	}
 	//}
 	for _, meta := range list {
-		if !strings.HasPrefix(meta.Name, "scrape:netdata_statsd_kphp") {
-			continue
+		//if !strings.HasPrefix(meta.Name, "scrape:netdata_statsd_kphp") {
+		//	continue
+		//}
+		special := false
+		if strings.Contains(meta.Description, format.ToggleDescriptionMark) {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) toggle description: %q\n", meta.MetricID, meta.Name, meta.Description)
+			special = true
 		}
-		if meta.Disable {
+		if strings.Contains(meta.Description, format.HistogramBucketsStartMark) {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) buckets description: %q\n", meta.MetricID, meta.Name, meta.Description)
+			special = true
+		}
+		if !special {
 			continue
 		}
 		if found >= argv.maxUpdates {
 			break
 		}
 		found++
-		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will disable\n", meta.MetricID, meta.Name)
+		// _, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will disable\n", meta.MetricID, meta.Name)
 		if argv.dryRun {
 			continue
 		}
 		meta2 := *meta
-		meta2.Disable = true
+		//meta2.Disable = true
 		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
 		var err error
-		meta2, err = loader.SaveMetric(context.Background(), meta2, "")
+		_, err = loader.SaveMetric(context.Background(), meta2, "")
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue

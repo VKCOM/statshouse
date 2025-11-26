@@ -39,7 +39,6 @@ type (
 		depth          int
 		budget         int64
 		budgetDenom    int64
-		roundFactors   bool
 		noSampleAgent  bool
 		weight         int64 // actually, effective weight
 		sumSize        int64
@@ -361,40 +360,29 @@ func (h *sampler) sample(g samplerGroup) {
 		sfDenom = 1
 	}
 	sf := float64(sfNum) / float64(sfDenom)
-	if g.roundFactors {
-		sf = h.RoundF(sf, h.Rand)
-		if sf <= 1 { // many sample factors are between 1 and 2, so this is worthy optimization
-			g.keep(h)
-			return
-		}
-		sfNum = int64(sf)
-		sfDenom = 1
-	}
 	h.currentMetricSFCount++
 	h.currentMetricSFSum += sf
 	// keep whales
 	items := g.items
-	if !items[0].metric.WhalesOff {
-		// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
-		// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
-		// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
-		pos := int(int64(len(items)) * sfDenom / sfNum / 2) // len(items) / sf / 2
-		if pos > 0 {
-			if pos > len(items) { // should always hold but checking is cheap
-				pos = len(items)
-			}
-			sort.Slice(items, func(i, j int) bool {
-				return items[i].WhaleWeight > items[j].WhaleWeight
-			})
-			for i := 0; i < pos; i++ {
-				items[i].keep(1, h)
-			}
-			items = items[pos:]
-			sf *= 2 // space has been taken by whales
+	// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
+	// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
+	// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
+	pos := int(int64(len(items)) * sfDenom / sfNum / 2) // len(items) / sf / 2
+	if pos > 0 {
+		if pos > len(items) { // should always hold but checking is cheap
+			pos = len(items)
 		}
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].WhaleWeight > items[j].WhaleWeight
+		})
+		for i := 0; i < pos; i++ {
+			items[i].keep(1, h)
+		}
+		items = items[pos:]
+		sf *= 2 // space has been taken by whales
 	}
 	// sample remaining
-	pos := h.SelectF(items, sf, h.Rand)
+	pos = h.SelectF(items, sf, h.Rand)
 	for i := 0; i < pos; i++ {
 		items[i].keep(sf, h)
 	}
@@ -510,7 +498,6 @@ func partitionByMetric(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        items[0].metric.EffectiveWeight,
 			items:         items,
 			sumSize:       sumSize,
-			roundFactors:  items[0].metric.RoundSampleFactors,
 			noSampleAgent: items[0].metric.NoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
@@ -549,7 +536,6 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
-			roundFactors:  items[0].metric.RoundSampleFactors,
 			noSampleAgent: items[0].metric.NoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
