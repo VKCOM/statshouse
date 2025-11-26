@@ -43,6 +43,7 @@ func HandleInstantQuery(r *httpRequestHandler) {
 		Options: promql.Options{
 			Version:       r.version,
 			Version3Start: r.Version3Start.Load(),
+			Version4Start: r.Version4Start.Load(),
 			Mode:          data_model.InstantQuery,
 			Compat:        true,
 			TimeNow:       time.Now().Unix(),
@@ -80,6 +81,7 @@ func HandleRangeQuery(r *httpRequestHandler) {
 		Options: promql.Options{
 			Version:       r.version,
 			Version3Start: r.Version3Start.Load(),
+			Version4Start: r.Version4Start.Load(),
 			Compat:        true,
 			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 		},
@@ -148,6 +150,7 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					Options: promql.Options{
 						Version:          r.version,
 						Version3Start:    r.Version3Start.Load(),
+						Version4Start:    r.Version4Start.Load(),
 						NewShardingStart: r.NewShardingStart.Load(),
 						Limit:            1000,
 						Mode:             data_model.TagsQuery,
@@ -252,6 +255,7 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							Options: promql.Options{
 								Version:          r.version,
 								Version3Start:    r.Version3Start.Load(),
+								Version4Start:    r.Version4Start.Load(),
 								NewShardingStart: r.NewShardingStart.Load(),
 								Limit:            1000,
 								Mode:             data_model.TagsQuery,

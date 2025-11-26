@@ -2,7 +2,7 @@
   <configuration default="false" name="api" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="statshouse" />
     <working_directory value="$PROJECT_DIR$/localdebug" />
-    <parameters value="--local-mode --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --verbose --listen-addr localhost:10888 --static-dir ../statshouse-ui/build/ --metadata-addr &quot;127.0.0.1:2442&quot; --available-shards &quot;1&quot; --version3-prob=1 --version3-start=1629320400 --cache-dir=cache/api" />
+    <parameters value="--local-mode --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --verbose --listen-addr localhost:10888 --static-dir ../statshouse-ui/build/ --metadata-addr &quot;127.0.0.1:2442&quot; --available-shards &quot;1&quot; --version3-prob=1 --version3-start=1629320400 --version4-start=1763769600 --cache-dir=cache/api" />
     <kind value="PACKAGE" />
     <package value="github.com/VKCOM/statshouse/cmd/statshouse-api" />
     <directory value="$PROJECT_DIR$/cmd/statshouse-api" />

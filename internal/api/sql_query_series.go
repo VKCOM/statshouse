@@ -19,6 +19,15 @@ var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
+var timeCoarseTrimSeconds = map[string]int64{
+	"statshouse_v4_1s":      60,
+	"statshouse_v4_1m":      60 * 60,
+	"statshouse_v4_1h":      60 * 60 * 24,
+	"statshouse_v4_1s_dist": 60,
+	"statshouse_v4_1m_dist": 60 * 60,
+	"statshouse_v4_1h_dist": 60 * 60 * 24,
+}
+
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
@@ -287,18 +296,37 @@ func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 }
 
 func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
-	sb.WriteString(" WHERE time>=")
-	sb.WriteString(fmt.Sprint(lod.FromSec))
-	sb.WriteString(" AND time<")
-	sb.WriteString(fmt.Sprint(lod.ToSec))
+	sb.WriteString(" WHERE ")
+	b.writeTimeClause(sb, lod)
 	switch lod.Version {
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
+		if lod.UseV4Tables {
+			sb.WriteString(" AND ")
+			b.writeTimeCoarseClause(sb, lod)
+		}
 	}
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
 	b.writeTagFilter(sb, lod, b.filterNotIn, filterOperatorNotIn, mode)
+}
+
+func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString("time >= ")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(" AND time < ")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
+}
+
+func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_model.LOD) {
+	coarseSize := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
+	coarseFrom := lod.FromSec / coarseSize * coarseSize
+	coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
+	sb.WriteString("time_coarse >= ")
+	sb.WriteString(fmt.Sprint(coarseFrom))
+	sb.WriteString(" AND time_coarse < ")
+	sb.WriteString(fmt.Sprint(coarseTo))
 }
 
 func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
