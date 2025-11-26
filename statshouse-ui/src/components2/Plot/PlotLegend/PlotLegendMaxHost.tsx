@@ -58,13 +58,13 @@ export const PlotLegendMaxHost = memo(function PlotLegendMaxHost({
     <div className="d-flex flex-nowrap">
       <Tooltip
         className="flex-grow-1 w-0"
-        title={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0].title}
+        title={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0]?.title}
       >
         <Select
           className="form-control pt-0 pb-0 min-h-auto form-control-sm"
           classNameList="dropdown-menu"
           value={value.host ?? maxHostLists[seriesIdx]?.[0].value}
-          placeholder={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0].title}
+          placeholder={value.host ? `${value.host}: ${value.percent}` : maxHostLists[seriesIdx]?.[0]?.title}
           options={options}
           onChange={copyItem}
           listOnlyOpen
