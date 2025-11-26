@@ -265,7 +265,6 @@ type MetricMetaValue struct {
 	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
 	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
 
-	MetricTagIndex       uint8                     `json:"-"` // 0 means no metric tag, only for builtin metrics, can be used to determine shard
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
@@ -410,6 +409,15 @@ func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canoni
 		return
 	}
 	m.name2Tag[name] = newTag
+}
+
+func (m *MetricMetaValue) MetricTagIndex() int {
+	for i, tag := range m.Tags {
+		if tag.BuiltinKind == BuiltinKindMetric {
+			return i
+		}
+	}
+	return 0
 }
 
 // TODO - remove this function after we have no v2 agents
