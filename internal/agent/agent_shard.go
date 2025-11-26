@@ -17,9 +17,14 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 )
 
-// we start sending at the end of the minute, plus we need to spread metric around the next 60 seconds
+// We start sending at the end of the minute, plus we need to spread metric around the next 60 seconds,
 // so 120 slots are actually actively used, while 8 slots serve as a send/receive queue
 const superQueueLen = 128
+
+// We also want to allow incoming event timestamp > s.CurrentTime at least for couple seconds, because
+// our s.CurrentTime can lag behind, while client already updated clock and sent an event.
+// So we reserve some slots for that.
+const superQueueFutureSlots = 3
 
 type (
 	// Shard gets data after initial hashing and shard number
@@ -84,7 +89,7 @@ func (s *Shard) HistoricBucketsDataSizeMemory() int {
 }
 
 func (s *Shard) gapInReceivingQueueLocked() int64 {
-	return int64(s.CurrentTime) - (int64(s.SendTime) + superQueueLen - 120)
+	return int64(s.CurrentTime) - (int64(s.SendTime) + (superQueueLen - superQueueFutureSlots) - 120)
 }
 
 func (s *Shard) shouldDiscardIncomingData() bool {
@@ -102,7 +107,7 @@ func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
 // and clients should set timestamps freely and not make assumptions on metric resolution (it can be changed on the fly).
 // Later, when sending bucket, we will remove timestamps for all items which have it
 // equal to bucket timestamp (only for transport efficiency), then reset timestamps on aggregator after receiving.
-func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHash uint64, metricInfo *format.MetricMetaValue) *data_model.MetricsBucket {
+func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHash uint64, metricInfo *format.MetricMetaValue) (_ *data_model.MetricsBucket, clampedFuture bool) {
 	resolution := uint32(1)
 	if metricInfo != nil {
 		if !format.HardwareMetric(metricInfo.MetricID) {
@@ -118,20 +123,27 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHas
 	currentTime := s.CurrentTime
 	sendTime := s.SendTime
 	if key.Timestamp == 0 {
-		// we have lots of builtin metrics in aggregator which should correspond to "current" second.
-		// but unfortunately now agent's current second is lagging behind.
-		// TODO - add explicit timestamp to all of them, then do panic here
-		// panic("all builtin metrics must have correct timestamp set at this point")
+		// We have lots of builtin metrics in aggregator which should correspond to "current" second.
+		// Also, we have some ingestion statuses, which corresponds to current time.
+		// We try to provide explicit timestamp everywhere this is possible, just not everywhere.
 		key.Timestamp = currentTime
+	}
+	if key.Timestamp > currentTime+superQueueFutureSlots {
+		// we must clamp before comparing with dropIfBeforeTimestamp,
+		// otherwise aggregator will clamp, moving event behind timestamp it should not be written before.
+		// also, we must not generate events with Timestamp > bucket.Time, so future slots and
+		// super queue length depend on each other.
+		key.Timestamp = currentTime + superQueueFutureSlots
+		clampedFuture = true
 	}
 	// Timestamp will be clamped by aggregators.
 	if resolution == 1 {
 		slot := key.Timestamp
 		if slot < sendTime {
-			slot = sendTime // if late, send immediately. Helps those who are late by a tiny amount.
+			slot = sendTime // if late, send immediately, not in ~120 seconds. Helps those who are late a bit.
 		}
 		// if slot >= currentTime - we do no special processing for slots in the future
-		return s.SuperQueue[slot%superQueueLen]
+		return s.SuperQueue[slot%superQueueLen], clampedFuture
 	}
 	// division is expensive, hence separate code for very common 1-second resolution above
 	key.Timestamp = (key.Timestamp / resolution) * resolution
@@ -143,10 +155,11 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHas
 		// if late, send immediately, but keep slots aligned with resolution, sometimes identically on several/many agents, hopefully improving aggregation
 	}
 	// if slot >= currentTime+? - we do no special processing for slots in the future
-	return s.SuperQueue[slot%superQueueLen]
+	return s.SuperQueue[slot%superQueueLen], clampedFuture
 }
 
-func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, hashes []int64, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	if count == 0 {
 		count = float64(len(hashes))
 	}
@@ -158,13 +171,22 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
+	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
+		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			1, dropIfBeforeTimestamp)
+	}
 }
 
-func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
 		totalCount += kv[1] // all counts are validated to be >= 0
@@ -180,7 +202,10 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	if s.config.LegacyApplyValues {
@@ -188,9 +213,15 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 	} else {
 		mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 	}
+	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
+		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			1, dropIfBeforeTimestamp)
+	}
 }
 
-func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	if count <= 0 {
 		return
 	}
@@ -199,62 +230,85 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValu
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
+
+	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
+		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			1, dropIfBeforeTimestamp)
+	}
 }
 
-func (s *Shard) AddCounterHostSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64) {
+func (s *Shard) AddCounterHostSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, count float64,
+	dropIfBeforeTimestamp uint32) {
 	if count <= 0 {
 		return
 	}
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	s.AddCounterHost(&key, 0, count, data_model.TagUnionBytes{}, metricInfo)
+	s.AddCounterHost(&key, 0, count, data_model.TagUnionBytes{}, metricInfo, dropIfBeforeTimestamp)
 }
 
-func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, _ := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	item.Tail.AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
+func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64,
+	dropIfBeforeTimestamp uint32) {
 	if count <= 0 {
 		return
 	}
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	s.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, data_model.TagUnionBytes{}, metricInfo)
+	s.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, data_model.TagUnionBytes{}, metricInfo, dropIfBeforeTimestamp)
 }
 
-func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddCounterHostStringBytes(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnionBytes, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, _ := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, _ := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		item.Tail.AddValueCounterHostPercentile(s.rng, value, count, hostTag, data_model.AgentPercentileCompression)
@@ -263,13 +317,17 @@ func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, 
 	}
 }
 
-func (s *Shard) AddValueCounterStringHost(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnion, value float64, count float64, hostTag data_model.TagUnionBytes, metricInfo *format.MetricMetaValue) {
+func (s *Shard) AddValueCounterStringHost(key *data_model.Key, resolutionHash uint64, topValue data_model.TagUnion, value float64, count float64, hostTag data_model.TagUnionBytes,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, _ := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	if metricInfo != nil && metricInfo.HasPercentiles {
@@ -279,13 +337,17 @@ func (s *Shard) AddValueCounterStringHost(key *data_model.Key, resolutionHash ui
 	}
 }
 
-func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemValue *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemValue *data_model.ItemValue,
+	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
 		return
 	}
-	resolutionShard := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	resolutionShard, _ := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
+	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		return
+	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	item.Tail.Value.Merge(s.rng, itemValue)
 }

@@ -42,8 +42,8 @@ func (s *Shard) flushBuckets(now time.Time) (gap int64, sendTime uint32) {
 	}
 	// We want PreprocessingBucketTime to strictly increase, so that historic conveyor is strictly ordered
 
-	if s.SendTime < s.CurrentTime-superQueueLen { // efficient jump ahead after long machine sleep, etc.
-		s.SendTime += ((s.CurrentTime - superQueueLen - s.SendTime + superQueueLen - 1) / superQueueLen) * superQueueLen // not simplified for clear correctness
+	if s.SendTime < s.CurrentTime-(superQueueLen-superQueueFutureSlots) { // efficient jump ahead after long machine sleep, etc.
+		s.SendTime += ((s.CurrentTime - (superQueueLen - superQueueFutureSlots) - s.SendTime + superQueueLen - 1) / superQueueLen) * superQueueLen // not simplified for clear correctness
 	}
 
 	sendUpToTime := uint32(now.Add(-data_model.AgentWindow).Unix())
