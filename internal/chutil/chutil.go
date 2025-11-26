@@ -383,6 +383,9 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			shardCnt = len(pool.servers) / 3
 		}
 		shard = meta.Metric.Shard(shardCnt)
+		if shard >= shardCnt { // if meta.Metric is nil here (should be checked above), we will not enter this if so meta.Metric.Name is safe
+			return info, fmt.Errorf("metric %q fixed shard %d too large (total shards %d)", meta.Metric.Name, shard, shardCnt)
+		}
 	}
 	sem := pool.sem
 	var servers []serverCH

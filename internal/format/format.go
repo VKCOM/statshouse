@@ -262,8 +262,12 @@ type MetricMetaValue struct {
 	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
 	MetricType           string                   `json:"metric_type,omitempty"`
 	FairKeyTagIDs        []string                 `json:"fair_key_tag_ids,omitempty"`
-	ShardStrategy        string                   `json:"shard_strategy,omitempty"`
-	ShardNum             uint32                   `json:"shard_num,omitempty"` // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
+
+	ShardStrategy           string `json:"shard_strategy,omitempty"`
+	ShardNum                uint32 `json:"shard_num,omitempty"`        // warning: zero-based, contains clickhouse shard - 1 (clickhouse shard_num is 1-based)
+	ShardFixedKey           uint32 `json:"shard,omitempty"`            // 1-based, 0 means not set, if set, ShardStrategy is ignored
+	ShardFixedKey2          uint32 `json:"shard2,omitempty"`           // 1-based, 0 means not set
+	ShardFixedKey2Timestamp uint32 `json:"shard2_timestamp,omitempty"` // timestamp to start writing to second fixed shard
 
 	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
@@ -648,6 +652,9 @@ func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bo
 	if metric == nil { // TODO - remove this check, make sure metric != nil always
 		return false
 	}
+	if metric.ShardFixedKey > 0 {
+		return newShardingStart != 0 && timestamp >= newShardingStart
+	}
 	switch metric.ShardStrategy {
 	case ShardFixed, ShardByMetricID:
 		return newShardingStart != 0 && timestamp >= newShardingStart
@@ -657,8 +664,8 @@ func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bo
 }
 
 func (m *MetricMetaValue) Shard(numShards int) int {
-	if m == nil { // TODO - remove this check, make sure metric != nil always
-		return -1
+	if m.ShardFixedKey > 0 {
+		return int(m.ShardFixedKey - 1)
 	}
 	switch m.ShardStrategy {
 	case ShardFixed:
@@ -1252,6 +1259,9 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		!slices.Equal(a.FairKeyIndex, b.FairKeyIndex) ||
 		a.ShardStrategy != b.ShardStrategy ||
 		a.ShardNum != b.ShardNum ||
+		a.ShardFixedKey != b.ShardFixedKey ||
+		a.ShardFixedKey2 != b.ShardFixedKey2 ||
+		a.ShardFixedKey2Timestamp != b.ShardFixedKey2Timestamp ||
 		a.HasPercentiles != b.HasPercentiles {
 		return false
 	}

@@ -2885,3 +2885,33 @@ var BuiltinMetricMetaAPIRateLimit = &MetricMetaValue{
 		RawKind:     "int",
 	}},
 }
+
+var BuiltinMetricMetaIngestionStatusNoShard = &MetricMetaValue{
+	Name:                    "__src_ingestion_status_no_shard",
+	Kind:                    MetricKindCounter,
+	Description:             `Status of receiving metrics by agent, when shard cannot be determined.`,
+	StringTopDescription:    "string_value",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "status",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDSrcIngestionStatusErrMetricNotFound:     "err_metric_not_found",
+			TagValueIDSrcIngestionStatusErrMetricNonCanonical: "non_canonical_name",
+			TagValueIDSrcIngestionStatusErrMetricDisabled:     "err_metric_disabled",
+			TagValueIDSrcIngestionStatusErrMetricNameEncoding: "err_validate_metric_utf8",
+			TagValueIDSrcIngestionStatusErrShardingFailed:     "err_metric_sharding_failed",
+			TagValueIDSrcIngestionStatusErrMetricBuiltin:      "err_metric_builtin",
+		}),
+	}, {
+		Description: "tag_id",
+	}},
+	PreKeyTagID:   "1",
+	ShardStrategy: ShardFixed, // always sharded to the zero shard
+	ShardNum:      0,
+}
