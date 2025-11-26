@@ -167,17 +167,19 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, topValue
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
+		s.mu.Unlock()
 		return
 	}
 	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		s.mu.Unlock()
 		return
 	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
+	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
@@ -198,12 +200,13 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
+		s.mu.Unlock()
 		return
 	}
 	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		s.mu.Unlock()
 		return
 	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
@@ -213,6 +216,7 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, topValue
 	} else {
 		mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 	}
+	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
@@ -226,17 +230,19 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, topValu
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.shouldDiscardIncomingData() {
+		s.mu.Unlock()
 		return
 	}
 	resolutionShard, clampedFuture := s.resolutionShardFromHashLocked(key, resolutionHash, metricInfo)
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
+		s.mu.Unlock()
 		return
 	}
 	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
+	s.mu.Unlock()
 
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
