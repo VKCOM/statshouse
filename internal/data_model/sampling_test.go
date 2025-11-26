@@ -498,7 +498,6 @@ type samplerConfigEx struct {
 type samplingMetric struct {
 	metricID      int32
 	metricWeight  int64 // actually, effective weight
-	roundFactors  bool
 	noSampleAgent bool
 	sumSize       int64
 	items         []SamplingMultiItemPair
@@ -607,11 +606,9 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 			metric = &samplingMetric{
 				metricID:     accountMetric,
 				metricWeight: format.EffectiveWeightOne,
-				roundFactors: false, // default is no rounding
 			}
 			if metricInfo != nil {
 				metric.metricWeight = metricInfo.EffectiveWeight
-				metric.roundFactors = metricInfo.RoundSampleFactors
 				metric.noSampleAgent = metricInfo.NoSampleAgent
 			}
 			metricsMap[accountMetric] = metric
@@ -660,17 +657,6 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 			continue
 		}
 		sf := float64(samplingMetric.sumSize*remainingWeight) / float64(samplingMetric.metricWeight*remainingBudget)
-		if samplingMetric.roundFactors {
-			sf = roundSampleFactor(sf, config.Rand)
-			if sf <= 1 { // Many sample factors are between 1 and 2, so this is worthy optimization
-				if config.KeepF != nil {
-					for _, v := range samplingMetric.items {
-						config.KeepF(v.Item, bucket.Time)
-					}
-				}
-				continue
-			}
-		}
 		sampleFactors = append(sampleFactors, tlstatshouse.SampleFactor{
 			Metric: samplingMetric.metricID,
 			Value:  float32(sf),

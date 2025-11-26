@@ -44,7 +44,6 @@ const (
 	StringTopTagID            = "_s"
 	StringTopTagIDV3          = "47" // for backward compatibility with v2 we write "_s" into "47"
 	HostTagID                 = "_h"
-	ShardTagID                = "_shard_num"
 	EnvTagID                  = "0"
 	LETagName                 = "le"
 	ScrapeNamespaceTagName    = "__scrape_namespace__"
@@ -273,8 +272,6 @@ type MetricMetaValue struct {
 	FairKeyIndex         []int                     `json:"-"`
 	EffectiveWeight      int64                     `json:"-"`
 	HasPercentiles       bool                      `json:"-"`
-	RoundSampleFactors   bool                      `json:"-"` // Experimental, set if magic word in description is found
-	WhalesOff            bool                      `json:"-"` // "whales" sampling algorithm disabled
 	HistogramBuckets     []float32                 `json:"-"` // Prometheus histogram buckets
 	IsHardwareSlowMetric bool                      `json:"-"`
 	GroupID              int32                     `json:"-"`
@@ -555,10 +552,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
-	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") || // TODO - deprecate
-		strings.Contains(m.Description, ToggleDescriptionMark+"round_sample_factors")
-	m.WhalesOff = strings.Contains(m.Description, "__whales_off") || // TODO - deprecate
-		strings.Contains(m.Description, ToggleDescriptionMark+"whales_off")
 	if ind := strings.Index(m.Description, HistogramBucketsStartMark); ind != -1 {
 		s := m.Description[ind+len(HistogramBucketsStartMark):]
 		if ind = strings.Index(s, HistogramBucketsEndMark); ind != -1 {
@@ -1242,8 +1235,8 @@ func SameCompactTag(ta, tb *MetricMetaTag) bool {
 
 func SameCompactMetric(a, b *MetricMetaValue) bool {
 	if a.MetricID != b.MetricID ||
-		a.Name != b.Name ||
 		a.NamespaceID != b.NamespaceID ||
+		a.Name != b.Name ||
 		a.GroupID != b.GroupID ||
 		a.Disable != b.Disable ||
 		a.EffectiveWeight != b.EffectiveWeight ||
@@ -1251,9 +1244,7 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 		!slices.Equal(a.FairKeyIndex, b.FairKeyIndex) ||
 		a.ShardStrategy != b.ShardStrategy ||
 		a.ShardNum != b.ShardNum ||
-		a.HasPercentiles != b.HasPercentiles ||
-		a.WhalesOff != b.WhalesOff ||
-		a.RoundSampleFactors != b.RoundSampleFactors {
+		a.HasPercentiles != b.HasPercentiles {
 		return false
 	}
 	for i := 0; i < MaxTags; i++ {
@@ -1291,8 +1282,11 @@ func SameCompactMetric(a, b *MetricMetaValue) bool {
 }
 
 func keepCompactMetricDescription(value *MetricMetaValue) bool {
+	// we keep condition the same for now, so compact journal hashes do not change.
+	// TODO - add HistogramBucketsStartMark to the list somehow?
 	return RemoteConfigMetric(value.Name) ||
-		value.RoundSampleFactors || value.WhalesOff || // legacy marks without ToggleDescriptionMark
+		strings.Contains(value.Description, "__round_sample_factors") ||
+		strings.Contains(value.Description, "__whales_off") ||
 		strings.Contains(value.Description, ToggleDescriptionMark)
 }
 
