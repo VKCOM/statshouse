@@ -8,7 +8,6 @@ package data_model
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,7 +34,6 @@ func TestArgMinMaxStringFloat32_StringArg_Roundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		asString := rapid.String().Draw(t, "asString")
 		val := rapid.Float32().Draw(t, "val")
-		asString = strings.Trim(asString, "\x00")
 		arg := ArgMinMaxStringFloat32{
 			AsString: asString,
 			Val:      val,
