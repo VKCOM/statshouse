@@ -322,13 +322,13 @@ func (b *queryBuilder) ensurePrimaryKeyPrefix(sb *strings.Builder) {
 	// NOTE2: optimized for v3 and v4 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
 	// NOTE3: assumes that metric value and time/time_coarse range are set elsewhere
 	// NOTE4: assumes that if rows with `index_type != 0 OR pre_tag != 0 OR !empty(pre_stag)` ever appear in CH, they won't be needed in api queries
-	sb.WriteString("AND index_type = 0 AND pre_tag = 0 AND empty(pre_stag) ")
+	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND empty(pre_stag) ")
 }
 
 func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD) {
-	sb.WriteString("time >= ")
+	sb.WriteString("time>=")
 	sb.WriteString(fmt.Sprint(lod.FromSec))
-	sb.WriteString(" AND time < ")
+	sb.WriteString(" AND time<")
 	sb.WriteString(fmt.Sprint(lod.ToSec))
 }
 
@@ -336,9 +336,9 @@ func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_mode
 	coarseSize := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
 	coarseFrom := lod.FromSec / coarseSize * coarseSize
 	coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
-	sb.WriteString("time_coarse >= ")
+	sb.WriteString("time_coarse>=")
 	sb.WriteString(fmt.Sprint(coarseFrom))
-	sb.WriteString(" AND time_coarse < ")
+	sb.WriteString(" AND time_coarse<")
 	sb.WriteString(fmt.Sprint(coarseTo))
 }
 
