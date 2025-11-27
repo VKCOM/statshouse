@@ -88,7 +88,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 	query := pq.buildTagValuesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
 
 	// checks
-	assert.Equal(t, "SELECT tag2,stag2,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY tag2,stag2 HAVING _count>0 ORDER BY _count DESC,tag2,stag2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
+	assert.Equal(t, "SELECT tag2,stag2,toFloat64(sum(count)) AS _count FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND empty(pre_stag)  AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY tag2,stag2 HAVING _count>0 ORDER BY _count DESC,tag2,stag2 LIMIT 6 SETTINGS optimize_aggregation_in_order=1", query.body)
 }
 
 func TestLoadPointsQueryV2(t *testing.T) {
@@ -177,7 +177,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	assert.False(t, query.minMaxHost[1])
 	assert.Equal(t, "3", query.version)
 	assert.Empty(t, query.by)
-	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND empty(pre_stag)  AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
 }
 
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
@@ -211,5 +211,5 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	assert.True(t, query.minMaxHost[1])
 	assert.Equal(t, "3", query.version)
 	assert.Empty(t, query.by)
-	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum)) AS _val2,toFloat64(sum(count)) AS _val3,toFloat64(sum(sumsquare)) AS _val4,toFloat64(sum(1)) AS _val5,argMinMergeState(min_host) AS _minHost,argMaxMergeState(max_host) AS _maxHost FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum)) AS _val2,toFloat64(sum(count)) AS _val3,toFloat64(sum(sumsquare)) AS _val4,toFloat64(sum(1)) AS _val5,argMinMergeState(min_host) AS _minHost,argMaxMergeState(max_host) AS _maxHost FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND empty(pre_stag)  AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
 }
