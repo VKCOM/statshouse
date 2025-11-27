@@ -649,6 +649,7 @@ func (l *cache2Loader) loadChunks() {
 		ToSec:       last.chunk.end / int64(time.Second),    // nanoseconds from seconds
 		StepSec:     l.lod.StepSec,
 		Version:     l.lod.Version,
+		UseV4Tables: l.lod.UseV4Tables,
 		Metric:      l.lod.Metric,
 		NewSharding: l.lod.NewSharding,
 		HasPreKey:   l.lod.HasPreKey,
