@@ -241,7 +241,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
 	config.StringSliceVar(flag.CommandLine, &argv.KHV1Addrs, "kh-v1", "", "comma separated list of ClickHouse v1 HTTP addresses")
 	flag.StringVar(&argv.KHV1User, "kh-v1-user", "", "ClickHouse v1 user")
-	flag.StringVar(&argv.KHV1Password, "clickhouse-v1-password", "", "ClickHouse-v1 password")
+	flag.StringVar(&argv.KHV1Password, "kh-v1-password", "", "ClickHouse-v1 password")
 	flag.IntVar(&argv.RecentInserters, "recent-inserters", aggregator.DefaultConfigAggregator().RecentInserters, "How many parallel inserts to make for recent data")
 	flag.IntVar(&argv.HistoricInserters, "historic-inserters", aggregator.DefaultConfigAggregator().HistoricInserters, "How many parallel inserts to make for historic data")
 	flag.IntVar(&argv.InsertHistoricWhen, "insert-historic-when", aggregator.DefaultConfigAggregator().InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")
