@@ -57,6 +57,10 @@ type ConfigAggregator struct {
 	KHPassword     string
 	KHPasswordFile string
 
+	KHV1Addrs    []string
+	KHV1User     string
+	KHV1Password string
+
 	RemoteInitial ConfigAggregatorRemote
 
 	SimulateRandomErrors float64
@@ -198,11 +202,11 @@ func ValidateConfigAggregator(c *ConfigAggregator) error {
 
 // ParseMigrationTimeRange parses the migration time range and returns start and end timestamps
 // Returns (0, 0) if migration is disabled: empty or invalid range
-func (c *ConfigAggregatorRemote) ParseMigrationTimeRange() (startTs, endTs uint32) {
-	if c.MigrationTimeRange == "" {
+func (c *ConfigAggregatorRemote) ParseMigrationTimeRange(timeRange string) (startTs, endTs uint32) {
+	if timeRange == "" {
 		return
 	}
-	parts := strings.Split(c.MigrationTimeRange, "-")
+	parts := strings.Split(timeRange, "-")
 	if len(parts) != 2 {
 		return
 	}

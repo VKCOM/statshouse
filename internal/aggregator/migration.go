@@ -34,6 +34,10 @@ const (
 	// Migration coordination constants
 	maxRetryAttempts = 10
 	retryDelay       = 5 * time.Second
+
+	migrationSourceV2   = ""
+	migrationSourceV1   = "v1"
+	migrationSourceStop = "v1_stop"
 )
 
 func getBuiltinMetricsSorted() []*format.MetricMetaValue {
@@ -127,7 +131,9 @@ type MigrationState struct {
 	Ended    *time.Time `json:"ended,omitempty"` // When migration completed
 	V2Rows   uint64     `json:"v2_rows"`         // Rows read from V2 table
 	V3Rows   uint64     `json:"v3_rows"`         // Rows written to V3 table
+	V1Rows   uint64     `json:"v1_rows"`         // Rows read from V1/V1-stop table
 	Retry    uint32     `json:"retry"`           // Number of retries attempted
+	Source   string     `json:"source"`          // Migration source identifier
 }
 
 // MigrationLog represents a log entry for migration operations
@@ -137,6 +143,7 @@ type MigrationLog struct {
 	Ts        time.Time `json:"ts"`      // Migration timestamp
 	Retry     uint32    `json:"retry"`   // Retry attempt number
 	Message   string    `json:"message"` // Error message from ClickHouse (or other info)
+	Source    string    `json:"source"`
 }
 
 // goMigrate runs the migration loop in a goroutine.
@@ -175,15 +182,20 @@ func (a *Aggregator) goMigrate(cancelCtx context.Context) {
 		}
 		a.configMu.RUnlock()
 
+		a.migrationMu.Lock()
+		insertTimeEWMA := a.insertTimeEWMA
+		lastErrorTs := a.lastErrorTs
+		a.migrationMu.Unlock()
+
 		// Check system load before proceeding
 		nowUnix := uint32(time.Now().Unix())
-		if a.lastErrorTs != 0 && nowUnix >= a.lastErrorTs && nowUnix-a.lastErrorTs < noErrorsWindow {
-			log.Printf("[migration] Skipping: last error was %d seconds ago", nowUnix-a.lastErrorTs)
-			time.Sleep(time.Duration(noErrorsWindow-(nowUnix-a.lastErrorTs)) * time.Second)
+		if lastErrorTs != 0 && nowUnix >= lastErrorTs && nowUnix-lastErrorTs < noErrorsWindow {
+			log.Printf("[migration] Skipping: last error was %d seconds ago", nowUnix-lastErrorTs)
+			time.Sleep(time.Duration(noErrorsWindow-(nowUnix-lastErrorTs)) * time.Second)
 			continue
 		}
-		if a.insertTimeEWMA > maxInsertTime {
-			log.Printf("[migration] Skipping: EWMA insert time is too high (%.2fs)", a.insertTimeEWMA)
+		if insertTimeEWMA > maxInsertTime {
+			log.Printf("[migration] Skipping: EWMA insert time is too high (%.2fs)", insertTimeEWMA)
 			a.configMu.RLock()
 			delaySec := a.configR.MigrationDelaySec
 			a.configMu.RUnlock()
@@ -267,7 +279,7 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 }
 
 // TestMigrateSingleStep is a standalone function for testing migration of a single time step
-// This function can be called from external tools like test-migration
+// This function can be called from external tools like test-migration-unified
 func TestMigrateSingleStep(khAddr, khUser, khPassword string, timestamp uint32, shardKey int32, config *MigrationConfig) error {
 	httpClient := makeHTTPClient()
 	return migrateSingleStep(httpClient, khAddr, khUser, khPassword, timestamp, shardKey, config)
@@ -531,7 +543,7 @@ func convertRowV2ToV3(buf []byte, row *v2Row) []byte {
 // findNextTimestampToMigrate finds the next timestamp that needs migration for this shard
 func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKey int32) (time.Time, error) {
 	a.configMu.RLock()
-	startTs, endTs := a.configR.ParseMigrationTimeRange()
+	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRange)
 	a.configMu.RUnlock()
 
 	// If no time range configured, migration is disabled
@@ -544,9 +556,9 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 	latestMigratedQuery := fmt.Sprintf(`
 		SELECT toUnixTimestamp(ts) as ts_unix
 		FROM %s
-		WHERE shard_key = %d AND ended IS NOT NULL AND ts_unix <= %d AND ts_unix >= %d
+		WHERE shard_key = %d AND source = '%s' AND ended IS NOT NULL AND ts_unix <= %d AND ts_unix >= %d
 		ORDER BY ts ASC
-		LIMIT 1`, a.migrationConfig.StateTableName, shardKey, startTs, endTs)
+		LIMIT 1`, a.migrationConfig.StateTableName, shardKey, migrationSourceV2, startTs, endTs)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
@@ -600,7 +612,7 @@ func (a *Aggregator) findNextTimestampToMigrate(httpClient *http.Client, shardKe
 }
 
 // updateMigrationState updates the migration state for a shard and timestamp
-func (a *Aggregator) updateMigrationState(httpClient *http.Client, shardKey int32, ts time.Time, v2Rows, v3Rows uint64, retryCount uint32, started time.Time, ended *time.Time) error {
+func (a *Aggregator) updateMigrationState(httpClient *http.Client, shardKey int32, ts time.Time, v2Rows, v3Rows, v1Rows uint64, retryCount uint32, started time.Time, ended *time.Time, source string) error {
 	endedStr := "NULL"
 	if ended != nil {
 		endedStr = fmt.Sprintf("'%s'", ended.Format("2006-01-02 15:04:05"))
@@ -608,10 +620,10 @@ func (a *Aggregator) updateMigrationState(httpClient *http.Client, shardKey int3
 
 	updateQuery := fmt.Sprintf(`
 		INSERT INTO %s
-		(shard_key, ts, started, ended, v2_rows, v3_rows, retry)
-		VALUES (%d, toDateTime(%d), '%s', %s, %d, %d, %d)`,
+		(shard_key, ts, started, ended, v2_rows, v3_rows, v1_rows, retry, source)
+		VALUES (%d, toDateTime(%d), '%s', %s, %d, %d, %d, %d, '%s')`,
 		a.migrationConfig.StateTableName, shardKey, ts.Unix(), started.Format("2006-01-02 15:04:05"),
-		endedStr, v2Rows, v3Rows, retryCount)
+		endedStr, v2Rows, v3Rows, v1Rows, retryCount, source)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,
@@ -643,7 +655,7 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 			log.Printf("[migration] Retry attempt %d for timestamp %s", attempt+1, ts.Format("2006-01-02 15:04:05"))
 			time.Sleep(retryDelay * time.Duration(math.Pow(2, float64(attempt))))
 		}
-		a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, uint32(attempt), started, nil)
+		a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, 0, uint32(attempt), started, nil, migrationSourceV2)
 		err := migrateSingleStep(httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, uint32(ts.Unix()), shardKey, a.migrationConfig)
 		if err == nil {
 			v3Rows, countErr := a.countV3Rows(httpClient, ts, shardKey)
@@ -652,7 +664,7 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 				v3Rows = 0
 			}
 			now := time.Now()
-			a.updateMigrationState(httpClient, shardKey, ts, v2Rows, v3Rows, uint32(attempt), started, &now)
+			a.updateMigrationState(httpClient, shardKey, ts, v2Rows, v3Rows, 0, uint32(attempt), started, &now, migrationSourceV2)
 
 			// Write migration log metric
 			migrationTags := []int32{0, int32(ts.Unix())}
@@ -664,14 +676,14 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 		log.Printf("[migration] Attempt %d failed for timestamp %s: %v", attempt+1, ts.Format("2006-01-02 15:04:05"), err)
 		logQuery := fmt.Sprintf(`
 		INSERT INTO %s
-		(timestamp, shard_key, ts, retry, message)
-		VALUES ('%s', %d, toDateTime(%d), %d, '%s')`, a.migrationConfig.LogsTableName, time.Now().Format("2006-01-02 15:04:05"), shardKey, ts.Unix(), attempt+1, err.Error())
+		(timestamp, shard_key, ts, retry, message, source)
+		VALUES ('%s', %d, toDateTime(%d), %d, '%s', '%s')`, a.migrationConfig.LogsTableName, time.Now().Format("2006-01-02 15:04:05"), shardKey, ts.Unix(), attempt+1, err.Error(), migrationSourceV2)
 		logReq := &chutil.ClickHouseHttpRequest{HttpClient: httpClient, Addr: a.config.KHAddr, User: a.config.KHUser, Password: a.config.KHPassword, Query: logQuery}
 		if logResp, logErr := logReq.Execute(context.Background()); logErr == nil {
 			logResp.Close()
 		}
 	}
-	a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, uint32(maxRetryAttempts), started, nil)
+	a.updateMigrationState(httpClient, shardKey, ts, v2Rows, 0, 0, uint32(maxRetryAttempts), started, nil, migrationSourceV2)
 	return 0, 0, fmt.Errorf("migration failed after %d attempts, last error: %w", maxRetryAttempts, lastErr)
 }
 

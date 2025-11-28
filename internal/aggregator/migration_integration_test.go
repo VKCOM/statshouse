@@ -17,18 +17,20 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/VKCOM/statshouse/internal/chutil"
-	"github.com/VKCOM/statshouse/internal/data_model"
-	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
 	"github.com/hrissan/tdigest"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
 	"pgregory.net/rand"
+
+	"github.com/VKCOM/statshouse/internal/chutil"
+	"github.com/VKCOM/statshouse/internal/data_model"
+	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
 )
 
 const clickhouseImage = "clickhouse/clickhouse-server:24.3-alpine"
@@ -119,6 +121,16 @@ func ensureTablesCreated() error {
 		return fmt.Errorf("failed to create V2 table: %w", err)
 	}
 
+	// Create V1 table
+	if err := executeQueryRequest(createV1tableQuery); err != nil {
+		return fmt.Errorf("failed to create V1 table: %w", err)
+	}
+
+	// Create stop table
+	if err := executeQueryRequest(createStopTableQuery); err != nil {
+		return fmt.Errorf("failed to create stop table: %w", err)
+	}
+
 	// Create V3 table
 	if err := executeQueryRequest(createV3tableQuery); err != nil {
 		return fmt.Errorf("failed to create V3 table: %w", err)
@@ -132,6 +144,16 @@ func ensureTablesCreated() error {
 	// Create migration logs table
 	if err := executeQueryRequest(createMigrationLogsTableQuery); err != nil {
 		return fmt.Errorf("failed to create migration logs table: %w", err)
+	}
+
+	// Create V1 migration state table
+	if err := executeQueryRequest(createMigrationV1StateTableQuery); err != nil {
+		return fmt.Errorf("failed to create V1 migration state table: %w", err)
+	}
+
+	// Create V1 migration logs table
+	if err := executeQueryRequest(createMigrationV1LogsTableQuery); err != nil {
+		return fmt.Errorf("failed to create V1 migration logs table: %w", err)
 	}
 
 	tablesCreated = true
@@ -158,6 +180,26 @@ func cleanupTables() error {
 		return fmt.Errorf("failed to close V2 table clear response: %w", err)
 	}
 
+	// Clear V1 distributed table data
+	req.Query = "TRUNCATE TABLE statshouse_value_dist_1h"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear V1 distributed table: %w", err)
+	}
+	if err := resp.Close(); err != nil {
+		return fmt.Errorf("failed to close V1 distributed table clear response: %w", err)
+	}
+
+	// Clear stop table data
+	req.Query = "TRUNCATE TABLE stats_1h_agg_stop"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear stop table: %w", err)
+	}
+	if err := resp.Close(); err != nil {
+		return fmt.Errorf("failed to close stop table clear response: %w", err)
+	}
+
 	// Clear V3 table data
 	req.Query = "TRUNCATE TABLE statshouse_v3_1h"
 	resp, err = req.Execute(context.Background())
@@ -167,6 +209,26 @@ func cleanupTables() error {
 	err = resp.Close()
 	if err != nil {
 		return fmt.Errorf("failed to close V3 table clear response: %w", err)
+	}
+
+	// Clear migration state data
+	req.Query = "TRUNCATE TABLE statshouse_migration_state"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear migration state table: %w", err)
+	}
+	if err := resp.Close(); err != nil {
+		return fmt.Errorf("failed to close migration state table clear response: %w", err)
+	}
+
+	// Clear migration logs data
+	req.Query = "TRUNCATE TABLE statshouse_migration_logs"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear migration logs table: %w", err)
+	}
+	if err := resp.Close(); err != nil {
+		return fmt.Errorf("failed to close migration logs table clear response: %w", err)
 	}
 
 	return nil
@@ -222,6 +284,33 @@ const createV3tableQuery = `CREATE TABLE statshouse_v3_1h (
 	) ENGINE = AggregatingMergeTree()
 	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
 
+const createV1tableQuery = `CREATE TABLE IF NOT EXISTS statshouse_value_dist_1h (
+		date Date DEFAULT toDate(time),
+		time DateTime,
+		stats Int32,
+		key1 Int32, key2 Int32, key3 Int32, key4 Int32, key5 Int32, key6 Int32, key7 Int32,
+		key8 Int32, key9 Int32, key10 Int32, key11 Int32, key12 Int32, key13 Int32, key14 Int32, key15 Int32,
+		count AggregateFunction(sum, Int64),
+		min AggregateFunction(min, Int64),
+		max AggregateFunction(max, Int64),
+		sum AggregateFunction(sum, Int64),
+		ns2 AggregateFunction(sum, Float64),
+		sumsquare AggregateFunction(sum, Int64),
+		percentiles AggregateFunction(quantilesTDigest(0.5), UInt64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (stats, time, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15)`
+
+const createStopTableQuery = `CREATE TABLE IF NOT EXISTS stats_1h_agg_stop (
+		date Date DEFAULT toDate(time),
+		time DateTime,
+		stats Int32,
+		key1 Int32,
+		key2 Int32,
+		skey String,
+		count AggregateFunction(sum, Int64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (stats, time, key1, key2, skey)`
+
 const createMigrationStateTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_migration_state (
 		shard_key Int32,
 		ts DateTime,
@@ -229,7 +318,9 @@ const createMigrationStateTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_mi
 		ended Nullable(DateTime),
 		v2_rows UInt64,
 		v3_rows UInt64,
-		retry UInt32
+		v1_rows UInt64,
+		retry UInt32,
+		source String DEFAULT ''
 	) ENGINE = ReplacingMergeTree(retry)
 	ORDER BY (shard_key, ts, started)`
 
@@ -238,7 +329,8 @@ const createMigrationLogsTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_mig
 		shard_key Int32,
 		ts DateTime,
 		retry UInt32,
-		message String
+		message String,
+		source String DEFAULT ''
 	) ENGINE = MergeTree()
 	ORDER BY (timestamp, shard_key, ts, retry)`
 
@@ -558,6 +650,540 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 	}
 }
 
+func TestV1DataParsingIntegration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData, valueSets := createV1TestData()
+	err = insertV1TestData(httpClient, httpAddr, "default", "secret", testData, valueSets)
+	require.NoError(t, err)
+	t.Logf("Inserted %d test rows into V1 table", len(testData))
+
+	selectQuery := fmt.Sprintf(`
+	SELECT stats, time,
+		key1, key2, key3, key4, key5, key6, key7,
+		key8, key9, key10, key11, key12, key13, key14, key15,
+		count, min, max, sum, ns2, sumsquare, percentiles
+	FROM statshouse_value_dist_1h
+	WHERE time = toDateTime(%d)
+	ORDER BY stats`, testData[0].time)
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      selectQuery,
+		Format:     "RowBinary",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	resp, err := req.Execute(ctx)
+	require.NoError(t, err)
+
+	var parsedRows []*v1Row
+	bufReader := bufio.NewReader(resp)
+	for {
+		var row v1Row
+		if err := parseV1Row(bufReader, &row); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			require.NoError(t, err)
+		} else {
+			rowCopy := row
+			parsedRows = append(parsedRows, &rowCopy)
+		}
+	}
+	err = resp.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, len(testData), len(parsedRows), "parsed row count mismatch")
+
+	for i, expected := range testData {
+		actual := parsedRows[i]
+		require.Equal(t, expected.metric, actual.metric, "row %d metric mismatch", i)
+		require.Equal(t, expected.time, actual.time, "row %d time mismatch", i)
+		require.Equal(t, expected.keys, actual.keys, "row %d keys mismatch", i)
+		require.Equal(t, expected.count, actual.count, "row %d count mismatch", i)
+		require.Equal(t, expected.min, actual.min, "row %d min mismatch", i)
+		require.Equal(t, expected.max, actual.max, "row %d max mismatch", i)
+		require.Equal(t, expected.sum, actual.sum, "row %d sum mismatch", i)
+		require.Equal(t, expected.sumsquare, actual.sumsquare, "row %d sumsquare mismatch", i)
+
+		if expected.perc.Digest != nil && actual.perc.Digest != nil {
+			require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6,
+				"row %d percentile 0.5 mismatch", i)
+			require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6,
+				"row %d percentile 0.99 mismatch", i)
+		} else {
+			require.Nil(t, actual.perc.Digest, "row %d percentiles should be nil", i)
+		}
+	}
+
+	t.Logf("SUCCESS: Parsed and validated %d V1 rows", len(parsedRows))
+}
+
+func TestV1ToV3ConversionIntegration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData, _ := createV1TestData()
+
+	body := make([]byte, 0, 1024*len(testData))
+	for _, row := range testData {
+		body = convertRowV1ToV3(body, row)
+	}
+
+	insertQuery := `INSERT INTO statshouse_v3_1h(
+		metric,time,
+		tag0,tag1,tag2,tag3,tag4,tag5,tag6,tag7,
+		tag8,tag9,tag10,tag11,tag12,tag13,tag14,tag15,stag47,
+		count,min,max,sum,sumsquare,
+		min_host,max_host,percentiles,uniq_state
+	)
+	FORMAT RowBinary`
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      insertQuery,
+		Body:       body,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+	err = resp.Close()
+	require.NoError(t, err)
+
+	countQuery := fmt.Sprintf(`SELECT count() FROM statshouse_v3_1h WHERE time = toDateTime(%d)`, testData[0].time)
+	req = &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var insertedCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &insertedCount)
+	require.NoError(t, err)
+	err = resp.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, uint64(len(testData)), insertedCount, "unexpected number of V3 rows inserted")
+}
+
+func TestMigrateSingleStepV1Integration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData, valueSets := createV1TestData()
+	err = insertV1TestData(httpClient, httpAddr, "default", "secret", testData, valueSets)
+	require.NoError(t, err)
+	t.Logf("Inserted %d test rows into V1 table", len(testData))
+
+	testHour := testData[0].time
+	config := NewDefaultMigrationConfigV1([]string{httpAddr}, "default", "secret")
+	config.TotalShards = 16
+	config.V3TableName = "statshouse_v3_1h"
+
+	var shardsToTest []int32
+	for i := range 16 {
+		shardsToTest = append(shardsToTest, int32(i+1))
+	}
+
+	for _, shardKey := range shardsToTest {
+		t.Run(fmt.Sprintf("shard_%d", shardKey), func(t *testing.T) {
+			err = migrateSingleStepV1(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
+			require.NoError(t, err)
+
+			var expectedRows []*v1Row
+			for _, row := range testData {
+				if row.metric%16 == shardKey-1 {
+					expectedRows = append(expectedRows, row)
+				}
+			}
+
+			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND %s`, testHour, getConditionForSelectV3(16, shardKey))
+			req := &chutil.ClickHouseHttpRequest{
+				HttpClient: httpClient,
+				Addr:       httpAddr,
+				User:       "default",
+				Password:   "secret",
+				Query:      countQuery,
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			resp, err := req.Execute(ctx)
+			require.NoError(t, err)
+
+			var migratedCount uint64
+			_, err = fmt.Fscanf(resp, "%d", &migratedCount)
+			require.NoError(t, err)
+			err = resp.Close()
+			require.NoError(t, err)
+
+			require.Equal(t, uint64(len(expectedRows)), migratedCount, "shard %d row count mismatch", shardKey)
+
+			if migratedCount == 0 {
+				return
+			}
+
+			selectQuery := fmt.Sprintf(`
+			SELECT metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47,
+				count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
+			FROM statshouse_v3_1h
+			WHERE time = toDateTime(%d) AND %s
+			ORDER BY metric`, testHour, getConditionForSelectV3(16, shardKey))
+
+			req.Query = selectQuery
+			req.Format = "RowBinary"
+			resp, err = req.Execute(ctx)
+			require.NoError(t, err)
+
+			var migratedRows []*v3Row
+			bufReader := bufio.NewReader(resp)
+			for i := uint64(0); i < migratedCount; i++ {
+				row, err := parseV3Row(bufReader, t)
+				require.NoError(t, err, "failed to parse V3 row %d", i+1)
+				migratedRows = append(migratedRows, row)
+			}
+			err = resp.Close()
+			require.NoError(t, err)
+
+			require.Equal(t, len(expectedRows), len(migratedRows), "shard %d migrated rows mismatch", shardKey)
+
+			for i, expected := range expectedRows {
+				actual := migratedRows[i]
+				require.Equal(t, expected.metric, actual.metric, "shard %d row %d metric mismatch", shardKey, i)
+				require.Equal(t, expected.time, actual.time, "shard %d row %d time mismatch", shardKey, i)
+				require.Equal(t, expected.keys, actual.tags, "shard %d row %d tags mismatch", shardKey, i)
+				require.Empty(t, actual.stag47, "shard %d row %d stag47 should be empty", shardKey, i)
+				require.Equal(t, expected.count, actual.count, "shard %d row %d count mismatch", shardKey, i)
+				require.Equal(t, expected.min, actual.min, "shard %d row %d min mismatch", shardKey, i)
+				require.Equal(t, expected.max, actual.max, "shard %d row %d max mismatch", shardKey, i)
+				require.Equal(t, expected.sum, actual.sum, "shard %d row %d sum mismatch", shardKey, i)
+				require.Equal(t, expected.sumsquare, actual.sumsquare, "shard %d row %d sumsquare mismatch", shardKey, i)
+
+				require.Empty(t, actual.min_host.AsString, "shard %d row %d min_host string should be empty", shardKey, i)
+				require.Zero(t, actual.min_host.Val, "shard %d row %d min_host value should be zero", shardKey, i)
+				require.Empty(t, actual.max_host.AsString, "shard %d row %d max_host string should be empty", shardKey, i)
+				require.Zero(t, actual.max_host.Val, "shard %d row %d max_host value should be zero", shardKey, i)
+
+				if expected.perc.Digest != nil && actual.perc.Digest != nil {
+					require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6,
+						"shard %d row %d percentile 0.5 mismatch", shardKey, i)
+					require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6,
+						"shard %d row %d percentile 0.99 mismatch", shardKey, i)
+				} else {
+					require.Nil(t, actual.perc.Digest, "shard %d row %d percentiles should be nil", shardKey, i)
+				}
+
+				if actual.uniq != nil {
+					require.Equal(t, 0, actual.uniq.ItemsCount(), "shard %d row %d uniq_state mismatch", shardKey, i)
+				}
+			}
+		})
+	}
+}
+
+func createStopTestData() []*stopRow {
+	var testData []*stopRow
+	const baseMetric int32 = 2000
+	const baseTimestamp uint32 = 1733000400
+
+	for i := int32(0); i < 160; i++ {
+		metric := baseMetric + i
+		count := int64(5 + i%10) // 5-14
+
+		row := &stopRow{
+			metric: metric,
+			time:   baseTimestamp,
+			key1:   metric*10 + 1,
+			key2:   metric*10 + 2,
+			skey:   fmt.Sprintf("skey_%d", metric),
+			count:  float64(count),
+		}
+
+		testData = append(testData, row)
+	}
+
+	return testData
+}
+
+func insertStopTestData(httpClient *http.Client, httpAddr, user, password string, rows []*stopRow) error {
+	for _, row := range rows {
+		query := fmt.Sprintf(`
+		INSERT INTO stats_1h_agg_stop
+		SELECT
+			toDate(toDateTime(%d)),
+			toDateTime(%d),
+			%d,
+			%d,
+			%d,
+			'%s',
+			sumState(toInt64(%d)) AS count
+		`, row.time, row.time, row.metric, row.key1, row.key2, row.skey, int64(row.count))
+
+		req := &chutil.ClickHouseHttpRequest{
+			HttpClient: httpClient,
+			Addr:       httpAddr,
+			User:       user,
+			Password:   password,
+			Query:      query,
+		}
+		resp, err := req.Execute(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to insert stop test row: %w", err)
+		}
+		if err := resp.Close(); err != nil {
+			return fmt.Errorf("failed to close stop insert response: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func TestStopDataParsingIntegration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData := createStopTestData()
+	err = insertStopTestData(httpClient, httpAddr, "default", "secret", testData)
+	require.NoError(t, err)
+	t.Logf("Inserted %d test rows into stop table", len(testData))
+
+	selectQuery := fmt.Sprintf(`
+	SELECT stats, time, key1, key2, skey, count
+	FROM stats_1h_agg_stop
+	WHERE time = toDateTime(%d)
+	ORDER BY stats`, testData[0].time)
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      selectQuery,
+		Format:     "RowBinary",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	resp, err := req.Execute(ctx)
+	require.NoError(t, err)
+
+	var parsedRows []*stopRow
+	bufReader := bufio.NewReader(resp)
+	for {
+		var row stopRow
+		if err := parseStopRow(bufReader, &row); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			require.NoError(t, err)
+		} else {
+			rowCopy := row
+			parsedRows = append(parsedRows, &rowCopy)
+		}
+	}
+	err = resp.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, len(testData), len(parsedRows), "parsed row count mismatch")
+
+	for i, expected := range testData {
+		actual := parsedRows[i]
+		require.Equal(t, expected.metric, actual.metric, "row %d metric mismatch", i)
+		require.Equal(t, expected.time, actual.time, "row %d time mismatch", i)
+		require.Equal(t, expected.key1, actual.key1, "row %d key1 mismatch", i)
+		require.Equal(t, expected.key2, actual.key2, "row %d key2 mismatch", i)
+		require.Equal(t, expected.skey, actual.skey, "row %d skey mismatch", i)
+		require.Equal(t, expected.count, actual.count, "row %d count mismatch", i)
+	}
+
+	t.Logf("SUCCESS: Parsed and validated %d stop rows", len(parsedRows))
+}
+
+func TestStopToV3ConversionIntegration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData := createStopTestData()
+
+	body := make([]byte, 0, 1024*len(testData))
+	for _, row := range testData {
+		body = convertStopRowToV3(body, row)
+	}
+
+	insertQuery := `INSERT INTO statshouse_v3_1h(
+		metric,time,
+		tag0,tag1,tag2,tag3,tag4,tag5,tag6,tag7,
+		tag8,tag9,tag10,tag11,tag12,tag13,tag14,tag15,stag47,
+		count,min,max,sum,sumsquare,
+		min_host,max_host,percentiles,uniq_state
+	)
+	FORMAT RowBinary`
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      insertQuery,
+		Body:       body,
+		UrlParams:  map[string]string{"input_format_values_interpret_expressions": "0"},
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+	err = resp.Close()
+	require.NoError(t, err)
+
+	countQuery := fmt.Sprintf(`SELECT count() FROM statshouse_v3_1h WHERE time = toDateTime(%d)`, testData[0].time)
+	req = &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       httpAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err = req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var insertedCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &insertedCount)
+	require.NoError(t, err)
+	err = resp.Close()
+	require.NoError(t, err)
+
+	require.Equal(t, uint64(len(testData)), insertedCount, "unexpected number of V3 rows inserted")
+}
+
+func TestMigrateSingleStepStopIntegration(t *testing.T) {
+	httpAddr := clickHouseAddr
+
+	err := cleanupTables()
+	require.NoError(t, err)
+
+	testData := createStopTestData()
+	err = insertStopTestData(httpClient, httpAddr, "default", "secret", testData)
+	require.NoError(t, err)
+	t.Logf("Inserted %d test rows into stop table", len(testData))
+
+	testHour := testData[0].time
+	config := NewDefaultMigrationConfigStop([]string{httpAddr}, "default", "secret")
+	config.TotalShards = 16
+	config.V3TableName = "statshouse_v3_1h"
+
+	var shardsToTest []int32
+	for i := range 16 {
+		shardsToTest = append(shardsToTest, int32(i+1))
+	}
+
+	for _, shardKey := range shardsToTest {
+		t.Run(fmt.Sprintf("shard_%d", shardKey), func(t *testing.T) {
+			err = migrateSingleStepStop(httpClient, httpAddr, "default", "secret", testHour, shardKey, config)
+			require.NoError(t, err)
+
+			var expectedRows []*stopRow
+			for _, row := range testData {
+				if row.metric%16 == shardKey-1 {
+					expectedRows = append(expectedRows, row)
+				}
+			}
+
+			countQuery := fmt.Sprintf(`SELECT count() as cnt FROM statshouse_v3_1h WHERE time = toDateTime(%d) AND %s`, testHour, getConditionForSelectV3(16, shardKey))
+			req := &chutil.ClickHouseHttpRequest{
+				HttpClient: httpClient,
+				Addr:       httpAddr,
+				User:       "default",
+				Password:   "secret",
+				Query:      countQuery,
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			resp, err := req.Execute(ctx)
+			require.NoError(t, err)
+
+			var migratedCount uint64
+			_, err = fmt.Fscanf(resp, "%d", &migratedCount)
+			require.NoError(t, err)
+			err = resp.Close()
+			require.NoError(t, err)
+
+			require.Equal(t, uint64(len(expectedRows)), migratedCount, "shard %d row count mismatch", shardKey)
+
+			if migratedCount == 0 {
+				return
+			}
+
+			selectQuery := fmt.Sprintf(`
+			SELECT metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47,
+				count, min, max, sum, sumsquare, min_host, max_host, percentiles, uniq_state
+			FROM statshouse_v3_1h
+			WHERE time = toDateTime(%d) AND %s
+			ORDER BY metric`, testHour, getConditionForSelectV3(16, shardKey))
+
+			req.Query = selectQuery
+			req.Format = "RowBinary"
+			resp, err = req.Execute(ctx)
+			require.NoError(t, err)
+
+			var migratedRows []*v3Row
+			bufReader := bufio.NewReader(resp)
+			for i := uint64(0); i < migratedCount; i++ {
+				row, err := parseV3Row(bufReader, t)
+				require.NoError(t, err, "failed to parse V3 row %d", i+1)
+				migratedRows = append(migratedRows, row)
+			}
+			err = resp.Close()
+			require.NoError(t, err)
+
+			require.Equal(t, len(expectedRows), len(migratedRows), "shard %d migrated rows mismatch", shardKey)
+
+			for i, expected := range expectedRows {
+				actual := migratedRows[i]
+				require.Equal(t, expected.metric, actual.metric, "shard %d row %d metric mismatch", shardKey, i)
+				require.Equal(t, expected.time, actual.time, "shard %d row %d time mismatch", shardKey, i)
+				require.Equal(t, int32(0), actual.tags[0], "shard %d row %d tag0 should be zero", shardKey, i)
+				require.Equal(t, expected.key1, actual.tags[1], "shard %d row %d tag1 mismatch", shardKey, i)
+				require.Equal(t, expected.key2, actual.tags[2], "shard %d row %d tag2 mismatch", shardKey, i)
+				for j := 3; j < 16; j++ {
+					require.Equal(t, int32(0), actual.tags[j], "shard %d row %d tag%d should be zero", shardKey, i, j)
+				}
+				require.Equal(t, expected.skey, actual.stag47, "shard %d row %d stag47 mismatch", shardKey, i)
+				require.Equal(t, expected.count, actual.count, "shard %d row %d count mismatch", shardKey, i)
+				require.Zero(t, actual.min, "shard %d row %d min should be zero", shardKey, i)
+				require.Zero(t, actual.max, "shard %d row %d max should be zero", shardKey, i)
+				require.Zero(t, actual.sum, "shard %d row %d sum should be zero", shardKey, i)
+				require.Zero(t, actual.sumsquare, "shard %d row %d sumsquare should be zero", shardKey, i)
+				require.Empty(t, actual.min_host.AsString, "shard %d row %d min_host string should be empty", shardKey, i)
+				require.Zero(t, actual.min_host.Val, "shard %d row %d min_host value should be zero", shardKey, i)
+				require.Empty(t, actual.max_host.AsString, "shard %d row %d max_host string should be empty", shardKey, i)
+				require.Zero(t, actual.max_host.Val, "shard %d row %d max_host value should be zero", shardKey, i)
+				require.Nil(t, actual.perc, "shard %d row %d percentiles should be nil", shardKey, i)
+				if actual.uniq != nil {
+					require.Equal(t, 0, actual.uniq.ItemsCount(), "shard %d row %d uniq_state should be empty", shardKey, i)
+				}
+			}
+
+			t.Logf("SUCCESS: Shard %d migrated and validated %d rows", shardKey, len(migratedRows))
+		})
+	}
+}
+
 // generateRandomTDigest creates a random tdigest with random quantiles
 func generateRandomTDigest(rnd *rand.Rand) *tdigest.TDigest {
 	perc := tdigest.New()
@@ -764,6 +1390,114 @@ func appendV2RowBinary(buf []byte, row *v2Row) []byte {
 	return buf
 }
 
+func createV1TestData() ([]*v1Row, [][]uint64) {
+	var testData []*v1Row
+	var valueSets [][]uint64
+	const baseMetric int32 = 1000
+	const baseTimestamp uint32 = 1733000400
+
+	for i := int32(0); i < 160; i++ {
+		metric := baseMetric + i
+		values := []uint64{uint64(metric), uint64(metric + 1), uint64(metric + 2)}
+
+		td := tdigest.New()
+		var sum int64
+		var sumsquare int64
+		minVal := values[0]
+		maxVal := values[0]
+		for _, v := range values {
+			td.Add(float64(v), 1)
+			sum += int64(v)
+			sumsquare += int64(v * v)
+			if v < minVal {
+				minVal = v
+			}
+			if v > maxVal {
+				maxVal = v
+			}
+		}
+
+		var keys [16]int32
+		keys[0] = 0
+		for k := 1; k < 16; k++ {
+			keys[k] = metric*10 + int32(k)
+		}
+
+		row := &v1Row{
+			metric:    metric,
+			time:      baseTimestamp,
+			keys:      keys,
+			count:     float64(len(values)),
+			min:       float64(int64(minVal)),
+			max:       float64(int64(maxVal)),
+			sum:       float64(sum),
+			sumsquare: float64(sumsquare),
+			perc:      data_model.ChDigest{Digest: td},
+		}
+
+		testData = append(testData, row)
+		valueSets = append(valueSets, values)
+	}
+
+	return testData, valueSets
+}
+
+func insertV1TestData(httpClient *http.Client, httpAddr, user, password string, rows []*v1Row, valueSets [][]uint64) error {
+	if len(rows) != len(valueSets) {
+		return fmt.Errorf("rows and valueSets length mismatch")
+	}
+
+	for i, row := range rows {
+		values := valueSets[i]
+		valueParts := make([]string, len(values))
+		for idx, v := range values {
+			valueParts[idx] = fmt.Sprintf("%d", v)
+		}
+		valuesExpr := fmt.Sprintf("[%s]", strings.Join(valueParts, ","))
+
+		keyParts := make([]string, 15)
+		for k := 1; k < 16; k++ {
+			keyParts[k-1] = fmt.Sprintf("%d", row.keys[k])
+		}
+		keysExpr := strings.Join(keyParts, ", ")
+
+		query := fmt.Sprintf(`
+		INSERT INTO statshouse_value_dist_1h
+		SELECT
+			toDate(toDateTime(%d)),
+			toDateTime(%d),
+			%d,
+			%s,
+			sumState(toInt64(1)) AS count,
+			minState(toInt64(val)) AS min,
+			maxState(toInt64(val)) AS max,
+			sumState(toInt64(val)) AS sum,
+			sumState(toFloat64(0)) AS ns2,
+			sumState(toInt64(val) * toInt64(val)) AS sumsquare,
+			quantilesTDigestState(0.5)(toUInt64(val)) AS percentiles
+		FROM (
+			SELECT arrayJoin(%s) AS val
+		)`, row.time, row.time, row.metric, keysExpr, valuesExpr)
+
+		req := &chutil.ClickHouseHttpRequest{
+			HttpClient: httpClient,
+			Addr:       httpAddr,
+			User:       user,
+			Password:   password,
+			Query:      query,
+		}
+		resp, err := req.Execute(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to insert V1 test row: %w", err)
+		}
+		if err := resp.Close(); err != nil {
+			return fmt.Errorf("failed to close V1 insert response: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // v3Row represents a parsed row from V3 format (after migration)
 type v3Row struct {
 	metric    int32
@@ -905,14 +1639,14 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 	testStarted := time.Now()
 	testEnded := time.Now().Add(time.Minute)
 
-	err := aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, testStarted, &testEnded)
+	err := aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, 0, testStarted, &testEnded, migrationSourceV2)
 	require.NoError(t, err, "updateMigrationState should succeed")
 
 	// Verify the state was recorded correctly
 	verifyQuery := fmt.Sprintf(`
 		SELECT shard_key, ts, v2_rows, v3_rows, retry
 		FROM statshouse_migration_state
-		WHERE shard_key = %d AND ts = toDateTime(%d)
+		WHERE shard_key = %d AND source = '' AND ts = toDateTime(%d)
 		ORDER BY started DESC
 		LIMIT 1`, testShardKey, testTs.Unix())
 
@@ -927,7 +1661,7 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM statshouse_migration_state
-		WHERE shard_key = %d AND ts = toDateTime(%d)`, testShardKey, testTs.Unix())
+		WHERE shard_key = %d AND source = '' AND ts = toDateTime(%d)`, testShardKey, testTs.Unix())
 
 	req.Query = countQuery
 	resp, err := req.Execute(context.Background())
@@ -965,12 +1699,12 @@ func TestMigrationOrchestration(t *testing.T) {
 
 	// Step 3: Update migration state for the found timestamp
 	started := time.Now()
-	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, started, nil)
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, 0, started, nil, migrationSourceV2)
 	require.NoError(t, err, "Step 3: updateMigrationState should succeed")
 
 	// Step 4: Mark the migration as completed
 	ended := time.Now()
-	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, started, &ended)
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, 0, started, &ended, migrationSourceV2)
 	require.NoError(t, err, "Step 4: updateMigrationState completion should succeed")
 
 	// Step 5: Find next timestamp - should be the previous hour (backward migration)
@@ -982,7 +1716,7 @@ func TestMigrationOrchestration(t *testing.T) {
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM statshouse_migration_state
-		WHERE shard_key = %d`, testShardKey)
+		WHERE shard_key = %d AND source = ''`, testShardKey)
 
 	req := &chutil.ClickHouseHttpRequest{
 		HttpClient: httpClient,

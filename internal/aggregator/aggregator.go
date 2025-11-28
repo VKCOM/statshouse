@@ -122,10 +122,13 @@ type (
 
 		// migration stats
 		lastErrorTs    uint32
-		insertTimeEWMA float64 // exponential weighted moving average in seconds
+		insertTimeEWMA float64 // under insertTimeEWMAMu, exponential weighted moving average in seconds
+		migrationMu    sync.RWMutex
 
 		// migration configuration
-		migrationConfig *MigrationConfig
+		migrationConfig     *MigrationConfig
+		migrationConfigV1   *MigrationConfigV1
+		migrationConfigStop *MigrationConfigStop
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -255,6 +258,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		mappingsCache:               mappingsCache,
 		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
+		migrationConfigV1:           NewDefaultMigrationConfigV1(config.KHV1Addrs, config.KHV1User, config.KHV1Password),
+		migrationConfigStop:         NewDefaultMigrationConfigStop(config.KHV1Addrs, config.KHV1User, config.KHV1Password),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -374,7 +379,9 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
-	go a.goMigrate(a.cancelInsertsCtx)
+	//go a.goMigrate(a.cancelInsertsCtx) // DONE
+	go a.goMigrateV1(a.cancelInsertsCtx)
+	go a.goMigrateStop(a.cancelInsertsCtx)
 	go a.goInternalLog()
 
 	go func() { // before sh2.Run because agent will also connect to local aggregator
@@ -824,18 +831,21 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
 		status, exception, dur, sendErr := sendToClickhouse(ctx, httpClient, a.config.KHAddr, a.config.KHUser, a.config.KHPassword, getTableDesc(), bodyStorage, configR.V3InsertSettings)
-
-		if sendErr != nil {
-			a.lastErrorTs = nowUnix
-		}
-		// EWMA update: alpha=0.2
-		alpha := 0.2
-		if a.insertTimeEWMA == 0 {
-			a.insertTimeEWMA = dur.Seconds()
-		} else {
-			a.insertTimeEWMA = alpha*dur.Seconds() + (1-alpha)*a.insertTimeEWMA
-		}
 		cancelSendToCh()
+		func() {
+			a.migrationMu.Lock()
+			defer a.migrationMu.Unlock()
+			if sendErr != nil {
+				a.lastErrorTs = nowUnix
+			}
+			// EWMA update: alpha=0.2
+			alpha := 0.2
+			if a.insertTimeEWMA == 0 {
+				a.insertTimeEWMA = dur.Seconds()
+			} else {
+				a.insertTimeEWMA = alpha*dur.Seconds() + (1-alpha)*a.insertTimeEWMA
+			}
+		}()
 
 		a.mu.Lock()
 		if willInsertHistoric {

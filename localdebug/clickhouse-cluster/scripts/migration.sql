@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS statshouse_migration_state (
     ended Nullable(DateTime),
     v2_rows UInt64,
     v3_rows UInt64,
-    retry UInt32
+    v1_rows UInt64,
+    retry UInt32,
+    source String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(retry)
 ORDER BY (shard_key, ts, started);
 
@@ -15,6 +17,7 @@ CREATE TABLE IF NOT EXISTS statshouse_migration_logs (
     shard_key Int32,
     ts DateTime,
     retry UInt32,
-    message String
+    message String,
+    source String DEFAULT ''
 ) ENGINE = MergeTree()
 ORDER BY (timestamp, shard_key, ts, retry);
