@@ -235,7 +235,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.userGroup, "g", "kitten", "sets user group to make setguid")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
 	flag.Uint64Var(&argv.maxOpenFiles, "max-open-files", 131072, "open files limit")
-	flag.StringVar(&argv.aggAddr, "agg-addr", "", "Comma separated list of aggregator listen addresses")
+	flag.StringVar(&argv.aggAddr, "agg-addr", "", "aggregator listen address:port, or comma-separated list of address:ports for all shard-replicas")
 	flag.StringVar(&argv.Cluster, "cluster", aggregator.DefaultConfigAggregator().Cluster, "clickhouse cluster name to autodetect configuration, local shard and replica")
 	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
 	flag.IntVar(&argv.RecentInserters, "recent-inserters", aggregator.DefaultConfigAggregator().RecentInserters, "How many parallel inserts to make for recent data")

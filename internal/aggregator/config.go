@@ -88,6 +88,8 @@ func DefaultConfigAggregator() ConfigAggregator {
 		Cluster:              "statlogs2",
 		MetadataNet:          "tcp4",
 		MetadataAddr:         "127.0.0.1:2442",
+		LocalReplica:         0, // require setting it explicitly
+		LocalShard:           1,
 
 		RemoteInitial: ConfigAggregatorRemote{
 			ShortWindow:          data_model.MaxShortWindow,

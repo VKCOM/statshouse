@@ -7,6 +7,9 @@ import (
 
 // shard overflow is checked by the caller
 func Shard(key *data_model.Key, meta *format.MetricMetaValue, shardByMetricCount uint32, scratch *[]byte) (shardNum uint32, ok bool) {
+	if meta.ShardFixedKey > 0 {
+		return meta.ShardFixedKey - 1, true
+	}
 	switch meta.ShardStrategy {
 	case format.ShardFixed:
 		return meta.ShardNum, true

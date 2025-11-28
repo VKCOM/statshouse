@@ -42,12 +42,14 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
 		key.Timestamp = item.T
-		if int64(key.Timestamp) > int64(bucketTimestamp)+FutureWindow {
-			// Agent does not clamp T at all, because there is no reason - aggregator does it anyway for protecting clickhouse.
+		if int64(key.Timestamp) > int64(bucketTimestamp) {
+			// Must be never for December2025 agents, which clamp by bucketTimestamp, because they
+			// have FixedShard2Timestamp, and after they shard, timestamp must not decrease.
+			// Agent does not clamp T in the past, because the setting is controlled by aggregator, and
+			// aggregator must clamp anyway for protecting clickhouse.
 			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
-			// TODO - remove +FutureWindow above in separate MR to see what happens (should be OK)
 			key.Timestamp = bucketTimestamp
-			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture
+			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFutureAgg
 		} else if int64(key.Timestamp) < int64(bucketTimestamp)-BelieveTimestampWindow {
 			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
 			key.Timestamp = bucketTimestamp
