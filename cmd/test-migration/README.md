@@ -1,4 +1,4 @@
-# Unified Migration Test Tool
+# Migration Test Tool
 
 This tool tests data migration functionality for StatsHouse, supporting migration from V2, V1, or stop tables to V3 with configurable table names and flexible time steps.
 
@@ -14,19 +14,19 @@ This tool tests data migration functionality for StatsHouse, supporting migratio
 
 ```bash
 # Build the test tool
-go build -o test-migration-unified ./cmd/test-migration-unified/
+go build -o test-migration ./cmd/test-migration/
 
 # Migrate from V2 (default)
-./test-migration-unified -source v2 -time 1672531200 -shard-key 1
+./test-migration -source v2 -time 1672531200 -shard-key 1
 
 # Migrate from V1
-./test-migration-unified -source v1 -time 1672531200 -shard-key 1
+./test-migration -source v1 -time 1672531200 -shard-key 1
 
 # Migrate from stop table
-./test-migration-unified -source stop -time 1672531200 -shard-key 1
+./test-migration -source stop -time 1672531200 -shard-key 1
 
 # Migrate a range of timestamps with second-level precision
-./test-migration-unified -source v2 -time 1672531200-1672531260 -step 1s -shard-key 1
+./test-migration -source v2 -time 1672531200-1672531260 -step 1s -shard-key 1
 ```
 
 ### Command line options
@@ -53,25 +53,25 @@ go build -o test-migration-unified ./cmd/test-migration-unified/
 
 ```bash
 # Migrate current hour for shard 1 (V2)
-./test-migration-unified -source v2 -shard-key 1
+./test-migration -source v2 -shard-key 1
 
 # Migrate specific timestamp from V1
-./test-migration-unified -source v1 -time 1672531200 -shard-key 2
+./test-migration -source v1 -time 1672531200 -shard-key 2
 
 # Migrate from stop table with custom table names
-./test-migration-unified -source stop -time 1672531200 -source-table my_stop_table -v3-table my_v3_table -shard-key 1
+./test-migration -source stop -time 1672531200 -source-table my_stop_table -v3-table my_v3_table -shard-key 1
 
 # Migrate with second-level precision for a 5-minute window
-./test-migration-unified -source v2 -time 1672531200-1672531500 -step 1s -shard-key 1
+./test-migration -source v2 -time 1672531200-1672531500 -step 1s -shard-key 1
 
 # Use remote ClickHouse with credentials
-./test-migration-unified -source v1 -kh-addr remote.clickhouse.com:8123 -kh-user myuser -kh-password mypass -time 1672531200 -shard-key 1
+./test-migration -source v1 -kh-addr remote.clickhouse.com:8123 -kh-user myuser -kh-password mypass -time 1672531200 -shard-key 1
 
 # Migrate with custom shard configuration (8 shards instead of 16)
-./test-migration-unified -source v2 -time 1672531200 -total-shards 8 -shard-key 1
+./test-migration -source v2 -time 1672531200 -total-shards 8 -shard-key 1
 
 # Migrate from V1 with multiple source hosts
-./test-migration-unified -source v1 -source-hosts "host1:8123,host2:8123,host3:8123" -time 1672531200 -shard-key 1
+./test-migration -source v1 -source-hosts "host1:8123,host2:8123,host3:8123" -time 1672531200 -shard-key 1
 ```
 
 ## Migration Types
