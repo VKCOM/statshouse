@@ -279,7 +279,7 @@ func migrateSingleStep(httpClient *http.Client, khAddr, khUser, khPassword strin
 }
 
 // TestMigrateSingleStep is a standalone function for testing migration of a single time step
-// This function can be called from external tools like test-migration-unified
+// This function can be called from external tools like test-migration
 func TestMigrateSingleStep(khAddr, khUser, khPassword string, timestamp uint32, shardKey int32, config *MigrationConfig) error {
 	httpClient := makeHTTPClient()
 	return migrateSingleStep(httpClient, khAddr, khUser, khPassword, timestamp, shardKey, config)
