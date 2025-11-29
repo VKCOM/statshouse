@@ -121,8 +121,8 @@ type (
 		autoCreate *autoCreate
 
 		// migration stats
-		lastErrorTs    uint32
-		insertTimeEWMA float64 // under insertTimeEWMAMu, exponential weighted moving average in seconds
+		lastErrorTs    uint32  // under migrationMu
+		insertTimeEWMA float64 // under migrationMu, exponential weighted moving average in seconds
 		migrationMu    sync.RWMutex
 
 		// migration configuration
