@@ -2826,6 +2826,13 @@ var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Description: "migration_timestamp",
 		RawKind:     "timestamp",
+	}, {
+		Description: "source",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDMigrationSourceV2:   "v2",
+			TagValueIDMigrationSourceV1:   "v1",
+			TagValueIDMigrationSourceStop: "stop",
+		}),
 	}},
 }
 

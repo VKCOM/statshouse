@@ -667,7 +667,7 @@ func (a *Aggregator) migrateTimestampWithRetry(httpClient *http.Client, ts time.
 			a.updateMigrationState(httpClient, shardKey, ts, v2Rows, v3Rows, uint32(attempt), started, &now, migrationSourceV2)
 
 			// Write migration log metric
-			migrationTags := []int32{0, int32(ts.Unix())}
+			migrationTags := []int32{0, int32(ts.Unix()), format.TagValueIDMigrationSourceV2}
 			a.sh2.AddValueCounterHost(uint32(now.Unix()), format.BuiltinMetricMetaMigrationLog, migrationTags, float64(v3Rows), 1, a.aggregatorHostTag)
 
 			return v2Rows, v3Rows, nil

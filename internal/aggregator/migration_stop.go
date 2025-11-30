@@ -497,7 +497,7 @@ func (a *Aggregator) migrateTimestampWithRetryStop(httpClient *http.Client, ts t
 				log.Printf("[migration_stop] Warning: failed to finalize migration state: %v", err)
 			}
 
-			migrationTags := []int32{0, int32(ts.Unix())}
+			migrationTags := []int32{0, int32(ts.Unix()), format.TagValueIDMigrationSourceStop}
 			a.sh2.AddValueCounterHost(uint32(now.Unix()), format.BuiltinMetricMetaMigrationLog, migrationTags, float64(v3Rows), 1, a.aggregatorHostTag)
 
 			return stopRows, v3Rows, nil
