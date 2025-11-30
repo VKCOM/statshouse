@@ -290,7 +290,7 @@ const createV1tableQuery = `CREATE TABLE IF NOT EXISTS statshouse_value_dist_1h 
 	) ENGINE = AggregatingMergeTree()
 	ORDER BY (stats, time, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15)`
 
-const createStopTableQuery = `CREATE TABLE IF NOT EXISTS stats_1h_agg_stop (
+const createStopTableQuery = `CREATE TABLE IF NOT EXISTS stats_1h_agg_stop_dist (
 		date Date DEFAULT toDate(time),
 		time DateTime,
 		stats Int32,

@@ -43,7 +43,7 @@ type MigrationConfigStop struct {
 // NewDefaultMigrationConfigStop returns a MigrationConfigStop with default values.
 func NewDefaultMigrationConfigStop(stopAddrs []string, stopUser string, stopPswd string) *MigrationConfigStop {
 	return &MigrationConfigStop{
-		StopTableName:  "stats_1h_agg_stop",
+		StopTableName:  "stats_1h_agg_stop_dist",
 		V3TableName:    "statshouse_v3_1h",
 		StateTableName: "statshouse_migration_state",
 		LogsTableName:  "statshouse_migration_logs",

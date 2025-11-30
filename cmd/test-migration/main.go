@@ -44,7 +44,7 @@ func main() {
 		case "v1":
 			*sourceTable = "statshouse_value_dist_1h"
 		case "stop":
-			*sourceTable = "stats_1h_agg_stop"
+			*sourceTable = "stats_1h_agg_stop_dist"
 		default:
 			log.Fatalf("Invalid source type: %s. Must be v2, v1, or stop", *source)
 		}

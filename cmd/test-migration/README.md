@@ -38,7 +38,7 @@ go build -o test-migration ./cmd/test-migration/
 - `-source-table`: Source table name (defaults based on source type)
   - V2: `statshouse_value_1h_dist`
   - V1: `statshouse_value_dist_1h`
-  - Stop: `stats_1h_agg_stop`
+  - Stop: `stats_1h_agg_stop_dist`
 - `-source-hosts`: Comma-separated list of source hosts (defaults to `-kh-addr`, used for V1 and stop)
 - `-v3-table`: V3 destination table name (default: `statshouse_v3_1h`)
 - `-time`: Time specification:
@@ -96,7 +96,7 @@ Maps V1 format to V3 format:
 
 ### Stop → V3 Migration
 
-Maps `stats_1h_agg_stop` format to V3 format:
+Maps `stats_1h_agg_stop_dist` format to V3 format:
 - Maps `stats` to `metric`
 - Maps `key1` to `tag1`, `key2` to `tag2`
 - Maps `skey` to `stag47`

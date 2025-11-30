@@ -329,12 +329,20 @@ func parseV1Row(reader *bufio.Reader, row *v1Row) error {
 	}
 	row.count = float64(countRaw)
 
+	// min/max v1 AggregateFunction flags (instead of SimpleAggregateFunction)
+	if _, err := reader.ReadByte(); err != nil {
+		return err
+	}
 	var minRaw int64
 	if err := binary.Read(reader, binary.LittleEndian, &minRaw); err != nil {
 		return err
 	}
 	row.min = float64(minRaw)
 
+	// min/max v1 AggregateFunction flags (instead of SimpleAggregateFunction)
+	if _, err := reader.ReadByte(); err != nil {
+		return err
+	}
 	var maxRaw int64
 	if err := binary.Read(reader, binary.LittleEndian, &maxRaw); err != nil {
 		return err
