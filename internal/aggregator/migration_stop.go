@@ -16,6 +16,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"pgregory.net/rand"
@@ -55,9 +56,40 @@ func NewDefaultMigrationConfigStop(stopAddrs []string, stopUser string, stopPswd
 }
 
 // getConditionForSelectStop returns the sharding condition for stats_1h_agg_stop table.
-// Uses the same logic as V1 since both use stats/key1/key2 for sharding.
+// Only uses key1 and key2 since stop table doesn't have key3-key15.
 func getConditionForSelectStop(totalShards int, shardKey int32) string {
-	return getConditionForSelectV1(totalShards, shardKey)
+	shardingMetrics := getBuiltinMetricsSorted()
+
+	var builtinMetricIDs []string
+	var builtinConditions []string
+
+	for _, metric := range shardingMetrics {
+		if metric.ShardStrategy != format.ShardBuiltinDist {
+			continue
+		}
+		metricID := metric.MetricID
+		tagID := metric.MetricTagIndex()
+		builtinMetricIDs = append(builtinMetricIDs, fmt.Sprintf("%d", metricID))
+
+		if tagID == 0 {
+			continue
+		}
+		// Only use key1 and key2 for stop table (tagID 1 and 2)
+		if tagID != 1 && tagID != 2 {
+			continue
+		}
+		builtinConditions = append(builtinConditions,
+			fmt.Sprintf("(stats = %d AND key%d %% %d = %d)", metricID, tagID, totalShards, shardKey-1))
+	}
+
+	regularCondition := fmt.Sprintf("(stats %% %d = %d AND stats NOT IN (%s))",
+		totalShards, shardKey-1, strings.Join(builtinMetricIDs, ", "))
+
+	conditions := append([]string{regularCondition}, builtinConditions...)
+	if len(conditions) == 0 {
+		return "1"
+	}
+	return "(" + strings.Join(conditions, " OR ") + ")"
 }
 
 // goMigrateStop runs migration loop for stats_1h_agg_stop data source.

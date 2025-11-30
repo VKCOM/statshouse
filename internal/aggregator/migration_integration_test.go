@@ -146,16 +146,6 @@ func ensureTablesCreated() error {
 		return fmt.Errorf("failed to create migration logs table: %w", err)
 	}
 
-	// Create V1 migration state table
-	if err := executeQueryRequest(createMigrationV1StateTableQuery); err != nil {
-		return fmt.Errorf("failed to create V1 migration state table: %w", err)
-	}
-
-	// Create V1 migration logs table
-	if err := executeQueryRequest(createMigrationV1LogsTableQuery); err != nil {
-		return fmt.Errorf("failed to create V1 migration logs table: %w", err)
-	}
-
 	tablesCreated = true
 	fmt.Printf("Tables created successfully\n")
 	return nil
@@ -318,7 +308,7 @@ const createMigrationStateTableQuery = `CREATE TABLE IF NOT EXISTS statshouse_mi
 		ended Nullable(DateTime),
 		v2_rows UInt64,
 		v3_rows UInt64,
-		v1_rows UInt64,
+		source_rows UInt64,
 		retry UInt32,
 		source String DEFAULT ''
 	) ENGINE = ReplacingMergeTree(retry)
@@ -711,16 +701,6 @@ func TestV1DataParsingIntegration(t *testing.T) {
 		require.Equal(t, expected.min, actual.min, "row %d min mismatch", i)
 		require.Equal(t, expected.max, actual.max, "row %d max mismatch", i)
 		require.Equal(t, expected.sum, actual.sum, "row %d sum mismatch", i)
-		require.Equal(t, expected.sumsquare, actual.sumsquare, "row %d sumsquare mismatch", i)
-
-		if expected.perc.Digest != nil && actual.perc.Digest != nil {
-			require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6,
-				"row %d percentile 0.5 mismatch", i)
-			require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6,
-				"row %d percentile 0.99 mismatch", i)
-		} else {
-			require.Nil(t, actual.perc.Digest, "row %d percentiles should be nil", i)
-		}
 	}
 
 	t.Logf("SUCCESS: Parsed and validated %d V1 rows", len(parsedRows))
@@ -873,21 +853,11 @@ func TestMigrateSingleStepV1Integration(t *testing.T) {
 				require.Equal(t, expected.min, actual.min, "shard %d row %d min mismatch", shardKey, i)
 				require.Equal(t, expected.max, actual.max, "shard %d row %d max mismatch", shardKey, i)
 				require.Equal(t, expected.sum, actual.sum, "shard %d row %d sum mismatch", shardKey, i)
-				require.Equal(t, expected.sumsquare, actual.sumsquare, "shard %d row %d sumsquare mismatch", shardKey, i)
 
 				require.Empty(t, actual.min_host.AsString, "shard %d row %d min_host string should be empty", shardKey, i)
 				require.Zero(t, actual.min_host.Val, "shard %d row %d min_host value should be zero", shardKey, i)
 				require.Empty(t, actual.max_host.AsString, "shard %d row %d max_host string should be empty", shardKey, i)
 				require.Zero(t, actual.max_host.Val, "shard %d row %d max_host value should be zero", shardKey, i)
-
-				if expected.perc.Digest != nil && actual.perc.Digest != nil {
-					require.InDelta(t, expected.perc.Digest.Quantile(0.5), actual.perc.Digest.Quantile(0.5), 1e-6,
-						"shard %d row %d percentile 0.5 mismatch", shardKey, i)
-					require.InDelta(t, expected.perc.Digest.Quantile(0.99), actual.perc.Digest.Quantile(0.99), 1e-6,
-						"shard %d row %d percentile 0.99 mismatch", shardKey, i)
-				} else {
-					require.Nil(t, actual.perc.Digest, "shard %d row %d percentiles should be nil", shardKey, i)
-				}
 
 				if actual.uniq != nil {
 					require.Equal(t, 0, actual.uniq.ItemsCount(), "shard %d row %d uniq_state mismatch", shardKey, i)
@@ -1174,6 +1144,9 @@ func TestMigrateSingleStepStopIntegration(t *testing.T) {
 				require.Empty(t, actual.max_host.AsString, "shard %d row %d max_host string should be empty", shardKey, i)
 				require.Zero(t, actual.max_host.Val, "shard %d row %d max_host value should be zero", shardKey, i)
 				require.Nil(t, actual.perc, "shard %d row %d percentiles should be nil", shardKey, i)
+				if actual.perc != nil {
+					require.Nil(t, actual.perc.Digest, "shard %d row %d percentiles digest should be nil", shardKey, i)
+				}
 				if actual.uniq != nil {
 					require.Equal(t, 0, actual.uniq.ItemsCount(), "shard %d row %d uniq_state should be empty", shardKey, i)
 				}
@@ -1424,15 +1397,13 @@ func createV1TestData() ([]*v1Row, [][]uint64) {
 		}
 
 		row := &v1Row{
-			metric:    metric,
-			time:      baseTimestamp,
-			keys:      keys,
-			count:     float64(len(values)),
-			min:       float64(int64(minVal)),
-			max:       float64(int64(maxVal)),
-			sum:       float64(sum),
-			sumsquare: float64(sumsquare),
-			perc:      data_model.ChDigest{Digest: td},
+			metric: metric,
+			time:   baseTimestamp,
+			keys:   keys,
+			count:  float64(len(values)),
+			min:    float64(int64(minVal)),
+			max:    float64(int64(maxVal)),
+			sum:    float64(sum),
 		}
 
 		testData = append(testData, row)
@@ -1610,6 +1581,10 @@ func parseV3Row(reader *bufio.Reader, t *testing.T) (*v3Row, error) {
 		t.Logf("[v3parse] percentiles error: %s\n", err)
 		return nil, fmt.Errorf("failed to parse percentiles: %w", err)
 	}
+	// Set to nil if digest is empty
+	if row.perc.Digest == nil {
+		row.perc = nil
+	}
 
 	// uniq_state
 	row.uniq = &data_model.ChUnique{}
@@ -1639,7 +1614,7 @@ func TestUpdateMigrationStateIntegration(t *testing.T) {
 	testStarted := time.Now()
 	testEnded := time.Now().Add(time.Minute)
 
-	err := aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, 0, testStarted, &testEnded, migrationSourceV2)
+	err := aggregator.updateMigrationState(httpClient, testShardKey, testTs, 100, 95, 0, testStarted, &testEnded, migrationSourceV2)
 	require.NoError(t, err, "updateMigrationState should succeed")
 
 	// Verify the state was recorded correctly
@@ -1699,12 +1674,12 @@ func TestMigrationOrchestration(t *testing.T) {
 
 	// Step 3: Update migration state for the found timestamp
 	started := time.Now()
-	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, 0, started, nil, migrationSourceV2)
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, started, nil, migrationSourceV2)
 	require.NoError(t, err, "Step 3: updateMigrationState should succeed")
 
 	// Step 4: Mark the migration as completed
 	ended := time.Now()
-	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, 0, started, &ended, migrationSourceV2)
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, started, &ended, migrationSourceV2)
 	require.NoError(t, err, "Step 4: updateMigrationState completion should succeed")
 
 	// Step 5: Find next timestamp - should be the previous hour (backward migration)
