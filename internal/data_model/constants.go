@@ -55,8 +55,9 @@ const (
 	FutureWindow      = 4         // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
 	MaxHistoricWindow = 48 * 3600 // Must be enough. We do not want very old historic seconds anyway.
 
-	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
+	// Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
+	BelieveTimestampWindow = 86400 + 2*3600
 
 	InsertBudgetFixed = 300000
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors

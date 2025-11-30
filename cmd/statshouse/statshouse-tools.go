@@ -749,32 +749,36 @@ func massUpdateMetadata() int {
 	//	}
 	//}
 	for _, meta := range list {
-		//if !strings.HasPrefix(meta.Name, "scrape:netdata_statsd_kphp") {
-		//	continue
-		//}
-		special := false
-		if strings.Contains(meta.Description, format.ToggleDescriptionMark) {
-			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) toggle description: %q\n", meta.MetricID, meta.Name, meta.Description)
-			special = true
-		}
-		if strings.Contains(meta.Description, format.HistogramBucketsStartMark) {
-			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) buckets description: %q\n", meta.MetricID, meta.Name, meta.Description)
-			special = true
-		}
-		if !special {
+		if !strings.HasPrefix(meta.Name, "gbuteyko_test") {
 			continue
 		}
+		//special := false
+		//if strings.Contains(meta.Description, format.ToggleDescriptionMark) {
+		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) toggle description: %q\n", meta.MetricID, meta.Name, meta.Description)
+		//	special = true
+		//}
+		//if strings.Contains(meta.Description, format.HistogramBucketsStartMark) {
+		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) buckets description: %q\n", meta.MetricID, meta.Name, meta.Description)
+		//	special = true
+		//}
+		//if !special {
+		//	continue
+		//}
 		if found >= argv.maxUpdates {
 			break
 		}
 		found++
-		// _, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will disable\n", meta.MetricID, meta.Name)
+		metricBytes, _ := easyjson.Marshal(meta)
+		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will edit\n%s\n", meta.MetricID, meta.Name, metricBytes)
 		if argv.dryRun {
 			continue
 		}
 		meta2 := *meta
-		//meta2.Disable = true
-		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n")
+		//meta2.ShardFixedKey = 2
+		//meta2.ShardFixedKey2 = 0
+		//meta2.ShardFixedKey2Timestamp = 0 //uint32((time.Now().Unix()+60+59)/60) * 60
+		metricBytes, _ = easyjson.Marshal(meta2)
+		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n%s\n", metricBytes)
 		var err error
 		_, err = loader.SaveMetric(context.Background(), meta2, "")
 		if err != nil {
@@ -858,6 +862,6 @@ func massUpdateMetadata() int {
 		_, _ = fmt.Fprintf(os.Stderr, "Not in normal journal: %d %s\n", meta2.MetricID, meta2.Name)
 	}
 	_, _ = fmt.Fprintf(os.Stderr, "Finished list of %d metrics, %d found of %d --max-updates\n", len(list), found, argv.maxUpdates)
-	journal.Compare(journalCompact)
+	// journal.Compare(journalCompact)
 	return 0
 }

@@ -188,6 +188,7 @@ func appendBadge(rng *rand.Rand, res []byte, k *data_model.Key, v data_model.Ite
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
 			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic,
 			format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast,
+			format.TagValueIDSrcIngestionStatusWarnTimestampClampedFutureAgg,
 			format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture,
 			format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:
 			return appendValueStat(rng, res, &data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [format.MaxTags]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Tags[1]}}, v, metricCache, false)
