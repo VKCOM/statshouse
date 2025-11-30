@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS statshouse_migration_state (
     ended Nullable(DateTime),
     v2_rows UInt64,
     v3_rows UInt64,
-    v1_rows UInt64,
+    source_rows UInt64,
     retry UInt32,
     source String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(retry)

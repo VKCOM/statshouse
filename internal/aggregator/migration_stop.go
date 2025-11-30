@@ -481,7 +481,7 @@ func (a *Aggregator) migrateTimestampWithRetryStop(httpClient *http.Client, ts t
 			log.Printf("[migration_stop] Retry attempt %d for timestamp %s", attempt+1, ts.Format("2006-01-02 15:04:05"))
 			time.Sleep(retryDelay * time.Duration(math.Pow(2, float64(attempt))))
 		}
-		if err := a.updateMigrationState(httpClient, shardKey, ts, 0, 0, stopRows, uint32(attempt), started, nil, migrationSourceStop); err != nil {
+		if err := a.updateMigrationState(httpClient, shardKey, ts, stopRows, 0, uint32(attempt), started, nil, migrationSourceStop); err != nil {
 			log.Printf("[migration_stop] Warning: failed to update migration state: %v", err)
 		}
 
@@ -493,7 +493,7 @@ func (a *Aggregator) migrateTimestampWithRetryStop(httpClient *http.Client, ts t
 				v3Rows = 0
 			}
 			now := time.Now()
-			if err := a.updateMigrationState(httpClient, shardKey, ts, 0, v3Rows, stopRows, uint32(attempt), started, &now, migrationSourceStop); err != nil {
+			if err := a.updateMigrationState(httpClient, shardKey, ts, stopRows, v3Rows, uint32(attempt), started, &now, migrationSourceStop); err != nil {
 				log.Printf("[migration_stop] Warning: failed to finalize migration state: %v", err)
 			}
 
@@ -523,7 +523,7 @@ func (a *Aggregator) migrateTimestampWithRetryStop(httpClient *http.Client, ts t
 		}
 	}
 
-	if err := a.updateMigrationState(httpClient, shardKey, ts, 0, 0, stopRows, uint32(maxRetryAttempts), started, nil, migrationSourceStop); err != nil {
+	if err := a.updateMigrationState(httpClient, shardKey, ts, stopRows, 0, uint32(maxRetryAttempts), started, nil, migrationSourceStop); err != nil {
 		log.Printf("[migration_stop] Warning: failed to record final migration state: %v", err)
 	}
 	return 0, 0, fmt.Errorf("migration stop failed after %d attempts, last error: %w", maxRetryAttempts, lastErr)
