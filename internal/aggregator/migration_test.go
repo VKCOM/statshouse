@@ -8,6 +8,12 @@ import (
 func TestMigrationConditions(t *testing.T) {
 	str := getConditionForSelectV2(16, 1)
 	fmt.Println(str)
+
+	str = getConditionForSelectV1(16, 1)
+	fmt.Println(str)
+
+	str = getConditionForSelectStop(16, 1)
+	fmt.Println(str)
 }
 
 // before, during and after refactor

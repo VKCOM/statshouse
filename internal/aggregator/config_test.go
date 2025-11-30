@@ -88,10 +88,8 @@ func TestParseMigrationTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &ConfigAggregatorRemote{
-				MigrationTimeRange: tt.timeRange,
-			}
-			startTs, endTs := c.ParseMigrationTimeRange()
+			c := &ConfigAggregatorRemote{}
+			startTs, endTs := c.ParseMigrationTimeRange(tt.timeRange)
 			require.Equal(t, tt.expectedStart, startTs, "start timestamp mismatch")
 			require.Equal(t, tt.expectedEnd, endTs, "end timestamp mismatch")
 		})

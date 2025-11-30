@@ -282,6 +282,10 @@ const (
 
 	TagValueIDSamplingYes = 1
 	TagValueIDSamplingNo  = 2
+
+	TagValueIDMigrationSourceV2   = 1
+	TagValueIDMigrationSourceV1   = 2
+	TagValueIDMigrationSourceStop = 3
 )
 
 var insertKindToValue = map[int32]string{
