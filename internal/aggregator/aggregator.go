@@ -379,7 +379,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	for i := 0; i < a.config.RecentInserters; i++ {
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
-	//go a.goMigrate(a.cancelInsertsCtx) // DONE
+	go a.goMigrate(a.cancelInsertsCtx)
 	go a.goMigrateV1(a.cancelInsertsCtx)
 	go a.goMigrateStop(a.cancelInsertsCtx)
 	go a.goInternalLog()
