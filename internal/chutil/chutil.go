@@ -408,16 +408,24 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 
 			err = sem.Acquire(ctx, meta.User)
 			info.WaitLockDuration = time.Since(startTime)
+			info.Host = servers[i].addr
+			info.Shard = shard + 1
 
 			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName, 5: strconv.Itoa(shard + 1)}, info.WaitLockDuration.Seconds())
 			if err != nil {
 				return info, err
 			}
+
+			// ctx might cancel during sem.Acquire
+			select {
+			case <-ctx.Done():
+				info.ErrorCode = -3
+				return
+			default:
+			}
 			start := time.Now()
 			err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(ctx, query) })
 			info.QueryDuration = time.Since(start)
-			info.Host = servers[i].addr
-			info.Shard = shard + 1
 			sem.Release()
 			if err == nil {
 				servers[i].rate.RecordEvent(Event{
@@ -434,10 +442,9 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				Status:    StatusError,
 				Duration:  info.QueryDuration,
 			})
+			info.ErrorCode = -1
 			if code, ok := chgo.AsException(err); ok {
 				info.ErrorCode = int(code.Code)
-			} else {
-				info.ErrorCode = -1
 			}
 			if ctx.Err() != nil {
 				info.ErrorCode = -2
