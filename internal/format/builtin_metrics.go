@@ -1178,6 +1178,7 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
 			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
 			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:   "semaphore_error",
 		}),
 	}},
 }
@@ -1211,6 +1212,7 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
 			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
 			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:   "semaphore_error",
 		}),
 	}},
 }
@@ -1248,6 +1250,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
 			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
 			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:   "semaphore_error",
 		}),
 	}},
 }
@@ -2826,6 +2829,7 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
 			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
 			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:   "semaphore_error",
 		}),
 	}},
 }
@@ -2876,6 +2880,7 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
 			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
 			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:   "semaphore_error",
 		}),
 	}},
 }

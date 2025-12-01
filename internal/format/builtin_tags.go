@@ -402,6 +402,7 @@ const (
 	TagValueIDAPIResponseExceptionCHUnknown  = -1
 	TagValueIDAPIResponseExceptionCHTimeout  = -2
 	TagValueIDAPIResponseExceptionSemTimeout = -3
+	TagValueIDAPIResponseExceptionSemError   = -4
 
 	TagSourceTokenFromClient = 1
 	TagSourceTokenFromVkuth  = 2

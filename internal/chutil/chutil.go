@@ -413,6 +413,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 
 			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName, 5: strconv.Itoa(shard + 1)}, info.WaitLockDuration.Seconds())
 			if err != nil {
+				info.ErrorCode = format.TagValueIDAPIResponseExceptionSemError
 				return info, err
 			}
 
@@ -420,7 +421,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			select {
 			case <-ctx.Done():
 				sem.Release()
-				info.ErrorCode = -3
+				info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTimeout
 				return
 			default:
 			}
@@ -443,12 +444,12 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				Status:    StatusError,
 				Duration:  info.QueryDuration,
 			})
-			info.ErrorCode = -1
+			info.ErrorCode = format.TagValueIDAPIResponseExceptionCHUnknown
 			if code, ok := chgo.AsException(err); ok {
 				info.ErrorCode = int(code.Code)
 			}
 			if ctx.Err() != nil {
-				info.ErrorCode = -2
+				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
 				return // failed
 			}
 			log.Printf("ClickHouse server is dead #%d: %v", i, err)
