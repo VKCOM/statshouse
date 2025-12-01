@@ -419,6 +419,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			// ctx might cancel during sem.Acquire
 			select {
 			case <-ctx.Done():
+				sem.Release()
 				info.ErrorCode = -3
 				return
 			default:
