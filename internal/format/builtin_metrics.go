@@ -1172,9 +1172,13 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
+			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+		}),
 	}},
 }
 
@@ -1201,9 +1205,13 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
+			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+		}),
 	}},
 }
 
@@ -1234,9 +1242,13 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	}, {
 		Description: "shard_key", // metric % 16 + 1 for now, experimental
 		RawKind:     "int",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
+			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+		}),
 	}},
 }
 
@@ -2808,9 +2820,13 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDStatusOK:    "ok",
 			TagValueIDStatusError: "error",
 		}),
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
+			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+		}),
 	}},
 }
 
@@ -2854,9 +2870,13 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:  "unknown_CH_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:  "timeout_during_CH",
+			TagValueIDAPIResponseExceptionSemTimeout: "timeout_on_semaphore",
+		}),
 	}},
 }
 
