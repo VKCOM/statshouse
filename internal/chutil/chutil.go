@@ -429,6 +429,11 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				info.ErrorCode = 0
 				break // succeeded
 			}
+			servers[i].rate.RecordEvent(Event{
+				Timestamp: start,
+				Status:    StatusError,
+				Duration:  info.QueryDuration,
+			})
 			if code, ok := chgo.AsException(err); ok {
 				info.ErrorCode = int(code.Code)
 			} else {
@@ -438,11 +443,6 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				info.ErrorCode = -2
 				return // failed
 			}
-			servers[i].rate.RecordEvent(Event{
-				Timestamp: start,
-				Status:    StatusError,
-				Duration:  info.QueryDuration,
-			})
 			log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		}
 		// keep searching alive server
