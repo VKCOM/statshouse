@@ -535,8 +535,8 @@ func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.
 	})
 }
 
-// shardLoadReductionRatio 25% reduction step per failed shard host (3 hosts total, 25% load remains if all fail)
-const shardLoadReductionRatio = 25
+// shardLoadReductionRatio 30% reduction step per failed shard host (3 hosts total, 10% load remains if all fail)
+const shardLoadReductionRatio = 30
 
 func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 	if len(s) != 3 {
