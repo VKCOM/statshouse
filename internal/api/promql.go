@@ -541,7 +541,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 			ToSec:       qry.Timescale.Time[1] - qry.Offset,
 			StepSec:     lod0.Step,
 			Version:     qry.Options.Version,
-			UseV4Tables: lod0.UseV4Tables, // TODO: пока не разобрался что это, но на всякий случай проставляю
+			UseV4Tables: lod0.UseV4Tables,
 			Metric:      qry.Metric,
 			NewSharding: h.newSharding(qry.Metric, start),
 			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),

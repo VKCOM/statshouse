@@ -20,12 +20,12 @@ var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
 var timeCoarseTrimSeconds = map[string]int64{
-	"statshouse_v4_1s":      60,
-	"statshouse_v4_1m":      60 * 60,
-	"statshouse_v4_1h":      60 * 60 * 24,
-	"statshouse_v4_1s_dist": 60,
-	"statshouse_v4_1m_dist": 60 * 60,
-	"statshouse_v4_1h_dist": 60 * 60 * 24,
+	"statshouse_v4_1ss":      60,
+	"statshouse_v4_1ms":      60 * 60,
+	"statshouse_v4_1hs":      60 * 60 * 24,
+	"statshouse_v4_1s_dists": 60,
+	"statshouse_v4_1m_dists": 60 * 60,
+	"statshouse_v4_1h_dists": 60 * 60 * 24,
 }
 
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
@@ -302,8 +302,8 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
-		b.ensurePrimaryKeyPrefix(sb)
 		if lod.UseV4Tables {
+			b.ensurePrimaryKeyPrefix(sb)
 			sb.WriteString(" AND ")
 			b.writeTimeCoarseClause(sb, lod)
 		}
@@ -333,13 +333,15 @@ func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD)
 }
 
 func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_model.LOD) {
-	coarseSize := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
-	coarseFrom := lod.FromSec / coarseSize * coarseSize
-	coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
-	sb.WriteString("time_coarse>=")
-	sb.WriteString(fmt.Sprint(coarseFrom))
-	sb.WriteString(" AND time_coarse<")
-	sb.WriteString(fmt.Sprint(coarseTo))
+	coarseSize, ok := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
+	if ok {
+		coarseFrom := lod.FromSec / coarseSize * coarseSize
+		coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
+		sb.WriteString("time_coarse>=")
+		sb.WriteString(fmt.Sprint(coarseFrom))
+		sb.WriteString(" AND time_coarse<")
+		sb.WriteString(fmt.Sprint(coarseTo))
+	}
 }
 
 func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
