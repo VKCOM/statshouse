@@ -215,7 +215,7 @@ func timestampValid(t require.TestingT, originalTs, reconstructedTs, bucketTimes
 	switch {
 	case originalTs == 0:
 		require.Equal(t, originalTs, reconstructedTs, "Zero timestamp should be replaced with bucketTimestamp")
-	case originalTs > bucketTimestamp+FutureWindow:
+	case originalTs > bucketTimestamp:
 		require.Equal(t, bucketTimestamp, reconstructedTs, "Timestamp should be clamped to newestTime")
 	case originalTs < oldestTime:
 		require.Equal(t, bucketTimestamp, reconstructedTs,

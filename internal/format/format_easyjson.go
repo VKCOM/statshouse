@@ -337,6 +337,12 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat2(in *jlexer.Le
 			out.ShardStrategy = string(in.String())
 		case "shard_num":
 			out.ShardNum = uint32(in.Uint32())
+		case "shard":
+			out.ShardFixedKey = uint32(in.Uint32())
+		case "shard2":
+			out.ShardFixedKey2 = uint32(in.Uint32())
+		case "shard2_timestamp":
+			out.ShardFixedKey2Timestamp = uint32(in.Uint32())
 		default:
 			in.SkipRecursive()
 		}
@@ -608,6 +614,36 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat2(out *jwriter.
 			out.RawString(prefix)
 		}
 		out.Uint32(uint32(in.ShardNum))
+	}
+	if in.ShardFixedKey != 0 {
+		const prefix string = ",\"shard\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.ShardFixedKey))
+	}
+	if in.ShardFixedKey2 != 0 {
+		const prefix string = ",\"shard2\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.ShardFixedKey2))
+	}
+	if in.ShardFixedKey2Timestamp != 0 {
+		const prefix string = ",\"shard2_timestamp\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.ShardFixedKey2Timestamp))
 	}
 	out.RawByte('}')
 }

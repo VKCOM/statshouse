@@ -153,61 +153,59 @@ func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.H
 func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache, mappingsStorage *metajournal.MappingsStorage,
 	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
-	if len(localAddresses) != 1 {
-		if len(localAddresses) != 3 {
-			return nil, fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
-		}
-		if config.LocalReplica < 1 || config.LocalReplica > 3 {
-			return nil, fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
-		}
-		listenAddr = localAddresses[config.LocalReplica-1]
-	}
-
-	_, listenPort, err := net.SplitHostPort(listenAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
-	}
-	if config.ExternalPort == "" {
-		config.ExternalPort = listenPort
-	}
 	var shardKey int32 = 1
 	var replicaKey int32 = 1
-	var addresses = []string{listenAddr}
-	if config.KHAddr != "" {
-		shardKey, replicaKey, addresses, err = selectShardReplica(config.KHAddr, config.KHUser, config.KHPassword, config.Cluster, config.ExternalPort)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
-		}
-	}
 	withoutCluster := false
-	if len(addresses) == 1 { // mostly demo runs with local non-replicated clusters
-		if len(localAddresses) == 3 {
-			addresses = localAddresses
-			replicaKey = int32(config.LocalReplica)
-			log.Printf("[warning] running as a local replica %d with single-host cluster, probably demo", replicaKey)
-		} else {
-			addresses = []string{addresses[0], addresses[0], addresses[0]}
+	if len(localAddresses) == 1 { // production or local single-host
+		_, listenPort, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
+		}
+		if config.ExternalPort == "" {
+			config.ExternalPort = listenPort
+		}
+		if config.KHAddr != "" {
+			shardKey, replicaKey, localAddresses, err = selectShardReplica(config.KHAddr, config.KHUser, config.KHPassword, config.Cluster, config.ExternalPort)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+			}
+		}
+		if len(localAddresses) == 1 { // mostly demo runs with local non-replicated clusters
+			localAddresses = []string{localAddresses[0], localAddresses[0], localAddresses[0]}
 			withoutCluster = true
 			log.Printf("[warning] running with single-host cluster, probably demo")
 		}
-	}
-	if config.LocalShard > 0 {
-		shardKey = int32(config.LocalShard)
+	} else { // local debug
+		if len(localAddresses)%3 != 0 {
+			return nil, fmt.Errorf("you must set exactly one address:port or multiple of three comma separated address:ports in --agg-addr")
+		}
+		if config.LocalReplica < 1 || config.LocalReplica > 3 {
+			return nil, fmt.Errorf("setting more than 1 --agg-addr require setting --local-replica to 1, 2 or 3")
+		}
+		if config.LocalShard < 1 {
+			return nil, fmt.Errorf("setting more than 1 --agg-addr require setting --local-shard to 1 or other positive value")
+		}
+		if config.LocalShard*3 > len(localAddresses) {
+			return nil, fmt.Errorf("not enough (%d) --agg-addr for --local-shard %d, need at least %d address:ports", len(localAddresses), config.LocalShard, config.LocalShard*3)
+		}
+		shardKey, replicaKey = int32(config.LocalShard), int32(config.LocalReplica)
+		withoutCluster = true
+		listenAddr = localAddresses[(config.LocalShard-1)*3+(config.LocalReplica-1)]
 	}
 	if len(config.RemoteInitial.ClusterShardsAddrs) > 0 {
-		addresses = config.RemoteInitial.ClusterShardsAddrs
+		localAddresses = config.RemoteInitial.ClusterShardsAddrs
 	}
-	if len(addresses)%3 != 0 {
-		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+	if len(localAddresses)%3 != 0 {
+		return nil, fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set", config.Cluster)
 	}
-	if config.ShardByMetricShards < 0 || config.ShardByMetricShards > len(addresses)/3 {
-		return nil, fmt.Errorf("failed configuration - shard-by-metric-shards %d is outside %d configured shards", config.ShardByMetricShards, len(addresses)/3)
+	if config.ShardByMetricShards < 0 || config.ShardByMetricShards > len(localAddresses)/3 {
+		return nil, fmt.Errorf("failed configuration - shard-by-metric-shards %d is outside %d configured shards", config.ShardByMetricShards, len(localAddresses)/3)
 	}
 	if config.ShardByMetricShards == 0 {
-		config.ShardByMetricShards = len(addresses) / 3
+		config.ShardByMetricShards = len(localAddresses) / 3
 	}
-	config.RemoteInitial.ClusterShardsAddrs = addresses
-	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
+	config.RemoteInitial.ClusterShardsAddrs = localAddresses
+	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(localAddresses, ","))
 
 	metadataClient := &tlmetadata.Client{
 		Client: rpc.NewClient(

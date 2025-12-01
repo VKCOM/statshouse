@@ -7,3 +7,5 @@ mkdir -p cache/agent/
 
 # other useful options you sometimes want to add
 # --cores-udp=2 --listen-addr-ipv6=[::1]:13337 --listen-addr-unix=@statshouse
+
+# echo '{"metrics":[{"name":"gbuteyko_test","tags":{"0":"dev","1":"I_test_statshouse"},"counter":1}]}' | target/statshouse tlclient --statshouse-addr=127.0.0.1:13334

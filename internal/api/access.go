@@ -175,6 +175,15 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 	if old.ShardNum != new_.ShardNum {
 		return fmt.Errorf("access control prevents changing sharding strategy shard")
 	}
+	if old.ShardFixedKey != new_.ShardFixedKey {
+		return fmt.Errorf("access control prevents changing sharding strategy shard")
+	}
+	if old.ShardFixedKey2 != new_.ShardFixedKey2 {
+		return fmt.Errorf("access control prevents changing sharding strategy shard")
+	}
+	if old.ShardFixedKey2Timestamp != new_.ShardFixedKey2Timestamp {
+		return fmt.Errorf("access control prevents changing sharding strategy shard")
+	}
 	for i := 0; i < max(len(old.Tags), len(new_.Tags)); i++ {
 		// reducing # of tags implicitly clears RawKind
 		newRaw := false

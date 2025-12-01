@@ -161,6 +161,7 @@ var (
 		-145:                                    BuiltinMetricMetaMappingCacheVersion,
 		-146:                                    BuiltinMetricMappingStorageVersion,
 		-147:                                    BuiltinMetricMappingStoragePending,
+		-148:                                    BuiltinMetricMetaIngestionStatusNoShard,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly

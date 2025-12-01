@@ -737,13 +737,23 @@ func (s *BuiltInItemValue) SetValueCounter(value float64, count float64) {
 	s.value.AddValueCounter(value, count)
 }
 
-// always returns shardNum within s.Shards len
-func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shardNum uint32, ok bool) {
-	shardNum, ok = sharding.Shard(key, metricInfo, s.shardByMetricCount, scratch)
-	if shardNum >= uint32(len(s.Shards)) {
-		return 0, false
+// shard1 is always != nil (shard1ok shows validity), shard2 can be nil
+// shard2 is never the same as shard1, so metric duplication in the same shard never happens
+func (s *Agent) shard(key *data_model.Key, metricInfo *format.MetricMetaValue, scratch *[]byte) (shard1 *Shard, shard1ok bool, shard2 *Shard) {
+	shardNum, shard1ok := sharding.Shard(key, metricInfo, s.shardByMetricCount, scratch)
+	if !shard1ok || shardNum >= uint32(len(s.Shards)) {
+		shardNum = 0
+		shard1ok = false
 	}
-	return shardNum, ok
+	if metricInfo.ShardFixedKey2 > 0 {
+		// we do not check metricInfo.ShardFixedKey2Timestamp, because key.Time will only
+		// be known after we take shard lock (current time is only known after lock)
+		shardNum2 := metricInfo.ShardFixedKey2 - 1
+		if shardNum2 < uint32(len(s.Shards)) && shardNum2 != shardNum {
+			shard2 = s.Shards[shardNum2]
+		}
+	}
+	return s.Shards[shardNum], shard1ok, shard2
 }
 
 // Do not create too many. ShardReplicas will iterate through values before flushing bucket
@@ -765,26 +775,39 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// Simply writing everything we know about metric ingestion errors would easily double how much metrics data we write
 	// So below is basically a compromise. All info is stored in MappingMetricHeader, if needed we can easily write more
 	// by changing code below
-	shard := s.Shards[0]
-	if h.MetricMeta != nil {
-		// ingestion statuses for unknown metric (metric not found) go to the first shard.
-		// for known metric with fixed shard, go to shard together with metric
-		// for known metric with hash_by_tags strategy, go to random shard together with metric
-		shardNum, ok := s.shard(&h.Key, h.MetricMeta, scratch)
-		if !ok {
-			shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
-				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
-				1)
-			return
-		}
-		shard = s.Shards[shardNum]
+	if h.MetricMeta == nil {
+		// h.IngestionStatus != 0 here
+		// h.InvalidString was validated before mapping attempt.
+		// In case of utf decoding error, it contains hex representation of original string
+		s.Shards[0].AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatusNoShard,
+			[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
+			h.InvalidString, 1, 0)
+		return
+	}
+	// ingestion statuses for unknown metric (metric not found) go to the first shard.
+	// for known metric with fixed shard, go to shard together with metric
+	// for known metric with hash_by_tags strategy, go to random shard together with metric
+	shard, shard1ok, shard2 := s.shard(&h.Key, h.MetricMeta, scratch)
+	// We do not know h.Key timestamp here, because it will be clamped after shard lock is taken,
+	// so we pass it to all methods with shard2, event will be discarded inside, if before
+	dropIfBeforeTimestamp := h.MetricMeta.ShardFixedKey2Timestamp
+	if !shard1ok { // first shard must always be correctly set, while second one is optional
+		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatusNoShard,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusErrShardingFailed, 0},
+			1, 0)
+		return
 	}
 	if h.IngestionStatus != 0 {
 		// h.InvalidString was validated before mapping attempt.
 		// In case of utf decoding error, it contains hex representation of original string
 		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
-			h.InvalidString, 1)
+			h.InvalidString, 1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, h.IngestionStatus, h.IngestionTagKey},
+				h.InvalidString, 1, dropIfBeforeTimestamp)
+		}
 		return
 	}
 	var resolutionHash uint64
@@ -805,36 +828,66 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// now set ok status
 	shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 		[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusOKCached, h.IngestionTagKey},
-		1)
+		1, 0)
+	if shard2 != nil {
+		shard2.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusOKCached, h.IngestionTagKey},
+			1, dropIfBeforeTimestamp)
+	}
 	// now set all warnings
 	if h.NotFoundTagName != nil { // this is correct, can be set, but empty
 		// NotFoundTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
 		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
-			h.NotFoundTagName, 1)
+			h.NotFoundTagName, 1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
+				h.NotFoundTagName, 1, dropIfBeforeTimestamp)
+		}
 	}
 	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
 		// FoundDraftTagName is validated when discovered
 		// This is warning, so written independent of ingestion status
 		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
-			h.FoundDraftTagName, 1)
+			h.FoundDraftTagName, 1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
+				h.FoundDraftTagName, 1, dropIfBeforeTimestamp)
+		}
 	}
 	if h.TagSetTwiceKey != 0 {
 		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
-			1)
+			1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
+				1, dropIfBeforeTimestamp)
+		}
 	}
 	if h.InvalidRawTagKey != 0 {
 		shard.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
-			h.InvalidRawValue, 1)
+			h.InvalidRawValue, 1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostStringBytesSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
+				h.InvalidRawValue, 1, dropIfBeforeTimestamp)
+		}
 	}
 	if h.LegacyCanonicalTagKey != 0 {
 		shard.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
 			[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
-			1)
+			1, 0)
+		if shard2 != nil {
+			shard2.AddCounterHostSrcIngestionStatus(0, format.BuiltinMetricMetaIngestionStatus,
+				[]int32{h.Key.Tags[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
+				1, dropIfBeforeTimestamp)
+		}
 	}
 
 	// We do not check fields mask in code below, only fields values, because
@@ -861,14 +914,29 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// for the purpose of this, Uniques are treated exactly as Values
 	// m.Counter is >= 0 here, otherwise IngestionStatus is not OK, and we returned above
 	if len(m.Unique) != 0 {
-		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag,
+			h.MetricMeta, 0)
+		if shard2 != nil {
+			shard2.ApplyUnique(&h.Key, resolutionHash, h.TopValue, m.Unique, m.Counter, h.HostTag,
+				h.MetricMeta, dropIfBeforeTimestamp)
+		}
 		return
 	}
 	if len(m.Histogram) != 0 || len(m.Value) != 0 {
-		shard.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag, h.MetricMeta)
+		shard.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag,
+			h.MetricMeta, 0)
+		if shard2 != nil {
+			shard2.ApplyValues(&h.Key, resolutionHash, h.TopValue, m.Histogram, m.Value, m.Counter, h.HostTag,
+				h.MetricMeta, dropIfBeforeTimestamp)
+		}
 		return
 	}
-	shard.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag, h.MetricMeta)
+	shard.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag,
+		h.MetricMeta, 0)
+	if shard2 != nil {
+		shard2.ApplyCounter(&h.Key, resolutionHash, h.TopValue, m.Counter, h.HostTag,
+			h.MetricMeta, dropIfBeforeTimestamp)
+	}
 }
 
 // count should be > 0 and not NaN
@@ -914,10 +982,14 @@ func (s *Agent) AddCounterHostAERAS(t uint32, metricInfo *format.MetricMetaValue
 		return
 	}
 	key := s.fillKey(t, metricInfo, tags, stags, aera)
-	shardNum, _ := s.shard(&key, metricInfo, nil)
+	shard, _, shard2 := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardNum]
-	shard.AddCounterHost(&key, 0, count, hostTag, metricInfo)
+	shard.AddCounterHost(&key, 0, count, hostTag,
+		metricInfo, 0)
+	if shard2 != nil {
+		shard2.AddCounterHost(&key, 0, count, hostTag,
+			metricInfo, metricInfo.ShardFixedKey2Timestamp)
+	}
 }
 
 func (s *Agent) AddCounterStringBytes(t uint32, metricInfo *format.MetricMetaValue, tags []int32, str []byte, count float64) {
@@ -931,10 +1003,14 @@ func (s *Agent) AddCounterHostStringBytesAERA(t uint32, metricInfo *format.Metri
 		return
 	}
 	key := s.fillKey(t, metricInfo, tags, nil, aera)
-	shardNum, _ := s.shard(&key, metricInfo, nil)
+	shard, _, shard2 := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardNum]
-	shard.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag, metricInfo)
+	shard.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag,
+		metricInfo, 0)
+	if shard2 != nil {
+		shard2.AddCounterHostStringBytes(&key, 0, data_model.TagUnionBytes{S: str, I: 0}, count, hostTag,
+			metricInfo, metricInfo.ShardFixedKey2Timestamp)
+	}
 }
 
 // value should be not NaN.
@@ -951,10 +1027,14 @@ func (s *Agent) AddValueCounterHostAERA(t uint32, metricInfo *format.MetricMetaV
 		return
 	}
 	key := s.fillKey(t, metricInfo, tags, nil, aera)
-	shardNum, _ := s.shard(&key, metricInfo, nil)
+	shard, _, shard2 := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardNum]
-	shard.AddValueCounterHost(&key, 0, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterHost(&key, 0, value, counter, hostTag,
+		metricInfo, 0)
+	if shard2 != nil {
+		shard2.AddValueCounterHost(&key, 0, value, counter, hostTag,
+			metricInfo, metricInfo.ShardFixedKey2Timestamp)
+	}
 }
 
 // value should be not NaN.
@@ -972,10 +1052,14 @@ func (s *Agent) AddValueCounterStringHostAERA(t uint32, metricInfo *format.Metri
 		}
 	}
 	key := s.fillKey(t, metricInfo, tags, stags, aera)
-	shardNum, _ := s.shard(&key, metricInfo, nil)
+	shard, _, shard2 := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardNum]
-	shard.AddValueCounterStringHost(&key, 0, topValue, value, counter, hostTag, metricInfo)
+	shard.AddValueCounterStringHost(&key, 0, topValue, value, counter, hostTag,
+		metricInfo, 0)
+	if shard2 != nil {
+		shard2.AddValueCounterStringHost(&key, 0, topValue, value, counter, hostTag,
+			metricInfo, metricInfo.ShardFixedKey2Timestamp)
+	}
 }
 
 func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tags []int32, item *data_model.ItemValue) {
@@ -989,10 +1073,14 @@ func (s *Agent) MergeItemValue(t uint32, metricInfo *format.MetricMetaValue, tag
 		key.Tags[format.AggShardTag] = s.AggregatorShardKey
 		key.Tags[format.AggReplicaTag] = s.AggregatorReplicaKey
 	}
-	shardNum, _ := s.shard(&key, metricInfo, nil)
+	shard, _, shard2 := s.shard(&key, metricInfo, nil)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	shard := s.Shards[shardNum]
-	shard.MergeItemValue(&key, 0, item, metricInfo)
+	shard.MergeItemValue(&key, 0, item,
+		metricInfo, 0)
+	if shard2 != nil {
+		shard2.MergeItemValue(&key, 0, item,
+			metricInfo, metricInfo.ShardFixedKey2Timestamp)
+	}
 }
 
 func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
