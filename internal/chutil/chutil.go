@@ -439,7 +439,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
 				if avg := pool.getAvgQueryDuration(shard); avg > 0 {
-					const safetyNum = 11 // 10% upside
+					const safetyNum = 12 // 20% upside
 					const safetyDen = 10
 					if remaining*safetyDen < avg*safetyNum {
 						sem.Release()
