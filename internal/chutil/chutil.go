@@ -394,9 +394,6 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			shardCnt = len(pool.servers) / 3
 		}
 		shard = meta.Metric.Shard(shardCnt)
-		if shard >= shardCnt { // if meta.Metric is nil here (should be checked above), we will not enter this if so meta.Metric.Name is safe
-			return info, fmt.Errorf("metric %q fixed shard %d too large (total shards %d)", meta.Metric.Name, shard, shardCnt)
-		}
 	}
 	sem := pool.sem
 	var servers []serverCH
@@ -460,7 +457,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				sem.Release()
 				if queryCtx.Err() != nil {
 					statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
-						1:  strconv.Itoa(kind),
+						1:  modeStr(meta.IsFast, meta.IsLight, meta.IsHardware),
 						2:  strconv.Itoa(int(meta.Metric.MetricID)),
 						3:  meta.Table,
 						5:  "error",
@@ -644,3 +641,19 @@ func BindQuery(query string, args ...any) (string, error) {
 
 //go:linkname clickHouseBind github.com/ClickHouse/clickhouse-go/v2.bind
 func clickHouseBind(tz *time.Location, query string, args ...interface{}) (string, error)
+
+func modeStr(isFast, isLight, isHardware bool) string {
+	mode := "slow"
+	if isFast {
+		mode = "fast"
+	}
+	if isHardware {
+		return mode + "_hardware"
+	}
+	if isLight {
+		mode += "light"
+	} else {
+		mode += "heavy"
+	}
+	return mode
+}

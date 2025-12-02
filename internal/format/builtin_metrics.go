@@ -1172,7 +1172,7 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {}, {
+	}, {
 		Description: "exception",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
@@ -1208,7 +1208,7 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {}, {
+	}, {
 		Description: "exception",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
@@ -1232,14 +1232,6 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
-		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIDAPILaneFastLightv2:    "fastlight",
-			TagValueIDAPILaneFastHeavyv2:    "fastheavy",
-			TagValueIDAPILaneSlowLightv2:    "slowlight",
-			TagValueIDAPILaneSlowHeavyv2:    "slowheavy",
-			TagValueIDAPILaneSlowHardwarev2: "slow_hardware",
-			TagValueIDAPILaneFastHardwarev2: "fast_hardware",
-		}),
 	}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
@@ -1256,7 +1248,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	}, {
 		Description: "shard_key", // metric % 16 + 1 for now, experimental
 		RawKind:     "int",
-	}, {}, {
+	}, {
 		Description: "exception",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
@@ -2837,7 +2829,7 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDStatusOK:    "ok",
 			TagValueIDStatusError: "error",
 		}),
-	}, {}, {
+	}, {
 		Description: "exception",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
@@ -2897,7 +2889,7 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {}, {
+	}, {
 		Description: "exception",
 		ValueComments: convertToValueComments(map[int32]string{
 			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
