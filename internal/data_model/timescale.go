@@ -76,9 +76,10 @@ type Timescale struct {
 }
 
 type TimescaleLOD struct {
-	Step    int64
-	Len     int // number of elements LOD occupies in time array
-	Version string
+	Step        int64
+	Len         int // number of elements LOD occupies in time array
+	Version     string
+	UseV4Tables bool // feature option for Version == "3" to use v4 tables
 }
 
 type QueryMode int
@@ -95,6 +96,7 @@ type GetTimescaleArgs struct {
 	QueryStat
 	Version          string
 	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
+	Version4Start    int64 // timestamp of schema version 4 start, zero means not set
 	Start            int64 // inclusive
 	End              int64 // exclusive
 	Step             int64
@@ -114,6 +116,7 @@ type LOD struct {
 	ToSec       int64 // exclusive
 	StepSec     int64
 	Version     string
+	UseV4Tables bool
 	Metric      *format.MetricMetaValue
 	NewSharding bool
 	HasPreKey   bool
@@ -394,19 +397,35 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
 		if lod.Version == Version3 {
-			version3StartBeforeLODEnd := args.Version3Start < lodEnd
-			switch {
-			case lodStart <= args.Version3Start && version3StartBeforeLODEnd:
-				// version 3 starts inside LOD, split
-				_, len := endOfLOD(lodStart, lod.Step, args.Version3Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version2})
-				resLen += len
-				lod.Len -= len
-			case args.Version3Start == 0 || !version3StartBeforeLODEnd:
-				// version 3 not available, switch to version 2
-				lod.Version = Version2
-			default:
-				// version 3 remains
+			if args.Version4Start != 0 && lodEnd > args.Version4Start {
+				// v3-v4 interval is always much bigger than step, so we never need to split by both v3 and v4
+				if lodStart <= args.Version4Start {
+					// version 4 starts inside LOD, split
+					_, len := endOfLOD(lodStart, lod.Step, args.Version4Start, false, args.Location)
+					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3}) // NOTE: UseV4Tables is false by default
+					resLen += len
+					lod.Len -= len
+					lod.UseV4Tables = true
+				} else {
+					// V4 exclusive LOD
+					lod.UseV4Tables = true
+				}
+			} else {
+				// fallback to old logic because v4 feature is disabled or v4 interval is outside of LOD
+				version3StartBeforeLODEnd := args.Version3Start < lodEnd
+				switch {
+				case lodStart <= args.Version3Start && version3StartBeforeLODEnd:
+					// version 3 starts inside LOD, split
+					_, len := endOfLOD(lodStart, lod.Step, args.Version3Start, false, args.Location)
+					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version2})
+					resLen += len
+					lod.Len -= len
+				case args.Version3Start == 0 || !version3StartBeforeLODEnd:
+					// version 3 not available, switch to version 2
+					lod.Version = Version2
+				default:
+					// version 3 remains
+				}
 			}
 		}
 		if lod.Len != 0 {
@@ -504,6 +523,7 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			ToSec:       end,
 			StepSec:     lod.Step,
 			Version:     lod.Version,
+			UseV4Tables: lod.UseV4Tables,
 			Metric:      metric,
 			NewSharding: t.NewShardingStart != 0 && t.NewShardingStart < start,
 			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
@@ -524,7 +544,7 @@ func (t *Timescale) Duration() time.Duration {
 }
 
 func (t *Timescale) appendLOD(lod TimescaleLOD) {
-	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].Step == lod.Step {
+	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].UseV4Tables == lod.UseV4Tables && t.LODs[len(t.LODs)-1].Step == lod.Step {
 		t.LODs[len(t.LODs)-1].Len += lod.Len
 	} else {
 		t.LODs = append(t.LODs, lod)
@@ -555,6 +575,9 @@ func (lod LOD) IsFast() bool {
 }
 
 func (lod LOD) Table(newSharding bool) string {
+	if lod.UseV4Tables {
+		return lod.TableV4(newSharding)
+	}
 	if lod.Version == Version3 && newSharding {
 		switch {
 		case lod.StepSec < _1m:
@@ -566,6 +589,25 @@ func (lod LOD) Table(newSharding bool) string {
 		}
 	}
 	return LODTables[lod.Version][lod.StepSec]
+}
+
+func (lod LOD) TableV4(newSharding bool) string {
+	if newSharding {
+		if lod.StepSec < _1m {
+			return "statshouse_v4_1s"
+		}
+		if lod.StepSec < _1h {
+			return "statshouse_v4_1m"
+		}
+		return "statshouse_v4_1h"
+	}
+	if lod.StepSec < _1m {
+		return "statshouse_v4_1s_dist"
+	}
+	if lod.StepSec < _1h {
+		return "statshouse_v4_1m_dist"
+	}
+	return "statshouse_v4_1h_dist"
 }
 
 func (s *QueryStat) Add(m *format.MetricMetaValue, offset int64) {
