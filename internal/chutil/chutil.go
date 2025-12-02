@@ -466,7 +466,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 						5:  "error",
 						7:  meta.User,
 						8:  strconv.Itoa(shard),
-						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, info.QueryDuration.Seconds())
+						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, time.Since(start).Seconds())
 				}
 			}()
 
