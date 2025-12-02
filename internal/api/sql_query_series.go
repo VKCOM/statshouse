@@ -341,6 +341,9 @@ func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_mode
 		sb.WriteString(fmt.Sprint(coarseFrom))
 		sb.WriteString(" AND time_coarse<")
 		sb.WriteString(fmt.Sprint(coarseTo))
+	} else {
+		// shouldn't happen
+		sb.WriteString("1=1")
 	}
 }
 
