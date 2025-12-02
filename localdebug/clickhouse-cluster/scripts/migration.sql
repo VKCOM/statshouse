@@ -18,3 +18,10 @@ CREATE TABLE IF NOT EXISTS statshouse_migration_logs (
     message String
 ) ENGINE = MergeTree()
 ORDER BY (timestamp, shard_key, ts, retry);
+
+ALTER TABLE statshouse_migration_state
+    ADD COLUMN IF NOT EXISTS source_rows UInt64,
+    ADD COLUMN IF NOT EXISTS source String DEFAULT '';
+
+ALTER TABLE statshouse_migration_logs
+    ADD COLUMN IF NOT EXISTS source String DEFAULT '';
