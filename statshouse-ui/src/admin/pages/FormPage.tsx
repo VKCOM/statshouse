@@ -7,7 +7,6 @@
 import { Dispatch, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { IKind, IMetric, ITagAlias } from '../models/metric';
-import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { IActions } from '../storages/MetricFormValues/reducer';
 import {
@@ -32,12 +31,12 @@ import { produce } from 'immer';
 import { TagDraft } from './TagDraft';
 import { formatInputDate } from '@/view/utils2';
 import { Select } from '@/components/Select';
-
 import { mapEditToMetric, mapMetricToEdit, resetMetricFlood } from '../api/saveMetric';
 import { ConfirmButton } from '@/components/UI/ConfirmButton';
 import { useStateBoolean } from '@/hooks';
 import { useApiMetric, useMutationMetricMeta } from '@/api/metric';
 import { useHistoricalMetricVersion } from '@/hooks/useHistoricalMetricVersion';
+import { MetricFormValuesContext, MetricFormValuesStorage } from '@/admin/storages/MetricFormValues';
 
 const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE);
 const METRIC_META_TAG_RAW_KIND_KEYS: MetricMetaTagRawKind[] = Object.values(METRIC_META_TAG_RAW_KIND);
