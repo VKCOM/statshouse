@@ -19,6 +19,15 @@ var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
+var timeCoarseTrimSeconds = map[string]int64{
+	"statshouse_v4_1ss":      60,
+	"statshouse_v4_1ms":      60 * 60,
+	"statshouse_v4_1hs":      60 * 60 * 24,
+	"statshouse_v4_1s_dists": 60,
+	"statshouse_v4_1m_dists": 60 * 60,
+	"statshouse_v4_1h_dists": 60 * 60 * 24,
+}
+
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
@@ -287,18 +296,55 @@ func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 }
 
 func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
-	sb.WriteString(" WHERE time>=")
-	sb.WriteString(fmt.Sprint(lod.FromSec))
-	sb.WriteString(" AND time<")
-	sb.WriteString(fmt.Sprint(lod.ToSec))
+	sb.WriteString(" WHERE ")
+	b.writeTimeClause(sb, lod)
 	switch lod.Version {
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
+		if lod.UseV4Tables {
+			b.ensurePrimaryKeyPrefix(sb)
+			sb.WriteString(" AND ")
+			b.writeTimeCoarseClause(sb, lod)
+		}
 	}
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
 	b.writeTagFilter(sb, lod, b.filterNotIn, filterOperatorNotIn, mode)
+}
+
+func (b *queryBuilder) ensurePrimaryKeyPrefix(sb *strings.Builder) {
+	// NOTE: clickhouse uses logarithmic search only for queries that select a range with a fixed primary key prefix.
+	// After filtering by the provided PK prefix it falls back to a less optimal "generic exclusion search" algorithm.
+	// So when we filter by a range or multiple values for a column like time/time_coarse range
+	// explicitly setting values for preceding PK columns greatly increases performance
+
+	// NOTE2: optimized for v3 and v4 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
+	// NOTE3: assumes that metric value and time/time_coarse range are set elsewhere
+	// NOTE4: assumes that if rows with `index_type != 0 OR pre_tag != 0 OR !empty(pre_stag)` ever appear in CH, they won't be needed in api queries
+	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND empty(pre_stag) ")
+}
+
+func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD) {
+	sb.WriteString("time>=")
+	sb.WriteString(fmt.Sprint(lod.FromSec))
+	sb.WriteString(" AND time<")
+	sb.WriteString(fmt.Sprint(lod.ToSec))
+}
+
+func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_model.LOD) {
+	coarseSize, ok := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
+	if ok {
+		coarseFrom := lod.FromSec / coarseSize * coarseSize
+		coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
+		sb.WriteString("time_coarse>=")
+		sb.WriteString(fmt.Sprint(coarseFrom))
+		sb.WriteString(" AND time_coarse<")
+		sb.WriteString(fmt.Sprint(coarseTo))
+	} else {
+		// shouldn't happen
+		sb.WriteString("1=1")
+	}
 }
 
 func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
