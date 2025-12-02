@@ -1172,9 +1172,16 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:     "timeout_during_ch",
+			TagValueIDAPIResponseExceptionSemTimeout:    "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
+			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
+			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+		}),
 	}},
 }
 
@@ -1201,9 +1208,16 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:     "timeout_during_ch",
+			TagValueIDAPIResponseExceptionSemTimeout:    "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
+			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
+			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+		}),
 	}},
 }
 
@@ -1218,6 +1232,14 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	WithAggregatorID:        false,
 	Tags: []MetricMetaTag{{
 		Description: "query type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPILaneFastLightv2:    "fastlight",
+			TagValueIDAPILaneFastHeavyv2:    "fastheavy",
+			TagValueIDAPILaneSlowLightv2:    "slowlight",
+			TagValueIDAPILaneSlowHeavyv2:    "slowheavy",
+			TagValueIDAPILaneSlowHardwarev2: "slow_hardware",
+			TagValueIDAPILaneFastHardwarev2: "fast_hardware",
+		}),
 	}, {
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
@@ -1234,9 +1256,16 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 	}, {
 		Description: "shard_key", // metric % 16 + 1 for now, experimental
 		RawKind:     "int",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:     "timeout_during_ch",
+			TagValueIDAPIResponseExceptionSemTimeout:    "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
+			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
+			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+		}),
 	}},
 }
 
@@ -2808,9 +2837,16 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDStatusOK:    "ok",
 			TagValueIDStatusError: "error",
 		}),
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:     "timeout_during_ch",
+			TagValueIDAPIResponseExceptionSemTimeout:    "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
+			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
+			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+		}),
 	}},
 }
 
@@ -2861,9 +2897,16 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 		Description: "token-short",
 	}, {
 		Description: "token-long",
-	}, {
-		Description: "error_code",
-		RawKind:     "int",
+	}, {}, {
+		Description: "exception",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAPIResponseExceptionCHUnknown:     "unknown_ch_exception",
+			TagValueIDAPIResponseExceptionCHTimeout:     "timeout_during_ch",
+			TagValueIDAPIResponseExceptionSemTimeout:    "timeout_on_semaphore",
+			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
+			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
+			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+		}),
 	}},
 }
 

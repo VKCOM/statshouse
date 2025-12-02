@@ -902,7 +902,7 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	info, err := h.ch[version].Select(ctx, meta, query)
 	h.endpointStat.reportTiming("ch-select", info.QueryDuration)
 	h.endpointStat.reportTiming("wait-lock", info.WaitLockDuration)
-	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", meta.IsFast, meta.IsLight, meta.IsHardware, info.ErrorCode, err)
+	ChSelectMetricDuration(info.QueryDuration, meta.Metric, meta.User, meta.Table, "", info.Shard, meta.IsFast, meta.IsLight, meta.IsHardware, info.ErrorCode, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.Profile, info.ErrorCode, err)
 	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, info.ErrorCode, err)
 	ChRequestsMetric(info.Shard, info.Host, meta.Table, info.ErrorCode, err == nil)

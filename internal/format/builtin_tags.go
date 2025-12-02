@@ -403,6 +403,13 @@ const (
 	TagValueIDMappingStorageVersionCurrent   = 1
 	TagValueIDMappingStorageVersionLastKnown = 2
 
+	TagValueIDAPIResponseExceptionCHUnknown     = -1
+	TagValueIDAPIResponseExceptionCHTimeout     = -2
+	TagValueIDAPIResponseExceptionSemTimeout    = -3
+	TagValueIDAPIResponseExceptionSemError      = -4
+	TagValueIDAPIResponseExceptionLongCHTimeout = -5
+	TagValueIDAPIResponseExceptionSemTooLate    = -6
+
 	TagSourceTokenFromClient = 1
 	TagSourceTokenFromVkuth  = 2
 )
