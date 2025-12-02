@@ -474,6 +474,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 					Status:    StatusError,
 					Duration:  time.Since(start),
 				})
+				info.QueryDuration = time.Since(start)
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
 				return info, ctx.Err() // failed
 			case <-done:
