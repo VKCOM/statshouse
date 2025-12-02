@@ -152,7 +152,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaValue, user, table, kind string, isFast, isLight, isHardware bool, errCode int, err error) {
+func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaValue, user, table, kind string, shard int, isFast, isLight, isHardware bool, errCode int, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -171,7 +171,7 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 			5:  ok,
 			6:  getStatTokenName(user),
 			7:  user,
-			8:  strconv.Itoa(int(uint32(metricID)%16) + 1), // to see load distribution if we shard data by metricID
+			8:  strconv.Itoa(shard),
 			10: strconv.Itoa(errCode),
 		},
 		duration.Seconds())

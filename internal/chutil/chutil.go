@@ -9,10 +9,10 @@ package chutil
 import (
 	"context"
 	"fmt"
-	"log"
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 	_ "unsafe" // to access clickhouse.bind
 
@@ -36,6 +36,7 @@ type connPool struct {
 	servers             []serverCH
 	sem                 *queue.Queue
 	shardSems           []*queue.Queue // shard_id -> semaphore
+	avgQueryDurationNS  atomic.Int64   // exponentially smoothed average in nanoseconds
 }
 
 type serverCH struct {
@@ -107,7 +108,15 @@ const (
 )
 
 func newConnPool(poolName string, maxConn int, maxShardConn, shardCount int) *connPool {
-	return &connPool{poolName, rand.New(), maxConn, maxShardConn, make([]serverCH, 0), queue.NewQueue(int64(maxConn)), make([]*queue.Queue, shardCount)}
+	return &connPool{
+		poolName:            poolName,
+		rnd:                 rand.New(),
+		maxActiveQuery:      maxConn,
+		maxShardActiveQuery: maxShardConn,
+		servers:             make([]serverCH, 0),
+		sem:                 queue.NewQueue(int64(maxConn)),
+		shardSems:           make([]*queue.Queue, shardCount),
+	}
 }
 
 func newConnPoolWithShards(poolName string, maxConn int, shardCount int, maxShardConnsRatio int) *connPool {
@@ -422,19 +431,61 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			case <-ctx.Done():
 				sem.Release()
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTimeout
-				return
+				return info, ctx.Err()
 			default:
 			}
+			if deadline, ok := ctx.Deadline(); ok {
+				remaining := time.Until(deadline)
+				if avg := pool.getAvgQueryDuration(); avg > 0 {
+					const safetyNum = 11 // 10% upside
+					const safetyDen = 10
+					if remaining*safetyDen < avg*safetyNum {
+						sem.Release()
+						info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTooLate
+						return info, context.DeadlineExceeded
+					}
+				}
+			}
+
 			start := time.Now()
-			err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(ctx, query) })
-			info.QueryDuration = time.Since(start)
-			sem.Release()
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				queryCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+				defer cancel()
+				err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(queryCtx, query) })
+				info.QueryDuration = time.Since(start)
+				sem.Release()
+				if queryCtx.Err() != nil {
+					statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
+						1:  strconv.Itoa(kind),
+						2:  strconv.Itoa(int(meta.Metric.MetricID)),
+						3:  meta.Table,
+						5:  "error",
+						7:  meta.User,
+						8:  strconv.Itoa(shard),
+						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, info.QueryDuration.Seconds())
+				}
+			}()
+
+			select {
+			case <-ctx.Done():
+				servers[i].rate.RecordEvent(Event{
+					Timestamp: start,
+					Status:    StatusError,
+					Duration:  time.Since(start),
+				})
+				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
+				return info, ctx.Err() // failed
+			case <-done:
+			}
 			if err == nil {
 				servers[i].rate.RecordEvent(Event{
 					Timestamp: start,
 					Status:    StatusSuccess,
 					Duration:  info.QueryDuration,
 				})
+				pool.recordQueryDuration(info.QueryDuration)
 				servers = slices.Delete(servers, i, i+1)
 				info.ErrorCode = 0
 				break // succeeded
@@ -448,11 +499,6 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			if code, ok := chgo.AsException(err); ok {
 				info.ErrorCode = int(code.Code)
 			}
-			if ctx.Err() != nil {
-				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
-				return // failed
-			}
-			log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		}
 		// keep searching alive server
 		servers = slices.Delete(servers, i, i+1)
@@ -551,6 +597,30 @@ func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 		}
 	}
 	sem.AdjustCapacity(uint64(maxSize * loadFactor / 100))
+}
+
+func (pool *connPool) getAvgQueryDuration() time.Duration {
+	ns := pool.avgQueryDurationNS.Load()
+	if ns <= 0 {
+		return 0
+	}
+	return time.Duration(ns)
+}
+
+func (pool *connPool) recordQueryDuration(d time.Duration) {
+	const alphaDen = 8
+	for {
+		old := pool.avgQueryDurationNS.Load()
+		var next int64
+		if old <= 0 {
+			next = int64(d)
+		} else {
+			next = old + (int64(d)-old)/alphaDen
+		}
+		if pool.avgQueryDurationNS.CompareAndSwap(old, next) {
+			return
+		}
+	}
 }
 
 func BindQuery(query string, args ...any) (string, error) {
