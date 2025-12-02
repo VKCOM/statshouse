@@ -56,7 +56,7 @@ export const LeftMenuPlotItem = memo(function LeftMenuPlotItem({ active }: LeftM
     [openRef, setOpen]
   );
   const visible = useIntersectionObserver(visibleRef, 0, undefined, 0);
-  const visibleBool = visible > 0;
+  const visibleBool = visible > 0 || open;
   const plotPreviewUrl = usePlotPreviewStore(useCallback((s) => s.plotPreviewUrlList[plotKey], [plotKey]));
 
   const plotType = useStatsHouse(useCallback(({ params: { plots } }) => plots[plotKey]?.type, [plotKey]));
