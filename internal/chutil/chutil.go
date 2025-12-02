@@ -37,6 +37,7 @@ type connPool struct {
 	sem                 *queue.Queue
 	shardSems           []*queue.Queue // shard_id -> semaphore
 	avgQueryDurationNS  atomic.Int64   // exponentially smoothed average in nanoseconds
+	shardAvgQueryNS     []atomic.Int64 // avgQueryDurationNS per-shard
 }
 
 type serverCH struct {
@@ -116,6 +117,7 @@ func newConnPool(poolName string, maxConn int, maxShardConn, shardCount int) *co
 		servers:             make([]serverCH, 0),
 		sem:                 queue.NewQueue(int64(maxConn)),
 		shardSems:           make([]*queue.Queue, shardCount),
+		shardAvgQueryNS:     make([]atomic.Int64, shardCount),
 	}
 }
 
@@ -436,7 +438,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			}
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
-				if avg := pool.getAvgQueryDuration(); avg > 0 {
+				if avg := pool.getAvgQueryDuration(shard); avg > 0 {
 					const safetyNum = 11 // 10% upside
 					const safetyDen = 10
 					if remaining*safetyDen < avg*safetyNum {
@@ -485,7 +487,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 					Status:    StatusSuccess,
 					Duration:  info.QueryDuration,
 				})
-				pool.recordQueryDuration(info.QueryDuration)
+				pool.recordQueryDuration(info.QueryDuration, shard)
 				servers = slices.Delete(servers, i, i+1)
 				info.ErrorCode = 0
 				break // succeeded
@@ -599,7 +601,13 @@ func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 	sem.AdjustCapacity(uint64(maxSize * loadFactor / 100))
 }
 
-func (pool *connPool) getAvgQueryDuration() time.Duration {
+func (pool *connPool) getAvgQueryDuration(shard int) time.Duration {
+	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
+		if ns := pool.shardAvgQueryNS[shard].Load(); ns > 0 {
+			return time.Duration(ns)
+		}
+		return 0
+	}
 	ns := pool.avgQueryDurationNS.Load()
 	if ns <= 0 {
 		return 0
@@ -607,20 +615,27 @@ func (pool *connPool) getAvgQueryDuration() time.Duration {
 	return time.Duration(ns)
 }
 
-func (pool *connPool) recordQueryDuration(d time.Duration) {
+func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {
 	const alphaDen = 8
-	for {
-		old := pool.avgQueryDurationNS.Load()
-		var next int64
-		if old <= 0 {
-			next = int64(d)
-		} else {
-			next = old + (int64(d)-old)/alphaDen
-		}
-		if pool.avgQueryDurationNS.CompareAndSwap(old, next) {
-			return
+	update := func(a *atomic.Int64) {
+		for {
+			old := a.Load()
+			var next int64
+			if old <= 0 {
+				next = int64(d)
+			} else {
+				next = old + (int64(d)-old)/alphaDen
+			}
+			if a.CompareAndSwap(old, next) {
+				return
+			}
 		}
 	}
+	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
+		update(&pool.shardAvgQueryNS[shard])
+		return
+	}
+	update(&pool.avgQueryDurationNS)
 }
 
 func BindQuery(query string, args ...any) (string, error) {
