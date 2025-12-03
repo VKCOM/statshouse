@@ -225,11 +225,11 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	if isRouteProxy {
 		aera.Route = format.TagValueIDRouteIngressProxy
 	}
-	var bcStr []byte
+	var bcStr string
 	bcTag := int32(0)
 	if format.ValidStringValue(mem.B(args.BuildCommit)) {
-		bcStr = args.BuildCommit
-		bcStrRaw, _ := hex.DecodeString(string(bcStr))
+		bcStr = string(args.BuildCommit)
+		bcStrRaw, _ := hex.DecodeString(bcStr)
 		if len(bcStrRaw) >= 4 {
 			bcTag = int32(binary.BigEndian.Uint32(bcStrRaw))
 		}
@@ -689,25 +689,29 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	{
 		// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
-		a.sh2.AddCounterHostStringBytesAERA((args.Time/60)*60, format.BuiltinMetricMetaVersions,
+		a.sh2.AddCounterHostAERAS((args.Time/60)*60, format.BuiltinMetricMetaVersions,
 			[]int32{0, 0, componentTag, 0, int32(args.BuildCommitTs), bcTag},
-			bcStr, 1, hostTag, aera)
+			[]string{format.StringTopTagIndexV3: bcStr},
+			1, hostTag, aera)
 	}
 	for m, b := range oldMetricBuckets {
 		if b[0] > 0 {
-			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+			a.sh2.AddCounterHostAERAS(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
 				[]int32{0, format.TagValueIDOldMetricForm6hTo1d, m},
-				bcStr, float64(b[0]), hostTag, aera)
+				[]string{format.StringTopTagIndexV3: bcStr},
+				float64(b[0]), hostTag, aera)
 		}
 		if b[1] > 0 {
-			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+			a.sh2.AddCounterHostAERAS(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
 				[]int32{0, format.TagValueIDOldMetricForm1dTo2d, m},
-				bcStr, float64(b[1]), hostTag, aera)
+				[]string{format.StringTopTagIndexV3: bcStr},
+				float64(b[1]), hostTag, aera)
 		}
 		if b[2] > 0 {
-			a.sh2.AddCounterHostStringBytesAERA(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
+			a.sh2.AddCounterHostAERAS(nowUnix, format.BuiltinMetricMetaAggOldMetrics,
 				[]int32{0, format.TagValueIDOldMetricForm2d, m},
-				bcStr, float64(b[2]), hostTag, aera)
+				[]string{format.StringTopTagIndexV3: bcStr},
+				float64(b[2]), hostTag, aera)
 		}
 	}
 

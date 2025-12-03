@@ -9,8 +9,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -426,25 +424,20 @@ func run() int {
 	chunksCountMeasurementID := statshouse.StartRegularMeasurement(api.CurrentChunksCount(brs))
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
-	startTimestamp := time.Now().Unix()
+	startTimestamp := time.Now()
 	heartbeatTags := statshouse.Tags{
-		1: "4",
-		2: fmt.Sprint(format.TagValueIDHeartbeatEventStart),
-		4: fmt.Sprint(build.CommitTag()),
-		6: fmt.Sprint(build.CommitTimestamp()),
-		7: srvfunc.HostnameForStatshouse(),
-	}
-	if build.Commit() != "?" {
-		commitRaw, err := hex.DecodeString(build.Commit())
-		if err == nil && len(commitRaw) >= 4 {
-			heartbeatTags[4] = fmt.Sprint(int32(binary.BigEndian.Uint32(commitRaw)))
-		}
+		1:                       fmt.Sprint(format.TagValueIDComponentAPI),
+		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		4:                       fmt.Sprint(build.CommitTag()),
+		6:                       fmt.Sprint(build.CommitTimestamp()),
+		7:                       srvfunc.HostnameForStatshouse(),
+		statshouse.StringTopTag: build.Commit(),
 	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
 
 	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
-		uptime := float64(time.Now().Unix() - startTimestamp)
+		uptime := time.Since(startTimestamp).Seconds()
 		c.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, uptime)
 	}))
 

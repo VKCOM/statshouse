@@ -26,11 +26,11 @@ const oldTagNumber = 16
 type (
 	TagUnion struct {
 		S string
-		I int32
+		I int32 // should always have priority over S
 	}
 	TagUnionBytes struct {
 		S []byte
-		I int32
+		I int32 // should always have priority over S
 	}
 
 	// Time Series Key, will be optimized to single human-readable string
@@ -127,6 +127,13 @@ func (k *Key) SetTagUnion(i int, tag TagUnion) {
 	} else {
 		k.Tags[i] = tag.I
 	}
+}
+
+func (k *Key) RemoveStringTopTag() TagUnion {
+	result := TagUnion{S: k.STags[format.StringTopTagIndexV3], I: k.Tags[format.StringTopTagIndexV3]}
+	k.STags[format.StringTopTagIndexV3] = ""
+	k.Tags[format.StringTopTagIndexV3] = 0
+	return result
 }
 
 func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte) {
@@ -335,7 +342,8 @@ func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, capacity int, tag TagUnion
 	if s.Top == nil {
 		s.Top = map[TagUnion]*MultiValue{}
 	}
-	c, ok := s.Top[TagUnion{S: string(tag.S), I: tag.I}]
+	unsafeTagS := unsafe.String(unsafe.SliceData(tag.S), len(tag.S)) // avoid allocation for existing tag
+	c, ok := s.Top[TagUnion{S: unsafeTagS, I: tag.I}]
 	if ok {
 		return c
 	}

@@ -115,7 +115,7 @@ const (
 	*/
 )
 
-// Legacy, left for API backward compatibility
+// Legacy, left for API and Agent backward compatibility
 const (
 	LegacyStringTopTagID = "skey"
 	legacyTagIDPrefix    = "key"
@@ -269,7 +269,10 @@ type MetricMetaValue struct {
 	ShardFixedKey2          uint32 `json:"shard2,omitempty"`           // 1-based, 0 means not set
 	ShardFixedKey2Timestamp uint32 `json:"shard2_timestamp,omitempty"` // timestamp to start writing to second fixed shard
 
-	name2Tag             map[string]*MetricMetaTag // Should be restored from Tags after reading
+	// Should be restored from Tags after reading
+	name2TagAgent map[string]int // for agent, contains only custom tag names, including StringTopName
+
+	name2Tag             map[string]*MetricMetaTag // for API
 	EffectiveResolution  int                       `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex          int                       `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
 	FairKeyIndex         []int                     `json:"-"`
@@ -391,6 +394,101 @@ func (m *MetricMetaValue) Name2TagBytes(name []byte) *MetricMetaTag {
 	return m.name2Tag[string(name)]
 }
 
+// this method is faster than string hash, also saves tons of memory in maps
+func (m *MetricMetaValue) name2TagAgentFastBytes(name []byte) *MetricMetaTag {
+	var num uint
+	switch len(name) {
+	case 1:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+	case 2:
+		if name[0] == '_' && name[1] == 'h' {
+			return &defaultHTag
+		}
+		if name[0] == '_' && name[1] == 's' {
+			num = StringTopTagIndexV3
+		} else {
+			num = uint(name[0]) - '0'
+			if num > 9 {
+				return nil
+			}
+			num2 := uint(name[1]) - '0'
+			if num2 > 9 {
+				return nil
+			}
+			num = num*10 + num2
+		}
+	default:
+		return nil
+	}
+	if num < uint(len(m.Tags)) {
+		return &m.Tags[num]
+	}
+	if num < uint(len(defaultMetaTags)) {
+		return &defaultMetaTags[num]
+	}
+	return nil
+}
+
+// this method is faster than string hash, also saves tons of memory in maps
+func (m *MetricMetaValue) name2TagAgentFastLegacyBytes(name []byte) *MetricMetaTag {
+	if len(name) < len(legacyTagIDPrefix) || string(name[:len(legacyTagIDPrefix)]) != legacyTagIDPrefix {
+		return nil
+	}
+	name = name[len(legacyTagIDPrefix):]
+	var num uint
+	switch len(name) {
+	case 1:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+	case 2:
+		num = uint(name[0]) - '0'
+		if num > 9 {
+			return nil
+		}
+		num2 := uint(name[1]) - '0'
+		if num2 > 9 {
+			return nil
+		}
+		num = num*10 + num2
+	default:
+		return nil
+	}
+	if num >= MaxTagsV2 { // cannot refer to modern tags with legacy name
+		return nil
+	}
+	if num < uint(len(m.Tags)) {
+		return &m.Tags[num]
+	}
+	return &defaultMetaTags[num]
+}
+
+func (m *MetricMetaValue) Name2TagAgentFastBytes(name []byte) (_ *MetricMetaTag, legacy bool) {
+	if tag := m.name2TagAgentFastBytes(name); tag != nil {
+		return tag, false
+	}
+	if tagIndex, ok := m.name2TagAgent[string(name)]; ok {
+		if tagIndex < len(m.Tags) {
+			return &m.Tags[tagIndex], false
+		}
+		if tagIndex < len(defaultMetaTags) {
+			return &defaultMetaTags[tagIndex], false
+		}
+		panic("name2TagAgent must contain valid tag indices only")
+	}
+	// we fully deprecated old "skey" tag for agent, we have 0 such events in production
+	// to deprecated function call below, monitor this metric
+	// https://statshouse.mvk.com/view?t=1764534680&f=-604800&s=__src_ingestion_status&qf=2-%2047&n=100&dg=0&dl=0.0.12.12
+	if tag := m.name2TagAgentFastLegacyBytes(name); tag != nil {
+		return tag, true
+	}
+	return nil, false
+}
+
 func (m *MetricMetaValue) AppendTagNames(res []string) []string {
 	for name := range m.name2Tag {
 		res = append(res, name)
@@ -501,7 +599,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
 		tag.raw64 = IsRaw64Kind(tag.RawKind)
-		if tag.raw64 && tag.Index >= MaxTags-1 { // for now, to avoid overflows in v2 and v3 mapping
+		if tag.raw64 && tag.Index >= MaxTags-1 { // to avoid overflows without explicit check during mapping
 			err = multierr.Append(err, fmt.Errorf("last tag cannot be raw64 kind %q of tag %d", tag.RawKind, i))
 			tag.raw64 = false
 		}
@@ -528,6 +626,10 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 
 		if tag.Name != "" {
 			m.setName2Tag(tag.Name, tag, false, &err) // not set if equalsToDefault
+			if m.name2TagAgent == nil {               // save memory on empty map
+				m.name2TagAgent = map[string]int{}
+			}
+			m.name2TagAgent[tag.Name] = i
 		}
 	}
 	if m.StringTopName == "" && m.StringTopDescription == "" {
@@ -539,7 +641,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			Index:       StringTopTagIndex,
 		}
 		if m.StringTopName != "" {
-			m.setName2Tag(m.StringTopName, sTag, false, &err) // not set if equalsToDefault
+			m.setName2Tag(m.StringTopName, sTag, false, &err)
+			if m.name2TagAgent == nil { // save memory on empty map
+				m.name2TagAgent = map[string]int{}
+			}
+			m.name2TagAgent[m.StringTopName] = StringTopTagIndexV3
 		}
 		m.setName2Tag(StringTopTagID, sTag, true, &err)
 	}

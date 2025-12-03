@@ -29,7 +29,7 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-		tagMeta, tagIDKey, validEvent := data_model.ValidateTag(v, metric, h, autoCreate)
+		tagMeta, tagIDKey, validEvent := data_model.MapValidateTag(v, metric, h, autoCreate)
 		if !validEvent { // invalid tag key encoding, drop the whole event
 			return
 		}
@@ -47,7 +47,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.SetTag(tagMeta.Index+1, hi, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
+			h.SetTag(tagMeta.Index+1, data_model.TagUnionBytes{I: hi}, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
 
 			tagValue.I = lo
 		case tagMeta.Raw():
@@ -66,23 +66,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 				tagValue.S = v.Value
 			}
 		}
-		if tagMeta.Index == format.StringTopTagIndex || tagMeta.Index == format.StringTopTagIndexV3 {
-			// "_s" is alternative/legacy name for "47". We always have "top" function set for this tag.
-			// This tag is not part of resolution hash, so not placed into OriginalTagValues
-			// TODO - after old conveyor removed, we can simplify this code by setting tagMeta.Index to 47 for "_s"
-			// also we will remove IsSKeySet and use IsTagSet[47] automatically instead
-			h.TopValue = tagValue
-			if h.IsSKeySet {
-				h.TagSetTwiceKey = tagIDKey
-			}
-			h.IsSKeySet = true
-			continue
-		}
-		if tagValue.I != 0 {
-			h.SetTag(tagMeta.Index, tagValue.I, tagIDKey)
-		} else {
-			h.SetSTag(tagMeta.Index, tagValue.S, tagIDKey) // TODO - remove allocation here
-		}
+		h.SetTag(tagMeta.Index, tagValue, tagIDKey)
 		if tagMeta.Index != format.HostTagIndex { // This tag is not part of resolution hash, so not placed into OriginalTagValues
 			h.OriginalTagValues[tagMeta.Index] = v.Value
 		}

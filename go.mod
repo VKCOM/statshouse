@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/ClickHouse/ch-go v0.67.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.39.0
-	github.com/VKCOM/statshouse-go v0.5.15
+	github.com/VKCOM/statshouse-go v0.5.16
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/dchest/siphash v1.2.3
 	github.com/dgryski/go-maglev v0.0.0-20200611225407-8961b9b1b8e6
