@@ -292,6 +292,69 @@ func BenchmarkName2TagX(b *testing.B) {
 	}
 }
 
+func BenchmarkName2TagAgentCanonical(b *testing.B) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "stop",
+		Tags:          []MetricMetaTag{{}, {Name: "alice"}, {Name: "bob"}, {Name: "carol"}, {Name: "dave"}},
+	}
+	_ = meta.RestoreCachedInfo()
+	var tags [][]byte
+	tags = append(tags, []byte("_s"))
+	tags = append(tags, []byte("_h"))
+	for i := 1; i < len(meta.Tags); i++ {
+		tags = append(tags, []byte(tagIDs[i]))
+	}
+	for i := 0; i < b.N; i++ {
+		if t, _ := meta.Name2TagAgentFastBytes(tags[i&3]); t != nil {
+			sum += t.Index
+		}
+	}
+}
+
+func BenchmarkName2TagAgentCustom(b *testing.B) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "stop",
+		Tags:          []MetricMetaTag{{}, {Name: "alice"}, {Name: "bob"}, {Name: "carol"}, {Name: "dave"}},
+	}
+	_ = meta.RestoreCachedInfo()
+	var tags [][]byte
+	tags = append(tags, []byte(meta.StringTopName))
+	for i := 1; i < len(meta.Tags); i++ {
+		tags = append(tags, []byte(meta.Tags[i].Name))
+	}
+	for i := 0; i < b.N; i++ {
+		if t, _ := meta.Name2TagAgentFastBytes(tags[i&3]); t != nil {
+			sum += t.Index
+		}
+	}
+}
+
+func BenchmarkName2TagAgentLegacy(b *testing.B) {
+	meta := &MetricMetaValue{
+		MetricID:      1,
+		NamespaceID:   -5,
+		Name:          "hren",
+		StringTopName: "stop",
+		Tags:          []MetricMetaTag{{}, {Name: "alice"}, {Name: "bob"}, {Name: "carol"}, {Name: "dave"}},
+	}
+	_ = meta.RestoreCachedInfo()
+	var tags [][]byte
+	for i := 1; i < len(meta.Tags); i++ {
+		tags = append(tags, []byte(tagIDsLegacy[i]))
+	}
+	for i := 0; i < b.N; i++ {
+		if t, _ := meta.Name2TagAgentFastBytes(tags[i&3]); t != nil {
+			sum += t.Index
+		}
+	}
+}
+
 func TestNamespaceConst(t *testing.T) {
 	require.Equal(t, NamespaceSeparator, string(NamespaceSeparatorRune))
 }

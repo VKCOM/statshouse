@@ -656,6 +656,47 @@ func mainPublishTagDrafts() int {
 	}
 }
 
+// check memory consumption in htop, on December 2025 it is around 150 MB.
+// if m.name2Tag is completely removed, it will drop to 130 MB.
+
+//func massUpdateMetadata2() int {
+//	client := tlmetadata.Client{
+//		Client: rpc.NewClient(
+//			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+//			rpc.ClientWithCryptoKey(readAESPwd()),
+//			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+//		Network: argv.metadataNet,
+//		Address: argv.metadataAddr,
+//		ActorID: argv.metadataActorID,
+//	}
+//	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
+//	storage := metajournal.MakeMetricsStorage(nil)
+//	journal := metajournal.MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, true,
+//		[]metajournal.ApplyEvent{storage.ApplyEvent})
+//	journal.Start(nil, nil, loader.LoadJournal)
+//	fmt.Println("Press <Enter> to start updating metadata")
+//	if argv.dryRun {
+//		fmt.Println("DRY RUN!")
+//	}
+//	ctx, cancel := context.WithCancel(context.Background())
+//	go func() {
+//		for {
+//			v, h := journal.VersionHash()
+//			fmt.Printf("journal compact version %d/%d hash %s\n",
+//				v, journal.LastKnownVersion(), h)
+//			select {
+//			case <-time.After(time.Second):
+//			case <-ctx.Done():
+//				return
+//			}
+//		}
+//	}()
+//	fmt.Println()
+//	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+//	cancel()
+//	return 0
+//}
+
 func massUpdateMetadata() int {
 	client := tlmetadata.Client{
 		Client: rpc.NewClient(
@@ -748,28 +789,68 @@ func massUpdateMetadata() int {
 	//		log.Fatal(err)
 	//	}
 	//}
-	for _, meta := range list {
-		if !strings.HasPrefix(meta.Name, "gbuteyko_test") {
-			continue
+	checkSameTag := func(meta *format.MetricMetaValue, name string) bool {
+		nameBytes := []byte(name)
+		t1, legacy1 := meta.Name2TagAgentFastBytes(nameBytes)
+		t2, legacy2 := meta.APICompatGetTagFromBytes(nameBytes)
+		if t1 == nil && t2 == nil {
+			return true
 		}
-		//special := false
-		//if strings.Contains(meta.Description, format.ToggleDescriptionMark) {
-		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) toggle description: %q\n", meta.MetricID, meta.Name, meta.Description)
-		//	special = true
-		//}
-		//if strings.Contains(meta.Description, format.HistogramBucketsStartMark) {
-		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) buckets description: %q\n", meta.MetricID, meta.Name, meta.Description)
-		//	special = true
-		//}
-		//if !special {
+		if t1 != nil && t2 == nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) tag=%s t1=%d t2=nil\n", meta.MetricID, meta.Name, name, t1.Index)
+			return false
+		}
+		if t1 == nil && t2 != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) tag=%s t1=nil t2=%d\n", meta.MetricID, meta.Name, name, t2.Index)
+			return false
+		}
+		if t1.Index != t2.Index && (t1.Index != 47 || t2.Index != -1) {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) tag=%s t1=%d t2=%d\n", meta.MetricID, meta.Name, name, t1.Index, t2.Index)
+			return false
+		}
+		if legacy1 != legacy2 {
+			_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) tag=%s legacy1=%v legacy2=%v\n", meta.MetricID, meta.Name, name, legacy1, legacy2)
+			return false
+		}
+		return true
+	}
+	for _, meta := range list {
+		//if !strings.HasPrefix(meta.Name, "gbuteyko_test") {
 		//	continue
 		//}
+		special := !checkSameTag(meta, "0")
+		special = !checkSameTag(meta, "1") || special
+		special = !checkSameTag(meta, "15") || special
+		special = !checkSameTag(meta, "45") || special
+		special = !checkSameTag(meta, "47") || special
+		special = !checkSameTag(meta, "key0") || special
+		special = !checkSameTag(meta, "key1") || special
+		special = !checkSameTag(meta, "key15") || special
+		// special = !checkSameTag(meta, "key45") || special
+		special = !checkSameTag(meta, "_s") || special
+		// special = !checkSameTag(meta, "skey") || special
+		special = !checkSameTag(meta, "_h") || special
+		special = !checkSameTag(meta, meta.StringTopName) || special
+		for _, t := range meta.Tags {
+			special = !checkSameTag(meta, t.Name) || special
+		}
+		//if meta.StringTopName != "" {
+		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) StringTopName description: %q\n", meta.MetricID, meta.Name, meta.StringTopName)
+		//	special = true
+		//}
+		//if meta.StringTopDescription != "" {
+		//	_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) StringTopDescription description: %q\n", meta.MetricID, meta.Name, meta.StringTopDescription)
+		//	special = true
+		//}
+		if !special {
+			continue
+		}
 		if found >= argv.maxUpdates {
 			break
 		}
 		found++
-		metricBytes, _ := easyjson.Marshal(meta)
-		_, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will edit\n%s\n", meta.MetricID, meta.Name, metricBytes)
+		// metricBytes, _ := easyjson.Marshal(meta)
+		// _, _ = fmt.Fprintf(os.Stderr, "Metric %d (%q) will edit\n%s\n", meta.MetricID, meta.Name, metricBytes)
 		if argv.dryRun {
 			continue
 		}
@@ -777,7 +858,7 @@ func massUpdateMetadata() int {
 		//meta2.ShardFixedKey = 2
 		//meta2.ShardFixedKey2 = 0
 		//meta2.ShardFixedKey2Timestamp = 0 //uint32((time.Now().Unix()+60+59)/60) * 60
-		metricBytes, _ = easyjson.Marshal(meta2)
+		metricBytes, _ := easyjson.Marshal(meta2)
 		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n%s\n", metricBytes)
 		var err error
 		_, err = loader.SaveMetric(context.Background(), meta2, "")

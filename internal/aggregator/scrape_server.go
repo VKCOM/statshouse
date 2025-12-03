@@ -238,8 +238,10 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 		}
 		if s.sh2 != nil {
 			// success, targets_ready
-			s.sh2.AddCounterStringBytes(0, format.BuiltinMetricMetaAggScrapeTargetDispatch,
-				[]int32{0, 0, 1}, []byte(host), 1)
+			s.sh2.AddCounterS(0, format.BuiltinMetricMetaAggScrapeTargetDispatch,
+				[]int32{0, 0, 1},
+				[]string{format.StringTopTagIndexV3: host},
+				1)
 		}
 	}
 	// serve long poll requests
@@ -311,8 +313,10 @@ func (s *scrapeServer) tryGetNewTargetsLocked(req scrapeRequest) (_ tlstatshouse
 		return res, false
 	}
 	if s.sh2 != nil {
-		s.sh2.AddCounterStringBytes(0, format.BuiltinMetricMetaAggScrapeTargetDispatch,
-			[]int32{0, 0, 2}, []byte(req.addr.String()), 1)
+		s.sh2.AddCounterS(0, format.BuiltinMetricMetaAggScrapeTargetDispatch,
+			[]int32{0, 0, 2},
+			[]string{format.StringTopTagIndexV3: req.addr.String()},
+			1)
 	}
 	return res, true
 }

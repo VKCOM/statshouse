@@ -161,7 +161,7 @@ var (
 		-145:                                    BuiltinMetricMetaMappingCacheVersion,
 		-146:                                    BuiltinMetricMappingStorageVersion,
 		-147:                                    BuiltinMetricMappingStoragePending,
-		-148:                                    BuiltinMetricMetaIngestionStatusNoShard,
+		BuiltinMetricIDIngestionStatusNoShard:   BuiltinMetricMetaIngestionStatusNoShard,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly
@@ -255,12 +255,15 @@ func init() {
 
 		BuiltinMetricByName[m.Name] = m
 
-		if id == BuiltinMetricIDIngestionStatus || id == BuiltinMetricIDAggMappingCreated || id == BuiltinMetricIDMetaUIErrors {
+		if id == BuiltinMetricIDIngestionStatus || id == BuiltinMetricIDIngestionStatusNoShard ||
+			id == BuiltinMetricIDAggMappingCreated || id == BuiltinMetricIDMetaUIErrors {
 			m.Tags = append([]MetricMetaTag{{Description: "environment"}}, m.Tags...)
 		} else {
 			m.Tags = append([]MetricMetaTag{{Description: "-"}}, m.Tags...)
 		}
-		for len(m.Tags) < MaxTags { // prevent overflows in code below
+		for len(m.Tags) < MaxTagsV2 {
+			// prevent overflows in code below
+			// Do not set to MaxTags, because then StringTop (47) tag will have raw kind
 			m.Tags = append(m.Tags, MetricMetaTag{Description: "-"})
 		}
 		if m.WithAggregatorID {

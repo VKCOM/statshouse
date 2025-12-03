@@ -706,10 +706,11 @@ func (req *proxyRequest) forwardAndFlush(p *proxyConn) error {
 }
 
 func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, status int32) {
-	p.agent.AddCounterHost(
+	p.agent.AddCounterHostS(
 		uint32(time.Now().Unix()),
 		format.BuiltinMetricMetaAutoConfig,
 		[]int32{4: status},
+		nil,
 		1, data_model.TagUnionBytes{I: p.hostnameID.Load()})
 }
 

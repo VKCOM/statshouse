@@ -28,7 +28,6 @@ type MappedMetricHeader struct {
 	ReceiveTime time.Time // Saved at mapping start and used where we need time.Now. This is different to MetricBatch.T, which is sent by clients
 	MetricMeta  *format.MetricMetaValue
 	Key         Key
-	TopValue    TagUnionBytes // reference to memory inside tlstatshouse.MetricBytes.
 	HostTag     TagUnionBytes // reference to memory inside tlstatshouse.MetricBytes.
 
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
@@ -39,7 +38,6 @@ type MappedMetricHeader struct {
 	// mappings, so used as a resolution hash to deterministically place same rows into same resolution buckets
 
 	IsTagSet  [format.MaxTags]bool // report setting tags more than once.
-	IsSKeySet bool
 	IsHKeySet bool
 
 	// errors below
@@ -56,31 +54,16 @@ type MappedMetricHeader struct {
 	InvalidRawTagKey      int32  // key of InvalidRawValue
 }
 
-func (h *MappedMetricHeader) SetTag(index int32, id int32, tagIDKey int32) {
+func (h *MappedMetricHeader) SetTag(index int32, value TagUnionBytes, tagIDKey int32) {
 	if index == format.HostTagIndex {
-		h.HostTag.I = id
+		h.HostTag = value
 		if h.IsHKeySet {
 			h.TagSetTwiceKey = tagIDKey
 		}
 		h.IsHKeySet = true
 	} else {
-		h.Key.Tags[index] = id
-		if h.IsTagSet[index] {
-			h.TagSetTwiceKey = tagIDKey
-		}
-		h.IsTagSet[index] = true
-	}
-}
-
-func (h *MappedMetricHeader) SetSTag(index int32, value []byte, tagIDKey int32) {
-	if index == format.HostTagIndex {
-		h.HostTag.S = value
-		if h.IsHKeySet {
-			h.TagSetTwiceKey = tagIDKey
-		}
-		h.IsHKeySet = true
-	} else {
-		h.Key.SetSTag(int(index), string(value))
+		h.Key.Tags[index] = value.I
+		h.Key.STags[index] = string(value.S)
 		if h.IsTagSet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}
@@ -102,8 +85,13 @@ func (h *MappedMetricHeader) OriginalMarshalAppend(buffer []byte) []byte {
 	// tagsCount is explicit, so we can add more fields to the right of tags if we need them.
 	// we use separator between tags instead of tag length, so we can increase tags length beyond 1 byte without using varint
 
-	const _ = uint(255 - len(h.OriginalTagValues)) // compile time assert to ensure that 1 byte is enough for tags count
-	tagsCount := len(h.OriginalTagValues)          // ignore empty tags
+	// compile time assert to ensure that 1 byte is enough for tags count
+	const _ = uint(255 - len(h.OriginalTagValues))
+	// "_s" tag is mapped to column 47, and not part of resolution hash.
+	// if we need to add more tags in the future, this code should be modified to skip format.StringTopTagIndexV3 tag
+	var _ [0]struct{} = [len(h.OriginalTagValues) - 1 - format.StringTopTagIndexV3]struct{}{}
+	tagsCount := len(h.OriginalTagValues) - 1
+	// ignore empty tags suffix
 	for ; tagsCount > 0 && len(h.OriginalTagValues[tagsCount-1]) == 0; tagsCount-- {
 	}
 	buffer = binary.LittleEndian.AppendUint32(buffer, uint32(h.MetricMeta.MetricID))

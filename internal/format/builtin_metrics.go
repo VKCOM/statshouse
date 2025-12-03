@@ -2929,6 +2929,8 @@ var BuiltinMetricMetaAPIRateLimit = &MetricMetaValue{
 	}},
 }
 
+const BuiltinMetricIDIngestionStatusNoShard = -148
+
 var BuiltinMetricMetaIngestionStatusNoShard = &MetricMetaValue{
 	Name:                    "__src_ingestion_status_no_shard",
 	Kind:                    MetricKindCounter,

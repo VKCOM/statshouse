@@ -73,7 +73,7 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	sz += 4 + 4 + 4*i // metric, # of tags, tags
 	i = format.MaxTags
 	for ; i != 0; i-- {
-		if len(k.GetSTag(i-1)) != 0 {
+		if len(k.STags[i-1]) != 0 {
 			break
 		}
 	}
@@ -81,8 +81,8 @@ func (k *Key) TLSizeEstimate(defaultTimestamp uint32) int {
 	if i > 0 {
 		sz += 4 // # of stags
 		for ; i != 0; i-- {
-			l := 1 + len(k.GetSTag(i-1)) // stag len + data
-			l += (4 - l%4) % 4           // align to 4 bytes
+			l := 1 + len(k.STags[i-1]) // stag len + data
+			l += (4 - l%4) % 4         // align to 4 bytes
 			sz += l
 		}
 	}
@@ -262,11 +262,8 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 	}
 	// 2. restore hosts
 	if !s2.IsSetMaxHostTag(fields_mask) && !s2.IsSetMaxHostStag(fields_mask) {
-		if hostTag.I != 0 {
-			s2.MaxHostTag = hostTag.I
-		} else if len(hostTag.S) > 0 {
-			s2.MaxHostStag = hostTag.S
-		}
+		s2.MaxHostTag = hostTag.I
+		s2.MaxHostStag = hostTag.S
 	}
 	if !s2.IsSetMinHostTag(fields_mask) && !s2.IsSetMinHostStag(fields_mask) {
 		// either original or set above

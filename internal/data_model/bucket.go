@@ -26,11 +26,11 @@ const oldTagNumber = 16
 type (
 	TagUnion struct {
 		S string
-		I int32
+		I int32 // should always have priority over S
 	}
 	TagUnionBytes struct {
 		S []byte
-		I int32
+		I int32 // should always have priority over S
 	}
 
 	// Time Series Key, will be optimized to single human-readable string
@@ -100,11 +100,27 @@ type (
 	}
 )
 
+func (t *TagUnion) Normalize() {
+	if t.I != 0 {
+		t.S = ""
+	}
+}
+
+func (t *TagUnionBytes) Normalize() {
+	if t.I != 0 {
+		t.S = nil
+	}
+}
+
 func (t TagUnionBytes) Equal(rhs TagUnionBytes) bool {
 	if t.I != 0 || rhs.I != 0 {
 		return t.I == rhs.I
 	}
 	return bytes.Equal(t.S, rhs.S)
+}
+
+func (t TagUnion) Empty() bool {
+	return t.I == 0 && len(t.S) == 0
 }
 
 func (t TagUnionBytes) Empty() bool {
@@ -113,20 +129,19 @@ func (t TagUnionBytes) Empty() bool {
 
 func (s *ItemCounter) Count() float64 { return s.counter }
 
-func (k *Key) SetSTag(i int, s string) {
-	k.STags[i] = s
-}
-
-func (k *Key) GetSTag(i int) string {
-	return k.STags[i]
-}
-
 func (k *Key) SetTagUnion(i int, tag TagUnion) {
-	if tag.I == 0 {
-		k.SetSTag(i, tag.S)
-	} else {
+	if tag.I != 0 {
 		k.Tags[i] = tag.I
+	} else {
+		k.STags[i] = tag.S
 	}
+}
+
+func (k *Key) RemoveStringTopTag() TagUnion {
+	result := TagUnion{S: k.STags[format.StringTopTagIndexV3], I: k.Tags[format.StringTopTagIndexV3]}
+	k.STags[format.StringTopTagIndexV3] = ""
+	k.Tags[format.StringTopTagIndexV3] = 0
+	return result
 }
 
 func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte) {
@@ -303,9 +318,10 @@ func (b *MultiItemMap) DeleteMultiItem(key *Key) {
 }
 
 func (s *MultiItem) MapStringTop(rng *rand.Rand, capacity int, tag TagUnion, count float64) *MultiValue {
-	if len(tag.S) == 0 && tag.I == 0 {
+	if tag.Empty() {
 		return &s.Tail
 	}
+	tag.Normalize() // important here
 	if s.Top == nil {
 		s.Top = map[TagUnion]*MultiValue{}
 	}
@@ -329,13 +345,15 @@ func (s *MultiItem) MapStringTop(rng *rand.Rand, capacity int, tag TagUnion, cou
 }
 
 func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, capacity int, tag TagUnionBytes, count float64) *MultiValue {
-	if len(tag.S) == 0 && tag.I == 0 {
+	if tag.Empty() {
 		return &s.Tail
 	}
+	tag.Normalize() // important here
 	if s.Top == nil {
 		s.Top = map[TagUnion]*MultiValue{}
 	}
-	c, ok := s.Top[TagUnion{S: string(tag.S), I: tag.I}]
+	unsafeTagS := unsafe.String(unsafe.SliceData(tag.S), len(tag.S)) // avoid allocation for existing tag
+	c, ok := s.Top[TagUnion{S: unsafeTagS, I: tag.I}]
 	if ok {
 		return c
 	}

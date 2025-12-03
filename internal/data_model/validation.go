@@ -37,8 +37,8 @@ func ValidateMetricData(metricBytes *tlstatshouse.MetricBytes) (ingestionStatus 
 	return
 }
 
-func ValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, validEvent bool) {
-	tagMeta, legacyName := h.MetricMeta.APICompatGetTagFromBytes(v.Key)
+func MapValidateTag(v *tl.DictionaryFieldStringBytes, metricBytes *tlstatshouse.MetricBytes, h *MappedMetricHeader, autoCreate *AutoCreate) (tagMeta *format.MetricMetaTag, tagIDKey int32, validEvent bool) {
+	tagMeta, legacyName := h.MetricMeta.Name2TagAgentFastBytes(v.Key)
 	validEvent = true
 	if tagMeta == nil || tagMeta.Index >= format.MaxTags {
 		tagMeta = nil // pretend we did not find that tag

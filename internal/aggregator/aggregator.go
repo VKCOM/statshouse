@@ -924,7 +924,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 3, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeBudgeting, 1, a.aggregatorHostTag)
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 4, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeSampling, 1, a.aggregatorHostTag)
 		a.sh2.AddValueCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineTime, []int32{0, 5, 0, 0, stats.historicTag, statusTag, tableTag}, stats.sampleTimeMetricMeta, 1, a.aggregatorHostTag)
-		a.sh2.AddCounterHost(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, stats.samplingEngineKeys, a.aggregatorHostTag)
+		a.sh2.AddCounterHostS(stats.recentTs, format.BuiltinMetricMetaAggSamplingEngineKeys, []int32{0, 0, 0, 0, stats.historicTag, statusTag, tableTag}, nil, stats.samplingEngineKeys, a.aggregatorHostTag)
 
 		sendErr = fmt.Errorf("simulated error")
 		aggBucket.mu.Lock()

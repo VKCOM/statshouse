@@ -287,22 +287,20 @@ func run() error {
 	statshouse.ConfigureNetwork(log.Printf, argv.shNetwork, argv.shAddr, argv.shEnv)
 	defer statshouse.Close()
 
-	startTimestamp := time.Now().Unix()
-	component := strconv.FormatInt(format.TagValueIDComponentMetadata, 10)
-	start := strconv.FormatInt(format.TagValueIDHeartbeatEventStart, 10)
-	heartbeat := strconv.FormatInt(format.TagValueIDHeartbeatEventHeartbeat, 10)
-
+	startTimestamp := time.Now()
 	heartbeatTags := statshouse.Tags{
-		1: component,
-		2: start,
-		4: fmt.Sprint(build.CommitTag()),
-		6: fmt.Sprint(build.CommitTimestamp()),
-		7: srvfunc.HostnameForStatshouse(),
+		1:                       fmt.Sprint(format.TagValueIDComponentMetadata),
+		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		4:                       fmt.Sprint(build.CommitTag()),
+		6:                       fmt.Sprint(build.CommitTimestamp()),
+		7:                       srvfunc.HostnameForStatshouse(),
+		statshouse.StringTopTag: build.Commit(),
 	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
-	heartbeatTags[2] = heartbeat
+
+	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
-		uptime := float64(time.Now().Unix() - startTimestamp)
+		uptime := time.Since(startTimestamp).Seconds()
 		c.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, uptime)
 	}))
 

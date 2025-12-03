@@ -52,14 +52,14 @@ func genKey() *rapid.Generator[Key] {
 			// STags already initialized as empty strings
 		case 1: // One non-empty
 			idx := rapid.IntRange(0, format.MaxTags-1).Draw(t, "stag_index")
-			key.SetSTag(idx, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
+			key.STags[idx] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
 		case 2: // Half filled
 			for i := 0; i < format.MaxTags/2; i++ {
-				key.SetSTag(i, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
+				key.STags[i] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
 			}
 		case 3: // All filled
 			for i := range key.Tags {
-				key.SetSTag(i, rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag"))
+				key.STags[i] = rapid.StringN(1, 20, maxSTagLength).Draw(t, "stag")
 			}
 		}
 
@@ -202,7 +202,7 @@ func roundTripKey(key Key, bucketTimestamp uint32) Key {
 	// Convert MultiItemBytes back to Key
 	reconstructedKey, _ := KeyFromStatshouseMultiItem(multiItemBytes, bucketTimestamp)
 	for i, str := range multiItemBytes.Skeys {
-		reconstructedKey.SetSTag(i, string(str))
+		reconstructedKey.STags[i] = string(str)
 	}
 	return reconstructedKey
 }
