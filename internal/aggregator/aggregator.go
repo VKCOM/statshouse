@@ -281,9 +281,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		RawAutoCreate: func(ctx context.Context, hctx *rpc.HandlerContext) error {
 			if a.autoCreate != nil {
 				return a.autoCreate.handleAutoCreate(ctx, hctx)
-			} else {
-				return errNoAutoCreate
 			}
+			return errNoAutoCreate
 		},
 	}
 	if len(hostName) == 0 {

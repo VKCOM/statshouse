@@ -24,7 +24,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
@@ -378,12 +377,6 @@ func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metric
 		return r.Id, format.TagValueIDAggMappingCreatedStatusCreated, 0, nil
 	}
 	return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err
-}
-
-// adapter for disk cache
-func (l *MetricMetaLoader) LoadOrCreateMapping(ctxParent context.Context, key string, metricName interface{}) (pcache.Value, time.Duration, error) {
-	v, _, d, e := l.GetTagMapping(ctxParent, key, metricName.(string), true)
-	return pcache.Int32ToValue(v), d, e
 }
 
 func (l *MetricMetaLoader) SaveScrapeConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error) {
