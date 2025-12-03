@@ -453,8 +453,11 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				queryCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 				defer cancel()
 				err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(queryCtx, query) })
-				info.QueryDuration = time.Since(start)
+				duration := time.Since(start)
 				sem.Release()
+
+				info.QueryDuration = duration
+				pool.recordQueryDuration(duration, shard)
 				if queryCtx.Err() != nil {
 					statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
 						1:  modeStr(meta.IsFast, meta.IsLight, meta.IsHardware),
@@ -463,7 +466,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 						5:  "error",
 						7:  meta.User,
 						8:  strconv.Itoa(shard),
-						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, time.Since(start).Seconds())
+						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, duration.Seconds())
 				}
 			}()
 
@@ -485,7 +488,6 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 					Status:    StatusSuccess,
 					Duration:  info.QueryDuration,
 				})
-				pool.recordQueryDuration(info.QueryDuration, shard)
 				servers = slices.Delete(servers, i, i+1)
 				info.ErrorCode = 0
 				break // succeeded
