@@ -17,7 +17,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/mapping"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 )
 
@@ -129,7 +128,7 @@ func (w *worker) HandleParseError(pkt []byte, err error) {
 
 func (w *worker) printMetric(cachedString string, m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
 	if w.logPackets != nil {
-		if err := mapping.MapErrorFromHeader(m, h); err != nil {
+		if err := h.MapErrorFromHeader(m); err != nil {
 			w.logPackets("Error mapping metric (%s): %v\n    %#s\n    %#v\n", cachedString, err, m.String(), h)
 		} else {
 			w.logPackets("Mapped metric (%s): %#s\n    %#v\n", cachedString, m, h)

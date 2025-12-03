@@ -15,7 +15,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/mapping"
 )
 
 const (
@@ -247,7 +246,7 @@ func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *t
 			Scratch:     scratch,
 		}) // might move out metric, if needs to
 		if ingestionError != nil && *ingestionError == nil && h.IngestionStatus != 0 {
-			*ingestionError = mapping.MapErrorFromHeader(b.Metrics[i], h)
+			*ingestionError = h.MapErrorFromHeader(b.Metrics[i])
 		}
 	}
 	return true
