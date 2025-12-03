@@ -101,8 +101,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	nowUnix := uint32(now.Unix())
 	hostTag := data_model.TagUnion{S: args.Header.HostName}
 	if mapped, ok := a.getTagValue(nowUnix, args.Header.HostName); ok {
-		hostTag.I = mapped
-		hostTag.S = ""
+		hostTag = data_model.TagUnion{I: mapped}
 	}
 	hostTagBytes := data_model.TagUnionBytes{S: []byte(hostTag.S), I: hostTag.I}
 	aera := data_model.AgentEnvRouteArch{
@@ -206,14 +205,12 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// All hosts must be valid and non-empty
 	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
 	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag.I = mapped
-		hostTag.S = nil
+		hostTag = data_model.TagUnionBytes{I: mapped}
 	}
 	hostTagS := data_model.TagUnion{S: string(hostTag.S), I: hostTag.I} // allocate once
 	ownerTag := data_model.TagUnionBytes{S: args.Header.Owner}
 	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.Owner); ok {
-		ownerTag.I = mapped
-		ownerTag.S = nil
+		ownerTag = data_model.TagUnionBytes{I: mapped}
 	}
 	ownerTagS := data_model.TagUnion{S: string(ownerTag.S), I: ownerTag.I} // allocate once
 	aera := data_model.AgentEnvRouteArch{
@@ -471,7 +468,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			if m := mapStringTag(i, str, k.Metric, k.Tags[0]); m > 0 {
 				k.Tags[i] = m
 			} else {
-				k.SetSTag(i, string(str))
+				k.STags[i] = string(str)
 			}
 		}
 		if k.Metric < 0 && !format.HardwareMetric(k.Metric) {
@@ -770,8 +767,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
 	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag.I = mapped
-		hostTag.S = nil
+		hostTag = data_model.TagUnionBytes{I: mapped}
 	}
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),

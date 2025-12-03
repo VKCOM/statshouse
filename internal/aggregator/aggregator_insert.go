@@ -116,13 +116,13 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 
 func appendKeys(res []byte, k *data_model.Key, metricCache *metricIndexCache, top data_model.TagUnion, bufferedInsert bool) []byte {
 	appendTag := func(res []byte, k *data_model.Key, i int) []byte {
-		if len(k.GetSTag(i)) > 0 {
-			res = binary.LittleEndian.AppendUint32(res, 0)
-			res = rowbinary.AppendString(res, k.GetSTag(i))
+		if k.Tags[i] != 0 {
+			res = binary.LittleEndian.AppendUint32(res, uint32(k.Tags[i]))
+			res = rowbinary.AppendString(res, "")
 			return res
 		}
-		res = binary.LittleEndian.AppendUint32(res, uint32(k.Tags[i]))
-		res = rowbinary.AppendString(res, "")
+		res = binary.LittleEndian.AppendUint32(res, 0)
+		res = rowbinary.AppendString(res, k.STags[i])
 		return res
 	}
 	var it uint8
