@@ -73,7 +73,7 @@ type (
 		bucketsToSend     chan *aggregatorBucket
 		mu                sync.Mutex
 		server            *rpc.Server
-		aggregatorHostTag data_model.TagUnionBytes
+		aggregatorHostTag data_model.TagUnion
 		withoutCluster    bool
 		shardKey          int32 // never changes after start, can be used without lock
 		replicaKey        int32 // never changes after start, can be used without lock
@@ -455,25 +455,26 @@ func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
 }
 
 // We always return mapped tag for historic reasons. If we cannot map, aggregator will not run.
-func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.MetricMetaLoader, hostName string) (data_model.TagUnionBytes, error) {
+// TODO - we can now refactor this to work with not mapped automatically
+func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.MetricMetaLoader, hostName string) (data_model.TagUnion, error) {
 	nowUnix := uint32(time.Now().Unix())
 	if mapped, ok := mappingsCache.GetValue(nowUnix, hostName); ok {
-		return data_model.TagUnionBytes{I: mapped}, nil
+		return data_model.TagUnion{I: mapped}, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
 	keyValue, _, _, err := loader.GetTagMapping(ctx, string(hostName), format.BuiltinMetricMetaBudgetAggregatorHost.Name, true)
 	if err != nil {
-		return data_model.TagUnionBytes{}, err
+		return data_model.TagUnion{}, err
 	}
 	if keyValue <= 0 {
-		return data_model.TagUnionBytes{}, fmt.Errorf("negative (%d) aggregator host mapping loaded (flood limit?)", keyValue)
+		return data_model.TagUnion{}, fmt.Errorf("negative (%d) aggregator host mapping loaded (flood limit?)", keyValue)
 	}
 	mappingsCache.AddValues(nowUnix, []pcache.MappingPair{{
 		Str:   hostName,
 		Value: keyValue,
 	}})
-	return data_model.TagUnionBytes{I: keyValue}, nil
+	return data_model.TagUnion{I: keyValue}, nil
 }
 
 func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client) ([]byte, error) {
@@ -566,8 +567,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 	for i, cc := range a.historicHosts {
 		for j, bb := range cc {
 			for h := range bb { // random sample host every second is very good for max_host combobox under plot
-				hb := data_model.TagUnionBytes{S: []byte(h.S), I: h.I} // few allocations here, because most hosts are mapped
-				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, hb)
+				hostsWaiting[i][j].AddValueCounterHost(rng, float64(len(bb)), 1, h)
 				break
 			}
 		}

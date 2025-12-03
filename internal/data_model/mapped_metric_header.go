@@ -28,7 +28,7 @@ type MappedMetricHeader struct {
 	ReceiveTime time.Time // Saved at mapping start and used where we need time.Now. This is different to MetricBatch.T, which is sent by clients
 	MetricMeta  *format.MetricMetaValue
 	Key         Key
-	HostTag     TagUnionBytes // reference to memory inside tlstatshouse.MetricBytes.
+	HostTag     TagUnion // allocates, if not mapped
 
 	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
 	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
@@ -56,7 +56,7 @@ type MappedMetricHeader struct {
 
 func (h *MappedMetricHeader) SetTag(index int32, value TagUnionBytes, tagIDKey int32) {
 	if index == format.HostTagIndex {
-		h.HostTag = value
+		h.HostTag = value.ToTagUnion()
 		if h.IsHKeySet {
 			h.TagSetTwiceKey = tagIDKey
 		}

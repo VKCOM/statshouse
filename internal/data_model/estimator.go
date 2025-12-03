@@ -76,7 +76,7 @@ func (e *Estimator) createEstimatorsLocked(time uint32) (map[int32]*ChUnique, ma
 	return ah, bh
 }
 
-func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *MultiItemMap, usedMetrics map[int32]struct{}, aggregatorHostTag TagUnionBytes, shardKey int32, replicaKey int32) {
+func (e *Estimator) ReportHourCardinality(rng *rand.Rand, time uint32, miMap *MultiItemMap, usedMetrics map[int32]struct{}, aggregatorHostTag TagUnion, shardKey int32, replicaKey int32) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

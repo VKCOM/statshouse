@@ -246,7 +246,7 @@ func TestKeyFromStatshouseMultiItem(t *testing.T) {
 
 func testValuePercentiles(t *testing.T, agentLegacy bool) {
 	const testPercentileCompression = 10000 // compression makes our test non-deterministic
-	// we pass nil rng because all hosts are the same and we should never throw dice
+	// we pass nil rng because all hosts are the same, and we should never throw dice
 	metricInfo := &format.MetricMetaValue{MetricID: 1, Name: "a", Kind: "value_p"}
 	require.NoError(t, metricInfo.RestoreCachedInfo())
 	require.True(t, metricInfo.HasPercentiles)
@@ -262,16 +262,16 @@ func testValuePercentiles(t *testing.T, agentLegacy bool) {
 			}
 			if rapid.Bool().Draw(t, "kind") {
 				if agentLegacy {
-					mv.ApplyValuesLegacy(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, testPercentileCompression, metricInfo.HasPercentiles)
+					mv.ApplyValuesLegacy(nil, nil, values, float64(len(values)), float64(len(values)), TagUnion{}, testPercentileCompression, metricInfo.HasPercentiles)
 				} else {
-					mv.ApplyValues(nil, nil, values, float64(len(values)), float64(len(values)), TagUnionBytes{}, testPercentileCompression, metricInfo.HasPercentiles)
+					mv.ApplyValues(nil, nil, values, float64(len(values)), float64(len(values)), TagUnion{}, testPercentileCompression, metricInfo.HasPercentiles)
 				}
 			} else {
 				for _, v := range values {
 					if agentLegacy {
-						mv.AddValueCounterHostPercentileLegacy(nil, v, 1, TagUnionBytes{}, testPercentileCompression)
+						mv.AddValueCounterHostPercentileLegacy(nil, v, 1, TagUnion{}, testPercentileCompression)
 					} else {
-						mv.AddValueCounterHostPercentile(nil, v, 1, TagUnionBytes{}, testPercentileCompression)
+						mv.AddValueCounterHostPercentile(nil, v, 1, TagUnion{}, testPercentileCompression)
 					}
 				}
 			}
@@ -284,7 +284,7 @@ func testValuePercentiles(t *testing.T, agentLegacy bool) {
 		_, err := tlDst.Read(scratch, fm)
 		require.NoError(t, err)
 		mv2 := MultiValue{}
-		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnionBytes{}, testPercentileCompression)
+		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnion{}, testPercentileCompression)
 		// Verify key components
 		require.Equal(t, mv.Value, mv2.Value, "wrong value")
 		//if !hasPercentiles { - we decide we want separate test for that

@@ -158,7 +158,7 @@ func (s *Shard) resolutionShardFromHashLocked(key *data_model.Key, resolutionHas
 	return s.SuperQueue[slot%superQueueLen], clampedFuture
 }
 
-func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes []int64, count float64, hostTag data_model.TagUnionBytes,
+func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes []int64, count float64, hostTag data_model.TagUnion,
 	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	if count == 0 {
 		count = float64(len(hashes))
@@ -188,7 +188,7 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes [
 	}
 }
 
-func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnionBytes,
+func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogram [][2]float64, values []float64, count float64, hostTag data_model.TagUnion,
 	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	totalCount := float64(len(values))
 	for _, kv := range histogram {
@@ -226,7 +226,7 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogra
 	}
 }
 
-func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes,
+func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnion,
 	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	if count <= 0 {
 		return
@@ -262,10 +262,10 @@ func (s *Shard) AddCounterHostSrcIngestionStatus(t uint32, metricInfo *format.Me
 	key := data_model.Key{Timestamp: t, Metric: metricInfo.MetricID} // panics if metricInfo nil
 	copy(key.Tags[:], tags)
 	// resolutionHash will be 0 for built-in metrics, we are OK with this
-	s.AddCounterHost(&key, 0, count, data_model.TagUnionBytes{}, metricInfo, dropIfBeforeTimestamp)
+	s.AddCounterHost(&key, 0, count, data_model.TagUnion{}, metricInfo, dropIfBeforeTimestamp)
 }
 
-func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnionBytes,
+func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count float64, hostTag data_model.TagUnion,
 	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -299,7 +299,7 @@ func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo
 			topValue.S = str
 		}
 	}
-	hostTag := data_model.TagUnionBytes{}
+	hostTag := data_model.TagUnion{}
 	var resolutionHash uint64 // resolutionHash will be 0 for built-in metrics, we are OK with this
 
 	s.mu.Lock()
@@ -317,7 +317,7 @@ func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo
 	mv.AddCounterHost(s.rng, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnionBytes,
+func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnion,
 	metricInfo *format.MetricMetaValue, dropIfBeforeTimestamp uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -103,7 +103,6 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	if mapped, ok := a.getTagValue(nowUnix, args.Header.HostName); ok {
 		hostTag = data_model.TagUnion{I: mapped}
 	}
-	hostTagBytes := data_model.TagUnionBytes{S: []byte(hostTag.S), I: hostTag.I}
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -116,7 +115,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	if args.Cluster != a.config.Cluster {
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster},
-			1, hostTagBytes, aera)
+			1, hostTag, aera)
 		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	a.configMu.RLock()
@@ -125,7 +124,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	if args.IsSetPreviousConfig() && agent.EqualConfigResult3(args.PreviousConfig, cc) {
 		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 			[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigLongpoll},
-			1, hostTagBytes, aera)
+			1, hostTag, aera)
 		a.cfgNotifier.mu.Lock()
 		defer a.cfgNotifier.mu.Unlock()
 		lh, err := hctx.StartLongpoll(a.cfgNotifier)
@@ -137,7 +136,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 	}
 	a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAutoConfig,
 		[]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK},
-		1, hostTagBytes, aera)
+		1, hostTag, aera)
 	cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
 	cc.ConnectedTo = a.sh2.HostName()
 	hctx.Response, err = args.WriteResult(hctx.Response, cc)
@@ -203,9 +202,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
-	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
+	hostTag := data_model.TagUnion{S: string(args.Header.HostName)}
 	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag = data_model.TagUnionBytes{I: mapped}
+		hostTag = data_model.TagUnion{I: mapped}
 	}
 	hostTagS := data_model.TagUnion{S: string(hostTag.S), I: hostTag.I} // allocate once
 	ownerTag := data_model.TagUnionBytes{S: args.Header.Owner}
@@ -765,9 +764,9 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
-	hostTag := data_model.TagUnionBytes{S: args.Header.HostName}
+	hostTag := data_model.TagUnion{S: string(args.Header.HostName)}
 	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag = data_model.TagUnionBytes{I: mapped}
+		hostTag = data_model.TagUnion{I: mapped}
 	}
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),

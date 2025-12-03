@@ -711,7 +711,7 @@ func (p *ingressProxy) sendAutoConfigStatus(h *tlstatshouse.CommonProxyHeader, s
 		format.BuiltinMetricMetaAutoConfig,
 		[]int32{4: status},
 		nil,
-		1, data_model.TagUnionBytes{I: p.hostnameID.Load()})
+		1, data_model.TagUnion{I: p.hostnameID.Load()})
 }
 
 func (p *ingressProxy) isLegacyIngressClient(header *tlstatshouse.CommonProxyHeader, isSetNewIngressVersion bool) bool {

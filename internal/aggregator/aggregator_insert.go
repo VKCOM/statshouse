@@ -265,11 +265,11 @@ func appendHosts(rng *rand.Rand, res []byte, count float64, v data_model.ItemVal
 }
 
 func appendSimpleValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v float64, count float64, hostTag int32, metricCache *metricIndexCache) []byte {
-	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, data_model.TagUnionBytes{I: hostTag}), metricCache, false)
+	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, data_model.TagUnion{I: hostTag}), metricCache, false)
 }
 
 func appendBufferedValueStat(rng *rand.Rand, res []byte, key *data_model.Key, v float64, count float64, hostTag int32, metricCache *metricIndexCache) []byte {
-	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, data_model.TagUnionBytes{I: hostTag}), metricCache, true)
+	return appendValueStat(rng, res, key, data_model.SimpleItemValue(v, count, data_model.TagUnion{I: hostTag}), metricCache, true)
 }
 
 func multiValueMarshal(rng *rand.Rand, metricID int32, cache *metricIndexCache, res []byte, value *data_model.MultiValue, sf float64) []byte {
@@ -586,7 +586,7 @@ func zeroIfTrue(value float64, cond bool) float64 {
 	return value
 }
 
-func appendArgMinMaxTag(res []byte, tag data_model.TagUnionBytes, value float32) []byte {
+func appendArgMinMaxTag(res []byte, tag data_model.TagUnion, value float32) []byte {
 	if tag.Empty() {
 		res = rowbinary.AppendArgMinMaxStringEmpty(res)
 		return res

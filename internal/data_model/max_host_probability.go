@@ -28,7 +28,7 @@ func (s *ItemCounter) AddCounter(count float64) {
 	s.counter += count
 }
 
-func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTag TagUnionBytes) {
+func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTag TagUnion) {
 	// optimization, can be implemented as
 	// s.Merge(rng, ItemCounter{count, CounterHostDistribution(count), hostTagId})
 	if count <= 0 {
@@ -39,7 +39,7 @@ func (s *ItemCounter) AddCounterHost(rng *rand.Rand, count float64, hostTag TagU
 		s.counter = count
 		return
 	}
-	if s.MaxCounterHostTag.Equal(hostTag) {
+	if s.MaxCounterHostTag == hostTag {
 		// useful optimization to save rng call on agents where most host tags are 0
 		// (and set by aggregator much later)
 		s.counter += count
@@ -63,7 +63,7 @@ func (s *ItemCounter) Merge(rng *rand.Rand, other ItemCounter) {
 		s.counter = other.counter
 		return
 	}
-	if s.MaxCounterHostTag.Equal(other.MaxCounterHostTag) {
+	if s.MaxCounterHostTag == other.MaxCounterHostTag {
 		// useful optimization to save rng call on agents where most host tags are 0
 		// (and set by aggregator much later)
 		s.counter += other.counter
@@ -78,7 +78,7 @@ func (s *ItemCounter) Merge(rng *rand.Rand, other ItemCounter) {
 	s.counter += other.counter
 }
 
-func argMaxClickhouse(s *ItemCounter, count float64, hostTag TagUnionBytes) {
+func argMaxClickhouse(s *ItemCounter, count float64, hostTag TagUnion) {
 	if count > s.counter {
 		s.counter = count
 		s.MaxCounterHostTag = hostTag
@@ -154,10 +154,10 @@ func printHistogram(name string, count []int, examples []ItemCounter) {
 // Not actual test, it just prints histograms, so we can look if they are ok.
 func PrintLinearMaxHostProbabilities() {
 	examples := []ItemCounter{
-		{4, TagUnionBytes{I: 1}},
-		{1, TagUnionBytes{I: 2}},
-		{1, TagUnionBytes{I: 3}},
-		{64, TagUnionBytes{I: 4}},
+		{4, TagUnion{I: 1}},
+		{1, TagUnion{I: 2}},
+		{1, TagUnion{I: 3}},
+		{64, TagUnion{I: 4}},
 	}
 	rng := rand.New()
 	perm := rng.Perm(len(examples))
