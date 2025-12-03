@@ -401,7 +401,7 @@ func (a *Aggregator) getTagValueBytes(unix uint32, tagValue []byte) (int32, bool
 	if !useStorage {
 		return a.mappingsCache.GetValueBytes(unix, tagValue)
 	}
-	return a.mappingsStorage.GetValue(string(tagValue))
+	return a.mappingsStorage.GetValueBytes(tagValue)
 }
 
 func (a *Aggregator) getTagValue(unix uint32, tagValue string) (int32, bool) {
@@ -413,6 +413,22 @@ func (a *Aggregator) getTagValue(unix uint32, tagValue string) (int32, bool) {
 		return a.mappingsCache.GetValue(unix, tagValue)
 	}
 	return a.mappingsStorage.GetValue(tagValue)
+}
+
+func (a *Aggregator) getTagUnionBytes(unix uint32, tagValue []byte) data_model.TagUnion {
+	v, ok := a.getTagValueBytes(unix, tagValue)
+	if ok {
+		return data_model.TagUnion{I: v}
+	}
+	return data_model.TagUnion{S: string(tagValue)}
+}
+
+func (a *Aggregator) getTagUnion(unix uint32, tagValue string) data_model.TagUnion {
+	v, ok := a.getTagValue(unix, tagValue)
+	if ok {
+		return data_model.TagUnion{I: v}
+	}
+	return data_model.TagUnion{S: string(tagValue)}
 }
 
 func (a *Aggregator) SaveJournals() {

@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bytes"
 	"encoding/binary"
 	"sort"
 	"unsafe"
@@ -28,7 +27,7 @@ type (
 		S string
 		I int32 // should always have priority over S
 	}
-	TagUnionBytes struct {
+	TagUnionBytes struct { // TODO - deprecate and remove
 		S []byte
 		I int32 // should always have priority over S
 	}
@@ -100,16 +99,6 @@ type (
 	}
 )
 
-// not free, of course, use wisely
-func (t TagUnion) ToTagUnionBytes() TagUnionBytes {
-	return TagUnionBytes{I: t.I, S: []byte(t.S)}
-}
-
-// not free, of course, use wisely
-func (t TagUnionBytes) ToTagUnion() TagUnion {
-	return TagUnion{I: t.I, S: string(t.S)}
-}
-
 func (t *TagUnion) Normalize() {
 	if t.I != 0 {
 		t.S = ""
@@ -120,20 +109,6 @@ func (t *TagUnionBytes) Normalize() {
 	if t.I != 0 {
 		t.S = nil
 	}
-}
-
-func (t TagUnion) Equal(rhs TagUnionBytes) bool {
-	if t.I != 0 || rhs.I != 0 {
-		return t.I == rhs.I
-	}
-	return t.S == string(rhs.S)
-}
-
-func (t TagUnionBytes) Equal(rhs TagUnionBytes) bool {
-	if t.I != 0 || rhs.I != 0 {
-		return t.I == rhs.I
-	}
-	return bytes.Equal(t.S, rhs.S)
 }
 
 func (t TagUnion) Empty() bool {

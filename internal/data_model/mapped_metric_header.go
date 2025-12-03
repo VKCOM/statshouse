@@ -54,16 +54,16 @@ type MappedMetricHeader struct {
 	InvalidRawTagKey      int32  // key of InvalidRawValue
 }
 
-func (h *MappedMetricHeader) SetTag(index int32, value TagUnionBytes, tagIDKey int32) {
+func (h *MappedMetricHeader) SetTag(index int32, value TagUnion, tagIDKey int32) {
 	if index == format.HostTagIndex {
-		h.HostTag = value.ToTagUnion()
+		h.HostTag = value
 		if h.IsHKeySet {
 			h.TagSetTwiceKey = tagIDKey
 		}
 		h.IsHKeySet = true
 	} else {
 		h.Key.Tags[index] = value.I
-		h.Key.STags[index] = string(value.S)
+		h.Key.STags[index] = value.S
 		if h.IsTagSet[index] {
 			h.TagSetTwiceKey = tagIDKey
 		}

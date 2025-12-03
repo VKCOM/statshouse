@@ -99,10 +99,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
-	hostTag := data_model.TagUnion{S: args.Header.HostName}
-	if mapped, ok := a.getTagValue(nowUnix, args.Header.HostName); ok {
-		hostTag = data_model.TagUnion{I: mapped}
-	}
+	hostTag := a.getTagUnion(nowUnix, args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -202,16 +199,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
-	hostTag := data_model.TagUnion{S: string(args.Header.HostName)}
-	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag = data_model.TagUnion{I: mapped}
-	}
-	hostTagS := data_model.TagUnion{S: string(hostTag.S), I: hostTag.I} // allocate once
-	ownerTag := data_model.TagUnionBytes{S: args.Header.Owner}
-	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.Owner); ok {
-		ownerTag = data_model.TagUnionBytes{I: mapped}
-	}
-	ownerTagS := data_model.TagUnion{S: string(ownerTag.S), I: ownerTag.I} // allocate once
+	hostTag := a.getTagUnionBytes(nowUnix, args.Header.HostName)
+	ownerTag := a.getTagUnionBytes(nowUnix, args.Header.Owner)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -239,7 +228,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	if configR.DenyOldAgents && args.BuildCommitTs < format.LeastAllowedAgentCommitTs {
 		a.sh2.AddCounterHostAERAS(nowUnix, format.BuiltinMetricMetaAggOutdatedAgents,
 			[]int32{4: ownerTag.I, 5: hostTag.I, 6: agentAddrV4, 16: agentAddrTag, 17: agentAddrV4},
-			[]string{4: ownerTagS.S, 5: hostTagS.S, 18: agentAddrV6},
+			[]string{4: ownerTag.S, 5: hostTag.S, 18: agentAddrV6},
 			1, hostTag, aera)
 		return "agent is too old please update", nil, true
 	}
@@ -349,7 +338,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
 	aggBucket.contributorsMetric[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)].AddCounterHost(rng, 1, hostTag) // protected by a.mu
 	if args.IsSetHistoric() {
-		a.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagS]++
+		a.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTag]++
 	}
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
@@ -494,20 +483,20 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					k.Tags[6] = int32(args.BuildCommitTs)
 				}
 				if k.Tags[7] == 0 && k.STags[7] == "" {
-					k.SetTagUnion(7, hostTagS)
+					k.SetTagUnion(7, hostTag)
 				}
 				if k.Tags[9] == 0 && k.STags[9] == "" {
-					k.SetTagUnion(9, ownerTagS)
+					k.SetTagUnion(9, ownerTag)
 				}
 			case format.BuiltinMetricIDRPCRequests:
 				if k.Tags[7] == 0 && k.STags[7] == "" {
-					k.SetTagUnion(7, hostTagS) // agent cannot easily map its own host for now
+					k.SetTagUnion(7, hostTag) // agent cannot easily map its own host for now
 				}
 			case format.BuiltinMetricIDProxyVmSize, format.BuiltinMetricIDProxyVmRSS,
 				format.BuiltinMetricIDProxyHeapAlloc, format.BuiltinMetricIDProxyHeapSys,
 				format.BuiltinMetricIDProxyHeapIdle, format.BuiltinMetricIDProxyHeapInuse:
 				// Do not check for 0, Old ingress proxies may send "flood limit" as a value here
-				k.SetTagUnion(1, hostTagS) // agent cannot easily map its own host for now
+				k.SetTagUnion(1, hostTag) // agent cannot easily map its own host for now
 			}
 		}
 		if item.Tail.IsSetMaxHostStag(item.FieldsMask) {
@@ -593,7 +582,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		aggBucket.usedMetrics[m] = struct{}{}
 	}
 	if args.IsSetHistoric() {
-		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTagS]++
+		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTag]++
 	}
 	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
 	if errHijack == nil {                          // must be always, because we wait for all inserts finish before calling server.Shutdown()
@@ -764,10 +753,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
-	hostTag := data_model.TagUnion{S: string(args.Header.HostName)}
-	if mapped, ok := a.getTagValueBytes(nowUnix, args.Header.HostName); ok {
-		hostTag = data_model.TagUnion{I: mapped}
-	}
+	hostTag := a.getTagUnionBytes(nowUnix, args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,

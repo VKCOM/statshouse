@@ -36,7 +36,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		if tagMeta == nil { // that tag is not in metric meta
 			continue
 		}
-		var tagValue data_model.TagUnionBytes
+		var tagValue data_model.TagUnion
 		switch {
 		case len(v.Value) == 0: // this case is also valid for raw values
 		case tagMeta.Raw64():
@@ -47,7 +47,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 				// We could arguably call h.SetKey, but there is very little difference in semantic to care
 				continue
 			}
-			h.SetTag(tagMeta.Index+1, data_model.TagUnionBytes{I: hi}, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
+			h.SetTag(tagMeta.Index+1, data_model.TagUnion{I: hi}, tagIDKey+1) // last tag is never Raw64, checked by RestoreCachedInfo
 
 			tagValue.I = lo
 		case tagMeta.Raw():
@@ -63,7 +63,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 			if found {
 				tagValue.I = id
 			} else {
-				tagValue.S = v.Value
+				tagValue.S = string(v.Value) // allocates on failed mapping only
 			}
 		}
 		h.SetTag(tagMeta.Index, tagValue, tagIDKey)

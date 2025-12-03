@@ -450,6 +450,14 @@ func (ms *MappingsStorage) GetValue(str string) (int32, bool) {
 	return val, ok
 }
 
+func (ms *MappingsStorage) GetValueBytes(str []byte) (int32, bool) {
+	shard := int(xxh3.Hash(str) % uint64(len(ms.shards)))
+	ms.shards[shard].mu.RLock()
+	defer ms.shards[shard].mu.RUnlock()
+	val, ok := ms.shards[shard].mappings[string(str)]
+	return val, ok
+}
+
 func (ms *MappingsStorage) GetString(value int32) (string, bool) {
 	if !ms.reverseEnable {
 		return "", false
