@@ -225,7 +225,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		}
 	*/
 	metricStorage := metajournal.MakeMetricsStorage(nil)
-	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil, []metajournal.ApplyEvent{metricStorage.ApplyEvent})
+	journal := metajournal.MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, false, []metajournal.ApplyEvent{metricStorage.ApplyEvent})
 	journal.Start(nil, nil, dolphinLoader)
 
 	recv, err := receiver.ListenUDP("udp", listenAddr, receiver.DefaultConnBufSize, true, nil, nil, nil)
@@ -585,7 +585,7 @@ func mainPublishTagDrafts() int {
 		}
 	}
 	storage = metajournal.MakeMetricsStorage(applyPromConfig)
-	journal := metajournal.MakeJournal("", data_model.JournalDDOSProtectionTimeout, nil,
+	journal := metajournal.MakeJournalFast(data_model.NewChunkedStorageNop(), data_model.JournalDDOSProtectionTimeout, false,
 		[]metajournal.ApplyEvent{storage.ApplyEvent, applyEvents}) // order important
 	journal.Start(nil, nil, loader.LoadJournal)
 	fmt.Println("Press <Enter> to start publishing tag drafts")
