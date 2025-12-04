@@ -111,7 +111,7 @@ func (a *Aggregator) goMigrateV1(cancelCtx context.Context) {
 
 		a.configMu.RLock()
 		delaySec := a.configR.MigrationDelaySec
-		if a.configR.MigrationTimeRange == "" {
+		if a.configR.MigrationTimeRangeV1 == "" {
 			a.configMu.RUnlock()
 			log.Println("[migration_v1] Migration disabled: no time range configured")
 			time.Sleep(time.Duration(delaySec) * time.Second)
@@ -412,7 +412,7 @@ func executeV1Query(httpClient *http.Client, query, format string, config *Migra
 // findNextTimestampToMigrateV1 determines next timestamp for V1 migration.
 func (a *Aggregator) findNextTimestampToMigrateV1(httpClient *http.Client, shardKey int32) (time.Time, error) {
 	a.configMu.RLock()
-	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRange)
+	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRangeV1)
 	a.configMu.RUnlock()
 
 	if startTs == 0 && endTs == 0 {

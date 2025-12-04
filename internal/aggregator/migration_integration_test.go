@@ -1713,6 +1713,124 @@ func TestMigrationOrchestration(t *testing.T) {
 	t.Logf("SUCCESS: End-to-end migration orchestration test completed successfully")
 }
 
+func TestMigrationOrchestrationV1(t *testing.T) {
+	aggregator := &Aggregator{
+		config: ConfigAggregator{
+			KHAddr:     clickHouseAddr,
+			KHUser:     "default",
+			KHPassword: "secret",
+		},
+		migrationConfig:   NewDefaultMigrationConfig(),
+		migrationConfigV1: NewDefaultMigrationConfigV1([]string{clickHouseAddr}, "default", "secret"),
+		configR: ConfigAggregatorRemote{
+			MigrationTimeRangeV1: "36000-3600",
+		},
+	}
+
+	cleanupMigrationTables(t)
+
+	testShardKey := int32(1)
+
+	firstTs, err := aggregator.findNextTimestampToMigrateV1(httpClient, testShardKey)
+	require.NoError(t, err, "findNextTimestampToMigrateV1 should succeed")
+	require.Equal(t, time.Unix(36000, 0), firstTs, "Should find the first timestamp for V1")
+
+	started := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, started, nil, migrationSourceV1)
+	require.NoError(t, err, "updateMigrationState (start, V1) should succeed")
+
+	ended := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, started, &ended, migrationSourceV1)
+	require.NoError(t, err, "updateMigrationState (end, V1) should succeed")
+
+	nextTs, err := aggregator.findNextTimestampToMigrateV1(httpClient, testShardKey)
+	require.NoError(t, err, "findNextTimestampToMigrateV1 (next) should succeed")
+	require.Equal(t, firstTs.Add(-time.Hour), nextTs, "Should find previous timestamp for V1")
+
+	countQuery := fmt.Sprintf(`
+		SELECT count() as cnt
+		FROM statshouse_migration_state
+		WHERE shard_key = %d AND source = '%s'`, testShardKey, migrationSourceV1)
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var recordCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &recordCount)
+	require.NoError(t, err)
+	resp.Close()
+
+	require.GreaterOrEqual(t, recordCount, uint64(2), "Should have at least 2 V1 migration state records (start and end)")
+
+	t.Logf("SUCCESS: V1 migration orchestration test completed successfully")
+}
+
+func TestMigrationOrchestrationStop(t *testing.T) {
+	aggregator := &Aggregator{
+		config: ConfigAggregator{
+			KHAddr:     clickHouseAddr,
+			KHUser:     "default",
+			KHPassword: "secret",
+		},
+		migrationConfig:     NewDefaultMigrationConfig(),
+		migrationConfigStop: NewDefaultMigrationConfigStop([]string{clickHouseAddr}, "default", "secret"),
+		configR: ConfigAggregatorRemote{
+			MigrationTimeRangeStop: "36000-3600",
+		},
+	}
+
+	cleanupMigrationTables(t)
+
+	testShardKey := int32(1)
+
+	firstTs, err := aggregator.findNextTimestampToMigrateStop(httpClient, testShardKey)
+	require.NoError(t, err, "findNextTimestampToMigrateStop should succeed")
+	require.Equal(t, time.Unix(36000, 0), firstTs, "Should find the first timestamp for stop source")
+
+	started := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 0, 0, 0, started, nil, migrationSourceStop)
+	require.NoError(t, err, "updateMigrationState (start, stop) should succeed")
+
+	ended := time.Now()
+	err = aggregator.updateMigrationState(httpClient, testShardKey, firstTs, 100, 95, 0, started, &ended, migrationSourceStop)
+	require.NoError(t, err, "updateMigrationState (end, stop) should succeed")
+
+	nextTs, err := aggregator.findNextTimestampToMigrateStop(httpClient, testShardKey)
+	require.NoError(t, err, "findNextTimestampToMigrateStop (next) should succeed")
+	require.Equal(t, firstTs.Add(-time.Hour), nextTs, "Should find previous timestamp for stop source")
+
+	countQuery := fmt.Sprintf(`
+		SELECT count() as cnt
+		FROM statshouse_migration_state
+		WHERE shard_key = %d AND source = '%s'`, testShardKey, migrationSourceStop)
+
+	req := &chutil.ClickHouseHttpRequest{
+		HttpClient: httpClient,
+		Addr:       clickHouseAddr,
+		User:       "default",
+		Password:   "secret",
+		Query:      countQuery,
+	}
+	resp, err := req.Execute(context.Background())
+	require.NoError(t, err)
+
+	var recordCount uint64
+	_, err = fmt.Fscanf(resp, "%d", &recordCount)
+	require.NoError(t, err)
+	resp.Close()
+
+	require.GreaterOrEqual(t, recordCount, uint64(2), "Should have at least 2 stop migration state records (start and end)")
+
+	t.Logf("SUCCESS: stop migration orchestration test completed successfully")
+}
+
 func cleanupMigrationTables(t *testing.T) {
 	cleanupStateQuery := `TRUNCATE TABLE statshouse_migration_state;`
 	cleanupLogsQuery := `TRUNCATE TABLE statshouse_migration_logs;`
