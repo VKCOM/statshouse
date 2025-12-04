@@ -7,7 +7,6 @@
 package data_model
 
 import (
-	"bytes"
 	"encoding/binary"
 	"sort"
 	"unsafe"
@@ -28,7 +27,7 @@ type (
 		S string
 		I int32 // should always have priority over S
 	}
-	TagUnionBytes struct {
+	TagUnionBytes struct { // TODO - deprecate and remove
 		S []byte
 		I int32 // should always have priority over S
 	}
@@ -43,15 +42,15 @@ type (
 
 	ItemCounter struct {
 		counter           float64
-		MaxCounterHostTag TagUnionBytes // Example hostname randomized according to distribution
+		MaxCounterHostTag TagUnion // Example hostname randomized according to distribution
 	}
 
 	ItemValue struct {
 		ItemCounter
 		ValueMin, ValueMax, ValueSum float64 // Aggregates of Value
 		ValueSumSquare               float64 // Aggregates of Value
-		MinHostTag                   TagUnionBytes
-		MaxHostTag                   TagUnionBytes
+		MinHostTag                   TagUnion
+		MaxHostTag                   TagUnion
 		ValueSet                     bool // first value is assigned to Min&Max
 	}
 
@@ -96,7 +95,7 @@ type (
 		TagIDKey  int32
 		ClientEnv int32
 		Aera      AgentEnvRouteArch
-		HostTag   TagUnionBytes
+		HostTag   TagUnion
 	}
 )
 
@@ -110,13 +109,6 @@ func (t *TagUnionBytes) Normalize() {
 	if t.I != 0 {
 		t.S = nil
 	}
-}
-
-func (t TagUnionBytes) Equal(rhs TagUnionBytes) bool {
-	if t.I != 0 || rhs.I != 0 {
-		return t.I == rhs.I
-	}
-	return bytes.Equal(t.S, rhs.S)
 }
 
 func (t TagUnion) Empty() bool {
@@ -193,13 +185,13 @@ func (k *Key) XXHash(scratch []byte) ([]byte, uint64) {
 	return scratch, xxh3.Hash(scratch[4:]) // skip timestamp in first 4 bytes
 }
 
-func SimpleItemValue(value float64, count float64, hostTag TagUnionBytes) ItemValue {
+func SimpleItemValue(value float64, count float64, hostTag TagUnion) ItemValue {
 	item := SimpleItemCounter(count, hostTag)
 	item.addOnlyValue(value, count, hostTag)
 	return item
 }
 
-func SimpleItemCounter(count float64, hostTag TagUnionBytes) ItemValue {
+func SimpleItemCounter(count float64, hostTag TagUnion) ItemValue {
 	return ItemValue{ItemCounter: ItemCounter{counter: count, MaxCounterHostTag: hostTag}}
 }
 
@@ -207,7 +199,7 @@ func (s *ItemValue) AddValue(value float64) {
 	s.AddValueCounter(value, 1)
 }
 
-func (s *ItemValue) addOnlyValue(value float64, count float64, hostTag TagUnionBytes) {
+func (s *ItemValue) addOnlyValue(value float64, count float64, hostTag TagUnion) {
 	s.ValueSum += value * count
 	s.ValueSumSquare += value * value * count
 
@@ -224,15 +216,15 @@ func (s *ItemValue) addOnlyValue(value float64, count float64, hostTag TagUnionB
 
 func (s *ItemValue) AddValueCounter(value float64, count float64) {
 	s.AddCounter(count)
-	s.addOnlyValue(value, count, TagUnionBytes{})
+	s.addOnlyValue(value, count, TagUnion{})
 }
 
-func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes) {
+func (s *ItemValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag TagUnion) {
 	s.AddCounterHost(rng, count, hostTag)
 	s.addOnlyValue(value, count, hostTag)
 }
 
-func (s *ItemValue) AddValueArrayHost(rng *rand.Rand, values []float64, mult float64, hostTag TagUnionBytes) {
+func (s *ItemValue) AddValueArrayHost(rng *rand.Rand, values []float64, mult float64, hostTag TagUnion) {
 	s.AddCounterHost(rng, mult*float64(len(values)), hostTag)
 	for _, value := range values {
 		s.addOnlyValue(value, mult, hostTag)
@@ -463,22 +455,22 @@ func (s *MultiValue) Empty() bool {
 }
 
 func (s *MultiValue) AddCounter(rng *rand.Rand, count float64) {
-	s.Value.AddCounterHost(rng, count, TagUnionBytes{})
+	s.Value.AddCounterHost(rng, count, TagUnion{})
 }
 
-func (s *MultiValue) AddCounterHost(rng *rand.Rand, count float64, hostTag TagUnionBytes) {
+func (s *MultiValue) AddCounterHost(rng *rand.Rand, count float64, hostTag TagUnion) {
 	s.Value.AddCounterHost(rng, count, hostTag)
 }
 
 func (s *MultiValue) AddValueCounter(rng *rand.Rand, value float64, count float64) {
-	s.Value.AddValueCounterHost(rng, value, count, TagUnionBytes{})
+	s.Value.AddValueCounterHost(rng, value, count, TagUnion{})
 }
 
-func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes) {
+func (s *MultiValue) AddValueCounterHost(rng *rand.Rand, value float64, count float64, hostTag TagUnion) {
 	s.Value.AddValueCounterHost(rng, value, count, hostTag)
 }
 
-func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes, compression float64) {
+func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64, count float64, hostTag TagUnion, compression float64) {
 	wasValue, wasCount, wasSet := s.Value.ValueMax, s.Value.counter, s.Value.ValueSet
 	s.Value.AddValueCounterHost(rng, value, count, hostTag)
 	if s.Value.ValueMin == s.Value.ValueMax {
@@ -494,7 +486,7 @@ func (s *MultiValue) AddValueCounterHostPercentile(rng *rand.Rand, value float64
 }
 
 // for tests between existing and new percentiles transfer
-func (s *MultiValue) AddValueCounterHostPercentileLegacy(rng *rand.Rand, value float64, count float64, hostTag TagUnionBytes, compression float64) {
+func (s *MultiValue) AddValueCounterHostPercentileLegacy(rng *rand.Rand, value float64, count float64, hostTag TagUnion, compression float64) {
 	s.Value.AddValueCounterHost(rng, value, count, hostTag)
 	if s.ValueTDigest == nil {
 		s.ValueTDigest = tdigest.NewWithCompression(compression)
@@ -502,7 +494,7 @@ func (s *MultiValue) AddValueCounterHostPercentileLegacy(rng *rand.Rand, value f
 	s.ValueTDigest.Add(value, count)
 }
 
-func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnionBytes, compression float64, hasPercentiles bool) {
+func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnion, compression float64, hasPercentiles bool) {
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
@@ -555,7 +547,7 @@ func (s *MultiValue) ApplyValues(rng *rand.Rand, histogram [][2]float64, values 
 }
 
 // for tests between existing and new percentiles transfer
-func (s *MultiValue) ApplyValuesLegacy(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnionBytes, compression float64, hasPercentiles bool) {
+func (s *MultiValue) ApplyValuesLegacy(rng *rand.Rand, histogram [][2]float64, values []float64, count float64, totalCount float64, hostTag TagUnion, compression float64, hasPercentiles bool) {
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
 	}
@@ -594,7 +586,7 @@ func (s *MultiValue) ApplyValuesLegacy(rng *rand.Rand, histogram [][2]float64, v
 	s.Value.Merge(rng, &tmp)
 }
 
-func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag TagUnionBytes) {
+func (s *MultiValue) ApplyUnique(rng *rand.Rand, hashes []int64, count float64, hostTag TagUnion) {
 	totalCount := float64(len(hashes))
 	if totalCount <= 0 { // should be never, but as we divide by it, we keep check here
 		return
