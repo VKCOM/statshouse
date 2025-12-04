@@ -20,9 +20,9 @@ var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
 var timeCoarseTrimSeconds = map[string]int64{
-	"statshouse_v4_1ss":      60,
-	"statshouse_v4_1ms":      60 * 60,
-	"statshouse_v4_1hs":      60 * 60 * 24,
+	"statshouse_v4_1s":       60,
+	"statshouse_v4_1m":       60 * 60,
+	"statshouse_v4_1h":       60 * 60 * 24,
 	"statshouse_v4_1s_dists": 60,
 	"statshouse_v4_1m_dists": 60 * 60,
 	"statshouse_v4_1h_dists": 60 * 60 * 24,
