@@ -26,23 +26,25 @@ type ConfigChangeNotifier struct {
 }
 
 type ConfigAggregatorRemote struct {
-	ShortWindow          int
-	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
-	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
-	StringTopCountInsert int
-	SampleNamespaces     bool
-	SampleGroups         bool
-	SampleKeys           bool
-	DenyOldAgents        bool
-	V3InsertSettings     string
-	MappingCacheSize     int64
-	MappingCacheTTL      int
-	MapStringTop         bool
-	BufferedInsertAgeSec int    // age in seconds of data that should be sent to buffer table
-	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
-	MigrationDelaySec    int    // delay in seconds between migration steps
-	ClusterShardsAddrs   []string
-	EnableMappingStorage bool
+	ShortWindow            int
+	InsertBudget           int         // for single replica, in bytes per contributor, when many contributors
+	ShardInsertBudget      map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	StringTopCountInsert   int
+	SampleNamespaces       bool
+	SampleGroups           bool
+	SampleKeys             bool
+	DenyOldAgents          bool
+	V3InsertSettings       string
+	MappingCacheSize       int64
+	MappingCacheTTL        int
+	MapStringTop           bool
+	BufferedInsertAgeSec   int    // age in seconds of data that should be sent to buffer table
+	MigrationTimeRange     string // format: "{begin timestamp}-{end timestamp}"
+	MigrationTimeRangeV1   string // format: "{begin timestamp}-{end timestamp}"
+	MigrationTimeRangeStop string // format: "{begin timestamp}-{end timestamp}"
+	MigrationDelaySec      int    // delay in seconds between migration steps
+	ClusterShardsAddrs     []string
+	EnableMappingStorage   bool
 
 	configTagsMapper3
 }
@@ -96,18 +98,20 @@ func DefaultConfigAggregator() ConfigAggregator {
 		LocalShard:           1,
 
 		RemoteInitial: ConfigAggregatorRemote{
-			ShortWindow:          data_model.MaxShortWindow,
-			InsertBudget:         400,
-			StringTopCountInsert: 20,
-			SampleNamespaces:     true,
-			SampleGroups:         true,
-			SampleKeys:           true,
-			DenyOldAgents:        true,
-			MappingCacheSize:     1 << 30,
-			MappingCacheTTL:      86400 * 7,
-			MapStringTop:         true,
-			MigrationTimeRange:   "", // empty means migration disabled
-			MigrationDelaySec:    30, // 30 seconds delay between migration steps
+			ShortWindow:            data_model.MaxShortWindow,
+			InsertBudget:           400,
+			StringTopCountInsert:   20,
+			SampleNamespaces:       true,
+			SampleGroups:           true,
+			SampleKeys:             true,
+			DenyOldAgents:          true,
+			MappingCacheSize:       1 << 30,
+			MappingCacheTTL:        86400 * 7,
+			MapStringTop:           true,
+			MigrationTimeRange:     "", // empty means migration disabled
+			MigrationTimeRangeV1:   "", // empty means migration disabled
+			MigrationTimeRangeStop: "", // empty means migration disabled
+			MigrationDelaySec:      30, // 30 seconds delay between migration steps
 
 			configTagsMapper3: configTagsMapper3{
 				MaxUnknownTagsInBucket:    1024,
@@ -172,6 +176,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
 		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
+		f.StringVar(&c.MigrationTimeRangeV1, "migration-v1", d.MigrationTimeRangeV1, "Migration V1 time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
+		f.StringVar(&c.MigrationTimeRangeStop, "migration-stop", d.MigrationTimeRangeStop, "Migration Stop time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
 		f.BoolVar(&c.EnableMappingStorage, "enable-mapping-storage", d.EnableMappingStorage, "Enable full mapping inmemory&disk storage")

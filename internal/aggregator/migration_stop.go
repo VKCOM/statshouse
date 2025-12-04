@@ -117,7 +117,7 @@ func (a *Aggregator) goMigrateStop(cancelCtx context.Context) {
 
 		a.configMu.RLock()
 		delaySec := a.configR.MigrationDelaySec
-		if a.configR.MigrationTimeRange == "" {
+		if a.configR.MigrationTimeRangeStop == "" {
 			a.configMu.RUnlock()
 			log.Println("[migration_stop] Migration disabled: no time range configured")
 			time.Sleep(time.Duration(delaySec) * time.Second)
@@ -434,7 +434,7 @@ func (a *Aggregator) findNextTimestampToMigrateStop(httpClient *http.Client, sha
 	}
 
 	a.configMu.RLock()
-	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRange)
+	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRangeStop)
 	a.configMu.RUnlock()
 
 	if startTs == 0 && endTs == 0 {
