@@ -517,28 +517,26 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
 			}
 		}
-		if configR.MapStringTop {
-			for i, tb := range item.Top {
-				if m := mapStringTag(i, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
-					item.Top[i].Tag = m
+		for i, tb := range item.Top {
+			if m := mapStringTag(i, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
+				item.Top[i].Tag = m
+			}
+			if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
+				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
+					tb.Value.SetMaxHostTag(m, &item.FieldsMask)
+					tb.Value.ClearMaxHostStag(&item.FieldsMask)
 				}
-				if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
-						tb.Value.SetMaxHostTag(m, &item.FieldsMask)
-						tb.Value.ClearMaxHostStag(&item.FieldsMask)
-					}
+			}
+			if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
+				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
+					tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
+					tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
 				}
-				if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
-						tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
-						tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
-					}
-				}
-				if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
-					if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
-						tb.Value.SetMinHostTag(m, &item.FieldsMask)
-						tb.Value.ClearMinHostStag(&item.FieldsMask)
-					}
+			}
+			if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
+				if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
+					tb.Value.SetMinHostTag(m, &item.FieldsMask)
+					tb.Value.ClearMinHostStag(&item.FieldsMask)
 				}
 			}
 		}

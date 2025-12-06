@@ -37,7 +37,6 @@ type ConfigAggregatorRemote struct {
 	V3InsertSettings       string
 	MappingCacheSize       int64
 	MappingCacheTTL        int
-	MapStringTop           bool
 	BufferedInsertAgeSec   int    // age in seconds of data that should be sent to buffer table
 	MigrationTimeRange     string // format: "{begin timestamp}-{end timestamp}"
 	MigrationTimeRangeV1   string // format: "{begin timestamp}-{end timestamp}"
@@ -107,7 +106,6 @@ func DefaultConfigAggregator() ConfigAggregator {
 			DenyOldAgents:          true,
 			MappingCacheSize:       1 << 30,
 			MappingCacheTTL:        86400 * 7,
-			MapStringTop:           true,
 			MigrationTimeRange:     "", // empty means migration disabled
 			MigrationTimeRangeV1:   "", // empty means migration disabled
 			MigrationTimeRangeStop: "", // empty means migration disabled
@@ -173,7 +171,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v3 table")
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
-		f.BoolVar(&c.MapStringTop, "map-string-top", d.MapStringTop, "Map string top")
+		var mapStringTop bool // TODO - remove after deploying aggregators
+		f.BoolVar(&mapStringTop, "map-string-top", false, "Map string top. Not used.")
 		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
 		f.StringVar(&c.MigrationTimeRangeV1, "migration-v1", d.MigrationTimeRangeV1, "Migration V1 time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
