@@ -142,6 +142,7 @@ func (ms *tagsMapper3) createTag(str string, extra data_model.CreateMappingExtra
 		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
 		float64(keyValue), 1, extra.HostTag, extra.Aera)
 }
+
 func (ms *tagsMapper3) getTagsToCreate() (map[string]data_model.CreateMappingExtra, int) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
