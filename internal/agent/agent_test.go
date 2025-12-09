@@ -136,7 +136,6 @@ func Test_AgentQueue(t *testing.T) {
 		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
 		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
-		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())

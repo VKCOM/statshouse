@@ -886,11 +886,38 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 		Description: "remote_addr_v6",
 	}, 18: {
 		Description: "connected_to",
+	}, 30: {
+		Description: "arg_agg_addr",
+	}, 31: {
+		Description: "arg_file_dir {cache-dir, historic-storage, disk-cache, db-path, log-file, l}",
+	}, 32: {
+		Description: "arg_listen_addr {p, ingress-addr, listen-addr, ipv6, unix}",
+	}, 33: {
+		Description: "arg_flags {disable-remote-config, hardware-metric-scrape-disable, prometheus-push-remote, " +
+			"pprof-http, auto-create-default-namespace, auto-create, version, show-invisible, " +
+			"clickhouse-v2-debug, clickhouse-v1-debug, access-log, verbose, readonly, " +
+			"query-sequential, insecure-mode, local-mode, send-source-bucket2}",
+	}, 34: {
+		Description: "arg_definition {cluster, hostname, u, g}",
+	}, 35: {
+		Description: "arg_pwd_file {aes-pwd-file, ingress-pwd-dir, kh-password-file, env-file-path}",
+	}, 36: {
+		Description: "arg_budgets {sample-budget, clickhouse-max-queries, clickhouse-v1-max-conns, clickhouse-v2-max-hardware-slow-conns, " +
+			"clickhouse-v2-max-hardware-fast-conns, clickhouse-v2-max-heavy-slow-conns, clickhouse-v2-max-heavy-conns, " +
+			"clickhouse-v2-max-light-slow-conns, clickhouse-v2-max-conns, historic-inserters, max-budget}",
+	}, 37: {
+		Description: "arg_external_addr {ingress-external-addr, ipv6}",
+	}, 38: {
+		Description: "arg_system_limits {max-open-files, cores, cores-udp, buffer-size-udp, max-chunks-count, default-num-series}",
+	}, 39: {
+		Description: "arg_ch_addrs {clickhouse-v2-addrs, clickhouse-v1-addrs, kh, kh-v1, kh-user, kh-v1-user}",
+	}, 40: {
+		Description: "arg_other",
 	}},
 }
 
-const BuiltinMetricIDHeartbeatArgs = -48 // this metric was writing larger than allowed strings to DB in the past
-var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
+const BuiltinMetricIDHeartbeatArgs = -48               // this metric was writing larger than allowed strings to DB in the past
+var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{ // TODO: REMOVE
 	Name:                    "__heartbeat_args",
 	Kind:                    MetricKindValue,
 	Description:             "Commandline of statshouse components.\nHeartbeat value is uptime.",
@@ -2502,6 +2529,7 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 		Description: "lang",
 		ValueComments: convertToValueComments(map[int32]string{
 			1: "golang",
+			2: "python",
 		}),
 	}, {
 		Description: "cause",

@@ -200,6 +200,7 @@ main_loop:
 	shutdownInfo.SaveMappings = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	log.Printf("6. Saving journals...")
 	agg.SaveJournals()
+	agg.SaveMappings()
 	shutdownInfo.SaveJournal = agent.ShutdownInfoDuration(&now).Nanoseconds()
 	shutdownInfo.FinishShutdownTime = now.UnixNano()
 	agent.ShutdownInfoSave(argv.cacheDir, shutdownInfo)
