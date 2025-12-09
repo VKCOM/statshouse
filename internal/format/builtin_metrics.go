@@ -1181,6 +1181,7 @@ var BuiltinMetricMetaAPISelectBytes = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
 			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
 			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+			TagValueIDAPIResponseExceptionCtxCanceled:   "context_canceled",
 		}),
 	}},
 }
@@ -1217,6 +1218,7 @@ var BuiltinMetricMetaAPISelectRows = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
 			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
 			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+			TagValueIDAPIResponseExceptionCtxCanceled:   "context_canceled",
 		}),
 	}},
 }
@@ -1257,6 +1259,7 @@ var BuiltinMetricMetaAPISelectDuration = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
 			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
 			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+			TagValueIDAPIResponseExceptionCtxCanceled:   "context_canceled",
 		}),
 	}},
 }
@@ -2838,6 +2841,7 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
 			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
 			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+			TagValueIDAPIResponseExceptionCtxCanceled:   "context_canceled",
 		}),
 	}},
 }
@@ -2898,6 +2902,7 @@ var BuiltinMetricMetaAPISelectOSCPUVirtualTime = &MetricMetaValue{
 			TagValueIDAPIResponseExceptionSemError:      "semaphore_error",
 			TagValueIDAPIResponseExceptionLongCHTimeout: "fatal_ch_timeout",
 			TagValueIDAPIResponseExceptionSemTooLate:    "semaphore_too_late",
+			TagValueIDAPIResponseExceptionCtxCanceled:   "context_canceled",
 		}),
 	}},
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
@@ -659,7 +660,10 @@ func (l *cache2Loader) loadChunks() {
 	h, q := l.handler, l.query
 	c, b := l.cache, l.bucket
 	data := l.data[first.chunkStart:last.chunkEnd]
-	_, err := c.loader(context.Background(), h, q, lod, data, 0)
+
+	ctx, cancel := context.WithTimeout(context.Background(), QuerySelectTimeoutDefault)
+	defer cancel()
+	_, err := c.loader(ctx, h, q, lod, data, 0)
 	if err == nil {
 		startMapTags := time.Now()
 		cache2MapStringTags(h, q, data)
