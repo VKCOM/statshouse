@@ -18,10 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mailru/easyjson/jwriter"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql"
-	"github.com/mailru/easyjson/jwriter"
 )
 
 const (
@@ -66,7 +67,9 @@ func httpCode(err error) int {
 		switch {
 		case errors.Is(err, data_model.ErrEntityNotExists):
 			code = http.StatusNotFound
-		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+		case errors.Is(err, context.Canceled):
+			code = 499 // client closed request
+		case errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
 		case errors.As(err, &httpErr):
 			code = httpErr.code

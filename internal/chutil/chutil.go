@@ -8,6 +8,7 @@ package chutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -422,16 +423,20 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			statshouse.Value("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User, 3: pool.poolName, 5: strconv.Itoa(shard + 1)}, info.WaitLockDuration.Seconds())
 			if err != nil {
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionSemError
+				if errors.Is(ctx.Err(), context.Canceled) {
+					info.ErrorCode = format.TagValueIDAPIResponseExceptionCtxCanceled
+				}
 				return info, err
 			}
 
 			// ctx might cancel during sem.Acquire
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				sem.Release()
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTimeout
+				if errors.Is(ctx.Err(), context.Canceled) {
+					info.ErrorCode = format.TagValueIDAPIResponseExceptionCtxCanceled
+				}
 				return info, ctx.Err()
-			default:
 			}
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
@@ -479,6 +484,9 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				})
 				info.QueryDuration = time.Since(start)
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
+				if errors.Is(ctx.Err(), context.Canceled) {
+					info.ErrorCode = format.TagValueIDAPIResponseExceptionCtxCanceled
+				}
 				return info, ctx.Err() // failed
 			case <-done:
 			}
