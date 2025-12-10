@@ -409,6 +409,7 @@ const (
 	TagValueIDAPIResponseExceptionSemError      = -4
 	TagValueIDAPIResponseExceptionLongCHTimeout = -5
 	TagValueIDAPIResponseExceptionSemTooLate    = -6
+	TagValueIDAPIResponseExceptionCtxCanceled   = -7
 
 	TagSourceTokenFromClient = 1
 	TagSourceTokenFromVkuth  = 2
