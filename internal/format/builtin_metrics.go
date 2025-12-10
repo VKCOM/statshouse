@@ -911,7 +911,7 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 		Description: "arg_system_limits {max-open-files, cores, cores-udp, buffer-size-udp, max-chunks-count, default-num-series}",
 	}, 39: {
 		Description: "arg_ch_addrs {clickhouse-v2-addrs, clickhouse-v1-addrs, kh, kh-v1, kh-user, kh-v1-user}",
-	}, 40: {
+	}, 45: {
 		Description: "arg_other",
 	}},
 }

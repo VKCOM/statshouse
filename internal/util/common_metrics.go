@@ -133,7 +133,7 @@ func HeartbeatVersionArgTags() statshouse.Tags {
 		remain = append(remain, v)
 	}
 	if len(remain) > 0 {
-		tags[40+1] = strings.Join(remain, " ") // id+1 builtin shift host
+		tags[45+1] = strings.Join(remain, " ") // id+1 builtin shift host
 	}
 	for i := 0; i < len(tags); i++ {
 		tags[i] = string(format.ForceValidStringValue(tags[i]))
