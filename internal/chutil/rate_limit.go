@@ -126,6 +126,11 @@ func (r *RateLimit) GetMetrics() RateLimitMetric {
 	}
 }
 
+// GetReplicaKey only concurrent read operations
+func (r *RateLimit) GetReplicaKey() int {
+	return r.replicaKey
+}
+
 func (r *RateLimit) Start() {
 	go func() {
 		defer log.Printf("[RateLimit] recalc worker quit")
