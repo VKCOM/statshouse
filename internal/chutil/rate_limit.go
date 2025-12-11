@@ -300,13 +300,13 @@ func (s *HealthState) recalc(cfg RateLimitConfig, now time.Time) Stage {
 	if s.InflightWeight < weight {
 		s.WeightUpdatedAt = now
 		s.InflightWeight = weight
+		if s.InflightWeight == cfg.MaxInflightWeight {
+			return StageSleep
+		}
 	}
 	if s.InflightWeight > weight && now.Sub(s.WeightUpdatedAt) > cfg.RecoverGapDuration {
 		s.WeightUpdatedAt = now
 		s.InflightWeight = max(1, s.InflightWeight-cfg.RecoverWeightStep)
-	}
-	if s.InflightWeight == cfg.MaxInflightWeight {
-		return StageSleep
 	}
 	return StageHealth
 }
