@@ -39,6 +39,8 @@ type Config struct {
 	AvailableShardsStr     string
 	AvailableShards        []uint32
 	CHMaxShardConnsRatio   int
+	ReplicaThrottleCfgStr  string
+	ReplicaThrottleCfg     *chutil.ReplicaThrottleConfig
 	chutil.RateLimitConfig
 }
 
@@ -87,6 +89,15 @@ func (argv *Config) ValidateConfig() error {
 		}
 		argv.AvailableShards = shards
 	}
+	argv.ReplicaThrottleCfg = nil
+	if argv.ReplicaThrottleCfgStr != "" {
+		var throttleConfig chutil.ReplicaThrottleConfig
+		err := json.Unmarshal([]byte(argv.ReplicaThrottleCfgStr), &throttleConfig)
+		if err != nil {
+			return fmt.Errorf("failed to parse replica throttle config: %w", err)
+		}
+		argv.ReplicaThrottleCfg = &throttleConfig
+	}
 	return nil
 }
 
@@ -120,6 +131,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", default_.BlockedUsersS, "comma-separated list of users that are blocked")
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
+	f.StringVar(&argv.ReplicaThrottleCfgStr, "replica-throttle-config", "", "JSON config for replica throttling testing (feature flag)")
 
 	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", default_.RateLimitDisable, "disable rate limiting")
 	f.DurationVar(&argv.WindowDuration, "rate-limit-window-duration", default_.WindowDuration, "time window for analyzing ClickHouse requests")

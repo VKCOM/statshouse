@@ -52,6 +52,7 @@ type ClickHouse struct {
 	mx         sync.RWMutex
 	namedPools map[string][6]*connPool
 	rateLimits []*RateLimit
+	trotCfg    *ReplicaThrottleConfig
 }
 
 type QueryMetaInto struct {
@@ -85,6 +86,14 @@ type ConnLimits struct {
 
 	SlowHardwareMaxConns int `json:"slow_hardware_max_conns"`
 	FastHardwareMaxConns int `json:"fast_hardware_max_conns"`
+}
+
+// ReplicaThrottleConfig defines throttling configuration for testing rate limiter
+type ReplicaThrottleConfig struct {
+	Replicas map[int]struct {
+		DelayMs      int `json:"delay_ms"`
+		ErrorPercent int `json:"error_percent"`
+	} `json:"replicas"`
 }
 
 type ChConnOptions struct {
@@ -145,13 +154,14 @@ func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 		result.rateLimits = append(result.rateLimits, NewRateLimit(opt.RateLimitConfig, i/3+1, i%3+1))
 		result.rateLimits[i].Start()
 	}
-	err := result.SetLimits(nil, opt.MaxShardConnsRatio, opt.RateLimitConfig)
+	err := result.SetLimits(nil, opt.MaxShardConnsRatio, opt.RateLimitConfig, nil)
 	return result, err
 }
 
-func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rtCfg RateLimitConfig) error {
+func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rtCfg RateLimitConfig, trotCfg *ReplicaThrottleConfig) error {
 	ch1.mx.Lock()
 	defer ch1.mx.Unlock()
+	ch1.trotCfg = trotCfg
 	ch1.namedPools = map[string][6]*connPool{}
 	limits = append(limits, ch1.opt.ConnLimits) // to avoid overriding default limits
 
@@ -355,25 +365,27 @@ func QueryKind(isFast, isLight, isHardware bool) int {
 	return slowHeavy
 }
 func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query chgo.Query) (info QueryHandleInfo, err error) {
-	pool := ch1.resolvePoolBy(meta)
-	return pool.selectCH(ctx, ch1, meta, query)
+	pool, trotCfg := ch1.resolvePoolBy(meta)
+	return pool.selectCH(ctx, ch1, meta, query, trotCfg)
 }
 
-func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) *connPool {
+func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) (*connPool, *ReplicaThrottleConfig) {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	if pool, ok := ch1.namedPools[meta.User]; ok {
 		pool := pool[kind]
 		if pool.maxActiveQuery > 0 {
-			return pool
+			return pool, ch1.trotCfg
 		}
-		return ch1.namedPools[defaultUserName][kind]
+		return ch1.namedPools[defaultUserName][kind], ch1.trotCfg
 	}
-	return ch1.namedPools[defaultUserName][kind]
+	return ch1.namedPools[defaultUserName][kind], ch1.trotCfg
 }
 
-func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query) (info QueryHandleInfo, err error) {
+const latencySlackCH = 130 // 30% upside
+
+func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query, trotCfg *ReplicaThrottleConfig) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
 		return nil
@@ -441,9 +453,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
 				if avg := pool.getAvgQueryDuration(shard); avg > 0 {
-					const safetyNum = 12 // 20% upside
-					const safetyDen = 10
-					if remaining*safetyDen < avg*safetyNum {
+					if remaining < avg*latencySlackCH/100 {
 						sem.Release()
 						info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTooLate
 						return info, context.DeadlineExceeded
@@ -458,6 +468,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				queryCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 				defer cancel()
 				err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(queryCtx, query) })
+				err = throttling(servers[i].rate.GetReplicaKey(), pool.rnd, err, trotCfg)
 				duration := time.Since(start)
 				sem.Release()
 
@@ -516,7 +527,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 	if err != nil {
 		return info, err
 	}
-	pickCheckServer(servers, query, pool.rnd, ch.opt.SelectTimeout)
+	pickCheckServer(servers, query, pool.rnd, info.QueryDuration*latencySlackCH/100, trotCfg)
 	return info, nil
 }
 
@@ -572,7 +583,7 @@ func pickHealthServer(s []serverCH, r *rand.Rand) (int, error) {
 	return i2, nil
 }
 
-func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.Duration) {
+func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.Duration, trotCfg *ReplicaThrottleConfig) {
 	var checks []serverCH
 	for i := 0; i < len(s); i++ {
 		if s[i].rate.ShouldCheck() {
@@ -586,7 +597,9 @@ func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.
 	checks[ind].rate.RecordCheck(func() Event {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		if err := checks[ind].pool.Do(ctx, query); err != nil {
+		err := checks[ind].pool.Do(ctx, query)
+		err = throttling(checks[ind].rate.GetReplicaKey(), r, err, trotCfg)
+		if err != nil || ctx.Err() != nil {
 			return Event{Status: StatusError}
 		}
 		return Event{Status: StatusSuccess}
@@ -644,6 +657,21 @@ func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {
 		return
 	}
 	update(&pool.avgQueryDurationNS)
+}
+
+func throttling(replica int, r *rand.Rand, err error, trotCfg *ReplicaThrottleConfig) error {
+	if trotCfg == nil {
+		return err
+	}
+	settings, ok := trotCfg.Replicas[replica]
+	if !ok {
+		return err
+	}
+	time.Sleep(time.Duration(settings.DelayMs) * time.Millisecond)
+	if err == nil && r.Intn(100)+1 <= settings.ErrorPercent {
+		err = fmt.Errorf("replica throttling: simulated error for replica")
+	}
+	return err
 }
 
 func BindQuery(query string, args ...any) (string, error) {
