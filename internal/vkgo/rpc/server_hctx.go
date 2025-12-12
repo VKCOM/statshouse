@@ -10,6 +10,8 @@ import (
 	"context"
 	"net"
 	"time"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
 )
 
 // commonality between UDP and TCP servers requried for HandlerContext
@@ -74,6 +76,8 @@ type HandlerContext struct {
 }
 
 type handlerContextKey struct{}
+type tracingContextKey struct{}
+type executionContextKey struct{}
 
 // rpc.HandlerContext must never be used outside of the handler
 func GetHandlerContext(ctx context.Context) *HandlerContext {
@@ -81,8 +85,42 @@ func GetHandlerContext(ctx context.Context) *HandlerContext {
 	return hctx
 }
 
+// Tracing context is a copy and may be used anywhere
+func GetTracingContext(ctx context.Context) tltracing.TraceContext {
+	trc, _ := ctx.Value(tracingContextKey{}).(tltracing.TraceContext)
+	return trc
+}
+
+// Execution context is a copy and may be used anywhere
+func GetExecutionContext(ctx context.Context) string {
+	ec, _ := ctx.Value(executionContextKey{}).(string)
+	return ec
+}
+
+func WithTracingContext(ctx context.Context, tc tltracing.TraceContext) context.Context {
+	if GetTracingContext(ctx) != tc {
+		ctx = context.WithValue(ctx, tracingContextKey{}, tc)
+	}
+	return ctx
+}
+
+func WithExecutionContext(ctx context.Context, ec string) context.Context {
+	if GetExecutionContext(ctx) != ec {
+		ctx = context.WithValue(ctx, executionContextKey{}, ec)
+	}
+	return ctx
+}
+
+// Sets also Execution Context and Tracing Context
 func (hctx *HandlerContext) WithContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, handlerContextKey{}, hctx)
+	ctx = context.WithValue(ctx, handlerContextKey{}, hctx)
+	if hctx.RequestExtra.TraceContext != (tltracing.TraceContext{}) {
+		ctx = context.WithValue(ctx, tracingContextKey{}, hctx.RequestExtra.TraceContext)
+	}
+	if hctx.RequestExtra.ExecutionContext != "" {
+		ctx = context.WithValue(ctx, executionContextKey{}, hctx.RequestExtra.ExecutionContext)
+	}
+	return ctx
 }
 
 func (hctx *HandlerContext) ActorID() int64              { return hctx.actorID }

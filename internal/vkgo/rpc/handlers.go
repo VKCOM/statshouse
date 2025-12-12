@@ -319,6 +319,8 @@ func (s *Server) handleNetDumpUdpTargets(ctx context.Context, hctx *HandlerConte
 	if _, err = req.ReadBoxed(hctx.Request); err != nil {
 		return err
 	}*/
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, t := range s.transportsUDP {
 		t.DumpUdpTargets()
 	}

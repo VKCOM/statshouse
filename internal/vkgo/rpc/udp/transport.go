@@ -734,6 +734,7 @@ func (t *Transport) Close() (err error) {
 	}
 	t.writeCV.Signal()
 	t.ackCV.Signal()
+	t.regenerateCV.Signal()
 
 	select {
 	case t.resendCV <- struct{}{}:

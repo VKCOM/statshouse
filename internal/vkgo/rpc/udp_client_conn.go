@@ -29,19 +29,9 @@ type udpClientConn struct {
 }
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
-func (pc *udpClientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *Response, cb ClientCallback, userData any) (*Response, error) {
-	cctx := pc.client.client.getResponse()
-	cctx.queryID = req.QueryID()
-	if multiResult != nil {
-		cctx.result = multiResult // overrides single-result channel
-	}
-	cctx.cb = cb
-	// cctx.req = req - do not assign here, as request is considered immediately sent in UDP transport
+func (pc *udpClientConn) setupCallLocked(req *Request, cctx *Response) error {
+	cctx.req = nil // we take ownership of request, freeing it below
 	pc.totalSent++
-	cctx.deadline = deadline
-	cctx.userData = userData
-	cctx.failIfNoConnection = req.FailIfNoConnection
-	cctx.readonly = req.ReadOnly
 
 	/* in UDP we don't have pc.closeCC: we either got pc from client.conns and has added call to it, or didn't get pc and created new connect
 	// TODO understand why no pc.closeCC in UDP
@@ -73,29 +63,10 @@ func (pc *udpClientConn) setupCallLocked(req *Request, deadline time.Time, multi
 	pc.client.client.putRequest(req)
 
 	// TODO pass deadline to SendMessage()
-	err := pc.conn.SendMessage(message) // TODO conn.SendCircularMessage
-	if err != nil {
-		return nil, err
-	}
-
-	return cctx, nil
+	return pc.conn.SendMessage(message) // TODO conn.SendCircularMessage
 }
 
-func (pc *udpClientConn) cancelCall(queryID int64, deliverError error) (cancelled bool) {
-	cctx := pc.cancelCallImpl(queryID)
-	if cctx != nil {
-		// exclusive ownership of cctx by this function
-		if deliverError != nil {
-			cctx.err = deliverError
-			cctx.deliverResult(pc.client.client)
-		} else {
-			pc.client.client.PutResponse(cctx)
-		}
-	}
-	return cctx != nil
-}
-
-func (pc *udpClientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response) {
+func (pc *udpClientConn) cancelCall(queryID int64) (shouldReleaseCctx *Response) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	cctx, ok := pc.calls[queryID]
@@ -104,7 +75,6 @@ func (pc *udpClientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Respo
 	}
 	delete(pc.calls, queryID)
 	if cctx.req != nil { // was not sent, residing somewhere in writeQ
-		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
 		return nil
 	}
 	// was sent
@@ -142,78 +112,84 @@ func (pc *udpClientConn) handle(message *[]byte, canSave bool) {
 		panic(err)
 		// TODO
 	}
-	resp, err := pc.handlePacket(responseType, message, respBody)
-	if resp != nil {
-		/* TODO
-		if resp.hookState != nil {
-			resp.hookState.AfterReceive(resp, resp.err)
-		}
-		*/
-		resp.deliverResult(nil)
-	}
+	_, finishedCallback, _, err := pc.handlePacket(responseType, message, respBody)
+	//if bodyOwned {
+	// TODO - move canSave check into handlePacket where boy is assigned to cctx
+	//}
 	if err != nil { // resp is always nil here
 		pc.client.client.opts.Logf("rpc: failed to handle packet from ---, disconnecting: %v", err)
 		return
 	}
+	if finishedCallback.resp != nil {
+		finishedCallback.resp.cb(pc.client.client, finishedCallback.resp, finishedCallback.err)
+	}
+	//TODO - readTime
+	//if recordLatency && pc.client.client.opts.receiveLatencyHandler != nil {
+	//	latency := time.Since(readTime)
+	//	pc.client.client.opts.receiveLatencyHandler(latency)
+	//}
 }
 
-func (pc *udpClientConn) finishCall(queryID int64) *Response {
+func (pc *udpClientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, extra *ResponseExtra, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
-	resp, ok := pc.calls[queryID]
+	cctx, ok := pc.calls[queryID]
 	if !ok {
-		return nil
+		return false, callResult{}, false
 	}
+	//if cctx.req != nil { // was not sent, residing somewhere in writeQ
+	// In finish call, this is possible if server sends response with a queryID before request was sent by client.
+	// We treat it as a normal cancel
+	//}
+	// was sent
 	delete(pc.calls, queryID)
-	return resp
+
+	recordLatency = cctx.actorID == requestLatencyDebugActorId
+	cctx.reuseBody = reuseBody
+	cctx.Body = body
+	cctx.Extra = *extra
+	if cctx.result != nil {
+		cctx.result <- callResult{resp: cctx, err: err} // must deliver under lock
+	} else {
+		finishedCallback = callResult{resp: cctx, err: err}
+	}
+	bodyOwned = true
+
+	return
 }
 
-func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte, respBody []byte) (resp *Response, _ error) {
+func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte, respBody []byte) (bodyOwned bool, finishedCallback callResult, recordLatency bool, err error) {
 	switch responseType {
 	case tl.RpcServerWantsFin{}.TLTag():
-		pc.client.client.opts.Logf("rpc: TODO handle RpcServerWantsFin")
-		/*if debugPrint {
+		// Must not arrive via UDP, we ignore it for now
+		if debugPrint {
 			fmt.Printf("%v client %p conn %p read Let's FIN\n", time.Now(), pc.client, pc)
 		}
-		pc.mu.Lock()
-		pc.writeClientWantsFin = true
-		pc.mu.Unlock()
-		pc.writeQCond.Signal()*/
-		// goWrite will take last bunch of requests plus fin from writeQ, write them and quit.
-		// all requests put into writeQ after writer quits will wait there until the next reconnect
-		return nil, nil
-	case tl.RpcReqResultError{}.TLTag():
+		return false, callResult{}, false, nil
+	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var reqResultError tl.RpcReqResultError
 		var err error
 		if respBody, err = reqResultError.Read(respBody); err != nil {
-			return nil, fmt.Errorf("failed to read RpcReqResultError: %w", err)
+			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
-		cctx := pc.finishCall(reqResultError.QueryId)
-		if cctx == nil {
-			// we expect that cctx can be nil because of teardownCall after context was done (and not because server decided to send garbage)
-			return nil, nil // already cancelled or served
-		}
-		cctx.body = respReuseData
-		cctx.Body = respBody
-		cctx.err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
-		return cctx, nil
+		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
+		var extra ResponseExtra
+		bodyOwned, finishedCallback, recordLatency = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, &extra, err)
+		return bodyOwned, finishedCallback, recordLatency, nil
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
 		var err error
 		if respBody, err = header.Read(respBody); err != nil {
-			return nil, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
+			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
-		cctx := pc.finishCall(header.QueryId)
-		if cctx == nil {
-			// we expect that cctx can be nil because of teardownCall after context was done (and not because server decided to send garbage)
-			return nil, nil // already cancelled or served
-		}
-		cctx.body = respReuseData
-		cctx.Body, cctx.err = parseResponseExtra(&cctx.Extra, respBody)
-		return cctx, nil
+		var extra ResponseExtra
+		respBody, err = parseResponseExtra(&extra, respBody)
+
+		bodyOwned, finishedCallback, recordLatency = pc.finishCall(header.QueryId, respReuseData, respBody, &extra, err)
+		return bodyOwned, finishedCallback, recordLatency, nil
 	default:
 		pc.client.client.opts.Logf("rpc: unknown packet type 0x%x", responseType)
-		return nil, nil
+		return false, callResult{}, false, nil
 	}
 }
