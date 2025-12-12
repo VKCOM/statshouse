@@ -30,6 +30,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 
@@ -125,7 +126,6 @@ type Agent struct {
 	builtinMetricMetaUsageCPU         format.MetricMetaValue
 	builtinMetricMetaUsageMemory      format.MetricMetaValue
 	builtinMetricMetaHeartbeatVersion format.MetricMetaValue
-	builtinMetricMetaHeartbeatArgs    format.MetricMetaValue
 }
 
 func stagingLevel(statsHouseEnv string) int {
@@ -192,7 +192,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
 		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
 		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
-		builtinMetricMetaHeartbeatArgs:    *format.BuiltinMetricMetaHeartbeatArgs,
 	}
 	result.hostNameBytes = []byte(result.hostName)
 	result.historicWindow.Store(uint32(config.HistoricWindow))
@@ -202,8 +201,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	result.builtinMetricMetaUsageMemory.EffectiveResolution = 1
 	result.builtinMetricMetaHeartbeatVersion.Resolution = 1
 	result.builtinMetricMetaHeartbeatVersion.EffectiveResolution = 1
-	result.builtinMetricMetaHeartbeatArgs.Resolution = 1
-	result.builtinMetricMetaHeartbeatArgs.EffectiveResolution = 1
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
 	if l := stagingLevel(config.StatsHouseEnv); l >= 0 {
@@ -676,6 +673,13 @@ func (s *Agent) MapTagForProxy(str string) (int32, bool) {
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.startTimestamp)
 
+	stags := [48]string(util.HeartbeatVersionArgTags())
+	stags[7] = s.hostName
+	stags[9] = s.getOwner()
+	stags[18] = s.agentAddrV6
+	stags[19] = s.GetConfigResult.ConnectedTo
+	stags[format.StringTopTagIndexV3] = build.Commit()
+
 	s.AddValueCounterS(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
 		[]int32{
 			1:  s.componentTag,
@@ -684,25 +688,7 @@ func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 			6:  int32(build.CommitTimestamp()),
 			16: s.agentAddrTag,
 			17: s.agentAddrV4},
-		[]string{
-			7:                          s.hostName,
-			9:                          s.getOwner(),
-			18:                         s.agentAddrV6,
-			19:                         s.GetConfigResult.ConnectedTo,
-			format.StringTopTagIndexV3: build.Commit()},
-		uptimeSec, count)
-	s.AddValueCounterS(nowUnix, &s.builtinMetricMetaHeartbeatArgs,
-		[]int32{
-			1: s.componentTag,
-			2: s.heartBeatEventType,
-			3: s.argsHash,
-			4: int32(build.CommitTag()),
-			6: int32(build.CommitTimestamp()),
-			9: s.argsLen},
-		[]string{
-			7:                          s.hostName,
-			format.StringTopTagIndexV3: s.args,
-		},
+		stags[:],
 		uptimeSec, count)
 }
 
