@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint"
 	"pgregory.net/rand"
 
 	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"

@@ -10,7 +10,7 @@ import (
 	"os"
 	"slices"
 
-	restart2 "github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint"
+	restart2 "github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint"
 )
 
 type walHdr struct {

@@ -10,7 +10,7 @@ package meta
 import (
 	"fmt"
 
-	"github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/internal"
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/internal"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 

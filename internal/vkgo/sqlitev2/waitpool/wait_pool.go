@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/VKCOM/statshouse/internal/sqlitev2/heapmap"
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/heapmap"
 )
 
 type (
