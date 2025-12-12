@@ -403,10 +403,14 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 	shard := -1
 	if meta.NewSharding {
 		shardCnt := ch.opt.ShardByMetricShards
+		shardMax := len(pool.servers) / 3
 		if shardCnt == 0 {
-			shardCnt = len(pool.servers) / 3
+			shardCnt = shardMax
 		}
 		shard = meta.Metric.Shard(shardCnt)
+		if shard >= shardMax {
+			shard = -1
+		}
 	}
 	sem := pool.sem
 	var servers []serverCH
