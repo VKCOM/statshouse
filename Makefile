@@ -112,3 +112,12 @@ test-integration:
 	CGO_LDFLAGS="-w" go test -v -race -tags integration -run '.*Integration'  ./...
 
 check: lint test
+
+upgrade_mod:
+	go get -u golang.org/x/sys golang.org/x/sync golang.org/x/exp golang.org/x/crypto
+	go get -u github.com/zeebo/xxh3 go.uber.org/atomic go.uber.org/multierr
+	go get -u go4.org/mem github.com/pkg/errors github.com/pierrec/lz4 github.com/petar/GoLLRB
+	go get -u github.com/google/btree github.com/golang-jwt/jwt/v4 github.com/fsnotify/fsnotify
+	go get -u github.com/dgryski/go-maglev github.com/dchest/siphash github.com/cloudflare/tableflip
+	go get -u github.com/ClickHouse/clickhouse-go/v2 github.com/ClickHouse/ch-go
+	go get go@1.24
