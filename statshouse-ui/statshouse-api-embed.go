@@ -6,7 +6,7 @@
 
 //go:build embed
 
-package main
+package statshouseui
 
 import (
 	"embed"
@@ -19,6 +19,8 @@ var (
 	staticDir embed.FS
 	staticFS  fs.FS
 )
+
+func FS() fs.FS { return staticFS }
 
 func init() {
 	var err error

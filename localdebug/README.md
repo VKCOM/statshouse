@@ -95,3 +95,10 @@ If you only need to clean caches of daemons, but not medata use
 rm -rf cache
 ```
 
+
+# useful selects
+
+To see which tables are used by API
+```
+select query_kind, tables, count(*) from system.query_log where event_time > now() - 120 group by query_kind, tables order by query_kind, tables
+```

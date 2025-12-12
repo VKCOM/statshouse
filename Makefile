@@ -18,10 +18,10 @@ COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(
 COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 
 .PHONY: all build-go build-ui \
-	build-sh build-sh-api build-sh-api-embed build-sh-metadata build-sh-grafana \
+	build-sh build-sh-api build-sh-api-noembed build-sh-metadata build-sh-grafana \
 	build-sh-ui build-grafana-ui
 
-all: build-go build-ui
+all: build-ui build-go # order important
 build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-igp build-agg
 build-ui: build-sh-ui build-grafana-ui
 build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp build-agg
@@ -32,10 +32,12 @@ build-sh:
 	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 
 build-sh-api:
-	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
+	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
+	CGO_ENABLED=0 go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
-build-sh-api-embed:
-	go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
+build-sh-api-noembed:
+	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
+	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
 build-sh-metadata:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
@@ -51,8 +53,6 @@ build-sh-grafana:
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
-	rm -rf cmd/statshouse-api/build || true
-	cp -r statshouse-ui/build cmd/statshouse-api/ || true
 
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build

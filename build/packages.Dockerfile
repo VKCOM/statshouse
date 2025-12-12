@@ -33,6 +33,7 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
+COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
@@ -58,6 +59,7 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
+COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
@@ -83,6 +85,7 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
+COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
@@ -108,6 +111,7 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
+COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
@@ -133,6 +137,7 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
+COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=internal/,target=/src/internal,readonly \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
@@ -144,7 +149,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-bullseye /src/target/* /src/target/
-COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
@@ -159,7 +163,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-bookworm /src/target/* /src/target/
-COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
@@ -181,7 +184,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-buster /src/target/* /src/target/
-COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
@@ -196,7 +198,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-focal /src/target/* /src/target/
-COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
@@ -211,7 +212,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build-go-jammy /src/target/* /src/target/
-COPY --from=build-node /src/statshouse-ui/build/ /src/statshouse-ui/build/
 COPY --from=build-node /src/grafana-plugin-ui/dist /src/grafana-plugin-ui/dist/
 COPY build/debian/ /src/build/debian/
 WORKDIR /src/build
