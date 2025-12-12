@@ -50,11 +50,11 @@ func wrapSaveEntityError(err error) error {
 	if errors.As(err, &rpcErr) {
 		switch rpcErr.Code {
 		case data_model.ErrEntityInvalidVersion.Code:
-			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityInvalidVersion.Description))
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf("%s", data_model.ErrEntityInvalidVersion.Description))
 		case data_model.ErrEntityExists.Code:
-			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityExists.Description))
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf("%s", data_model.ErrEntityExists.Description))
 		case data_model.ErrEntityNotExists.Code:
-			return errors.Join(errorInvalidUserRequest, fmt.Errorf(data_model.ErrEntityNotExists.Description))
+			return errors.Join(errorInvalidUserRequest, fmt.Errorf("%s", data_model.ErrEntityNotExists.Description))
 		}
 	}
 	return err
