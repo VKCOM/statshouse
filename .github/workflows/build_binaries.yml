@@ -44,7 +44,7 @@ jobs:
     steps:
       - run: ${{inputs.run}}
         if: ${{inputs.run != ''}}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: VKCOM/statshouse
           ref: ${{inputs.ref}}
