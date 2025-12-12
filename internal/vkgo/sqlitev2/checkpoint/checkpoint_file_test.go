@@ -1,11 +1,18 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package checkpoint
 
 import (
 	"testing"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/tlsqlite"
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/tlsqlite"
 )
 
 // TODO add more tests

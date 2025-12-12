@@ -1,12 +1,19 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package cache
 
 import (
-	"log"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/sqlite0"
 	"github.com/zeebo/xxh3"
 	"go.uber.org/multierr"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/sqlite0"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 /*
@@ -20,7 +27,7 @@ type (
 		queryCache   map[QueryHash]int
 		h            *minHeap
 		cacheMaxSize int
-		logger       *log.Logger
+		logger       *logz.Logger
 	}
 
 	QueryHash struct {
@@ -39,7 +46,7 @@ var isCacheTest = false
 
 const cacheMaxSizeDefault = 3000
 
-func NewQueryCache(cacheMaxSize int, logger *log.Logger) *QueryCache {
+func NewQueryCache(cacheMaxSize int, logger *logz.Logger) *QueryCache {
 	if cacheMaxSize == 0 {
 		cacheMaxSize = cacheMaxSizeDefault
 	}
@@ -65,7 +72,7 @@ func (cache *QueryCache) FinishTX() {
 		}
 		err := stmt.Reset()
 		if err != nil {
-			cache.logger.Println("[error] failed to reset stmt(probably bug)", err.Error())
+			cache.logger.Errorf("failed to reset stmt(probably bug): %w", err.Error())
 		}
 	}
 	clear(cache.txQueryCache)
@@ -108,7 +115,7 @@ func (cache *QueryCache) evictCacheLocked(count int) {
 		}
 		err := stmt.stmt.Close()
 		if err != nil {
-			cache.logger.Println("[error] failed to close cached stmt:", err.Error())
+			cache.logger.Errorf("failed to close cached stmt: %w", err.Error())
 		}
 	}
 }

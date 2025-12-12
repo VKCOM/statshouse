@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
@@ -6,11 +12,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"slices"
 
 	restart2 "github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 type walHdr struct {
@@ -24,13 +30,13 @@ type walInfo struct {
 	restartPah string
 }
 
-func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err error) {
+func runRestart(re *restart2.RestartFile, opt Options, log *logz.Logger) (err error) {
 	isExistsDb, err := checkFileExist(opt.Path)
 	if err != nil {
 		return fmt.Errorf("faied to check db existance: %w", err)
 	}
 	if !isExistsDb {
-		log.Println("db not exists")
+		log.Error("db doesn't exist")
 		return nil
 	}
 	wals, err := loadWalsInfo(opt.Path)
@@ -38,11 +44,11 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 		return fmt.Errorf("failed to load wals: %w", err)
 	}
 	if len(wals) == 0 {
-		log.Println("0 WALS found")
+		log.Info("0 WALS found")
 		return nil
 	}
 	if len(wals) == 1 {
-		log.Println("one wal found")
+		log.Info("one wal found")
 		w := wals[0]
 		iWal2 := !w.iWal
 		wal2Path := walPath(iWal2, opt.Path)
@@ -51,7 +57,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 			return err
 		}
 		if !wal2IsExists {
-			log.Println("one wal found remove it")
+			log.Info("one wal found remove it")
 			err = os.Remove(w.path)
 			if err != nil {
 				return fmt.Errorf("failed to remove wal %s: %w", w.path, err)
@@ -68,7 +74,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	}
 
 	var commitOffset = re.GetCommitOffset()
-	log.Println("load commit offset", commitOffset)
+	log.Infof("load commit offset %d", commitOffset)
 
 	err = os.Rename(wals[1].path, wals[1].restartPah)
 	if err != nil {
@@ -89,12 +95,12 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (err err
 	if rows.Error() != nil {
 		return fmt.Errorf("failed to select binlog pos from 1 wal: %w", rows.Error())
 	}
-	log.Println("db offset 1 wal:", withoutSecondWalDBOffset)
+	log.Infof("db offset 1 wal: %d", withoutSecondWalDBOffset)
 
 	var skipCheckpoint = !isExists || withoutSecondWalDBOffset == 0
 
 	if !skipCheckpoint && withoutSecondWalDBOffset <= commitOffset {
-		log.Println("do checkpoint to sync 1 wal")
+		log.Info("do checkpoint to sync 1 wal")
 		err = conn.conn.Checkpoint()
 		if err != nil {
 			return fmt.Errorf("failed to checkpoint 1 wal: %w", err)

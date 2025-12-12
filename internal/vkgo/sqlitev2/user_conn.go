@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import "C"
@@ -25,6 +31,10 @@ type Rows struct {
 	name  string
 	start time.Time
 	type_ string
+}
+
+func (r *Rows) ColumnType(i int) sqlite0.ColumnType {
+	return r.s.ColumnType(i)
 }
 
 func (r *Rows) ColumnIsNull(i int) bool {

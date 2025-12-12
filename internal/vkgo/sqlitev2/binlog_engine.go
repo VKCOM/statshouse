@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
@@ -97,14 +103,14 @@ func (b *binlogEngine) Revert(toOffset int64) (bool, error) {
 }
 
 func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
-	b.e.logger.Printf("change role: %+v", info)
+	b.e.logger.Infof("change role: %+v", info)
 	b.e.rw.setReplica(!info.IsMaster)
 	b.e.userEngine.ChangeRole(info)
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
 			b.e.rw.mu.Lock()
 			defer b.e.rw.mu.Unlock()
-			b.e.logger.Printf("engine is ready, currentDbOffset: %d", b.e.rw.getDBOffsetLocked())
+			b.e.logger.Infof("engine is ready, currentDbOffset: %d", b.e.rw.getDBOffsetLocked())
 			close(b.e.readyCh)
 		})
 	}
@@ -112,10 +118,11 @@ func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 }
 
 func (b *binlogEngine) StartReindex(operator binlog.ReindexOperator) {
+	b.e.userEngine.Reindex(operator)
 }
 
 func (b *binlogEngine) Split(offset int64, toShardID string) bool {
-	return false
+	return false // TODO - not implemented
 }
 
 func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool, waitSnapshotMeta bool) []byte {

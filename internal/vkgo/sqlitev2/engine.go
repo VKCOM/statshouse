@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
@@ -5,17 +11,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"go.uber.org/multierr"
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 	restart2 "github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint"
 	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/waitpool"
-	"go.uber.org/multierr"
-	"pgregory.net/rand"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 /*
@@ -64,7 +71,7 @@ type (
 		// testOptions *testOptions
 
 		logMx       sync.Mutex
-		logger      *log.Logger
+		logger      *logz.Logger
 		nextLogTime time.Time
 
 		waitDbOffsetPool *waitpool.WaitPool
@@ -79,8 +86,11 @@ type (
 		// Use this to specify your SQLITE db format
 		APPID uint32
 
-		// User table scheme
-		Scheme string
+		// User table schema
+		Schema string
+
+		// Entities used instead of schema
+		Entities []*Entity
 
 		// Open db in readonly mode. Don't use binlog in this mode
 		ReadOnly bool
@@ -99,8 +109,9 @@ type (
 		BinlogOptions
 
 		IntegrityCheckBeforeStart bool
-		// Advanced RO mode, DONT USE
-		notUseWALROMMode bool
+
+		// Logger
+		Log *logz.Logger
 	}
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
@@ -138,17 +149,32 @@ const (
 	debugFlag             = false
 )
 
+func getLogger(opt Options) (logger *logz.Logger, err error) {
+	logger = opt.Log
+	if logger == nil {
+		logger, err = logz.New(logz.Config{
+			Level:             "info",
+			App:               "sqlitev2",
+			Encoding:          "console",
+			DisableStacktrace: true,
+			Outputs:           []string{"stdout"},
+			WithMetrics:       false,
+		})
+	}
+	return logger, err
+}
+
 func openRO(opt Options) (*Engine, error) {
-	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
+	logger, err := getLogger(opt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logger while opening engine: %w", err)
+	}
+
 	e := &Engine{
 		opt:      opt,
 		readOnly: true,
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
-			if !opt.notUseWALROMMode {
-				return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect, opt.StatsOptions, logger)
-			} else {
-				return newSqliteROConn(opt.Path, opt.StatsOptions, logger)
-			}
+			return newSqliteROConn(opt.Path, opt.StatsOptions, logger)
 		}, logger),
 		logger:           logger,
 		waitDbOffsetPool: waitpool.NewPool(),
@@ -195,12 +221,16 @@ func OpenEngine(opt Options) (*Engine, error) {
 	if opt.ReadOnly {
 		return openRO(opt)
 	}
-	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
+	logger, err := getLogger(opt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logger while opening engine: %w", err)
+	}
+
 	re, err := restart2.OpenAndLock(opt.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open runRestart file: %w", err)
 	}
-	logger.Println("Running runRestart script")
+	logger.Info("Running runRestart script")
 	err = runRestart(re, opt, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
@@ -211,7 +241,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		size = stat.Size()
 	}
 	waitDbOffsetPool := waitpool.NewPool()
-	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
+	logger.Infof("OPEN DB path: %s size(only db file): %d", opt.Path, size)
 	rw, err := newSqliteBinlogConn(opt.Path, opt.APPID, opt.CacheApproxMaxSizePerConnect, opt.PageSize, opt.Replica, opt.StatsOptions, waitDbOffsetPool, logger)
 	if err != nil {
 		return nil, multierr.Append(err, re.Close())
@@ -230,7 +260,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 			errClose := rw.Close()
 			return nil, fmt.Errorf("failed to intergrity check: %w", multierr.Append(err, errClose))
 		}
-		logger.Println("integrity check: ok")
+		logger.Info("integrity check: ok")
 	}
 
 	e := &Engine{
@@ -248,11 +278,35 @@ func OpenEngine(opt Options) (*Engine, error) {
 	}
 	rw.registerWALSwitchCallbackLocked(e.switchCallBack)
 
-	err = rw.conn.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
+	alterDiffStmt, err := e.diffSchema()
 	if err != nil {
 		err = multierr.Append(err, re.Close())
 		errClose := rw.Close()
-		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, errClose))
+		return nil, fmt.Errorf("failed to check database entities: %w", multierr.Append(err, errClose))
+	}
+
+	if alterDiffStmt != "" {
+		// Database already exists and initialized
+		err = e.alterSchemaDiff(rw, alterDiffStmt)
+
+		if err != nil {
+			err = multierr.Append(err, re.Close())
+			errClose := rw.Close()
+			return nil, fmt.Errorf("failed to alter schema diff: %w", multierr.Append(err, errClose))
+		}
+	}
+
+	entityQuery := ""
+	for _, entity := range e.opt.Entities {
+		entityQuery += entity.createTableQuery()
+	}
+	opt.Schema = entityQuery + opt.Schema
+
+	err = rw.conn.applySchema(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Schema)
+	if err != nil {
+		err = multierr.Append(err, re.Close())
+		errClose := rw.Close()
+		return nil, fmt.Errorf("failed to apply schema: %w", multierr.Append(err, errClose))
 	}
 
 	dbOffset, err := e.binlogLoadOrCreatePosition()
@@ -267,7 +321,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		return nil, multierr.Append(err, re.Close())
 
 	}
-	e.logger.Printf("load binlog position: %d", e.rw.getDBOffsetLocked())
+	e.logger.Infof("load binlog position: %d", e.rw.getDBOffsetLocked())
 
 	_, err = e.binlogLoadOrCreateMeta()
 	if err != nil {
@@ -298,8 +352,8 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 		return err
 	}
 	controlMeta := e.re.GetSnapshotMetaCopy()
-	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(snapshotMeta))
-	e.logger.Printf("load control meta: %s", hex.EncodeToString(controlMeta))
+	e.logger.Infof("load snapshot meta: %s", hex.EncodeToString(snapshotMeta))
+	e.logger.Infof("load control meta: %s", hex.EncodeToString(controlMeta))
 
 	err = e.checkpointer.DoCheckpointIfCan()
 	if err != nil {
@@ -316,7 +370,7 @@ func (e *Engine) Run(binlog binlog.Binlog, userEngine UserEngine, applyEventFunc
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	e.rw.mu.Unlock()
 
-	e.logger.Printf("running binlog")
+	e.logger.Infof("running binlog")
 	if len(controlMeta) == 0 {
 		controlMeta = snapshotMeta
 	}
@@ -355,7 +409,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(p
 	if prefix == "" {
 		return m, fmt.Errorf("backup prefix is Empty")
 	}
-	e.logger.Printf("starting backup")
+	e.logger.Infof("starting backup")
 	startTime := time.Now()
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", startTime)
 	conn, err := newSqliteROWALConn(e.opt.Path, 10, e.opt.StatsOptions, e.logger)
@@ -400,12 +454,12 @@ func (e *Engine) Backup(ctx context.Context, prefix string, nameGenerator func(p
 	if !isExists {
 		return m, fmt.Errorf("snapshot metadata not found in backup: wait at least one commit")
 	}
-	e.logger.Printf("backup is loaded to temp file. Starting wait binlog commit")
+	e.logger.Infof("backup is loaded to temp file. Starting wait binlog commit")
 	// TODO при реверте без рестарта требуется таймаут
 	controlMeta := e.binlogEngine.binlogWait(binlogPos, true, true)
 	controlMetaS := string(controlMeta)
 	stat, _ := os.Stat(path)
-	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
+	e.logger.Infof("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
 	return BackupMeta{
 		Path:          expectedPath,
 		PayloadOffset: binlogPos,
@@ -510,48 +564,66 @@ func (e *Engine) DoTx(ctx context.Context, queryName string, do func(c Conn, cac
 	if err := checkUserQueryName(queryName); err != nil {
 		return res, err
 	}
+
 	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
+
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.readOnly || e.rw.isReplica {
 		return res, errReadOnly
 	}
 	err = e.rw.beginTxLocked()
 	if err != nil {
-		e.opt.StatsOptions.engineBrokenEvent()
 		return res, fmt.Errorf("failed to begin tx: %w", err)
 	}
+
 	defer func() {
 		errRollback := e.rw.rollbackLocked()
 		if errRollback != nil {
 			err = multierr.Append(err, errRollback)
 		}
 	}()
+
 	conn := newUserConn(e.rw.conn, ctx)
 	bytes, err := do(conn, e.rw.binlogCache[:0])
 	if err != nil {
-		return res, fmt.Errorf("user error: %w", mapSqliteErr(err))
+		err = fmt.Errorf("user error: %w", mapSqliteErr(err))
+		return res, err
 	}
+
 	if len(bytes) == 0 {
 		if e.binlog != nil {
-			return res, ErrDoWithoutEvent
+			err = ErrDoWithoutEvent
+		} else {
+			err = e.rw.nonBinlogCommitTxLocked()
 		}
-		return res, e.rw.nonBinlogCommitTxLocked()
+		return res, err
 	}
 	if e.binlog == nil {
-		return res, fmt.Errorf("can't write binlog event: binlog is nil")
+		err = fmt.Errorf("can't write binlog event: binlog is nil")
+		return res, err
 	}
+
 	offsetAfterWrite, err := e.binlog.Append(e.rw.getDBOffsetLocked(), bytes)
+
+	defer func() {
+		if err != nil {
+			e.opt.StatsOptions.engineBrokenEvent()
+			err = escalateError(err)
+		}
+	}()
+
 	if err != nil {
-		return res, fmt.Errorf("binlog Append return error: %w", err)
+		err = fmt.Errorf("binlog Append return error: %w", err)
+		return res, err
 	}
 	e.rw.binlogCache = bytes[:0]
+
+	res.DBOffset = offsetAfterWrite
 	err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
-	return DoTxResult{
-		DBOffset: offsetAfterWrite,
-	}, err
+	return res, err
 }
 
 // В случае возникновения ошибки движок считается сломаным
@@ -653,34 +725,34 @@ func (e *Engine) Close() error {
 }
 
 func (e *Engine) close(waitCommitBinlog bool) error {
-	e.logger.Printf("starting close, waitCommitBinlog: %t", waitCommitBinlog)
+	e.logger.Infof("starting close, waitCommitBinlog: %t", waitCommitBinlog)
 	start := time.Now()
 	defer func() {
-		e.logger.Printf("close finished, duration: %fs", time.Since(start).Seconds())
+		e.logger.Infof("close finished, duration: %fs", time.Since(start).Seconds())
 	}()
 	defer e.opt.StatsOptions.measureActionDurationSince(closeEngine, start)
 	readOnly := e.readOnly
 	if !readOnly {
 		e.rw.mu.Lock()
-		e.logger.Println("set readOnly")
+		e.logger.Info("set readOnly")
 		e.readOnly = true
 		e.rw.mu.Unlock()
 	}
 	var error error
 	if waitCommitBinlog {
-		e.logger.Println("calling binlog.Shutdown")
+		e.logger.Info("calling binlog.Shutdown")
 		e.binlog.RequestShutdown()
 		<-e.finishBinlogRunCh
 		e.checkpointer.DoCheckpointIfCan()
 	}
 	if !readOnly {
-		e.logger.Println("closing RW connection")
+		e.logger.Info("closing RW connection")
 		err := e.rw.Close()
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
 	}
-	e.logger.Println("closing RO connection pool")
+	e.logger.Info("closing RO connection pool")
 	e.roConnPool.Close(&error)
 	if !readOnly {
 		error = multierr.Append(error, e.re.Close())
@@ -732,7 +804,93 @@ func (e *Engine) rareLog(format string, v ...any) {
 	defer e.logMx.Unlock()
 	now := time.Now()
 	if now.After(e.nextLogTime) {
-		e.logger.Printf(format, v...)
+		e.logger.Infof(format, v...)
 		e.nextLogTime = now.Add(time.Second * 10)
 	}
+}
+
+func (e *Engine) diffSchema() (string, error) {
+	alterStmt := ""
+	for _, entity := range e.opt.Entities {
+		queryStmt := fmt.Sprintf("PRAGMA table_info(%s);", entity.TableName)
+		queryName := fmt.Sprintf("__entity_get(%s)", entity.TableName)
+
+		dbEntity := Entity{
+			TableName: entity.TableName,
+			columns:   make(map[int32]*EntityColumn),
+		}
+		err := e.internalDo(queryName, func(conn internalConn) error {
+			rows := conn.Query(queryName, queryStmt)
+			if rows.Error() != nil {
+				return fmt.Errorf("failed to query rows: %w", rows.Error())
+			}
+
+			for rows.Next() {
+				if rows.Error() != nil {
+					return fmt.Errorf("failed to iterate rows: %w", rows.Error())
+				}
+
+				field, err := RetrieveFieldFromRows(&rows)
+				if err != nil {
+					return err
+				}
+				dbEntity.columns[field.columnID] = field
+			}
+			return nil
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed entity query %s: %v", queryName, err)
+		}
+		if len(dbEntity.columns) == 0 {
+			continue
+		}
+
+		for _, dbField := range dbEntity.columns {
+			var field *EntityColumn
+			ok := false
+			for _, f := range entity.columns {
+				if f.Name == dbField.Name {
+					field = f
+					ok = true
+					break
+				}
+			}
+
+			if !ok {
+				e.logger.Warnf("Column %v in %v is present in db, but not in entities", dbField.Name, dbEntity.TableName)
+				continue
+			}
+
+			if !IsEqualWithRetrievedField(field, dbField) {
+				verdict := fmt.Sprintf("FIELD: %s %s %d %v ", field.Name, field.ColumnTypeInfo.ToSql(), field.columnID, field.Attributes)
+				verdict += fmt.Sprintf("DB FIELD: %s %s %d %v ", dbField.Name, dbField.ColumnTypeInfo.ToSql(), dbField.columnID, dbField.Attributes)
+				return "", fmt.Errorf("unsupported diff in columns of %v: %v %v %s", entity.TableName, field.Name, dbField.Name, verdict)
+			}
+		}
+
+		for _, field := range entity.columns {
+			ok := false
+			for _, f := range dbEntity.columns {
+				if f.Name == field.Name {
+					ok = true
+					break
+				}
+			}
+
+			if !ok {
+				if !IsFieldValidToAdd(field) {
+					return "", fmt.Errorf("unsupported added column %v in %v", field.Name, entity.TableName)
+				}
+
+				alterStmt += fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", entity.TableName, field.Name, field.ColumnTypeInfo.ToSql())
+			}
+		}
+	}
+
+	return alterStmt, nil
+}
+
+func (e *Engine) alterSchemaDiff(rw *sqliteBinlogConn, alterDiffStmt string) error {
+	e.logger.Infof("Running %s", alterDiffStmt)
+	return rw.conn.execLocked(alterDiffStmt)
 }

@@ -1,12 +1,19 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/waitpool"
 	"go.uber.org/multierr"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/waitpool"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 type (
@@ -21,7 +28,7 @@ type (
 	}
 )
 
-func newSqliteBinlogConn(path string, appid uint32, cacheSize int, pageSize int, isReplica bool, stats StatsOptions, waitDbOffsetPool *waitpool.WaitPool, logger *log.Logger) (*sqliteBinlogConn, error) {
+func newSqliteBinlogConn(path string, appid uint32, cacheSize int, pageSize int, isReplica bool, stats StatsOptions, waitDbOffsetPool *waitpool.WaitPool, logger *logz.Logger) (*sqliteBinlogConn, error) {
 	conn, err := newSqliteRWWALConn(path, appid, cacheSize, pageSize, stats, logger)
 	if err != nil {
 		return nil, err

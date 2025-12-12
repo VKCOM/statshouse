@@ -3,11 +3,18 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Copyright 2022 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 package sqlitev2
 
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -19,9 +26,10 @@ import (
 	"testing"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint"
-	"pgregory.net/rand"
 
 	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
@@ -150,11 +158,13 @@ func (u userEngine) ChangeRole(info binlog2.ChangeRoleInfo) {
 
 }
 
+func (u userEngine) Reindex(operator binlog2.ReindexOperator) { operator.FinishedOk(true) }
+
 func openEngineWithoutBinlog(t *testing.T, opt testEngineOptions) *Engine {
 	engine, err := OpenEngine(Options{
 		Path:   opt.prefix + "/" + opt.dbFile,
 		APPID:  32,
-		Scheme: opt.scheme,
+		Schema: opt.scheme,
 		BinlogOptions: BinlogOptions{
 			Replica: opt.replica,
 		},
@@ -181,14 +191,14 @@ func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) 
 	engine, err := OpenEngine(Options{
 		Path:   opt.prefix + "/" + opt.dbFile,
 		APPID:  32,
-		Scheme: opt.scheme,
+		Schema: opt.scheme,
 		BinlogOptions: BinlogOptions{
 			Replica: opt.replica,
 		},
 		CacheApproxMaxSizePerConnect: 1,
 		MaxROConn:                    opt.maxRoConn,
 	})
-	//engine.testOptions = opt.testOptions
+	// engine.testOptions = opt.testOptions
 	require.NoError(t, err)
 	go func() {
 		require.NoError(t, engine.Run(bl, &userEngine{}, opt.applyF))
@@ -213,7 +223,7 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 	engine, err := OpenEngine(Options{
 		Path:   prefix + "/" + dbfile,
 		APPID:  32,
-		Scheme: schema,
+		Schema: schema,
 		BinlogOptions: BinlogOptions{
 			Replica: replica,
 		},
@@ -233,7 +243,7 @@ func isEquals(a, b []string) error {
 	}
 	for i := range a {
 		if a[i] != b[i] {
-			return fmt.Errorf(strings.Join(a, ",") + "\n" + strings.Join(b, ","))
+			return errors.New(strings.Join(a, ",") + "\n" + strings.Join(b, ","))
 		}
 	}
 	return nil
@@ -408,7 +418,7 @@ func Test_Engine_NoBinlog(t *testing.T) {
 	engine, err := OpenEngine(Options{
 		Path:                         dir + "/db",
 		APPID:                        32,
-		Scheme:                       schema,
+		Schema:                       schema,
 		CacheApproxMaxSizePerConnect: 1,
 	})
 	require.NoError(t, err)
@@ -440,7 +450,7 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	engine, err := OpenEngine(Options{
 		Path:                         dir + "/db",
 		APPID:                        32,
-		Scheme:                       schema,
+		Schema:                       schema,
 		CacheApproxMaxSizePerConnect: 1,
 	})
 	require.NoError(t, err)
@@ -455,7 +465,7 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	engine, err = OpenEngine(Options{
 		Path:                         dir + "/db",
 		APPID:                        32,
-		Scheme:                       schema,
+		Schema:                       schema,
 		CacheApproxMaxSizePerConnect: 1,
 	})
 	require.NoError(t, err)
@@ -605,7 +615,7 @@ func Test_Engine_Backup(t *testing.T) {
 	var id int64
 	dir := t.TempDir()
 	var backupOffset int64
-	//dbPath := path.Join(dir, "db")
+	// dbPath := path.Join(dir, "db")
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
 	for i := 0; i < 1000; i++ {
@@ -659,6 +669,7 @@ func Test_Engine_RO(t *testing.T) {
 	var id int64
 	dir := t.TempDir()
 	dbfile := "db"
+	backup := dir + "/back_db"
 	engine, _ := openEngine(t, dir, dbfile, schema, true, false, false, nil)
 	var err error
 	_, err = engine.DoTx(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
@@ -669,10 +680,16 @@ func Test_Engine_RO(t *testing.T) {
 		return buf, err
 	})
 	require.NoError(t, err)
+	_, err = engine.Backup(context.Background(), backup, func(_ string, _ int64) (string, error) {
+		return backup, nil
+	})
+	require.NoError(t, err)
+	err = engine.Close()
+	require.NoError(t, err)
 	engineRO, err := OpenEngine(Options{
-		Path:                         dir + "/" + dbfile,
+		Path:                         backup,
 		APPID:                        32,
-		Scheme:                       schema,
+		Schema:                       schema,
 		CacheApproxMaxSizePerConnect: 999,
 		ReadOnly:                     true,
 	})
@@ -687,8 +704,8 @@ func Test_Engine_RO(t *testing.T) {
 		}
 		return rows.Error()
 	})
+	require.NoError(t, err)
 	require.Equal(t, int64(1), id)
-	require.NoError(t, engine.Close())
 	require.NoError(t, engineRO.Close())
 }
 

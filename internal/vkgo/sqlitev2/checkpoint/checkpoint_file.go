@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package checkpoint
 
 import (
@@ -8,9 +14,10 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/tlsqlite"
 	"github.com/zeebo/xxh3"
 	"go.uber.org/multierr"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/tlsqlite"
 )
 
 /*

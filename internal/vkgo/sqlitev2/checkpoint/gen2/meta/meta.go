@@ -10,11 +10,11 @@ package meta
 import (
 	"fmt"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/internal"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/internal"
 )
 
-func SchemaGenerator() string { return "v1.2.19" }
+func SchemaGenerator() string { return "v1.2.27" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -334,8 +334,5 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 
 func init() {
 	// TL
-	fillObject("int#a8509bda", "#a8509bda", &TLItem{tag: 0xa8509bda, annotations: 0x0, tlName: "int", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

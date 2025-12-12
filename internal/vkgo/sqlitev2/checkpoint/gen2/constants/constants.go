@@ -8,16 +8,5 @@
 package constants
 
 const (
-	Dictionary      = 0x1f4c618f // dictionary
-	DictionaryField = 0x239c1b62 // dictionaryField
-	Int             = 0xa8509bda // int
-	Map             = 0x79c473a4 // map
-	Pair            = 0x0f3c47ab // pair
-	ResultFalse     = 0x27930a7b // resultFalse
-	ResultTrue      = 0x3f9c8ef8 // resultTrue
-	SqliteMetainfo  = 0x9286affa // sqlite.metainfo
-	String          = 0xb5286e24 // string
-	True            = 0x3fedd339 // true
-	Tuple           = 0x9770768a // tuple
-	Vector          = 0x1cb5c415 // vector
+	SqliteMetainfo = 0x9286affa // sqlite.metainfo
 )

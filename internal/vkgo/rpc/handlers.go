@@ -27,7 +27,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
-	"github.com/VKCOM/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
+	"github.com/VKCOM/statshouse/internal/vkgo/vktl/tlpprof" // TODO - modernize pprof package, it is very old
 )
 
 func (s *Server) CollectStats(localAddr net.Addr) map[string]string {

@@ -1,3 +1,9 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
@@ -19,10 +25,6 @@ type binlogMock struct {
 func NewBinlogMock(engine binlog.Engine, t require.TestingT) binlog.Binlog {
 	return &binlogMock{engine: engine, t: t}
 
-}
-
-func (b *binlogMock) Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine binlog.Engine) error {
-	panic("err")
 }
 
 func (b *binlogMock) Run(offset int64, snapshotMeta []byte, controlMeta []byte, engine binlog.Engine) error {
@@ -51,12 +53,18 @@ func (b *binlogMock) AddStats(stats map[string]string) {
 
 }
 
-func (b *binlogMock) Shutdown() error {
-	return nil
+func (b *binlogMock) RequestShutdown() {
+}
+
+func (b *binlogMock) RequestReindex(bool, bool) {
 }
 
 func (b *binlogMock) EngineStatus(status binlog.EngineStatus) {
 
+}
+
+func (b *binlogMock) GetStartCmd() (binlog.StartCmd, bool) {
+	return binlog.StartCmd{}, false
 }
 
 func (b *binlogMock) MockCommit(t require.TestingT) bool {
@@ -82,14 +90,4 @@ func (b *binlogMock) MockSkip(t require.TestingT, skip int64) int64 {
 	b.skipL += skip
 	require.NoError(t, err)
 	return newOffset
-}
-
-func (b *binlogMock) GetStartCmd() (binlog.StartCmd, bool) {
-	return binlog.StartCmd{}, false
-}
-
-func (b *binlogMock) RequestReindex(diff bool, fast bool) {
-}
-
-func (b *binlogMock) RequestShutdown() {
 }

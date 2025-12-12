@@ -1,16 +1,23 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"runtime/debug"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/cache"
-	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/sqlite0"
 	"go.uber.org/multierr"
 	"go4.org/mem"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/cache"
+	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/sqlite0"
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 type (
@@ -23,7 +30,7 @@ type (
 		committed bool
 
 		stats  StatsOptions
-		logger *log.Logger
+		logger *logz.Logger
 	}
 )
 
@@ -37,7 +44,7 @@ var (
 var innerCtx = context.Background()
 
 // use only for snapshots
-func newSqliteROConn(path string, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteROConn(path string, stats StatsOptions, logger *logz.Logger) (*sqliteConn, error) {
 	conn, err := open(path, sqlite0.OpenReadonly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to openRO conn: %w", err)
@@ -52,7 +59,7 @@ func newSqliteROConn(path string, stats StatsOptions, logger *log.Logger) (*sqli
 	}, nil
 }
 
-func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *logz.Logger) (*sqliteConn, error) {
 	conn, err := openROWAL(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RO connL %w", err)
@@ -67,7 +74,8 @@ func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *
 		logger:    logger,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid uint32, cacheSize int, pageSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
+
+func newSqliteRWWALConn(path string, appid uint32, cacheSize int, pageSize int, stats StatsOptions, logger *logz.Logger) (*sqliteConn, error) {
 	conn, err := openRW(openWAL, path, appid, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
@@ -87,7 +95,7 @@ func (c *sqliteConn) integrityCheck() error {
 	return c.execLocked("PRAGMA integrity_check;")
 }
 
-func (c *sqliteConn) applyScheme(schemas ...string) error {
+func (c *sqliteConn) applySchema(schemas ...string) error {
 	for _, schema := range schemas {
 		err := c.execLocked(schema)
 		if err != nil {
@@ -104,8 +112,8 @@ func (c *sqliteConn) setErrorLocked(err error) error {
 	if c.connError != nil {
 		return err
 	}
-	c.logger.Println("engine is broken")
-	c.logger.Println(string(debug.Stack()))
+	c.logger.Error("engine is broken")
+	c.logger.Error(string(debug.Stack()))
 	c.connError = err
 	return err
 }

@@ -4,6 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Copyright 2023 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlitev2
 
 import (
@@ -54,8 +60,8 @@ func Blob(name string, b []byte) Arg {
 	return Arg{name: name, typ: argBlob, b: b}
 }
 
-func Text(name string, s string) Arg {
-	return Arg{name: name, typ: argText, s: s}
+func Text(name string, s []byte) Arg {
+	return Arg{name: name, typ: argText, b: s}
 }
 
 func BlobUnsafe(name string, b []byte) Arg {
@@ -122,7 +128,7 @@ func bindParam(si *sqlite0.Stmt, builder *queryBuilder, args ...Arg) (*sqlite0.S
 					err = fmt.Errorf("unsupported slice arg type for %q: %v", arg.name, arg.typ)
 				}
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error while binding %q arg: %w", arg.name, err)
 				}
 				start++
 			}
@@ -154,7 +160,7 @@ func bindParam(si *sqlite0.Stmt, builder *queryBuilder, args ...Arg) (*sqlite0.S
 				err = fmt.Errorf("unsupported arg type for %q: %v", arg.name, arg.typ)
 			}
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error while binding %q arg: %w", arg.name, err)
 			}
 		}
 	}

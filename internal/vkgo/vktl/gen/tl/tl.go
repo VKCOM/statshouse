@@ -12,6 +12,5 @@ import (
 )
 
 type (
-	VectorLong                                                                       = tlVectorLong.VectorLong
+	VectorLong = tlVectorLong.VectorLong
 )
-

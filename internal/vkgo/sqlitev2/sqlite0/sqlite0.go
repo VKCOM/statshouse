@@ -4,6 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Copyright 2022 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package sqlite0
 
 /*
@@ -60,6 +66,17 @@ import (
 	"runtime"
 	"time"
 	"unsafe"
+)
+
+type ColumnType uint8
+
+const (
+	IntegerColumn ColumnType = iota
+	RealColumn
+	TextColumn
+	BlobColumn
+	NullColumn
+	UnknownColumn
 )
 
 var (
@@ -461,4 +478,22 @@ func (s *Stmt) ColumnFloat64(i int) float64 {
 func (s *Stmt) ColumnNull(i int) bool {
 	typ := C.sqlite3_column_type(s.stmt, C.int(i))
 	return typ == C.SQLITE_NULL
+}
+
+func (s *Stmt) ColumnType(i int) ColumnType {
+	typ := C.sqlite3_column_type(s.stmt, C.int(i))
+	switch typ {
+	case C.SQLITE_INTEGER:
+		return IntegerColumn
+	case C.SQLITE_FLOAT:
+		return RealColumn
+	case C.SQLITE_TEXT:
+		return TextColumn
+	case C.SQLITE_BLOB:
+		return BlobColumn
+	case C.SQLITE_NULL:
+		return NullColumn
+	default:
+		return UnknownColumn
+	}
 }

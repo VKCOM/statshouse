@@ -1,15 +1,21 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package cache
 
 import (
 	"cmp"
-	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 	"pgregory.net/rapid"
+
+	"github.com/VKCOM/statshouse/internal/vkgo/vkd/logz"
 )
 
 type cacheState struct {
@@ -21,10 +27,19 @@ type cacheState struct {
 }
 
 func (s *cacheState) init(t *rapid.T) {
-	s.maxSize = 5
-	s.cache = NewQueryCache(s.maxSize, log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags))
-	s.usedHash = map[QueryHash]bool{}
+	logger, err := logz.New(logz.Config{
+		Level:             "info",
+		App:               "sqlitev2",
+		Encoding:          "console",
+		DisableStacktrace: true,
+		Outputs:           []string{"stdout"},
+		WithMetrics:       false,
+	})
+	require.NoError(t, err, "logger creation failed")
 
+	s.maxSize = 5
+	s.cache = NewQueryCache(s.maxSize, logger)
+	s.usedHash = map[QueryHash]bool{}
 }
 
 func (s *cacheState) Put(r *rapid.T) {
