@@ -75,6 +75,7 @@ rpcInvokeReqExtra#f3ef81a9
   return_query_stats:flags.6?%True
   no_result:flags.7?%True // Currently for proxy only. Client goes to proxy, it clears this bit and sends query to engine. Client does not wait for answer.
   must_be_master:flags.8?%True // The engine should execute the query only if it is ready master, otherwise it should respond with TL_ERROR_NOT_MASTER error
+  requester_id:flags.9?%long
   return_shards_binlog_pos:flags.14?%True
   // Bits 17, 22, 24 was used in before, but their support was dropped
   wait_shards_binlog_pos:flags.15?%(Dictionary long)

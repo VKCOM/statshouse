@@ -27,6 +27,11 @@ type ClientOptions struct {
 	DebugUdp            int
 	HookMaker           func() ClientHook
 
+	beforeSendHookLatencyHandler LatencyHandler
+	sendLatencyHandler           LatencyHandler
+	proxyLatencyHandler          LatencyHandler
+	receiveLatencyHandler        LatencyHandler
+
 	trustedSubnetGroupsParseErrors []error
 }
 
@@ -126,6 +131,30 @@ func ClientWithExperimentalLocalUDPAddress(localUDPAddress string) ClientOptions
 func ClientWithDebugUdp(DebugUdp int) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		o.DebugUdp = DebugUdp
+	}
+}
+
+func ClientWithDebugBeforeSendHookLatencyHandler(h LatencyHandler) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.beforeSendHookLatencyHandler = h
+	}
+}
+
+func ClientWithDebugSendLatencyHandler(h LatencyHandler) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.sendLatencyHandler = h
+	}
+}
+
+func ClientWithDebugProxyLatencyHandler(h LatencyHandler) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.proxyLatencyHandler = h
+	}
+}
+
+func ClientWithDebugReceiveLatencyHandler(h LatencyHandler) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.receiveLatencyHandler = h
 	}
 }
 

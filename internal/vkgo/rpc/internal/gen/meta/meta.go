@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.2.25" }
+func SchemaGenerator() string { return "v1.2.27" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }

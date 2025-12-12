@@ -1073,6 +1073,7 @@ func (s *Server) rpsCalcLoop(wg *semaphore.Weighted) {
 	var prev [2]int64
 	prevUdpStats := new(udp.TransportStats)
 	udpStats := new(udp.TransportStats)
+	var transportsUDP []*udp.Transport
 	for {
 		select {
 		case now := <-tick.C:
@@ -1081,7 +1082,10 @@ func (s *Server) rpsCalcLoop(wg *semaphore.Weighted) {
 				s.protocolStats[i].rps.Store((cur - prev[i]) / rpsCalcSeconds)
 				prev[i] = cur
 			}
-			for _, t := range s.transportsUDP {
+			s.mu.Lock()
+			transportsUDP = append(transportsUDP[:0], s.transportsUDP...)
+			s.mu.Unlock()
+			for _, t := range transportsUDP {
 				t.GetStats(udpStats)
 			}
 			// per second udp metrics

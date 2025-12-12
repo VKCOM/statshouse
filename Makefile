@@ -101,8 +101,8 @@ gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/a
 
 .PHONY: lint test check
 lint:
-	staticcheck -version
-	staticcheck ./...
+	go run honnef.co/go/tools/cmd/staticcheck@latest -version
+	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
 test:
 	CGO_LDFLAGS="-w" go test -race ./...

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
@@ -25,18 +26,13 @@ var (
 // - returning from Wait/WaitAny when context.Context is Done() does not change state
 // - after Close(), Multi is in a terminal do-nothing state
 
-type callState struct {
-	pc   *clientConn
-	cctx *Response
-}
-
 type Multi struct {
 	c           *ClientImpl
 	sem         *semaphore.Weighted
 	mu          sync.Mutex
-	multiResult chan *Response
-	calls       map[int64]callState
-	results     map[int64]*Response
+	multiResult chan callResult
+	calls       map[int64]*clientConn
+	results     map[int64]callResult
 	closed      bool
 	closeCh     chan struct{}
 }
@@ -46,9 +42,9 @@ func (c *ClientImpl) Multi(n int) *Multi {
 	return &Multi{
 		c:           c,
 		sem:         semaphore.NewWeighted(int64(n)),
-		multiResult: make(chan *Response, n),
-		calls:       make(map[int64]callState, n),
-		results:     make(map[int64]*Response, n),
+		multiResult: make(chan callResult, n),
+		calls:       make(map[int64]*clientConn, n),
+		results:     make(map[int64]callResult, n),
 		closeCh:     make(chan struct{}),
 	}
 }
@@ -63,8 +59,12 @@ func (m *Multi) Close() {
 	m.closed = true
 	close(m.closeCh)
 
-	for _, cs := range m.calls {
-		_ = cs.pc.cancelCall(cs.cctx.queryID, errMultiClosed) // Will release all waiting below
+	for queryID, pc := range m.calls {
+		cctx := pc.cancelCall(queryID)
+		if cctx != nil {
+			// exclusive ownership of cctx by this function
+			m.multiResult <- callResult{resp: cctx, err: errMultiClosed}
+		}
 	}
 	for queryID := range m.results {
 		delete(m.results, queryID)
@@ -83,6 +83,7 @@ func (m *Multi) teardownCallStateLocked(queryID int64) {
 }
 
 func (m *Multi) Start(ctx context.Context, network string, address string, req *Request) error {
+	req.startTime = time.Now()
 	if err := m.sem.Acquire(ctx, 1); err != nil {
 		return err
 	}
@@ -95,15 +96,16 @@ func (m *Multi) Start(ctx context.Context, network string, address string, req *
 		return errMultiClosed
 	}
 
-	queryID := req.QueryID()
-	cctx := m.c.getResponse()
-	pc, err := m.c.setupCall(ctx, NetAddr{network, address}, req, cctx, m.multiResult, nil, nil)
+	queryID := req.QueryID() // must not access req after setupCall
+	cctx := m.c.getResponse(req)
+	cctx.result = m.multiResult // does not touch cctx.singleResult
+	pc, err := m.c.setupCall(ctx, NetAddr{network, address}, req, cctx)
 	if err != nil {
 		m.sem.Release(1)
 		return err
 	}
 
-	m.calls[queryID] = callState{pc: pc, cctx: cctx}
+	m.calls[queryID] = pc
 
 	return nil
 }
@@ -117,7 +119,7 @@ func (m *Multi) waitHasResult(queryID int64) (*Response, error, bool) {
 
 	if res, ok := m.results[queryID]; ok {
 		delete(m.results, queryID)
-		return res, res.err, true
+		return res.resp, res.err, true
 	}
 
 	if _, ok := m.calls[queryID]; !ok {
@@ -134,15 +136,15 @@ func (m *Multi) Wait(ctx context.Context, queryID int64) (*Response, error) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case cs := <-m.multiResult: // got ownership of cctx
-			qID := cs.queryID
+		case finishedCall := <-m.multiResult: // got ownership of cctx
+			qID := finishedCall.resp.queryID
 			m.mu.Lock()
 			m.teardownCallStateLocked(qID)
 			if qID == queryID {
 				m.mu.Unlock()
-				return cs, cs.err
+				return finishedCall.resp, finishedCall.err
 			}
-			m.results[qID] = cs
+			m.results[qID] = finishedCall
 			m.mu.Unlock()
 			continue
 		case <-m.closeCh:
@@ -159,9 +161,9 @@ func (m *Multi) waitAnyHasResult() (int64, *Response, error, bool) {
 		return 0, nil, errMultiClosed, true
 	}
 
-	for queryID, res := range m.results {
+	for queryID, finishedCall := range m.results {
 		delete(m.results, queryID)
-		return queryID, res, res.err, true
+		return queryID, finishedCall.resp, finishedCall.err, true
 	}
 
 	return 0, nil, nil, false
@@ -174,12 +176,12 @@ func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
 	select {
 	case <-ctx.Done():
 		return 0, nil, ctx.Err()
-	case cs := <-m.multiResult:
-		qID := cs.queryID
+	case finishedCall := <-m.multiResult:
+		qID := finishedCall.resp.queryID
 		m.mu.Lock()
 		m.teardownCallStateLocked(qID)
 		m.mu.Unlock()
-		return qID, cs, cs.err
+		return qID, finishedCall.resp, finishedCall.err
 	case <-m.closeCh:
 		return 0, nil, errMultiClosed
 	}

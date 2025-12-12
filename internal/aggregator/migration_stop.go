@@ -24,7 +24,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
+	"github.com/VKCOM/statshouse/internal/vkgo/kittenhouseclient/rowbinary"
 )
 
 // MigrationConfigStop holds configuration for migration operations from stats_1h_agg_stop to V3.

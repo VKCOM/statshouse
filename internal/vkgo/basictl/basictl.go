@@ -21,8 +21,8 @@ import (
 
 const (
 	tinyStringLen    = 253
-	bigStringMarker  = 0xfe
-	hugeStringMarker = 0xff
+	bigStringMarker  = 254
+	hugeStringMarker = 255
 	bigStringLen     = (1 << 24) - 1
 	hugeStringLen    = (1 << 56) - 1
 )
@@ -132,13 +132,60 @@ func DoubleWrite(w []byte, v float64) []byte {
 }
 
 func StringRead(r []byte, dst *string) ([]byte, error) {
-	var b []byte
-	r, err := StringReadBytes(r, &b)
-	if err != nil {
-		return r, err
+	if len(r) == 0 {
+		return r, io.ErrUnexpectedEOF
 	}
-	*dst = string(b)
-	return r, nil
+	b0 := r[0]
+
+	var l int
+	var p int
+	switch {
+	case b0 <= tinyStringLen:
+		l = int(b0)
+		r = r[1:]
+		p = l + 1
+	case b0 == bigStringMarker:
+		if len(r) < 4 {
+			return r, io.ErrUnexpectedEOF
+		}
+		l = (int(r[3]) << 16) + (int(r[2]) << 8) + (int(r[1]) << 0)
+		r = r[4:]
+		p = l // +4
+		if l <= tinyStringLen {
+			return r, fmt.Errorf("non-canonical (big) string format for length: %d", l)
+		}
+	default: // hugeStringMarker
+		if len(r) < 8 {
+			return r, io.ErrUnexpectedEOF
+		}
+		l64 := (int64(r[7]) << 48) + (int64(r[6]) << 40) + (int64(r[5]) << 32) + (int64(r[4]) << 24) + (int64(r[3]) << 16) + (int64(r[2]) << 8) + (int64(r[1]) << 0)
+		if l64 > math.MaxInt {
+			return r, fmt.Errorf("string length cannot be represented on 32-bit platform: %d", l64)
+		}
+		l = int(l64)
+		r = r[8:]
+		p = l // +8
+		if l <= bigStringLen {
+			return r, fmt.Errorf("non-canonical (huge) string format for length: %d", l)
+		}
+	}
+
+	if len(r) < l {
+		return r, io.ErrUnexpectedEOF
+	}
+
+	*dst = string(r[:l])
+
+	padding := paddingLen(p)
+	if len(r) < l+padding {
+		return r, io.ErrUnexpectedEOF
+	}
+	for i := 0; i < padding; i++ {
+		if r[l+i] != 0 {
+			return r, errBadPadding
+		}
+	}
+	return r[l+padding:], nil
 }
 
 func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {

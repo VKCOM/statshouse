@@ -32,7 +32,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache"
-	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
@@ -288,7 +287,9 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	if len(hostName) == 0 {
 		return nil, fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
 	}
-	metrics := util.NewRPCServerMetrics("statshouse_aggregator")
+	// TODO - those work with external agent via library, but aggregator has it's own built-in agent.
+	// We'd want to collect RPC server metrics manually and push into our built-in metric anyway.
+	// metrics := util.NewRPCServerMetrics("statshouse_aggregator")
 	a.scrape = newScrapeServer()
 	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithLogf(log.Printf),
@@ -302,7 +303,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<33),
 		rpc.ServerWithStatsHandler(a.scrape.reportStats),
-		metrics.ServerWithMetrics,
+		// metrics.ServerWithMetrics,
 	)
 	// 1. we do not bother to stop collection
 	// 2. we must not use statshouse lib in aggregator, there is nobody listening 13337
