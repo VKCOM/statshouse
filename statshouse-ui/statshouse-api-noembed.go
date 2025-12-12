@@ -6,12 +6,10 @@
 
 //go:build !embed
 
-package main
+package statshouseui
 
 import (
 	"io/fs"
 )
 
-var (
-	staticFS fs.FS
-)
+func FS() fs.FS { return nil }

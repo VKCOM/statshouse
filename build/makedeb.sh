@@ -29,6 +29,12 @@ if [[ -z $GID ]]; then
 fi
 
 # build StatsHouse
+if [[ -z $NODE_IMAGE ]]; then
+  NODE_IMAGE="node:18-bullseye"
+fi
+docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" \
+  "$NODE_IMAGE" make build-sh-ui build-grafana-ui
+
 if [[ -z $GOLANG_IMAGE ]]; then
   GOLANG_IMAGE="golang:1.22-$TAG" # e.g. golang:1.22-bullseye
 fi
@@ -39,11 +45,6 @@ docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
   -e BUILD_COMMIT="$(git log --format="%H" -n 1)" -e BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)" \
   -e GOCACHE="/src/$GOCACHE" -e BUILD_TRUSTED_SUBNET_GROUPS -e BUILD_ID -e BUILD_TIME \
   "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
-if [[ -z $NODE_IMAGE ]]; then
-  NODE_IMAGE="node:18-bullseye"
-fi
-docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" \
-  "$NODE_IMAGE" make build-sh-ui build-grafana-ui
 
 # build debian package
 (cd build
