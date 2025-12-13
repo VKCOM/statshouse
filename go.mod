@@ -21,7 +21,7 @@ require (
 	github.com/gotd/ige v0.2.2
 	github.com/grafana/grafana-plugin-sdk-go v0.250.0
 	github.com/hrissan/tdigest v0.0.3
-	github.com/mailru/easyjson v0.9.0
+	github.com/mailru/easyjson v0.9.1
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pkg/errors v0.9.1
@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.38.0
-	github.com/tinylib/msgp v1.1.6
+	github.com/tinylib/msgp v1.6.1
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/atomic v1.11.0
@@ -42,7 +42,7 @@ require (
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.34.3
 	pgregory.net/rand v1.0.2
@@ -181,7 +181,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pascaldekloe/name v1.0.1 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
-	github.com/philhofer/fwd v1.1.1 // indirect
+	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.20.3 // indirect
