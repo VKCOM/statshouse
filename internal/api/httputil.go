@@ -26,8 +26,10 @@ import (
 )
 
 const (
-	cacheMinAgeSeconds = 1
-	cacheMaxAgeSeconds = 31536000
+	cacheMinAgeSeconds          = 1
+	cacheMaxAgeSeconds          = 365 * 86400
+	cacheAgeStaticAssetsSeconds = 30 * 86400
+	cacheAgeStaticOtherSeconds  = 300
 
 	widthAutoRes = 0
 	widthLODRes  = 1
