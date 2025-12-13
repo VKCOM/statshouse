@@ -127,7 +127,7 @@ upgrade_mod:
 	go get -u github.com/dgryski/go-maglev
 	go get -u github.com/fsnotify/fsnotify
 	go get -u github.com/go-kit/log
-	# github.com/gogo/protobuf
+	go get -u github.com/gogo/protobuf
 	go get -u github.com/golang-jwt/jwt/v4
 	go get -u github.com/google/btree
 	go get -u github.com/google/go-cmp
@@ -136,21 +136,21 @@ upgrade_mod:
 	go get -u github.com/gorilla/mux
 	go get -u github.com/gotd/ige
 	go get -u github.com/hrissan/tdigest
-	# github.com/mailru/easyjson
+	go get -u github.com/mailru/easyjson
 	go get -u github.com/petar/GoLLRB
 	go get -u github.com/pierrec/lz4
 	go get -u github.com/pkg/errors
 	go get -u github.com/spf13/pflag
 	go get -u github.com/stretchr/testify
-	# github.com/tinylib/msgp
+	go get -u github.com/tinylib/msgp
 	go get -u github.com/xi2/xz
 	go get -u github.com/zeebo/xxh3
 	go get -u go.uber.org/atomic
 	go get -u go.uber.org/multierr
 	go get -u go4.org/mem
 	go get -u golang.org/x/crypto golang.org/x/exp golang.org/x/sync golang.org/x/sys
-	# google.golang.org/protobuf
-	# gopkg.in/yaml.v2
+	go get -u google.golang.org/protobuf
+	go get -u gopkg.in/yaml.v2
 	go get -u pgregory.net/rand
 	go get -u pgregory.net/rapid
 	go get go@1.24
@@ -159,3 +159,4 @@ upgrade_mod:
 	# go get -u k8s.io/apimachinery
 	# go get -u github.com/prometheus/common github.com/prometheus/procfs github.com/prometheus/prometheus
 	# go get -u github.com/testcontainers/testcontainers-go go get -u github.com/testcontainers/testcontainers-go/modules/clickhouse
+	@echo "you may need to regenerate code with make gen if packages with code generation changed, which might require 'go install' appropriate tools (yes what morons designed this)"
