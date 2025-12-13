@@ -140,6 +140,7 @@ upgrade_mod:
 	go get -u github.com/petar/GoLLRB
 	go get -u github.com/pierrec/lz4
 	go get -u github.com/pkg/errors
+	go get -u github.com/prometheus/procfs
 	go get -u github.com/spf13/pflag
 	go get -u github.com/stretchr/testify
 	go get -u github.com/tinylib/msgp
@@ -153,10 +154,10 @@ upgrade_mod:
 	go get -u gopkg.in/yaml.v2
 	go get -u pgregory.net/rand
 	go get -u pgregory.net/rapid
+	go get -u github.com/grafana/grafana-plugin-sdk-go
+	go get -u k8s.io/apimachinery
+	go get -u github.com/testcontainers/testcontainers-go github.com/testcontainers/testcontainers-go/modules/clickhouse
+	# updating prometheus breaks our promql engine
+	# go get -u github.com/prometheus/common github.com/prometheus/prometheus
 	go get go@1.24
-	# updating those monsters breaks tons of packages
-	# go get -u github.com/grafana/grafana-plugin-sdk-go
-	# go get -u k8s.io/apimachinery
-	# go get -u github.com/prometheus/common github.com/prometheus/procfs github.com/prometheus/prometheus
-	# go get -u github.com/testcontainers/testcontainers-go go get -u github.com/testcontainers/testcontainers-go/modules/clickhouse
 	@echo "you may need to regenerate code with make gen if packages with code generation changed, which might require 'go install' appropriate tools (yes what morons designed this)"
