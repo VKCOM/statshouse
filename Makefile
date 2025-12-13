@@ -160,4 +160,5 @@ upgrade_mod:
 	# updating prometheus breaks our promql engine
 	# go get -u github.com/prometheus/common github.com/prometheus/prometheus
 	go get go@1.24
+	go mod tidy
 	@echo "you may need to regenerate code with make gen if packages with code generation changed, which might require 'go install' appropriate tools (yes what morons designed this)"
