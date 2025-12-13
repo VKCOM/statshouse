@@ -426,15 +426,12 @@ matrix_selector : expr LEFT_BRACKET duration maybe_duration RIGHT_BRACKET
                 {
                         switch vs := $1.(type) {
                         case *VectorSelector:
-                                var errMsg string
                                 if vs.OriginalOffset != 0 || len(vs.OriginalOffsetEx) != 0 {
-                                        errMsg = "no offset modifiers allowed before range"
-                                } else if vs.Timestamp != nil {
-                                        errMsg = "no @ modifiers allowed before range"
-                                }
-                                if errMsg != "" {
                                         errRange := mergeRanges(&$2, &$5)
-                                        yylex.(*parser).addParseErrf(errRange, errMsg)
+                                        yylex.(*parser).addParseErrf(errRange, "no offset modifiers allowed before range")
+                                } else if vs.Timestamp != nil {
+                                        errRange := mergeRanges(&$2, &$5)
+                                        yylex.(*parser).addParseErrf(errRange, "no @ modifiers allowed before range")
                                 }
                                 $$ = &MatrixSelector{
                                         VectorSelector: $1.(Expr),
