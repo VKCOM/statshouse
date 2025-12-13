@@ -61,7 +61,7 @@ build-deb:
 	./build/makedeb.sh
 
 .PHONY: gen
-gen: gen-tl gen-sqlite gen-easyjson
+gen: gen-tl gen-sqlite gen-easyjson gen-yaml
 
 gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
 	go run github.com/vkcom/tl/cmd/tlgen@v1.2.25 --language=go --outdir=./internal/data_model/gen2 -v \
@@ -99,6 +99,10 @@ gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/a
 	go generate ./internal/api/handler.go
 	go generate ./internal/format/format.go
 
+gen-yaml: ./internal/promql/parser/parse.y
+	@echo "you may need to install yaml version: go install gopkg.in/yaml.v2/...@latest"
+	go generate ./internal/format/format.go
+
 .PHONY: lint test check
 lint:
 	go run honnef.co/go/tools/cmd/staticcheck@latest -version
@@ -114,30 +118,44 @@ test-integration:
 check: lint test
 
 upgrade_mod:
-	# 1. commented those, which need code regeneration
-	# 2. commented large monsters
-	go get -u github.com/ClickHouse/ch-go github.com/ClickHouse/clickhouse-go/v2 github.com/VKCOM/statshouse-go
-	go get -u github.com/cloudflare/tableflip github.com/dchest/siphash github.com/dgryski/go-maglev
-	go get -u github.com/fsnotify/fsnotify github.com/go-kit/log
+	# commented those, which need code regeneration
+	go get -u github.com/ClickHouse/ch-go
+	go get -u github.com/ClickHouse/clickhouse-go/v2
+	go get -u github.com/VKCOM/statshouse-go
+	go get -u github.com/cloudflare/tableflip
+	go get -u github.com/dchest/siphash
+	go get -u github.com/dgryski/go-maglev
+	go get -u github.com/fsnotify/fsnotify
+	go get -u github.com/go-kit/log
 	# github.com/gogo/protobuf
-	go get -u github.com/golang-jwt/jwt/v4 github.com/google/btree github.com/google/go-cmp github.com/google/uuid
-	go get -u github.com/gorilla/handlers github.com/gorilla/mux github.com/gotd/ige
-	# github.com/grafana/grafana-plugin-sdk-go
-	go get -u github.com/hrissan/tdigest github.com/jmoiron/sqlx
+	go get -u github.com/golang-jwt/jwt/v4
+	go get -u github.com/google/btree
+	go get -u github.com/google/go-cmp
+	go get -u github.com/google/uuid
+	go get -u github.com/gorilla/handlers
+	go get -u github.com/gorilla/mux
+	go get -u github.com/gotd/ige
+	go get -u github.com/hrissan/tdigest
 	# github.com/mailru/easyjson
-	# go get -u github.com/mattn/go-sqlite3
-	go get -u github.com/petar/GoLLRB github.com/pierrec/lz4 github.com/pkg/errors
-	# github.com/prometheus/common
-	# github.com/prometheus/procfs
-	# github.com/prometheus/prometheus
-	go get -u github.com/spf13/pflag github.com/stretchr/testify
-	# github.com/testcontainers/testcontainers-go
-	# github.com/testcontainers/testcontainers-go/modules/clickhouse
+	go get -u github.com/petar/GoLLRB
+	go get -u github.com/pierrec/lz4
+	go get -u github.com/pkg/errors
+	go get -u github.com/spf13/pflag
+	go get -u github.com/stretchr/testify
 	# github.com/tinylib/msgp
-	go get -u github.com/xi2/xz github.com/zeebo/xxh3 go.uber.org/atomic go.uber.org/multierr
-	go get -u go4.org/mem golang.org/x/crypto golang.org/x/exp golang.org/x/sync golang.org/x/sys
+	go get -u github.com/xi2/xz
+	go get -u github.com/zeebo/xxh3
+	go get -u go.uber.org/atomic
+	go get -u go.uber.org/multierr
+	go get -u go4.org/mem
+	go get -u golang.org/x/crypto golang.org/x/exp golang.org/x/sync golang.org/x/sys
 	# google.golang.org/protobuf
 	# gopkg.in/yaml.v2
-	# k8s.io/apimachinery
-	go get -u pgregory.net/rand pgregory.net/rapid
+	go get -u pgregory.net/rand
+	go get -u pgregory.net/rapid
 	go get go@1.24
+	# updating those monsters breaks tons of packages
+	# go get -u github.com/grafana/grafana-plugin-sdk-go
+	# go get -u k8s.io/apimachinery
+	# go get -u github.com/prometheus/common github.com/prometheus/procfs github.com/prometheus/prometheus
+	# go get -u github.com/testcontainers/testcontainers-go go get -u github.com/testcontainers/testcontainers-go/modules/clickhouse
