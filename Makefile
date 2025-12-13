@@ -101,7 +101,7 @@ gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/a
 
 gen-yaml: ./internal/promql/parser/parse.y
 	@echo "you may need to install yaml version: go install gopkg.in/yaml.v2/...@latest"
-	go generate ./internal/format/format.go
+	go generate ./internal/promql/parser/...
 
 .PHONY: lint test check
 lint:
