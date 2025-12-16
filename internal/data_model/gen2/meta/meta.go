@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.2.25" }
+func SchemaGenerator() string { return "v1.2.27" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -486,12 +486,12 @@ func init() {
 	fillObject("statshouse.getTagMappingBootstrapResult#486a40de", "#486a40de", &TLItem{tag: 0x486a40de, annotations: 0x0, tlName: "statshouse.getTagMappingBootstrapResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.getTagMappingResult#1a7d91fd", "#1a7d91fd", &TLItem{tag: 0x1a7d91fd, annotations: 0x0, tlName: "statshouse.getTagMappingResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.getTargets2#41df72a3", "#41df72a3", &TLItem{tag: 0x41df72a3, annotations: 0x10, tlName: "statshouse.getTargets2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.ingestion_status2#2e17a6d3", "#2e17a6d3", &TLItem{tag: 0x2e17a6d3, annotations: 0x0, tlName: "statshouse.ingestion_status2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.ingestionStatus2#80a3a32b", "#80a3a32b", &TLItem{tag: 0x80a3a32b, annotations: 0x0, tlName: "statshouse.ingestionStatus2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.mapping#bf401d4b", "#bf401d4b", &TLItem{tag: 0xbf401d4b, annotations: 0x0, tlName: "statshouse.mapping", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.metric#3325d884", "#3325d884", &TLItem{tag: 0x3325d884, annotations: 0x0, tlName: "statshouse.metric", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.multi_item#0c803e07", "#0c803e07", &TLItem{tag: 0x0c803e07, annotations: 0x0, tlName: "statshouse.multi_item", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.multiItem#0c803e07", "#0c803e07", &TLItem{tag: 0x0c803e07, annotations: 0x0, tlName: "statshouse.multiItem", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.putTagMappingBootstrapResult#486affde", "#486affde", &TLItem{tag: 0x486affde, annotations: 0x0, tlName: "statshouse.putTagMappingBootstrapResult", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.sample_factor#4f7b7822", "#4f7b7822", &TLItem{tag: 0x4f7b7822, annotations: 0x0, tlName: "statshouse.sample_factor", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.sampleFactor#9d6f80fe", "#9d6f80fe", &TLItem{tag: 0x9d6f80fe, annotations: 0x0, tlName: "statshouse.sampleFactor", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.sendKeepAlive2#4285ff53", "#4285ff53", &TLItem{tag: 0x4285ff53, annotations: 0x10, tlName: "statshouse.sendKeepAlive2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.sendKeepAlive3#4285ff54", "#4285ff54", &TLItem{tag: 0x4285ff54, annotations: 0x10, tlName: "statshouse.sendKeepAlive3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.sendSourceBucket3#0d04aa3f", "#0d04aa3f", &TLItem{tag: 0x0d04aa3f, annotations: 0x10, tlName: "statshouse.sendSourceBucket3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
@@ -499,7 +499,7 @@ func init() {
 	fillObject("statshouse.shutdownInfo#4124cf9c", "#4124cf9c", &TLItem{tag: 0x4124cf9c, annotations: 0x0, tlName: "statshouse.shutdownInfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouse.sourceBucket3#16c4dd7b", "#16c4dd7b", &TLItem{tag: 0x16c4dd7b, annotations: 0x0, tlName: "statshouse.sourceBucket3", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouse.testConnection2#4285ff58", "#4285ff58", &TLItem{tag: 0x4285ff58, annotations: 0x10, tlName: "statshouse.testConnection2", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("statshouse.top_element#9ffdea42", "#9ffdea42", &TLItem{tag: 0x9ffdea42, annotations: 0x0, tlName: "statshouse.top_element", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject("statshouse.topElement#9ffdea42", "#9ffdea42", &TLItem{tag: 0x9ffdea42, annotations: 0x0, tlName: "statshouse.topElement", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 }

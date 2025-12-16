@@ -164,7 +164,7 @@ type StatshouseMultiItem struct {
 	Top  []StatshouseTopElement // Conditional: item.FieldsMask.11
 }
 
-func (StatshouseMultiItem) TLName() string { return "statshouse.multi_item" }
+func (StatshouseMultiItem) TLName() string { return "statshouse.multiItem" }
 func (StatshouseMultiItem) TLTag() uint32  { return 0x0c803e07 }
 
 func (item *StatshouseMultiItem) SetSkeys(v []string) {
@@ -321,7 +321,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 			switch key {
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -329,7 +329,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				propFieldsMaskPresented = true
 			case "metric":
 				if propMetricPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "metric")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "metric")
 				}
 				if err := Json2ReadInt32(in, &item.Metric); err != nil {
 					return err
@@ -337,7 +337,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				propMetricPresented = true
 			case "keys":
 				if propKeysPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "keys")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "keys")
 				}
 				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Keys); err != nil {
 					return err
@@ -345,7 +345,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				propKeysPresented = true
 			case "skeys":
 				if propSkeysPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "skeys")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "skeys")
 				}
 				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Skeys); err != nil {
 					return err
@@ -353,7 +353,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				propSkeysPresented = true
 			case "weightMultiplier":
 				if trueTypeWeightMultiplierPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "weightMultiplier")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "weightMultiplier")
 				}
 				if err := Json2ReadBool(in, &trueTypeWeightMultiplierValue); err != nil {
 					return err
@@ -361,7 +361,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				trueTypeWeightMultiplierPresented = true
 			case "t":
 				if propTPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "t")
 				}
 				if err := Json2ReadUint32(in, &item.T); err != nil {
 					return err
@@ -369,7 +369,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				propTPresented = true
 			case "tail":
 				if rawTail != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "tail")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "tail")
 				}
 				rawTail = in.Raw()
 				if !in.Ok() {
@@ -377,14 +377,14 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 				}
 			case "top":
 				if propTopPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "top")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "top")
 				}
 				if err := BuiltinVectorStatshouseTopElementReadJSONGeneral(tctx, in, &item.Top); err != nil {
 					return err
 				}
 				propTopPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.multi_item", key)
+				return ErrorInvalidJSONExcessElement("statshouse.multiItem", key)
 			}
 			in.WantComma()
 		}
@@ -436,7 +436,7 @@ func (item *StatshouseMultiItem) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 
 	// tries to set bit to zero if it is 1
 	if trueTypeWeightMultiplierPresented && !trueTypeWeightMultiplierValue && (item.FieldsMask&(1<<17) != 0) {
-		return ErrorInvalidJSON("statshouse.multi_item", "fieldmask bit item.FieldsMask.17 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.multiItem", "fieldmask bit item.FieldsMask.17 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -504,7 +504,7 @@ func (item *StatshouseMultiItem) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseMultiItem) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.multi_item", err.Error())
+		return ErrorInvalidJSON("statshouse.multiItem", err.Error())
 	}
 	return nil
 }
@@ -520,7 +520,7 @@ type StatshouseMultiItemBytes struct {
 	Top  []StatshouseTopElementBytes // Conditional: item.FieldsMask.11
 }
 
-func (StatshouseMultiItemBytes) TLName() string { return "statshouse.multi_item" }
+func (StatshouseMultiItemBytes) TLName() string { return "statshouse.multiItem" }
 func (StatshouseMultiItemBytes) TLTag() uint32  { return 0x0c803e07 }
 
 func (item *StatshouseMultiItemBytes) SetSkeys(v [][]byte) {
@@ -679,7 +679,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 			switch key {
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -687,7 +687,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				propFieldsMaskPresented = true
 			case "metric":
 				if propMetricPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "metric")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "metric")
 				}
 				if err := Json2ReadInt32(in, &item.Metric); err != nil {
 					return err
@@ -695,7 +695,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				propMetricPresented = true
 			case "keys":
 				if propKeysPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "keys")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "keys")
 				}
 				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Keys); err != nil {
 					return err
@@ -703,7 +703,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				propKeysPresented = true
 			case "skeys":
 				if propSkeysPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "skeys")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "skeys")
 				}
 				if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, &item.Skeys); err != nil {
 					return err
@@ -711,7 +711,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				propSkeysPresented = true
 			case "weightMultiplier":
 				if trueTypeWeightMultiplierPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "weightMultiplier")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "weightMultiplier")
 				}
 				if err := Json2ReadBool(in, &trueTypeWeightMultiplierValue); err != nil {
 					return err
@@ -719,7 +719,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				trueTypeWeightMultiplierPresented = true
 			case "t":
 				if propTPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "t")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "t")
 				}
 				if err := Json2ReadUint32(in, &item.T); err != nil {
 					return err
@@ -727,7 +727,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				propTPresented = true
 			case "tail":
 				if rawTail != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "tail")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "tail")
 				}
 				rawTail = in.Raw()
 				if !in.Ok() {
@@ -735,14 +735,14 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 				}
 			case "top":
 				if propTopPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_item", "top")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiItem", "top")
 				}
 				if err := BuiltinVectorStatshouseTopElementBytesReadJSONGeneral(tctx, in, &item.Top); err != nil {
 					return err
 				}
 				propTopPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.multi_item", key)
+				return ErrorInvalidJSONExcessElement("statshouse.multiItem", key)
 			}
 			in.WantComma()
 		}
@@ -794,7 +794,7 @@ func (item *StatshouseMultiItemBytes) ReadJSONGeneral(tctx *basictl.JSONReadCont
 
 	// tries to set bit to zero if it is 1
 	if trueTypeWeightMultiplierPresented && !trueTypeWeightMultiplierValue && (item.FieldsMask&(1<<17) != 0) {
-		return ErrorInvalidJSON("statshouse.multi_item", "fieldmask bit item.FieldsMask.17 is indefinite because of the contradictions in values")
+		return ErrorInvalidJSON("statshouse.multiItem", "fieldmask bit item.FieldsMask.17 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
@@ -862,7 +862,7 @@ func (item *StatshouseMultiItemBytes) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseMultiItemBytes) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.multi_item", err.Error())
+		return ErrorInvalidJSON("statshouse.multiItem", err.Error())
 	}
 	return nil
 }

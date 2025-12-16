@@ -7,6 +7,9 @@ REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VER
 TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
+TL_GEN := go run github.com/vkcom/tl/cmd/tlgen@v1.2.27
+#TL_GEN := /home/user/devbox/VKCOM/tl/target/bin/tlgen # for quick switch to locally developed tlgen
+
 COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
 	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.machine=$(BUILD_MACHINE)' \
 	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.commit=$(BUILD_COMMIT)' \
@@ -61,10 +64,10 @@ build-deb:
 	./build/makedeb.sh
 
 .PHONY: gen
-gen: gen-tl gen-sqlite gen-easyjson gen-yaml
+gen: gen-tl gen-easyjson gen-yaml
 
 gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.2.25 --language=go --outdir=./internal/data_model/gen2 -v \
+	$(TL_GEN) --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
@@ -81,18 +84,46 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
 
-gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.2.19 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+#		--tl2-generate \
+#		--tl2WhiteList=statshouse.,statshouseApi.,metadata. \
+#		--tl2-migration-file=internal/data_model \
+#		--tl2-migration-by-namespaces \
+#		--tl2-continuous-migration \
+#		--tl2-migration-whitelist=statshouse.,metadata. \
+
+gen-tl2:
+	$(TL_GEN) --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
-		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
-		--generateByteVersions=sqlite. \
+		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+		--rawHandlerWhiteList=statshouse.,metadata. \
+		--tl2WhiteList=statshouse.,statshouseApi.,metadata. \
+		--tl2-generate \
 		--copyrightPath=./copyright \
+		./internal/data_model/api.tl \
 		./internal/data_model/common.tl \
-		./internal/sqlitev2/checkpoint/metainfo.tl
+		./internal/data_model/engine.tl \
+		./internal/data_model/namespaces/__common_namespace.tl2 \
+		./internal/data_model/namespaces/metadata.tl2 \
+		./internal/data_model/namespaces/statshouse.tl2
 	@echo "Checking that generated code actually compiles..."
-	@go build ./internal/sqlitev2/checkpoint/gen2/...
+	@go build ./internal/data_model/gen2/...
+
+# we now copy those files from vkgo together with the rest of sqlitev2 engine
+#gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
+#	go run github.com/vkcom/tl/cmd/tlgen@v1.2.19 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+#		--generateRPCCode=true \
+#		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+#		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+#		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+#		--generateByteVersions=sqlite. \
+#		--copyrightPath=./copyright \
+#		./internal/data_model/common.tl \
+#		./internal/sqlitev2/checkpoint/metainfo.tl
+#	@echo "Checking that generated code actually compiles..."
+#	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
 gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/api/httputil.go
 	@echo "you may need to install easyjson version: go install github.com/mailru/easyjson/...@latest"

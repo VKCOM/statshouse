@@ -17,7 +17,7 @@ type MetadataHistoryShortResponse struct {
 	Events []MetadataHistoryShortResponseEvent
 }
 
-func (MetadataHistoryShortResponse) TLName() string { return "metadata.history_short_response" }
+func (MetadataHistoryShortResponse) TLName() string { return "metadata.historyShortResponse" }
 func (MetadataHistoryShortResponse) TLTag() uint32  { return 0x7186baaf }
 
 func (item *MetadataHistoryShortResponse) Reset() {
@@ -71,14 +71,14 @@ func (item *MetadataHistoryShortResponse) ReadJSONGeneral(tctx *basictl.JSONRead
 			switch key {
 			case "events":
 				if rawEvents != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response", "events")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.historyShortResponse", "events")
 				}
 				rawEvents = in.Raw()
 				if !in.Ok() {
 					return in.Error()
 				}
 			default:
-				return ErrorInvalidJSONExcessElement("metadata.history_short_response", key)
+				return ErrorInvalidJSONExcessElement("metadata.historyShortResponse", key)
 			}
 			in.WantComma()
 		}

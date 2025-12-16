@@ -32,7 +32,7 @@ type StatshouseMultiValue struct {
 	MaxCounterHostStag string // Conditional: nat_fields_mask.16
 }
 
-func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
+func (StatshouseMultiValue) TLName() string { return "statshouse.multiValue" }
 func (StatshouseMultiValue) TLTag() uint32  { return 0x0c803e06 }
 
 func (item *StatshouseMultiValue) SetCounter(v float64, nat_fields_mask *uint32) {
@@ -482,25 +482,25 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 			switch key {
 			case "counter":
 				if propCounterPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "counter")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "counter")
 				}
 				if nat_fields_mask&(1<<0) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.Counter); err != nil {
 					return err
 				}
 				propCounterPresented = true
 			case "counter_eq_1":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
 			case "value_set":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
 			case "value_min":
 				if propValueMinPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_min")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_min")
 				}
 				if nat_fields_mask&(1<<3) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueMin); err != nil {
 					return err
@@ -508,10 +508,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propValueMinPresented = true
 			case "value_max":
 				if propValueMaxPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_max")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_max")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueMax); err != nil {
 					return err
@@ -519,10 +519,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propValueMaxPresented = true
 			case "value_sum":
 				if propValueSumPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_sum")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueSum); err != nil {
 					return err
@@ -530,10 +530,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propValueSumPresented = true
 			case "value_sum_square":
 				if propValueSumSquarePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum_square")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_sum_square")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueSumSquare); err != nil {
 					return err
@@ -541,10 +541,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propValueSumSquarePresented = true
 			case "uniques":
 				if propUniquesPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "uniques")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "uniques")
 				}
 				if nat_fields_mask&(1<<5) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadString(in, &item.Uniques); err != nil {
 					return err
@@ -552,23 +552,23 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propUniquesPresented = true
 			case "centroids":
 				if propCentroidsPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "centroids")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "centroids")
 				}
 				if nat_fields_mask&(1<<6) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
 			case "implicit_centroid":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
 			case "max_host_tag":
 				if propMaxHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_host_tag")
 				}
 				if nat_fields_mask&(1<<7) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MaxHostTag); err != nil {
 					return err
@@ -576,10 +576,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propMaxHostTagPresented = true
 			case "min_host_tag":
 				if propMinHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "min_host_tag")
 				}
 				if nat_fields_mask&(1<<8) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MinHostTag); err != nil {
 					return err
@@ -587,10 +587,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propMinHostTagPresented = true
 			case "max_counter_host_tag":
 				if propMaxCounterHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_counter_host_tag")
 				}
 				if nat_fields_mask&(1<<9) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MaxCounterHostTag); err != nil {
 					return err
@@ -598,10 +598,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propMaxCounterHostTagPresented = true
 			case "max_host_stag":
 				if propMaxHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_host_stag")
 				}
 				if nat_fields_mask&(1<<14) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadString(in, &item.MaxHostStag); err != nil {
 					return err
@@ -609,10 +609,10 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propMaxHostStagPresented = true
 			case "min_host_stag":
 				if propMinHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "min_host_stag")
 				}
 				if nat_fields_mask&(1<<15) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadString(in, &item.MinHostStag); err != nil {
 					return err
@@ -620,17 +620,17 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propMinHostStagPresented = true
 			case "max_counter_host_stag":
 				if propMaxCounterHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_counter_host_stag")
 				}
 				if nat_fields_mask&(1<<16) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadString(in, &item.MaxCounterHostStag); err != nil {
 					return err
 				}
 				propMaxCounterHostStagPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.multi_value", key)
+				return ErrorInvalidJSONExcessElement("statshouse.multiValue", key)
 			}
 			in.WantComma()
 		}
@@ -779,7 +779,7 @@ type StatshouseMultiValueBytes struct {
 	MaxCounterHostStag []byte // Conditional: nat_fields_mask.16
 }
 
-func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
+func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multiValue" }
 func (StatshouseMultiValueBytes) TLTag() uint32  { return 0x0c803e06 }
 
 func (item *StatshouseMultiValueBytes) SetCounter(v float64, nat_fields_mask *uint32) {
@@ -1229,25 +1229,25 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 			switch key {
 			case "counter":
 				if propCounterPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "counter")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "counter")
 				}
 				if nat_fields_mask&(1<<0) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.Counter); err != nil {
 					return err
 				}
 				propCounterPresented = true
 			case "counter_eq_1":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
 			case "value_set":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
 			case "value_min":
 				if propValueMinPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_min")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_min")
 				}
 				if nat_fields_mask&(1<<3) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueMin); err != nil {
 					return err
@@ -1255,10 +1255,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propValueMinPresented = true
 			case "value_max":
 				if propValueMaxPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_max")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_max")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueMax); err != nil {
 					return err
@@ -1266,10 +1266,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propValueMaxPresented = true
 			case "value_sum":
 				if propValueSumPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_sum")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueSum); err != nil {
 					return err
@@ -1277,10 +1277,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propValueSumPresented = true
 			case "value_sum_square":
 				if propValueSumSquarePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum_square")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "value_sum_square")
 				}
 				if nat_fields_mask&(1<<4) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadFloat64(in, &item.ValueSumSquare); err != nil {
 					return err
@@ -1288,10 +1288,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propValueSumSquarePresented = true
 			case "uniques":
 				if propUniquesPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "uniques")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "uniques")
 				}
 				if nat_fields_mask&(1<<5) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadStringBytes(in, &item.Uniques); err != nil {
 					return err
@@ -1299,23 +1299,23 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propUniquesPresented = true
 			case "centroids":
 				if propCentroidsPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "centroids")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "centroids")
 				}
 				if nat_fields_mask&(1<<6) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
 					return err
 				}
 				propCentroidsPresented = true
 			case "implicit_centroid":
-				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
+				return ErrorInvalidJSON("statshouse.multiValue", "implicit true field 'implicit_centroid' cannot be defined, set fieldmask instead")
 			case "max_host_tag":
 				if propMaxHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_host_tag")
 				}
 				if nat_fields_mask&(1<<7) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MaxHostTag); err != nil {
 					return err
@@ -1323,10 +1323,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propMaxHostTagPresented = true
 			case "min_host_tag":
 				if propMinHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "min_host_tag")
 				}
 				if nat_fields_mask&(1<<8) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MinHostTag); err != nil {
 					return err
@@ -1334,10 +1334,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propMinHostTagPresented = true
 			case "max_counter_host_tag":
 				if propMaxCounterHostTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_counter_host_tag")
 				}
 				if nat_fields_mask&(1<<9) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadInt32(in, &item.MaxCounterHostTag); err != nil {
 					return err
@@ -1345,10 +1345,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propMaxCounterHostTagPresented = true
 			case "max_host_stag":
 				if propMaxHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_host_stag")
 				}
 				if nat_fields_mask&(1<<14) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadStringBytes(in, &item.MaxHostStag); err != nil {
 					return err
@@ -1356,10 +1356,10 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propMaxHostStagPresented = true
 			case "min_host_stag":
 				if propMinHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "min_host_stag")
 				}
 				if nat_fields_mask&(1<<15) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'min_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadStringBytes(in, &item.MinHostStag); err != nil {
 					return err
@@ -1367,17 +1367,17 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propMinHostStagPresented = true
 			case "max_counter_host_stag":
 				if propMaxCounterHostStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "max_counter_host_stag")
 				}
 				if nat_fields_mask&(1<<16) == 0 {
-					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
+					return ErrorInvalidJSON("statshouse.multiValue", "field 'max_counter_host_stag' is defined, while corresponding implicit fieldmask bit is 0")
 				}
 				if err := Json2ReadStringBytes(in, &item.MaxCounterHostStag); err != nil {
 					return err
 				}
 				propMaxCounterHostStagPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.multi_value", key)
+				return ErrorInvalidJSONExcessElement("statshouse.multiValue", key)
 			}
 			in.WantComma()
 		}
