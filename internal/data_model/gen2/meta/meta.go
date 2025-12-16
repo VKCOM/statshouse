@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.2.27" }
+func SchemaGenerator() string { return "v1.2.29" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
