@@ -336,9 +336,6 @@ func parseStopRow(reader *bufio.Reader, row *stopRow) error {
 	if err != nil {
 		return err
 	}
-	if skeyLen > 4096 {
-		return fmt.Errorf("invalid skey length: %d", skeyLen)
-	}
 	skeyBytes := make([]byte, skeyLen)
 	if _, err := io.ReadFull(reader, skeyBytes); err != nil {
 		return err
