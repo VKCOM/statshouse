@@ -160,7 +160,7 @@ type StatshouseTopElement struct {
 	Value      StatshouseMultiValue
 }
 
-func (StatshouseTopElement) TLName() string { return "statshouse.top_element" }
+func (StatshouseTopElement) TLName() string { return "statshouse.topElement" }
 func (StatshouseTopElement) TLTag() uint32  { return 0x9ffdea42 }
 
 func (item *StatshouseTopElement) SetTag(v int32) {
@@ -253,7 +253,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 			switch key {
 			case "stag":
 				if propStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "stag")
 				}
 				if err := Json2ReadString(in, &item.Stag); err != nil {
 					return err
@@ -261,7 +261,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propStagPresented = true
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -269,7 +269,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propFieldsMaskPresented = true
 			case "tag":
 				if propTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "tag")
 				}
 				if err := Json2ReadInt32(in, &item.Tag); err != nil {
 					return err
@@ -277,14 +277,14 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propTagPresented = true
 			case "value":
 				if rawValue != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "value")
 				}
 				rawValue = in.Raw()
 				if !in.Ok() {
 					return in.Error()
 				}
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.top_element", key)
+				return ErrorInvalidJSONExcessElement("statshouse.topElement", key)
 			}
 			in.WantComma()
 		}
@@ -359,7 +359,7 @@ func (item *StatshouseTopElement) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseTopElement) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.top_element", err.Error())
+		return ErrorInvalidJSON("statshouse.topElement", err.Error())
 	}
 	return nil
 }
@@ -371,7 +371,7 @@ type StatshouseTopElementBytes struct {
 	Value      StatshouseMultiValueBytes
 }
 
-func (StatshouseTopElementBytes) TLName() string { return "statshouse.top_element" }
+func (StatshouseTopElementBytes) TLName() string { return "statshouse.topElement" }
 func (StatshouseTopElementBytes) TLTag() uint32  { return 0x9ffdea42 }
 
 func (item *StatshouseTopElementBytes) SetTag(v int32) {
@@ -464,7 +464,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 			switch key {
 			case "stag":
 				if propStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "stag")
 				}
 				if err := Json2ReadStringBytes(in, &item.Stag); err != nil {
 					return err
@@ -472,7 +472,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propStagPresented = true
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -480,7 +480,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propFieldsMaskPresented = true
 			case "tag":
 				if propTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "tag")
 				}
 				if err := Json2ReadInt32(in, &item.Tag); err != nil {
 					return err
@@ -488,14 +488,14 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propTagPresented = true
 			case "value":
 				if rawValue != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "value")
 				}
 				rawValue = in.Raw()
 				if !in.Ok() {
 					return in.Error()
 				}
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.top_element", key)
+				return ErrorInvalidJSONExcessElement("statshouse.topElement", key)
 			}
 			in.WantComma()
 		}
@@ -570,7 +570,7 @@ func (item *StatshouseTopElementBytes) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseTopElementBytes) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.top_element", err.Error())
+		return ErrorInvalidJSON("statshouse.topElement", err.Error())
 	}
 	return nil
 }
