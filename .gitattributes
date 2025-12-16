@@ -10,6 +10,6 @@
 /statshouse-ui/public/openapi/*.css              linguist-vendored
 /internal/sqlite/sqlite0/*.c                     linguist-vendored
 /internal/sqlite/sqlite0/*.h                     linguist-vendored
-/internal/sqlitev2/sqlite0/*.c                   linguist-vendored
-/internal/sqlitev2/sqlite0/*.h                   linguist-vendored
+/internal/vkgo/sqlitev2/sqlite0/*.c              linguist-vendored
+/internal/vkgo/sqlitev2/sqlite0/*.h              linguist-vendored
 /internal/data_model/gen2/**                     linguist-generated
