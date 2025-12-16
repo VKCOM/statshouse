@@ -21,7 +21,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.6
-          args: --timeout=10m -j 4
+          args: --timeout=10m -E goimports -j 4
 
   staticcheck:
     runs-on: ubuntu-latest
