@@ -194,7 +194,8 @@ func ChRateLimit(client *statshouse.Client, versionTag string, stats []chutil.Ra
 			3: stat.Stage,
 			4: strconv.FormatUint(stat.InflightWeight, 10),
 			5: strconv.Itoa(stat.ShardKey),
-			6: strconv.Itoa(stat.ReplicaKey)})
+			6: strconv.Itoa(stat.ReplicaKey),
+			7: srvfunc.HostnameForStatshouse()})
 		metric.Value(float64(stat.InflightCnt))
 	}
 }
