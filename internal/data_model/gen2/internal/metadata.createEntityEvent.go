@@ -26,6 +26,11 @@ func (item *MetadataCreateEntityEvent) Reset() {
 	item.Metric.Reset()
 }
 
+func (item *MetadataCreateEntityEvent) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.Metric.FillRandom(rg)
+}
+
 func (item *MetadataCreateEntityEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

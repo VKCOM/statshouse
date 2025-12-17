@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorEngineBinlogPrefixFillRandom(rg *basictl.RandGenerator, vec *[]EngineBinlogPrefix) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]EngineBinlogPrefix, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorEngineBinlogPrefixRead(w []byte, vec *[]EngineBinlogPrefix) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -94,6 +103,11 @@ func (EngineBinlogPrefix) TLTag() uint32  { return 0x4c09c894 }
 func (item *EngineBinlogPrefix) Reset() {
 	item.BinlogPrefix = ""
 	item.SnapshotPrefix = ""
+}
+
+func (item *EngineBinlogPrefix) FillRandom(rg *basictl.RandGenerator) {
+	item.BinlogPrefix = basictl.RandomString(rg)
+	item.SnapshotPrefix = basictl.RandomString(rg)
 }
 
 func (item *EngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {

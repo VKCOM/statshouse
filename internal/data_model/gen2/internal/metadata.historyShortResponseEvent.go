@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataHistoryShortResponseEventFillRandom(rg *basictl.RandGenerator, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]MetadataHistoryShortResponseEvent, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorMetadataHistoryShortResponseEventRead(w []byte, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -94,6 +103,11 @@ func (MetadataHistoryShortResponseEvent) TLTag() uint32  { return 0x1186baaf }
 func (item *MetadataHistoryShortResponseEvent) Reset() {
 	item.Version = 0
 	item.Metadata = ""
+}
+
+func (item *MetadataHistoryShortResponseEvent) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Version = basictl.RandomLong(rg)
+	item.Metadata = basictl.RandomString(rg)
 }
 
 func (item *MetadataHistoryShortResponseEvent) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {

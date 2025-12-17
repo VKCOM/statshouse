@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiTagValueFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseApiTagValue) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseApiTagValue, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseApiTagValueRead(w []byte, vec *[]StatshouseApiTagValue) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -98,6 +107,13 @@ func (item *StatshouseApiTagValue) Reset() {
 	item.In = false
 	item.Value = ""
 	item.Flag.Reset()
+}
+
+func (item *StatshouseApiTagValue) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.In = basictl.RandomUint(rg)&1 == 1
+	item.Value = basictl.RandomString(rg)
+	item.Flag.FillRandom(rg)
 }
 
 func (item *StatshouseApiTagValue) Read(w []byte) (_ []byte, err error) {

@@ -46,6 +46,16 @@ func (item *StatshouseGetConfigResult3) Reset() {
 	BuiltinTuple3StringReset(&item.UnusedS)
 }
 
+func (item *StatshouseGetConfigResult3) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStringFillRandom(rg, &item.Addresses)
+	item.ShardByMetricCount = basictl.RandomUint(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	BuiltinTuple4IntFillRandom(rg, &item.AgentIp)
+	BuiltinTuple7IntFillRandom(rg, &item.Unused)
+	item.ConnectedTo = basictl.RandomString(rg)
+	BuiltinTuple3StringFillRandom(rg, &item.UnusedS)
+}
+
 func (item *StatshouseGetConfigResult3) Read(w []byte) (_ []byte, err error) {
 	if w, err = BuiltinVectorStringRead(w, &item.Addresses); err != nil {
 		return w, err
@@ -334,6 +344,16 @@ func (item *StatshouseGetConfigResult3Bytes) Reset() {
 	BuiltinTuple7IntReset(&item.Unused)
 	item.ConnectedTo = item.ConnectedTo[:0]
 	BuiltinTuple3StringBytesReset(&item.UnusedS)
+}
+
+func (item *StatshouseGetConfigResult3Bytes) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStringBytesFillRandom(rg, &item.Addresses)
+	item.ShardByMetricCount = basictl.RandomUint(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	BuiltinTuple4IntFillRandom(rg, &item.AgentIp)
+	BuiltinTuple7IntFillRandom(rg, &item.Unused)
+	item.ConnectedTo = basictl.RandomStringBytes(rg)
+	BuiltinTuple3StringBytesFillRandom(rg, &item.UnusedS)
 }
 
 func (item *StatshouseGetConfigResult3Bytes) Read(w []byte) (_ []byte, err error) {

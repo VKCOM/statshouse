@@ -23,6 +23,11 @@ func (item *Stat) Reset() {
 	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
+func (item *Stat) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]string)(item)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+}
+
 func (item *Stat) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)

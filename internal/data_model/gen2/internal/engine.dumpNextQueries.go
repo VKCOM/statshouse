@@ -24,6 +24,10 @@ func (item *EngineDumpNextQueries) Reset() {
 	item.NumQueries = 0
 }
 
+func (item *EngineDumpNextQueries) FillRandom(rg *basictl.RandGenerator) {
+	item.NumQueries = basictl.RandomInt(rg)
+}
+
 func (item *EngineDumpNextQueries) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.NumQueries)
 }
@@ -78,6 +82,12 @@ func (item *EngineDumpNextQueries) WriteResultJSON(w []byte, ret True) (_ []byte
 func (item *EngineDumpNextQueries) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineDumpNextQueries) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineDumpNextQueries) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -19,6 +19,14 @@ func BuiltinTuple3StringReset(vec *[3]string) {
 	}
 }
 
+func BuiltinTuple3StringFillRandom(rg *basictl.RandGenerator, vec *[3]string) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomString(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple3StringRead(w []byte, vec *[3]string) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.StringRead(w, &(*vec)[i]); err != nil {
@@ -81,6 +89,14 @@ func BuiltinTuple3StringBytesReset(vec *[3][]byte) {
 	}
 }
 
+func BuiltinTuple3StringBytesFillRandom(rg *basictl.RandGenerator, vec *[3][]byte) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomStringBytes(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple3StringBytesRead(w []byte, vec *[3][]byte) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.StringReadBytes(w, &(*vec)[i]); err != nil {
@@ -137,6 +153,15 @@ func BuiltinTuple3StringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []by
 	return append(w, ']')
 }
 
+func BuiltinVectorStringFillRandom(rg *basictl.RandGenerator, vec *[]string) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]string, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomString(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -207,6 +232,15 @@ func BuiltinVectorStringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, v
 	return append(w, ']')
 }
 
+func BuiltinVectorStringBytesFillRandom(rg *basictl.RandGenerator, vec *[][]byte) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([][]byte, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomStringBytes(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -285,6 +319,11 @@ func (String) TLTag() uint32  { return 0xb5286e24 }
 func (item *String) Reset() {
 	ptr := (*string)(item)
 	*ptr = ""
+}
+
+func (item *String) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*string)(item)
+	*ptr = basictl.RandomString(rg)
 }
 
 func (item *String) Read(w []byte) (_ []byte, err error) {
@@ -367,6 +406,11 @@ func (StringBytes) TLTag() uint32  { return 0xb5286e24 }
 func (item *StringBytes) Reset() {
 	ptr := (*[]byte)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *StringBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]byte)(item)
+	*ptr = basictl.RandomStringBytes(rg)
 }
 
 func (item *StringBytes) Read(w []byte) (_ []byte, err error) {

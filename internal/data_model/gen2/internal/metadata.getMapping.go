@@ -38,6 +38,12 @@ func (item *MetadataGetMapping) Reset() {
 	item.Key = ""
 }
 
+func (item *MetadataGetMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b10)
+	item.Metric = basictl.RandomString(rg)
+	item.Key = basictl.RandomString(rg)
+}
+
 func (item *MetadataGetMapping) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -103,6 +109,12 @@ func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMapping
 func (item *MetadataGetMapping) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
 	return w, nil
+}
+
+func (item *MetadataGetMapping) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetMappingResponse
+	ret.FillRandom(rg, item.FieldMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetMapping) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

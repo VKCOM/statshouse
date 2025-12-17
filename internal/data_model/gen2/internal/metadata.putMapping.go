@@ -28,6 +28,12 @@ func (item *MetadataPutMapping) Reset() {
 	item.Value = item.Value[:0]
 }
 
+func (item *MetadataPutMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomUint(rg)
+	BuiltinVectorStringFillRandom(rg, &item.Keys)
+	BuiltinVectorIntFillRandom(rg, &item.Value)
+}
+
 func (item *MetadataPutMapping) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *MetadataPutMapping) WriteResultJSON(w []byte, ret MetadataPutMapping
 func (item *MetadataPutMapping) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataPutMappingResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *MetadataPutMapping) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataPutMappingResponse
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataPutMapping) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

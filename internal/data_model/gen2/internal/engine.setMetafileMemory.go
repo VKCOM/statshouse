@@ -24,6 +24,10 @@ func (item *EngineSetMetafileMemory) Reset() {
 	item.Megabytes = 0
 }
 
+func (item *EngineSetMetafileMemory) FillRandom(rg *basictl.RandGenerator) {
+	item.Megabytes = basictl.RandomInt(rg)
+}
+
 func (item *EngineSetMetafileMemory) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Megabytes)
 }
@@ -78,6 +82,12 @@ func (item *EngineSetMetafileMemory) WriteResultJSON(w []byte, ret BoolStat) (_ 
 func (item *EngineSetMetafileMemory) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret BoolStat) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSetMetafileMemory) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret BoolStat
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSetMetafileMemory) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

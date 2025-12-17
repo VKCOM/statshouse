@@ -30,6 +30,13 @@ func (item *StatshouseSourceBucket3) Reset() {
 	item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
 }
 
+func (item *StatshouseSourceBucket3) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorStatshouseMultiItemFillRandom(rg, &item.Metrics)
+	BuiltinVectorStatshouseSampleFactorFillRandom(rg, &item.SampleFactors)
+	BuiltinVectorStatshouseIngestionStatus2FillRandom(rg, &item.IngestionStatusOk2)
+}
+
 func (item *StatshouseSourceBucket3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -220,6 +227,13 @@ func (item *StatshouseSourceBucket3Bytes) Reset() {
 	item.Metrics = item.Metrics[:0]
 	item.SampleFactors = item.SampleFactors[:0]
 	item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
+}
+
+func (item *StatshouseSourceBucket3Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorStatshouseMultiItemBytesFillRandom(rg, &item.Metrics)
+	BuiltinVectorStatshouseSampleFactorFillRandom(rg, &item.SampleFactors)
+	BuiltinVectorStatshouseIngestionStatus2FillRandom(rg, &item.IngestionStatusOk2)
 }
 
 func (item *StatshouseSourceBucket3Bytes) Read(w []byte) (_ []byte, err error) {

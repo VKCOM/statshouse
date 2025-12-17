@@ -24,6 +24,10 @@ func (item *EngineSendSignal) Reset() {
 	item.Signal = 0
 }
 
+func (item *EngineSendSignal) FillRandom(rg *basictl.RandGenerator) {
+	item.Signal = basictl.RandomInt(rg)
+}
+
 func (item *EngineSendSignal) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Signal)
 }
@@ -78,6 +82,12 @@ func (item *EngineSendSignal) WriteResultJSON(w []byte, ret True) (_ []byte, err
 func (item *EngineSendSignal) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSendSignal) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSendSignal) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

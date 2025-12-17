@@ -58,6 +58,19 @@ func (item *EngineReadWriteMode) Reset() {
 	item.WriteEnabled = false
 }
 
+func (item *EngineReadWriteMode) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	if nat_fields_mask&(1<<0) != 0 {
+		item.ReadEnabled = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.ReadEnabled = false
+	}
+	if nat_fields_mask&(1<<1) != 0 {
+		item.WriteEnabled = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.WriteEnabled = false
+	}
+}
+
 func (item *EngineReadWriteMode) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if nat_fields_mask&(1<<0) != 0 {
 		if w, err = BoolReadBoxed(w, &item.ReadEnabled); err != nil {

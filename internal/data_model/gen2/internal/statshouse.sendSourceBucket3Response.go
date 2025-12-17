@@ -42,6 +42,12 @@ func (item *StatshouseSendSourceBucket3Response) Reset() {
 	item.Mappings = item.Mappings[:0]
 }
 
+func (item *StatshouseSendSourceBucket3Response) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.Warning = basictl.RandomString(rg)
+	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Mappings)
+}
+
 func (item *StatshouseSendSourceBucket3Response) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -244,6 +250,12 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) Reset() {
 	item.FieldMask = 0
 	item.Warning = item.Warning[:0]
 	item.Mappings = item.Mappings[:0]
+}
+
+func (item *StatshouseSendSourceBucket3ResponseBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.Warning = basictl.RandomStringBytes(rg)
+	BuiltinVectorStatshouseMappingBytesFillRandom(rg, &item.Mappings)
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) Read(w []byte) (_ []byte, err error) {

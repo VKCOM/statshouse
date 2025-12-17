@@ -105,7 +105,7 @@ func StringWriteTL2(w []byte, v string) []byte {
 	return w
 }
 
-func StringWriteTL2Bytes(w []byte, v []byte) []byte {
+func StringBytesWriteTL2(w []byte, v []byte) []byte {
 	w = TL2WriteSize(w, len(v))
 	w = append(w, v...)
 	return w
@@ -123,7 +123,7 @@ func StringReadTL2(r []byte, dst *string) (_ []byte, err error) {
 	return r[l:], nil
 }
 
-func StringReadTL2Bytes(r []byte, dst *[]byte) (_ []byte, err error) {
+func StringReadBytesTL2(r []byte, dst *[]byte) (_ []byte, err error) {
 	var l int
 	if r, err = TL2ReadSize(r, &l); err != nil {
 		return r, err

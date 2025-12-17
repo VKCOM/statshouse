@@ -21,6 +21,8 @@ func (EngineReadNop) TLTag() uint32  { return 0x9d2b841f }
 
 func (item *EngineReadNop) Reset() {}
 
+func (item *EngineReadNop) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineReadNop) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineReadNop) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -72,6 +74,12 @@ func (item *EngineReadNop) WriteResultJSON(w []byte, ret True) (_ []byte, err er
 func (item *EngineReadNop) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineReadNop) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineReadNop) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

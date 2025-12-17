@@ -29,6 +29,20 @@ func (item EngineQueryResult) TLName() string { return _EngineQueryResult[item.i
 func (item EngineQueryResult) TLTag() uint32  { return _EngineQueryResult[item.index].TLTag }
 
 func (item *EngineQueryResult) Reset() { item.ResetToQueryResult() }
+func (item *EngineQueryResult) FillRandom(rg *basictl.RandGenerator) {
+	index := basictl.RandomUint(rg) % 3
+	switch index {
+	case 0:
+		item.index = 0
+		item.valueQueryResult.FillRandom(rg)
+	case 1:
+		item.index = 1
+		item.valueError.FillRandom(rg)
+	case 2:
+		item.index = 2
+	default:
+	}
+}
 
 func (item *EngineQueryResult) IsQueryResult() bool { return item.index == 0 }
 
@@ -254,6 +268,10 @@ func (item *EngineQueryResult0) Reset() {
 	item.Size = 0
 }
 
+func (item *EngineQueryResult0) FillRandom(rg *basictl.RandGenerator) {
+	item.Size = basictl.RandomInt(rg)
+}
+
 func (item *EngineQueryResult0) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Size)
 }
@@ -374,6 +392,8 @@ func (EngineQueryResultAio) TLTag() uint32  { return 0xee2879b0 }
 
 func (item *EngineQueryResultAio) Reset() {}
 
+func (item *EngineQueryResultAio) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineQueryResultAio) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineQueryResultAio) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -468,6 +488,11 @@ func (EngineQueryResultError) TLTag() uint32  { return 0x2b4dd0ba }
 func (item *EngineQueryResultError) Reset() {
 	item.ErrorCode = 0
 	item.ErrorString = ""
+}
+
+func (item *EngineQueryResultError) FillRandom(rg *basictl.RandGenerator) {
+	item.ErrorCode = basictl.RandomInt(rg)
+	item.ErrorString = basictl.RandomString(rg)
 }
 
 func (item *EngineQueryResultError) Read(w []byte) (_ []byte, err error) {

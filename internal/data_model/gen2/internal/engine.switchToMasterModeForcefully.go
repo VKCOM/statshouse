@@ -23,6 +23,8 @@ func (EngineSwitchToMasterModeForcefully) TLTag() uint32 { return 0x1973fa8f }
 
 func (item *EngineSwitchToMasterModeForcefully) Reset() {}
 
+func (item *EngineSwitchToMasterModeForcefully) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineSwitchToMasterModeForcefully) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineSwitchToMasterModeForcefully) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -74,6 +76,12 @@ func (item *EngineSwitchToMasterModeForcefully) WriteResultJSON(w []byte, ret En
 func (item *EngineSwitchToMasterModeForcefully) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSwitchToMasterModeForcefully) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret EngineSwitchMasterReplicaModeResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSwitchToMasterModeForcefully) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

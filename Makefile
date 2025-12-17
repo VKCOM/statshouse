@@ -72,6 +72,7 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--generateRandomCode \
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
 		--copyrightPath=./copyright \
@@ -97,6 +98,7 @@ gen-tl2:
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--generateRandomCode \
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
 		--tl2WhiteList=statshouse.,statshouseApi.,metadata. \

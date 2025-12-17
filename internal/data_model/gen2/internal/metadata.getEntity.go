@@ -28,6 +28,12 @@ func (item *MetadataGetEntity) Reset() {
 	item.Version = 0
 }
 
+func (item *MetadataGetEntity) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomUint(rg)
+	item.Id = basictl.RandomLong(rg)
+	item.Version = basictl.RandomLong(rg)
+}
+
 func (item *MetadataGetEntity) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *MetadataGetEntity) WriteResultJSON(w []byte, ret MetadataEvent) (_ [
 func (item *MetadataGetEntity) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataEvent) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *MetadataGetEntity) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataEvent
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetEntity) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

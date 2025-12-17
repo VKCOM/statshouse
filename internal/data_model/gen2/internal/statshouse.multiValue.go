@@ -298,6 +298,74 @@ func (item *StatshouseMultiValue) Reset() {
 	item.MaxCounterHostStag = ""
 }
 
+func (item *StatshouseMultiValue) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	if nat_fields_mask&(1<<0) != 0 {
+		item.Counter = basictl.RandomDouble(rg)
+	} else {
+		item.Counter = 0
+	}
+	if nat_fields_mask&(1<<3) != 0 {
+		item.ValueMin = basictl.RandomDouble(rg)
+	} else {
+		item.ValueMin = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueMax = basictl.RandomDouble(rg)
+	} else {
+		item.ValueMax = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueSum = basictl.RandomDouble(rg)
+	} else {
+		item.ValueSum = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueSumSquare = basictl.RandomDouble(rg)
+	} else {
+		item.ValueSumSquare = 0
+	}
+	if nat_fields_mask&(1<<5) != 0 {
+		item.Uniques = basictl.RandomString(rg)
+	} else {
+		item.Uniques = ""
+	}
+	if nat_fields_mask&(1<<6) != 0 {
+		BuiltinVectorStatshouseCentroidFloatFillRandom(rg, &item.Centroids)
+	} else {
+		item.Centroids = item.Centroids[:0]
+	}
+	if nat_fields_mask&(1<<7) != 0 {
+		item.MaxHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		item.MinHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		item.MaxCounterHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MaxCounterHostTag = 0
+	}
+	if nat_fields_mask&(1<<14) != 0 {
+		item.MaxHostStag = basictl.RandomString(rg)
+	} else {
+		item.MaxHostStag = ""
+	}
+	if nat_fields_mask&(1<<15) != 0 {
+		item.MinHostStag = basictl.RandomString(rg)
+	} else {
+		item.MinHostStag = ""
+	}
+	if nat_fields_mask&(1<<16) != 0 {
+		item.MaxCounterHostStag = basictl.RandomString(rg)
+	} else {
+		item.MaxCounterHostStag = ""
+	}
+}
+
 func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if nat_fields_mask&(1<<0) != 0 {
 		if w, err = basictl.DoubleRead(w, &item.Counter); err != nil {
@@ -1043,6 +1111,74 @@ func (item *StatshouseMultiValueBytes) Reset() {
 	item.MaxHostStag = item.MaxHostStag[:0]
 	item.MinHostStag = item.MinHostStag[:0]
 	item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
+}
+
+func (item *StatshouseMultiValueBytes) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	if nat_fields_mask&(1<<0) != 0 {
+		item.Counter = basictl.RandomDouble(rg)
+	} else {
+		item.Counter = 0
+	}
+	if nat_fields_mask&(1<<3) != 0 {
+		item.ValueMin = basictl.RandomDouble(rg)
+	} else {
+		item.ValueMin = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueMax = basictl.RandomDouble(rg)
+	} else {
+		item.ValueMax = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueSum = basictl.RandomDouble(rg)
+	} else {
+		item.ValueSum = 0
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.ValueSumSquare = basictl.RandomDouble(rg)
+	} else {
+		item.ValueSumSquare = 0
+	}
+	if nat_fields_mask&(1<<5) != 0 {
+		item.Uniques = basictl.RandomStringBytes(rg)
+	} else {
+		item.Uniques = item.Uniques[:0]
+	}
+	if nat_fields_mask&(1<<6) != 0 {
+		BuiltinVectorStatshouseCentroidFloatFillRandom(rg, &item.Centroids)
+	} else {
+		item.Centroids = item.Centroids[:0]
+	}
+	if nat_fields_mask&(1<<7) != 0 {
+		item.MaxHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		item.MinHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		item.MaxCounterHostTag = basictl.RandomInt(rg)
+	} else {
+		item.MaxCounterHostTag = 0
+	}
+	if nat_fields_mask&(1<<14) != 0 {
+		item.MaxHostStag = basictl.RandomStringBytes(rg)
+	} else {
+		item.MaxHostStag = item.MaxHostStag[:0]
+	}
+	if nat_fields_mask&(1<<15) != 0 {
+		item.MinHostStag = basictl.RandomStringBytes(rg)
+	} else {
+		item.MinHostStag = item.MinHostStag[:0]
+	}
+	if nat_fields_mask&(1<<16) != 0 {
+		item.MaxCounterHostStag = basictl.RandomStringBytes(rg)
+	} else {
+		item.MaxCounterHostStag = item.MaxCounterHostStag[:0]
+	}
 }
 
 func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {

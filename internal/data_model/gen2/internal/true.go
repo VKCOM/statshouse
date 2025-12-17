@@ -21,6 +21,8 @@ func (True) TLTag() uint32  { return 0x3fedd339 }
 
 func (item *True) Reset() {}
 
+func (item *True) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *True) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *True) WriteGeneral(w []byte) (_ []byte, err error) {

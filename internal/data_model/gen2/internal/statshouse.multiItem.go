@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseMultiItemFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMultiItem) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMultiItem, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMultiItemRead(w []byte, vec *[]StatshouseMultiItem) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshouseMultiItemWriteJSONOpt(tctx *basictl.JSONWriteContext
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshouseMultiItemBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMultiItemBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMultiItemBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMultiItemBytesRead(w []byte, vec *[]StatshouseMultiItemBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -214,6 +232,28 @@ func (item *StatshouseMultiItem) Reset() {
 	item.T = 0
 	item.Tail.Reset()
 	item.Top = item.Top[:0]
+}
+
+func (item *StatshouseMultiItem) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1111101111111111111)
+	item.Metric = basictl.RandomInt(rg)
+	BuiltinVectorIntFillRandom(rg, &item.Keys)
+	if item.FieldsMask&(1<<12) != 0 {
+		BuiltinVectorStringFillRandom(rg, &item.Skeys)
+	} else {
+		item.Skeys = item.Skeys[:0]
+	}
+	if item.FieldsMask&(1<<10) != 0 {
+		item.T = basictl.RandomUint(rg)
+	} else {
+		item.T = 0
+	}
+	item.Tail.FillRandom(rg, item.FieldsMask)
+	if item.FieldsMask&(1<<11) != 0 {
+		BuiltinVectorStatshouseTopElementFillRandom(rg, &item.Top)
+	} else {
+		item.Top = item.Top[:0]
+	}
 }
 
 func (item *StatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
@@ -572,6 +612,28 @@ func (item *StatshouseMultiItemBytes) Reset() {
 	item.T = 0
 	item.Tail.Reset()
 	item.Top = item.Top[:0]
+}
+
+func (item *StatshouseMultiItemBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1111101111111111111)
+	item.Metric = basictl.RandomInt(rg)
+	BuiltinVectorIntFillRandom(rg, &item.Keys)
+	if item.FieldsMask&(1<<12) != 0 {
+		BuiltinVectorStringBytesFillRandom(rg, &item.Skeys)
+	} else {
+		item.Skeys = item.Skeys[:0]
+	}
+	if item.FieldsMask&(1<<10) != 0 {
+		item.T = basictl.RandomUint(rg)
+	} else {
+		item.T = 0
+	}
+	item.Tail.FillRandom(rg, item.FieldsMask)
+	if item.FieldsMask&(1<<11) != 0 {
+		BuiltinVectorStatshouseTopElementBytesFillRandom(rg, &item.Top)
+	} else {
+		item.Top = item.Top[:0]
+	}
 }
 
 func (item *StatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {

@@ -28,6 +28,12 @@ func (item *MetadataGetNewMappingsResponse) Reset() {
 	item.Pairs = item.Pairs[:0]
 }
 
+func (item *MetadataGetNewMappingsResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.CurrentVersion = basictl.RandomInt(rg)
+	item.LastVersion = basictl.RandomInt(rg)
+	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Pairs)
+}
+
 func (item *MetadataGetNewMappingsResponse) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.CurrentVersion); err != nil {
 		return w, err

@@ -23,8 +23,6 @@ type UnionElement struct {
 	TLString string
 }
 
-func Unused[T any](_ T) {} // suppress var not used errors
-
 func ErrorClientWrite(typeName string, err error) error {
 	return fmt.Errorf("failed to serialize %s request: %w", typeName, err)
 }
@@ -55,10 +53,6 @@ func ErrorInvalidEnumTag(typeName string, tag uint32) error {
 
 func ErrorInvalidUnionTag(typeName string, tag uint32) error {
 	return fmt.Errorf("invalid union %q tag: 0x%x", typeName, tag)
-}
-
-func ErrorInvalidUnionIndex(typeName string, index int) error {
-	return fmt.Errorf("invalid TL2 union %q index: %d", typeName, index)
 }
 
 func ErrorWrongSequenceLength(typeName string, actual int, expected uint32) error {
