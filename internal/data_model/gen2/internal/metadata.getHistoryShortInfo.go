@@ -26,6 +26,11 @@ func (item *MetadataGetHistoryShortInfo) Reset() {
 	item.Id = 0
 }
 
+func (item *MetadataGetHistoryShortInfo) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.Id = basictl.RandomLong(rg)
+}
+
 func (item *MetadataGetHistoryShortInfo) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *MetadataGetHistoryShortInfo) WriteResultJSON(w []byte, ret MetadataH
 func (item *MetadataGetHistoryShortInfo) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *MetadataGetHistoryShortInfo) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataHistoryShortResponse
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetHistoryShortInfo) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

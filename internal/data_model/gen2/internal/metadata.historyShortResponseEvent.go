@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataHistoryShortResponseEventFillRandom(rg *basictl.RandGenerator, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]MetadataHistoryShortResponseEvent, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorMetadataHistoryShortResponseEventRead(w []byte, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -88,14 +97,17 @@ type MetadataHistoryShortResponseEvent struct {
 	Metadata string
 }
 
-func (MetadataHistoryShortResponseEvent) TLName() string {
-	return "metadata.history_short_response_event"
-}
-func (MetadataHistoryShortResponseEvent) TLTag() uint32 { return 0x1186baaf }
+func (MetadataHistoryShortResponseEvent) TLName() string { return "metadata.historyShortResponseEvent" }
+func (MetadataHistoryShortResponseEvent) TLTag() uint32  { return 0x1186baaf }
 
 func (item *MetadataHistoryShortResponseEvent) Reset() {
 	item.Version = 0
 	item.Metadata = ""
+}
+
+func (item *MetadataHistoryShortResponseEvent) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Version = basictl.RandomLong(rg)
+	item.Metadata = basictl.RandomString(rg)
 }
 
 func (item *MetadataHistoryShortResponseEvent) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -146,7 +158,7 @@ func (item *MetadataHistoryShortResponseEvent) ReadJSONGeneral(tctx *basictl.JSO
 			switch key {
 			case "version":
 				if propVersionPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response_event", "version")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.historyShortResponseEvent", "version")
 				}
 				if err := Json2ReadInt64(in, &item.Version); err != nil {
 					return err
@@ -154,14 +166,14 @@ func (item *MetadataHistoryShortResponseEvent) ReadJSONGeneral(tctx *basictl.JSO
 				propVersionPresented = true
 			case "metadata":
 				if propMetadataPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response_event", "metadata")
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.historyShortResponseEvent", "metadata")
 				}
 				if err := Json2ReadString(in, &item.Metadata); err != nil {
 					return err
 				}
 				propMetadataPresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("metadata.history_short_response_event", key)
+				return ErrorInvalidJSONExcessElement("metadata.historyShortResponseEvent", key)
 			}
 			in.WantComma()
 		}

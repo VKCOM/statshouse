@@ -44,6 +44,15 @@ func (item *MetadataCreateMappingEvent) Reset() {
 	item.UpdatedAt = 0
 }
 
+func (item *MetadataCreateMappingEvent) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.Id = basictl.RandomInt(rg)
+	item.Key = basictl.RandomString(rg)
+	item.Metric = basictl.RandomString(rg)
+	item.Budget = basictl.RandomLong(rg)
+	item.UpdatedAt = basictl.RandomUint(rg)
+}
+
 func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err

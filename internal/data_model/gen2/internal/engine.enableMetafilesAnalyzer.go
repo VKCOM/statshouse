@@ -24,6 +24,10 @@ func (item *EngineEnableMetafilesAnalyzer) Reset() {
 	item.Enable = false
 }
 
+func (item *EngineEnableMetafilesAnalyzer) FillRandom(rg *basictl.RandGenerator) {
+	item.Enable = basictl.RandomUint(rg)&1 == 1
+}
+
 func (item *EngineEnableMetafilesAnalyzer) Read(w []byte) (_ []byte, err error) {
 	return BoolReadBoxed(w, &item.Enable)
 }
@@ -77,6 +81,12 @@ func (item *EngineEnableMetafilesAnalyzer) WriteResultJSON(w []byte, ret bool) (
 func (item *EngineEnableMetafilesAnalyzer) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
+}
+
+func (item *EngineEnableMetafilesAnalyzer) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret bool
+	ret = basictl.RandomUint(rg)&1 == 1
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorTupleDouble2FillRandom(rg *basictl.RandGenerator, vec *[][2]float64) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([][2]float64, l)
+	for i := range *vec {
+		BuiltinTuple2DoubleFillRandom(rg, &(*vec)[i])
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorTupleDouble2Read(w []byte, vec *[][2]float64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -91,6 +100,11 @@ func (TupleDouble2) TLTag() uint32  { return 0x9770768a }
 func (item *TupleDouble2) Reset() {
 	ptr := (*[2]float64)(item)
 	BuiltinTuple2DoubleReset(ptr)
+}
+
+func (item *TupleDouble2) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[2]float64)(item)
+	BuiltinTuple2DoubleFillRandom(rg, ptr)
 }
 
 func (item *TupleDouble2) Read(w []byte) (_ []byte, err error) {

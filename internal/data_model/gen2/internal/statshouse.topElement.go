@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseTopElementFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseTopElement) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseTopElement, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseTopElementRead(w []byte, vec *[]StatshouseTopElement) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshouseTopElementWriteJSONOpt(tctx *basictl.JSONWriteContex
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshouseTopElementBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseTopElementBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseTopElementBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseTopElementBytesRead(w []byte, vec *[]StatshouseTopElementBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -160,7 +178,7 @@ type StatshouseTopElement struct {
 	Value      StatshouseMultiValue
 }
 
-func (StatshouseTopElement) TLName() string { return "statshouse.top_element" }
+func (StatshouseTopElement) TLName() string { return "statshouse.topElement" }
 func (StatshouseTopElement) TLTag() uint32  { return 0x9ffdea42 }
 
 func (item *StatshouseTopElement) SetTag(v int32) {
@@ -178,6 +196,17 @@ func (item *StatshouseTopElement) Reset() {
 	item.FieldsMask = 0
 	item.Tag = 0
 	item.Value.Reset()
+}
+
+func (item *StatshouseTopElement) FillRandom(rg *basictl.RandGenerator) {
+	item.Stag = basictl.RandomString(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1011100011111111111)
+	if item.FieldsMask&(1<<10) != 0 {
+		item.Tag = basictl.RandomInt(rg)
+	} else {
+		item.Tag = 0
+	}
+	item.Value.FillRandom(rg, item.FieldsMask)
 }
 
 func (item *StatshouseTopElement) Read(w []byte) (_ []byte, err error) {
@@ -253,7 +282,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 			switch key {
 			case "stag":
 				if propStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "stag")
 				}
 				if err := Json2ReadString(in, &item.Stag); err != nil {
 					return err
@@ -261,7 +290,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propStagPresented = true
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -269,7 +298,7 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propFieldsMaskPresented = true
 			case "tag":
 				if propTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "tag")
 				}
 				if err := Json2ReadInt32(in, &item.Tag); err != nil {
 					return err
@@ -277,14 +306,14 @@ func (item *StatshouseTopElement) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				propTagPresented = true
 			case "value":
 				if rawValue != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "value")
 				}
 				rawValue = in.Raw()
 				if !in.Ok() {
 					return in.Error()
 				}
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.top_element", key)
+				return ErrorInvalidJSONExcessElement("statshouse.topElement", key)
 			}
 			in.WantComma()
 		}
@@ -359,7 +388,7 @@ func (item *StatshouseTopElement) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseTopElement) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.top_element", err.Error())
+		return ErrorInvalidJSON("statshouse.topElement", err.Error())
 	}
 	return nil
 }
@@ -371,7 +400,7 @@ type StatshouseTopElementBytes struct {
 	Value      StatshouseMultiValueBytes
 }
 
-func (StatshouseTopElementBytes) TLName() string { return "statshouse.top_element" }
+func (StatshouseTopElementBytes) TLName() string { return "statshouse.topElement" }
 func (StatshouseTopElementBytes) TLTag() uint32  { return 0x9ffdea42 }
 
 func (item *StatshouseTopElementBytes) SetTag(v int32) {
@@ -389,6 +418,17 @@ func (item *StatshouseTopElementBytes) Reset() {
 	item.FieldsMask = 0
 	item.Tag = 0
 	item.Value.Reset()
+}
+
+func (item *StatshouseTopElementBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.Stag = basictl.RandomStringBytes(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1011100011111111111)
+	if item.FieldsMask&(1<<10) != 0 {
+		item.Tag = basictl.RandomInt(rg)
+	} else {
+		item.Tag = 0
+	}
+	item.Value.FillRandom(rg, item.FieldsMask)
 }
 
 func (item *StatshouseTopElementBytes) Read(w []byte) (_ []byte, err error) {
@@ -464,7 +504,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 			switch key {
 			case "stag":
 				if propStagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "stag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "stag")
 				}
 				if err := Json2ReadStringBytes(in, &item.Stag); err != nil {
 					return err
@@ -472,7 +512,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propStagPresented = true
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -480,7 +520,7 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propFieldsMaskPresented = true
 			case "tag":
 				if propTagPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "tag")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "tag")
 				}
 				if err := Json2ReadInt32(in, &item.Tag); err != nil {
 					return err
@@ -488,14 +528,14 @@ func (item *StatshouseTopElementBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				propTagPresented = true
 			case "value":
 				if rawValue != nil {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.top_element", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.topElement", "value")
 				}
 				rawValue = in.Raw()
 				if !in.Ok() {
 					return in.Error()
 				}
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.top_element", key)
+				return ErrorInvalidJSONExcessElement("statshouse.topElement", key)
 			}
 			in.WantComma()
 		}
@@ -570,7 +610,7 @@ func (item *StatshouseTopElementBytes) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseTopElementBytes) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.top_element", err.Error())
+		return ErrorInvalidJSON("statshouse.topElement", err.Error())
 	}
 	return nil
 }

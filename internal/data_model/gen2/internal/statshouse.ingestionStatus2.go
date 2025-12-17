@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseIngestionStatus2FillRandom(rg *basictl.RandGenerator, vec *[]StatshouseIngestionStatus2) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseIngestionStatus2, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseIngestionStatus2Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -89,13 +98,19 @@ type StatshouseIngestionStatus2 struct {
 	Value  float32
 }
 
-func (StatshouseIngestionStatus2) TLName() string { return "statshouse.ingestion_status2" }
-func (StatshouseIngestionStatus2) TLTag() uint32  { return 0x2e17a6d3 }
+func (StatshouseIngestionStatus2) TLName() string { return "statshouse.ingestionStatus2" }
+func (StatshouseIngestionStatus2) TLTag() uint32  { return 0x80a3a32b }
 
 func (item *StatshouseIngestionStatus2) Reset() {
 	item.Env = 0
 	item.Metric = 0
 	item.Value = 0
+}
+
+func (item *StatshouseIngestionStatus2) FillRandom(rg *basictl.RandGenerator) {
+	item.Env = basictl.RandomInt(rg)
+	item.Metric = basictl.RandomInt(rg)
+	item.Value = basictl.RandomFloat(rg)
 }
 
 func (item *StatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
@@ -120,7 +135,7 @@ func (item *StatshouseIngestionStatus2) Write(w []byte) []byte {
 }
 
 func (item *StatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x2e17a6d3); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x80a3a32b); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -131,7 +146,7 @@ func (item *StatshouseIngestionStatus2) WriteBoxedGeneral(w []byte) (_ []byte, e
 }
 
 func (item *StatshouseIngestionStatus2) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x2e17a6d3)
+	w = basictl.NatWrite(w, 0x80a3a32b)
 	return item.Write(w)
 }
 
@@ -160,7 +175,7 @@ func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadCo
 			switch key {
 			case "env":
 				if propEnvPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "env")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestionStatus2", "env")
 				}
 				if err := Json2ReadInt32(in, &item.Env); err != nil {
 					return err
@@ -168,7 +183,7 @@ func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadCo
 				propEnvPresented = true
 			case "metric":
 				if propMetricPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "metric")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestionStatus2", "metric")
 				}
 				if err := Json2ReadInt32(in, &item.Metric); err != nil {
 					return err
@@ -176,14 +191,14 @@ func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadCo
 				propMetricPresented = true
 			case "value":
 				if propValuePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestion_status2", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.ingestionStatus2", "value")
 				}
 				if err := Json2ReadFloat32(in, &item.Value); err != nil {
 					return err
 				}
 				propValuePresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.ingestion_status2", key)
+				return ErrorInvalidJSONExcessElement("statshouse.ingestionStatus2", key)
 			}
 			in.WantComma()
 		}
@@ -245,7 +260,7 @@ func (item *StatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.ingestion_status2", err.Error())
+		return ErrorInvalidJSON("statshouse.ingestionStatus2", err.Error())
 	}
 	return nil
 }

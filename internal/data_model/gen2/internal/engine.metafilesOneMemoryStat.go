@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorEngineMetafilesOneMemoryStatFillRandom(rg *basictl.RandGenerator, vec *[]EngineMetafilesOneMemoryStat) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]EngineMetafilesOneMemoryStat, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorEngineMetafilesOneMemoryStatRead(w []byte, vec *[]EngineMetafilesOneMemoryStat) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -96,6 +105,12 @@ func (item *EngineMetafilesOneMemoryStat) Reset() {
 	item.MemoryMegabytes = 0
 	item.TotalAioQueries = 0
 	item.TotalAioBytes = 0
+}
+
+func (item *EngineMetafilesOneMemoryStat) FillRandom(rg *basictl.RandGenerator) {
+	item.MemoryMegabytes = basictl.RandomInt(rg)
+	item.TotalAioQueries = basictl.RandomLong(rg)
+	item.TotalAioBytes = basictl.RandomLong(rg)
 }
 
 func (item *EngineMetafilesOneMemoryStat) Read(w []byte) (_ []byte, err error) {

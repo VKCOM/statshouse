@@ -44,6 +44,16 @@ func (item *StatshouseGetTargetsResult) Reset() {
 	item.GaugeMetrics = item.GaugeMetrics[:0]
 }
 
+func (item *StatshouseGetTargetsResult) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	BuiltinVectorStatshousePromTargetFillRandom(rg, &item.Targets, nat_fields_mask)
+	item.Hash = basictl.RandomString(rg)
+	if nat_fields_mask&(1<<0) != 0 {
+		BuiltinVectorStringFillRandom(rg, &item.GaugeMetrics)
+	} else {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
+	}
+}
+
 func (item *StatshouseGetTargetsResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStatshousePromTargetRead(w, &item.Targets, nat_fields_mask); err != nil {
 		return w, err
@@ -221,6 +231,16 @@ func (item *StatshouseGetTargetsResultBytes) Reset() {
 	item.Targets = item.Targets[:0]
 	item.Hash = item.Hash[:0]
 	item.GaugeMetrics = item.GaugeMetrics[:0]
+}
+
+func (item *StatshouseGetTargetsResultBytes) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	BuiltinVectorStatshousePromTargetBytesFillRandom(rg, &item.Targets, nat_fields_mask)
+	item.Hash = basictl.RandomStringBytes(rg)
+	if nat_fields_mask&(1<<0) != 0 {
+		BuiltinVectorStringBytesFillRandom(rg, &item.GaugeMetrics)
+	} else {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
+	}
 }
 
 func (item *StatshouseGetTargetsResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {

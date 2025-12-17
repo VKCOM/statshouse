@@ -40,6 +40,17 @@ func (item *EngineReloadDynamicLibOptions) Reset() {
 	item.SlicesPart = 0
 }
 
+func (item *EngineReloadDynamicLibOptions) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	item.LibId = basictl.RandomString(rg)
+	item.LibFileName = basictl.RandomString(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.SlicesPart = basictl.RandomDouble(rg)
+	} else {
+		item.SlicesPart = 0
+	}
+}
+
 func (item *EngineReloadDynamicLibOptions) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

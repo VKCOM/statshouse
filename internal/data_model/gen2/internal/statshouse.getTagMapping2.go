@@ -44,6 +44,15 @@ func (item *StatshouseGetTagMapping2) Reset() {
 	item.ClientEnv = 0
 }
 
+func (item *StatshouseGetTagMapping2) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000001)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.Metric = basictl.RandomString(rg)
+	item.Key = basictl.RandomString(rg)
+	item.TagIdKey = basictl.RandomInt(rg)
+	item.ClientEnv = basictl.RandomInt(rg)
+}
+
 func (item *StatshouseGetTagMapping2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -118,6 +127,12 @@ func (item *StatshouseGetTagMapping2) WriteResultJSON(w []byte, ret StatshouseGe
 func (item *StatshouseGetTagMapping2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseGetTagMapping2) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTagMappingResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -367,6 +382,15 @@ func (item *StatshouseGetTagMapping2Bytes) Reset() {
 	item.ClientEnv = 0
 }
 
+func (item *StatshouseGetTagMapping2Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000001)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.Metric = basictl.RandomStringBytes(rg)
+	item.Key = basictl.RandomStringBytes(rg)
+	item.TagIdKey = basictl.RandomInt(rg)
+	item.ClientEnv = basictl.RandomInt(rg)
+}
+
 func (item *StatshouseGetTagMapping2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -441,6 +465,12 @@ func (item *StatshouseGetTagMapping2Bytes) WriteResultJSON(w []byte, ret Statsho
 func (item *StatshouseGetTagMapping2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseGetTagMapping2Bytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTagMappingResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

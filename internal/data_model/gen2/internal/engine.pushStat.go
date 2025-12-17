@@ -36,6 +36,15 @@ func (item *EnginePushStat) Reset() {
 	item.Stat.Reset()
 }
 
+func (item *EnginePushStat) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Stat.FillRandom(rg)
+	} else {
+		item.Stat.Reset()
+	}
+}
+
 func (item *EnginePushStat) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -102,6 +111,12 @@ func (item *EnginePushStat) WriteResultJSON(w []byte, ret bool) (_ []byte, err e
 func (item *EnginePushStat) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
+}
+
+func (item *EnginePushStat) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret bool
+	ret = basictl.RandomUint(rg)&1 == 1
+	return item.WriteResult(w, ret)
 }
 
 func (item *EnginePushStat) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

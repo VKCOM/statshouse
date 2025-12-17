@@ -26,6 +26,11 @@ func (item *StatshouseGetTagMappingBootstrap) Reset() {
 	item.Header.Reset()
 }
 
+func (item *StatshouseGetTagMappingBootstrap) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+}
+
 func (item *StatshouseGetTagMappingBootstrap) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *StatshouseGetTagMappingBootstrap) WriteResultJSON(w []byte, ret Stat
 func (item *StatshouseGetTagMappingBootstrap) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseGetTagMappingBootstrap) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTagMappingBootstrapResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTagMappingBootstrap) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -218,6 +229,11 @@ func (item *StatshouseGetTagMappingBootstrapBytes) Reset() {
 	item.Header.Reset()
 }
 
+func (item *StatshouseGetTagMappingBootstrapBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+}
+
 func (item *StatshouseGetTagMappingBootstrapBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -276,6 +292,12 @@ func (item *StatshouseGetTagMappingBootstrapBytes) WriteResultJSON(w []byte, ret
 func (item *StatshouseGetTagMappingBootstrapBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingBootstrapResultBytes) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTagMappingBootstrapResultBytes
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

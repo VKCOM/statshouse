@@ -48,6 +48,12 @@ func (item *StatshouseGetConfig2) Reset() {
 	item.Cluster = ""
 }
 
+func (item *StatshouseGetConfig2) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.Cluster = basictl.RandomString(rg)
+}
+
 func (item *StatshouseGetConfig2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -113,6 +119,12 @@ func (item *StatshouseGetConfig2) WriteResultJSON(w []byte, ret StatshouseGetCon
 func (item *StatshouseGetConfig2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetConfig2) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetConfigResult
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetConfig2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -343,6 +355,12 @@ func (item *StatshouseGetConfig2Bytes) Reset() {
 	item.Cluster = item.Cluster[:0]
 }
 
+func (item *StatshouseGetConfig2Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.Cluster = basictl.RandomStringBytes(rg)
+}
+
 func (item *StatshouseGetConfig2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -408,6 +426,12 @@ func (item *StatshouseGetConfig2Bytes) WriteResultJSON(w []byte, ret StatshouseG
 func (item *StatshouseGetConfig2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetConfig2Bytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetConfigResultBytes
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

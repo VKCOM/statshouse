@@ -28,6 +28,12 @@ func (item *MetadataEditMetricEvent) Reset() {
 	item.OldVersion = 0
 }
 
+func (item *MetadataEditMetricEvent) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1100)
+	item.Metric.FillRandom(rg, item.FieldsMask)
+	item.OldVersion = basictl.RandomLong(rg)
+}
+
 func (item *MetadataEditMetricEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

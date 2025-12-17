@@ -37,6 +37,32 @@ func (item EngineReindexStatus) TLName() string { return _EngineReindexStatus[it
 func (item EngineReindexStatus) TLTag() uint32  { return _EngineReindexStatus[item.index].TLTag }
 
 func (item *EngineReindexStatus) Reset() { item.index = 0 }
+func (item *EngineReindexStatus) FillRandom(rg *basictl.RandGenerator) {
+	index := basictl.RandomUint(rg) % 7
+	switch index {
+	case 0:
+		item.index = 0
+	case 1:
+		item.index = 1
+		item.valueRunningOld.FillRandom(rg)
+	case 2:
+		item.index = 2
+		item.valueRunning.FillRandom(rg)
+	case 3:
+		item.index = 3
+		item.valueFailed.FillRandom(rg)
+	case 4:
+		item.index = 4
+		item.valueSignaled.FillRandom(rg)
+	case 5:
+		item.index = 5
+		item.valueDoneOld.FillRandom(rg)
+	case 6:
+		item.index = 6
+		item.valueDone.FillRandom(rg)
+	default:
+	}
+}
 
 func (item *EngineReindexStatus) IsNever() bool { return item.index == 0 }
 
@@ -472,6 +498,11 @@ func (item *EngineReindexStatusDone) Reset() {
 	item.NeedRestart = false
 }
 
+func (item *EngineReindexStatusDone) FillRandom(rg *basictl.RandGenerator) {
+	item.FinishTime = basictl.RandomInt(rg)
+	item.NeedRestart = basictl.RandomUint(rg)&1 == 1
+}
+
 func (item *EngineReindexStatusDone) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.FinishTime); err != nil {
 		return w, err
@@ -618,6 +649,10 @@ func (item *EngineReindexStatusDoneOld) Reset() {
 	item.FinishTime = 0
 }
 
+func (item *EngineReindexStatusDoneOld) FillRandom(rg *basictl.RandGenerator) {
+	item.FinishTime = basictl.RandomInt(rg)
+}
+
 func (item *EngineReindexStatusDoneOld) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.FinishTime)
 }
@@ -741,6 +776,11 @@ func (EngineReindexStatusFailed) TLTag() uint32  { return 0x10533721 }
 func (item *EngineReindexStatusFailed) Reset() {
 	item.ExitCode = 0
 	item.FinishTime = 0
+}
+
+func (item *EngineReindexStatusFailed) FillRandom(rg *basictl.RandGenerator) {
+	item.ExitCode = basictl.RandomInt(rg)
+	item.FinishTime = basictl.RandomInt(rg)
 }
 
 func (item *EngineReindexStatusFailed) Read(w []byte) (_ []byte, err error) {
@@ -886,6 +926,8 @@ func (EngineReindexStatusNever) TLTag() uint32  { return 0x7f6a89b9 }
 
 func (item *EngineReindexStatusNever) Reset() {}
 
+func (item *EngineReindexStatusNever) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineReindexStatusNever) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineReindexStatusNever) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -980,6 +1022,11 @@ func (EngineReindexStatusRunning) TLTag() uint32  { return 0xfa198b59 }
 func (item *EngineReindexStatusRunning) Reset() {
 	item.Pids = item.Pids[:0]
 	item.StartTime = 0
+}
+
+func (item *EngineReindexStatusRunning) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorIntFillRandom(rg, &item.Pids)
+	item.StartTime = basictl.RandomInt(rg)
 }
 
 func (item *EngineReindexStatusRunning) Read(w []byte) (_ []byte, err error) {
@@ -1130,6 +1177,11 @@ func (item *EngineReindexStatusRunningOld) Reset() {
 	item.StartTime = 0
 }
 
+func (item *EngineReindexStatusRunningOld) FillRandom(rg *basictl.RandGenerator) {
+	item.Pid = basictl.RandomInt(rg)
+	item.StartTime = basictl.RandomInt(rg)
+}
+
 func (item *EngineReindexStatusRunningOld) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Pid); err != nil {
 		return w, err
@@ -1276,6 +1328,11 @@ func (EngineReindexStatusSignaled) TLTag() uint32  { return 0x756e878b }
 func (item *EngineReindexStatusSignaled) Reset() {
 	item.Signal = 0
 	item.FinishTime = 0
+}
+
+func (item *EngineReindexStatusSignaled) FillRandom(rg *basictl.RandGenerator) {
+	item.Signal = basictl.RandomInt(rg)
+	item.FinishTime = basictl.RandomInt(rg)
 }
 
 func (item *EngineReindexStatusSignaled) Read(w []byte) (_ []byte, err error) {

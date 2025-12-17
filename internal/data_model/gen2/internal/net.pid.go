@@ -28,6 +28,12 @@ func (item *NetPid) Reset() {
 	item.Utime = 0
 }
 
+func (item *NetPid) FillRandom(rg *basictl.RandGenerator) {
+	item.Ip = basictl.RandomInt(rg)
+	item.PortPid = basictl.RandomInt(rg)
+	item.Utime = basictl.RandomInt(rg)
+}
+
 func (item *NetPid) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Ip); err != nil {
 		return w, err

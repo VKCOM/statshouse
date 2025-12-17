@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseSampleFactorFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseSampleFactor) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseSampleFactor, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseSampleFactorRead(w []byte, vec *[]StatshouseSampleFactor) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -88,12 +97,17 @@ type StatshouseSampleFactor struct {
 	Value  float32
 }
 
-func (StatshouseSampleFactor) TLName() string { return "statshouse.sample_factor" }
-func (StatshouseSampleFactor) TLTag() uint32  { return 0x4f7b7822 }
+func (StatshouseSampleFactor) TLName() string { return "statshouse.sampleFactor" }
+func (StatshouseSampleFactor) TLTag() uint32  { return 0x9d6f80fe }
 
 func (item *StatshouseSampleFactor) Reset() {
 	item.Metric = 0
 	item.Value = 0
+}
+
+func (item *StatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator) {
+	item.Metric = basictl.RandomInt(rg)
+	item.Value = basictl.RandomFloat(rg)
 }
 
 func (item *StatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
@@ -114,7 +128,7 @@ func (item *StatshouseSampleFactor) Write(w []byte) []byte {
 }
 
 func (item *StatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x4f7b7822); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x9d6f80fe); err != nil {
 		return w, err
 	}
 	return item.Read(w)
@@ -125,7 +139,7 @@ func (item *StatshouseSampleFactor) WriteBoxedGeneral(w []byte) (_ []byte, err e
 }
 
 func (item *StatshouseSampleFactor) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x4f7b7822)
+	w = basictl.NatWrite(w, 0x9d6f80fe)
 	return item.Write(w)
 }
 
@@ -153,7 +167,7 @@ func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContex
 			switch key {
 			case "metric":
 				if propMetricPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "metric")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sampleFactor", "metric")
 				}
 				if err := Json2ReadInt32(in, &item.Metric); err != nil {
 					return err
@@ -161,14 +175,14 @@ func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContex
 				propMetricPresented = true
 			case "value":
 				if propValuePresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sample_factor", "value")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sampleFactor", "value")
 				}
 				if err := Json2ReadFloat32(in, &item.Value); err != nil {
 					return err
 				}
 				propValuePresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouse.sample_factor", key)
+				return ErrorInvalidJSONExcessElement("statshouse.sampleFactor", key)
 			}
 			in.WantComma()
 		}
@@ -220,7 +234,7 @@ func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
 
 func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.sample_factor", err.Error())
+		return ErrorInvalidJSON("statshouse.sampleFactor", err.Error())
 	}
 	return nil
 }

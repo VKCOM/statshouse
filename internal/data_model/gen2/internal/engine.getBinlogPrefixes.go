@@ -21,6 +21,8 @@ func (EngineGetBinlogPrefixes) TLTag() uint32  { return 0xef14db93 }
 
 func (item *EngineGetBinlogPrefixes) Reset() {}
 
+func (item *EngineGetBinlogPrefixes) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineGetBinlogPrefixes) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineGetBinlogPrefixes) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -76,6 +78,12 @@ func (item *EngineGetBinlogPrefixes) WriteResultJSON(w []byte, ret []EngineBinlo
 func (item *EngineGetBinlogPrefixes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
 	w = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(tctx, w, ret)
 	return w, nil
+}
+
+func (item *EngineGetBinlogPrefixes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret []EngineBinlogPrefix
+	BuiltinVectorEngineBinlogPrefixFillRandom(rg, &ret)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

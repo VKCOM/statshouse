@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataEventFillRandom(rg *basictl.RandGenerator, vec *[]MetadataEvent) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]MetadataEvent, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorMetadataEventRead(w []byte, vec *[]MetadataEvent) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorMetadataEventWriteJSONOpt(tctx *basictl.JSONWriteContext, w []
 	return append(w, ']')
 }
 
+func BuiltinVectorMetadataEventBytesFillRandom(rg *basictl.RandGenerator, vec *[]MetadataEventBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]MetadataEventBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorMetadataEventBytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -200,6 +218,27 @@ func (item *MetadataEvent) Reset() {
 	item.UpdateTime = 0
 	item.Data = ""
 	item.Metadata = ""
+}
+
+func (item *MetadataEvent) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
+	item.Id = basictl.RandomLong(rg)
+	item.Name = basictl.RandomString(rg)
+	if item.FieldMask&(1<<0) != 0 {
+		item.NamespaceId = basictl.RandomLong(rg)
+	} else {
+		item.NamespaceId = 0
+	}
+	item.EventType = basictl.RandomInt(rg)
+	item.Unused = basictl.RandomUint(rg)
+	item.Version = basictl.RandomLong(rg)
+	item.UpdateTime = basictl.RandomUint(rg)
+	item.Data = basictl.RandomString(rg)
+	if item.FieldMask&(1<<1) != 0 {
+		item.Metadata = basictl.RandomString(rg)
+	} else {
+		item.Metadata = ""
+	}
 }
 
 func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
@@ -579,6 +618,27 @@ func (item *MetadataEventBytes) Reset() {
 	item.UpdateTime = 0
 	item.Data = item.Data[:0]
 	item.Metadata = item.Metadata[:0]
+}
+
+func (item *MetadataEventBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
+	item.Id = basictl.RandomLong(rg)
+	item.Name = basictl.RandomStringBytes(rg)
+	if item.FieldMask&(1<<0) != 0 {
+		item.NamespaceId = basictl.RandomLong(rg)
+	} else {
+		item.NamespaceId = 0
+	}
+	item.EventType = basictl.RandomInt(rg)
+	item.Unused = basictl.RandomUint(rg)
+	item.Version = basictl.RandomLong(rg)
+	item.UpdateTime = basictl.RandomUint(rg)
+	item.Data = basictl.RandomStringBytes(rg)
+	if item.FieldMask&(1<<1) != 0 {
+		item.Metadata = basictl.RandomStringBytes(rg)
+	} else {
+		item.Metadata = item.Metadata[:0]
+	}
 }
 
 func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {

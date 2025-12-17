@@ -24,6 +24,10 @@ func (item *EngineAsyncSleep) Reset() {
 	item.TimeMs = 0
 }
 
+func (item *EngineAsyncSleep) FillRandom(rg *basictl.RandGenerator) {
+	item.TimeMs = basictl.RandomInt(rg)
+}
+
 func (item *EngineAsyncSleep) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.TimeMs)
 }
@@ -77,6 +81,12 @@ func (item *EngineAsyncSleep) WriteResultJSON(w []byte, ret bool) (_ []byte, err
 func (item *EngineAsyncSleep) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
+}
+
+func (item *EngineAsyncSleep) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret bool
+	ret = basictl.RandomUint(rg)&1 == 1
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineAsyncSleep) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

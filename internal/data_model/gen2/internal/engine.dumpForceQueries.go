@@ -24,6 +24,10 @@ func (item *EngineDumpForceQueries) Reset() {
 	item.BuffersPressureThreshold = 0
 }
 
+func (item *EngineDumpForceQueries) FillRandom(rg *basictl.RandGenerator) {
+	item.BuffersPressureThreshold = basictl.RandomDouble(rg)
+}
+
 func (item *EngineDumpForceQueries) Read(w []byte) (_ []byte, err error) {
 	return basictl.DoubleRead(w, &item.BuffersPressureThreshold)
 }
@@ -78,6 +82,12 @@ func (item *EngineDumpForceQueries) WriteResultJSON(w []byte, ret True) (_ []byt
 func (item *EngineDumpForceQueries) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineDumpForceQueries) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineDumpForceQueries) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

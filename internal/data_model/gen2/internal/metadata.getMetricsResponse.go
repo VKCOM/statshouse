@@ -26,6 +26,11 @@ func (item *MetadataGetMetricsResponse) Reset() {
 	item.Metrics = item.Metrics[:0]
 }
 
+func (item *MetadataGetMetricsResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.CurrentVersion = basictl.RandomLong(rg)
+	BuiltinVectorMetadataMetricOldFillRandom(rg, &item.Metrics, nat_field_mask)
+}
+
 func (item *MetadataGetMetricsResponse) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err

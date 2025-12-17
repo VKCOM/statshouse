@@ -24,6 +24,10 @@ func (item *EngineInvokeHttpQuery) Reset() {
 	item.Query.Reset()
 }
 
+func (item *EngineInvokeHttpQuery) FillRandom(rg *basictl.RandGenerator) {
+	item.Query.FillRandom(rg)
+}
+
 func (item *EngineInvokeHttpQuery) Read(w []byte) (_ []byte, err error) {
 	return item.Query.Read(w)
 }
@@ -78,6 +82,12 @@ func (item *EngineInvokeHttpQuery) WriteResultJSON(w []byte, ret EngineHttpQuery
 func (item *EngineInvokeHttpQuery) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineInvokeHttpQuery) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret EngineHttpQueryResponse
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineInvokeHttpQuery) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

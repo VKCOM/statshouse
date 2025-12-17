@@ -28,6 +28,12 @@ func (item *StatshouseApiGetQueryPoint) Reset() {
 	item.Query.Reset()
 }
 
+func (item *StatshouseApiGetQueryPoint) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.AccessToken = basictl.RandomString(rg)
+	item.Query.FillRandom(rg)
+}
+
 func (item *StatshouseApiGetQueryPoint) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *StatshouseApiGetQueryPoint) WriteResultJSON(w []byte, ret Statshouse
 func (item *StatshouseApiGetQueryPoint) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiGetQueryPointResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseApiGetQueryPoint) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseApiGetQueryPointResponse
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseApiGetQueryPoint) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

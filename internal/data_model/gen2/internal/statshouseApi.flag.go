@@ -29,6 +29,18 @@ func (item StatshouseApiFlag) TLName() string { return _StatshouseApiFlag[item.i
 func (item StatshouseApiFlag) TLTag() uint32  { return _StatshouseApiFlag[item.index].TLTag }
 
 func (item *StatshouseApiFlag) Reset() { item.index = 0 }
+func (item *StatshouseApiFlag) FillRandom(rg *basictl.RandGenerator) {
+	index := basictl.RandomUint(rg) % 3
+	switch index {
+	case 0:
+		item.index = 0
+	case 1:
+		item.index = 1
+	case 2:
+		item.index = 2
+	default:
+	}
+}
 
 func (item StatshouseApiFlag) IsMapped() bool { return item.index == 0 }
 func (item *StatshouseApiFlag) SetMapped()    { item.index = 0 }

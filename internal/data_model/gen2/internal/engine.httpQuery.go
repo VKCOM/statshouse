@@ -60,6 +60,25 @@ func (item *EngineHttpQuery) Reset() {
 	BuiltinVectorDictionaryFieldStringReset(item.Headers)
 }
 
+func (item *EngineHttpQuery) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b111)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Uri = basictl.RandomString(rg)
+	} else {
+		item.Uri = ""
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Args)
+	} else {
+		BuiltinVectorDictionaryFieldStringReset(item.Args)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Headers)
+	} else {
+		BuiltinVectorDictionaryFieldStringReset(item.Headers)
+	}
+}
+
 func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

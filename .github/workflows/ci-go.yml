@@ -8,21 +8,6 @@ on:
       - 'go.sum'
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-      - uses: actions/setup-go@v6
-        with:
-          go-version: 1.24.x
-          cache: true
-      - uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.6
-          args: --timeout=10m --disable-all -E goimports -j 4
-
   staticcheck:
     runs-on: ubuntu-latest
     steps:

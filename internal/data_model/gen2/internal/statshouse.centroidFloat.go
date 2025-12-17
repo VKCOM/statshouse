@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseCentroidFloatFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseCentroidFloat) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseCentroidFloat, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseCentroidFloatRead(w []byte, vec *[]StatshouseCentroidFloat) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -94,6 +103,11 @@ func (StatshouseCentroidFloat) TLTag() uint32  { return 0x73fd01e0 }
 func (item *StatshouseCentroidFloat) Reset() {
 	item.Value = 0
 	item.Count = 0
+}
+
+func (item *StatshouseCentroidFloat) FillRandom(rg *basictl.RandGenerator) {
+	item.Value = basictl.RandomFloat(rg)
+	item.Count = basictl.RandomFloat(rg)
 }
 
 func (item *StatshouseCentroidFloat) Read(w []byte) (_ []byte, err error) {

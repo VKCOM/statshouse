@@ -19,6 +19,14 @@ func BuiltinTuple4IntReset(vec *[4]int32) {
 	}
 }
 
+func BuiltinTuple4IntFillRandom(rg *basictl.RandGenerator, vec *[4]int32) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomInt(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple4IntRead(w []byte, vec *[4]int32) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.IntRead(w, &(*vec)[i]); err != nil {
@@ -81,6 +89,14 @@ func BuiltinTuple7IntReset(vec *[7]int32) {
 	}
 }
 
+func BuiltinTuple7IntFillRandom(rg *basictl.RandGenerator, vec *[7]int32) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomInt(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple7IntRead(w []byte, vec *[7]int32) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.IntRead(w, &(*vec)[i]); err != nil {
@@ -137,6 +153,15 @@ func BuiltinTuple7IntWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec 
 	return append(w, ']')
 }
 
+func BuiltinVectorIntFillRandom(rg *basictl.RandGenerator, vec *[]int32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]int32, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomInt(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -215,6 +240,11 @@ func (Int) TLTag() uint32  { return 0xa8509bda }
 func (item *Int) Reset() {
 	ptr := (*int32)(item)
 	*ptr = 0
+}
+
+func (item *Int) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*int32)(item)
+	*ptr = basictl.RandomInt(rg)
 }
 
 func (item *Int) Read(w []byte) (_ []byte, err error) {
