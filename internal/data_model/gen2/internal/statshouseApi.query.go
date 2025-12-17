@@ -130,6 +130,35 @@ func (item *StatshouseApiQuery) Reset() {
 	item.WidthAgg = ""
 }
 
+func (item *StatshouseApiQuery) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111111)
+	item.Version = basictl.RandomInt(rg)
+	item.TopN = basictl.RandomInt(rg)
+	item.MetricName = basictl.RandomString(rg)
+	item.TimeFrom = basictl.RandomLong(rg)
+	item.TimeTo = basictl.RandomLong(rg)
+	item.Interval = basictl.RandomString(rg)
+	item.Function.FillRandom(rg)
+	BuiltinVectorStringFillRandom(rg, &item.GroupBy)
+	BuiltinVectorStatshouseApiFilterFillRandom(rg, &item.Filter)
+	BuiltinVectorLongFillRandom(rg, &item.TimeShift)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Promql = basictl.RandomString(rg)
+	} else {
+		item.Promql = ""
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		BuiltinVectorStatshouseApiFunctionFillRandom(rg, &item.What)
+	} else {
+		item.What = item.What[:0]
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		item.WidthAgg = basictl.RandomString(rg)
+	} else {
+		item.WidthAgg = ""
+	}
+}
+
 func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

@@ -27,6 +27,8 @@ func (EngineAlreadyInMasterMode) TLTag() uint32  { return 0x402409cb }
 
 func (item *EngineAlreadyInMasterMode) Reset() {}
 
+func (item *EngineAlreadyInMasterMode) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineAlreadyInMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineAlreadyInMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -117,6 +119,8 @@ func (EngineAlreadyInReplicaMode) TLName() string { return "engine.alreadyInRepl
 func (EngineAlreadyInReplicaMode) TLTag() uint32  { return 0xebd80142 }
 
 func (item *EngineAlreadyInReplicaMode) Reset() {}
+
+func (item *EngineAlreadyInReplicaMode) FillRandom(rg *basictl.RandGenerator) {}
 
 func (item *EngineAlreadyInReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
@@ -210,6 +214,10 @@ func (EngineFailedToSwitchMode) TLTag() uint32  { return 0x17418662 }
 
 func (item *EngineFailedToSwitchMode) Reset() {
 	item.Error = ""
+}
+
+func (item *EngineFailedToSwitchMode) FillRandom(rg *basictl.RandGenerator) {
+	item.Error = basictl.RandomString(rg)
 }
 
 func (item *EngineFailedToSwitchMode) Read(w []byte) (_ []byte, err error) {
@@ -341,6 +349,26 @@ func (item EngineSwitchMasterReplicaModeResult) TLTag() uint32 {
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) Reset() { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) FillRandom(rg *basictl.RandGenerator) {
+	index := basictl.RandomUint(rg) % 6
+	switch index {
+	case 0:
+		item.index = 0
+	case 1:
+		item.index = 1
+	case 2:
+		item.index = 2
+	case 3:
+		item.index = 3
+	case 4:
+		item.index = 4
+		item.valueSwitchedToMasterModeForcefully.FillRandom(rg)
+	case 5:
+		item.index = 5
+		item.valueFailedToSwitchMode.FillRandom(rg)
+	default:
+	}
+}
 
 func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToMasterMode() bool {
 	return item.index == 0
@@ -670,6 +698,8 @@ func (EngineSwitchedToMasterMode) TLTag() uint32  { return 0x95b13964 }
 
 func (item *EngineSwitchedToMasterMode) Reset() {}
 
+func (item *EngineSwitchedToMasterMode) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineSwitchedToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineSwitchedToMasterMode) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -764,6 +794,10 @@ func (EngineSwitchedToMasterModeForcefully) TLTag() uint32 { return 0xec61b4be }
 
 func (item *EngineSwitchedToMasterModeForcefully) Reset() {
 	item.BytesTruncated = 0
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) FillRandom(rg *basictl.RandGenerator) {
+	item.BytesTruncated = basictl.RandomLong(rg)
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) Read(w []byte) (_ []byte, err error) {
@@ -885,6 +919,8 @@ func (EngineSwitchedToReplicaMode) TLName() string { return "engine.switchedToRe
 func (EngineSwitchedToReplicaMode) TLTag() uint32  { return 0xad642a0b }
 
 func (item *EngineSwitchedToReplicaMode) Reset() {}
+
+func (item *EngineSwitchedToReplicaMode) FillRandom(rg *basictl.RandGenerator) {}
 
 func (item *EngineSwitchedToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 

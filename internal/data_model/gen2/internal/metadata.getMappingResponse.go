@@ -34,6 +34,22 @@ func (item MetadataGetMappingResponse) TLTag() uint32 {
 }
 
 func (item *MetadataGetMappingResponse) Reset() { item.ResetToGetMappingResponse() }
+func (item *MetadataGetMappingResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	index := basictl.RandomUint(rg) % 4
+	switch index {
+	case 0:
+		item.index = 0
+		item.valueGetMappingResponse.FillRandom(rg, nat_field_mask)
+	case 1:
+		item.index = 1
+	case 2:
+		item.index = 2
+	case 3:
+		item.index = 3
+		item.valueCreated.FillRandom(rg, nat_field_mask)
+	default:
+	}
+}
 
 func (item *MetadataGetMappingResponse) IsGetMappingResponse() bool { return item.index == 0 }
 
@@ -272,6 +288,10 @@ func (item *MetadataGetMappingResponse0) Reset() {
 	item.Id = 0
 }
 
+func (item *MetadataGetMappingResponse0) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Id = basictl.RandomInt(rg)
+}
+
 func (item *MetadataGetMappingResponse0) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.Id)
 }
@@ -373,6 +393,10 @@ func (MetadataGetMappingResponseCreated) TLTag() uint32  { return 0x9286abbb }
 
 func (item *MetadataGetMappingResponseCreated) Reset() {
 	item.Id = 0
+}
+
+func (item *MetadataGetMappingResponseCreated) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Id = basictl.RandomInt(rg)
 }
 
 func (item *MetadataGetMappingResponseCreated) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -477,6 +501,9 @@ func (MetadataGetMappingResponseFloodLimitError) TLTag() uint32 { return 0x9286a
 
 func (item *MetadataGetMappingResponseFloodLimitError) Reset() {}
 
+func (item *MetadataGetMappingResponseFloodLimitError) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+}
+
 func (item *MetadataGetMappingResponseFloodLimitError) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil
 }
@@ -551,6 +578,9 @@ func (MetadataGetMappingResponseKeyNotExists) TLName() string {
 func (MetadataGetMappingResponseKeyNotExists) TLTag() uint32 { return 0x9286abff }
 
 func (item *MetadataGetMappingResponseKeyNotExists) Reset() {}
+
+func (item *MetadataGetMappingResponseKeyNotExists) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+}
 
 func (item *MetadataGetMappingResponseKeyNotExists) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil

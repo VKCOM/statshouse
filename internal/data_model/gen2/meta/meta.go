@@ -25,6 +25,7 @@ type Object interface {
 	TLTag() uint32  // returns type's TL tag. For union, returns constructor tag depending on actual union value
 	String() string // returns type's representation for debugging (JSON for now)
 
+	FillRandom(rg *basictl.RandGenerator)
 	Read(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
 	ReadBoxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
 	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
@@ -41,6 +42,8 @@ type Object interface {
 
 type Function interface {
 	Object
+
+	FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error)
 
 	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
@@ -167,6 +170,7 @@ func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                                {}
+func (item *TLItem) FillRandom(rg *basictl.RandGenerator)  {}
 func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
 func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
 func (item *TLItem) Write(w []byte) []byte                 { return w }

@@ -24,6 +24,10 @@ func (item *EngineReloadDynamicLib) Reset() {
 	item.Options.Reset()
 }
 
+func (item *EngineReloadDynamicLib) FillRandom(rg *basictl.RandGenerator) {
+	item.Options.FillRandom(rg)
+}
+
 func (item *EngineReloadDynamicLib) Read(w []byte) (_ []byte, err error) {
 	return item.Options.Read(w)
 }
@@ -78,6 +82,12 @@ func (item *EngineReloadDynamicLib) WriteResultJSON(w []byte, ret BoolStat) (_ [
 func (item *EngineReloadDynamicLib) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret BoolStat) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineReloadDynamicLib) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret BoolStat
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineReloadDynamicLib) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

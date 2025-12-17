@@ -21,6 +21,8 @@ func (EngineGetReindexStatus) TLTag() uint32  { return 0xf492042e }
 
 func (item *EngineGetReindexStatus) Reset() {}
 
+func (item *EngineGetReindexStatus) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineGetReindexStatus) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineGetReindexStatus) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -72,6 +74,12 @@ func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexS
 func (item *EngineGetReindexStatus) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineReindexStatus) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineGetReindexStatus) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret EngineReindexStatus
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineGetReindexStatus) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

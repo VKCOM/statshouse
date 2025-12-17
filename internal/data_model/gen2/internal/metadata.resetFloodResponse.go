@@ -21,6 +21,8 @@ func (MetadataResetFloodResponse) TLTag() uint32  { return 0x9286abee }
 
 func (item *MetadataResetFloodResponse) Reset() {}
 
+func (item *MetadataResetFloodResponse) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *MetadataResetFloodResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *MetadataResetFloodResponse) WriteGeneral(w []byte) (_ []byte, err error) {

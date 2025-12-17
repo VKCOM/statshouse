@@ -38,6 +38,12 @@ func (item *MetadataGetJournalnew) Reset() {
 	item.Limit = 0
 }
 
+func (item *MetadataGetJournalnew) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1000)
+	item.From = basictl.RandomLong(rg)
+	item.Limit = basictl.RandomLong(rg)
+}
+
 func (item *MetadataGetJournalnew) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -103,6 +109,12 @@ func (item *MetadataGetJournalnew) WriteResultJSON(w []byte, ret MetadataGetJour
 func (item *MetadataGetJournalnew) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
 	return w, nil
+}
+
+func (item *MetadataGetJournalnew) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetJournalResponsenew
+	ret.FillRandom(rg, item.FieldMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetJournalnew) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

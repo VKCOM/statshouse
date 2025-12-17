@@ -24,6 +24,10 @@ func (item *MetadataHistoryShortResponse) Reset() {
 	item.Events = item.Events[:0]
 }
 
+func (item *MetadataHistoryShortResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	BuiltinVectorMetadataHistoryShortResponseEventFillRandom(rg, &item.Events, nat_field_mask)
+}
+
 func (item *MetadataHistoryShortResponse) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err

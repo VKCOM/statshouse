@@ -28,6 +28,12 @@ func (item *StatshouseApiSeries) Reset() {
 	item.Time = item.Time[:0]
 }
 
+func (item *StatshouseApiSeries) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorVectorDoubleFillRandom(rg, &item.SeriesData)
+	BuiltinVectorLongFillRandom(rg, &item.Time)
+}
+
 func (item *StatshouseApiSeries) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

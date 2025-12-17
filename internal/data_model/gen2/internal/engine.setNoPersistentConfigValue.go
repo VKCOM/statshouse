@@ -26,6 +26,11 @@ func (item *EngineSetNoPersistentConfigValue) Reset() {
 	item.Value = 0
 }
 
+func (item *EngineSetNoPersistentConfigValue) FillRandom(rg *basictl.RandGenerator) {
+	item.Name = basictl.RandomString(rg)
+	item.Value = basictl.RandomInt(rg)
+}
+
 func (item *EngineSetNoPersistentConfigValue) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Name); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *EngineSetNoPersistentConfigValue) WriteResultJSON(w []byte, ret True
 func (item *EngineSetNoPersistentConfigValue) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSetNoPersistentConfigValue) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSetNoPersistentConfigValue) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

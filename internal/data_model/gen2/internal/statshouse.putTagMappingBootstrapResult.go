@@ -26,6 +26,10 @@ func (item *StatshousePutTagMappingBootstrapResult) Reset() {
 	item.CountInserted = 0
 }
 
+func (item *StatshousePutTagMappingBootstrapResult) FillRandom(rg *basictl.RandGenerator) {
+	item.CountInserted = basictl.RandomInt(rg)
+}
+
 func (item *StatshousePutTagMappingBootstrapResult) Read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &item.CountInserted)
 }

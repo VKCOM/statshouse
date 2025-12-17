@@ -26,6 +26,11 @@ func (item *StatshouseGetTagMappingResult) Reset() {
 	item.TtlNanosec = 0
 }
 
+func (item *StatshouseGetTagMappingResult) FillRandom(rg *basictl.RandGenerator) {
+	item.Value = basictl.RandomInt(rg)
+	item.TtlNanosec = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseGetTagMappingResult) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Value); err != nil {
 		return w, err

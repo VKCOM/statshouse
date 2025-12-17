@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseIngestionStatus2FillRandom(rg *basictl.RandGenerator, vec *[]StatshouseIngestionStatus2) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseIngestionStatus2, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseIngestionStatus2Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -96,6 +105,12 @@ func (item *StatshouseIngestionStatus2) Reset() {
 	item.Env = 0
 	item.Metric = 0
 	item.Value = 0
+}
+
+func (item *StatshouseIngestionStatus2) FillRandom(rg *basictl.RandGenerator) {
+	item.Env = basictl.RandomInt(rg)
+	item.Metric = basictl.RandomInt(rg)
+	item.Value = basictl.RandomFloat(rg)
 }
 
 func (item *StatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {

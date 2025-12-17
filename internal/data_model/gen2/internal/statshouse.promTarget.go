@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshousePromTargetFillRandom(rg *basictl.RandGenerator, vec *[]StatshousePromTarget, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshousePromTarget, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshousePromTargetRead(w []byte, vec *[]StatshousePromTarget, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshousePromTargetWriteJSONOpt(tctx *basictl.JSONWriteContex
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshousePromTargetBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshousePromTargetBytes, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshousePromTargetBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshousePromTargetBytesRead(w []byte, vec *[]StatshousePromTargetBytes, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -220,6 +238,25 @@ func (item *StatshousePromTarget) Reset() {
 	item.LabelValueLengthLimit = 0
 	item.HttpClientConfig = ""
 	item.MetricRelabelConfigs = ""
+}
+
+func (item *StatshousePromTarget) FillRandom(rg *basictl.RandGenerator, nat_fields_mask_arg uint32) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
+	item.JobName = basictl.RandomString(rg)
+	item.Url = basictl.RandomString(rg)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Labels)
+	item.ScrapeInterval = basictl.RandomLong(rg)
+	item.ScrapeTimeout = basictl.RandomLong(rg)
+	item.BodySizeLimit = basictl.RandomLong(rg)
+	item.LabelLimit = basictl.RandomLong(rg)
+	item.LabelNameLengthLimit = basictl.RandomLong(rg)
+	item.LabelValueLengthLimit = basictl.RandomLong(rg)
+	item.HttpClientConfig = basictl.RandomString(rg)
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		item.MetricRelabelConfigs = basictl.RandomString(rg)
+	} else {
+		item.MetricRelabelConfigs = ""
+	}
 }
 
 func (item *StatshousePromTarget) Read(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
@@ -686,6 +723,25 @@ func (item *StatshousePromTargetBytes) Reset() {
 	item.LabelValueLengthLimit = 0
 	item.HttpClientConfig = item.HttpClientConfig[:0]
 	item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
+}
+
+func (item *StatshousePromTargetBytes) FillRandom(rg *basictl.RandGenerator, nat_fields_mask_arg uint32) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
+	item.JobName = basictl.RandomStringBytes(rg)
+	item.Url = basictl.RandomStringBytes(rg)
+	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, &item.Labels)
+	item.ScrapeInterval = basictl.RandomLong(rg)
+	item.ScrapeTimeout = basictl.RandomLong(rg)
+	item.BodySizeLimit = basictl.RandomLong(rg)
+	item.LabelLimit = basictl.RandomLong(rg)
+	item.LabelNameLengthLimit = basictl.RandomLong(rg)
+	item.LabelValueLengthLimit = basictl.RandomLong(rg)
+	item.HttpClientConfig = basictl.RandomStringBytes(rg)
+	if nat_fields_mask_arg&(1<<1) != 0 {
+		item.MetricRelabelConfigs = basictl.RandomStringBytes(rg)
+	} else {
+		item.MetricRelabelConfigs = item.MetricRelabelConfigs[:0]
+	}
 }
 
 func (item *StatshousePromTargetBytes) Read(w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {

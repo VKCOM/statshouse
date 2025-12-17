@@ -28,6 +28,12 @@ func (item *StatshouseApiGetChunkResponse) Reset() {
 	item.Index = 0
 }
 
+func (item *StatshouseApiGetChunkResponse) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.Series.FillRandom(rg)
+	item.Index = basictl.RandomInt(rg)
+}
+
 func (item *StatshouseApiGetChunkResponse) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

@@ -21,6 +21,8 @@ func (EngineGetExpectedMetafilesStats) TLTag() uint32  { return 0x0342f391 }
 
 func (item *EngineGetExpectedMetafilesStats) Reset() {}
 
+func (item *EngineGetExpectedMetafilesStats) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineGetExpectedMetafilesStats) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineGetExpectedMetafilesStats) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -76,6 +78,12 @@ func (item *EngineGetExpectedMetafilesStats) WriteResultJSON(w []byte, ret map[s
 func (item *EngineGetExpectedMetafilesStats) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
 	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, ret)
 	return w, nil
+}
+
+func (item *EngineGetExpectedMetafilesStats) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret map[string]EngineMetafilesStat
+	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, &ret)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseMetricFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMetric) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMetric, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMetricRead(w []byte, vec *[]StatshouseMetric) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshouseMetricWriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshouseMetricBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMetricBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMetricBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMetricBytesRead(w []byte, vec *[]StatshouseMetricBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -226,6 +244,37 @@ func (item *StatshouseMetric) Reset() {
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 	item.Histogram = item.Histogram[:0]
+}
+
+func (item *StatshouseMetric) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
+	item.Name = basictl.RandomString(rg)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Tags)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Counter = basictl.RandomDouble(rg)
+	} else {
+		item.Counter = 0
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		item.Ts = basictl.RandomUint(rg)
+	} else {
+		item.Ts = 0
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		BuiltinVectorDoubleFillRandom(rg, &item.Value)
+	} else {
+		item.Value = item.Value[:0]
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		BuiltinVectorLongFillRandom(rg, &item.Unique)
+	} else {
+		item.Unique = item.Unique[:0]
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		BuiltinVectorTupleDouble2FillRandom(rg, &item.Histogram)
+	} else {
+		item.Histogram = item.Histogram[:0]
+	}
 }
 
 func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
@@ -606,6 +655,37 @@ func (item *StatshouseMetricBytes) Reset() {
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 	item.Histogram = item.Histogram[:0]
+}
+
+func (item *StatshouseMetricBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
+	item.Name = basictl.RandomStringBytes(rg)
+	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, &item.Tags)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Counter = basictl.RandomDouble(rg)
+	} else {
+		item.Counter = 0
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		item.Ts = basictl.RandomUint(rg)
+	} else {
+		item.Ts = 0
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		BuiltinVectorDoubleFillRandom(rg, &item.Value)
+	} else {
+		item.Value = item.Value[:0]
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		BuiltinVectorLongFillRandom(rg, &item.Unique)
+	} else {
+		item.Unique = item.Unique[:0]
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		BuiltinVectorTupleDouble2FillRandom(rg, &item.Histogram)
+	} else {
+		item.Histogram = item.Histogram[:0]
+	}
 }
 
 func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {

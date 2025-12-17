@@ -26,6 +26,11 @@ func (item *StatshouseAddMetricsBatch) Reset() {
 	item.Metrics = item.Metrics[:0]
 }
 
+func (item *StatshouseAddMetricsBatch) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorStatshouseMetricFillRandom(rg, &item.Metrics)
+}
+
 func (item *StatshouseAddMetricsBatch) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *StatshouseAddMetricsBatch) WriteResultJSON(w []byte, ret True) (_ []
 func (item *StatshouseAddMetricsBatch) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseAddMetricsBatch) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseAddMetricsBatch) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -214,6 +225,11 @@ func (item *StatshouseAddMetricsBatchBytes) Reset() {
 	item.Metrics = item.Metrics[:0]
 }
 
+func (item *StatshouseAddMetricsBatchBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorStatshouseMetricBytesFillRandom(rg, &item.Metrics)
+}
+
 func (item *StatshouseAddMetricsBatchBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -272,6 +288,12 @@ func (item *StatshouseAddMetricsBatchBytes) WriteResultJSON(w []byte, ret True) 
 func (item *StatshouseAddMetricsBatchBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseAddMetricsBatchBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

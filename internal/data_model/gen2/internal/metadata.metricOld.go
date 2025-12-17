@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataMetricOldFillRandom(rg *basictl.RandGenerator, vec *[]MetadataMetricOld, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]MetadataMetricOld, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorMetadataMetricOldRead(w []byte, vec *[]MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -136,6 +145,24 @@ func (item *MetadataMetricOld) Reset() {
 	item.Version = 0
 	item.UpdateTime = 0
 	item.Data = ""
+}
+
+func (item *MetadataMetricOld) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Id = basictl.RandomLong(rg)
+	item.Name = basictl.RandomString(rg)
+	if nat_field_mask&(1<<2) != 0 {
+		item.EventType = basictl.RandomInt(rg)
+	} else {
+		item.EventType = 0
+	}
+	if nat_field_mask&(1<<3) != 0 {
+		item.Unused = basictl.RandomUint(rg)
+	} else {
+		item.Unused = 0
+	}
+	item.Version = basictl.RandomLong(rg)
+	item.UpdateTime = basictl.RandomUint(rg)
+	item.Data = basictl.RandomString(rg)
 }
 
 func (item *MetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {

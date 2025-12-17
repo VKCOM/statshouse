@@ -52,6 +52,14 @@ func (item *StatshouseGetMetrics3) Reset() {
 	item.Limit = 0
 }
 
+func (item *StatshouseGetMetrics3) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11000)
+	item.From = basictl.RandomLong(rg)
+	item.Limit = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseGetMetrics3) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -125,6 +133,12 @@ func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJour
 func (item *StatshouseGetMetrics3) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetMetrics3) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetJournalResponsenew
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -386,6 +400,14 @@ func (item *StatshouseGetMetrics3Bytes) Reset() {
 	item.Limit = 0
 }
 
+func (item *StatshouseGetMetrics3Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11000)
+	item.From = basictl.RandomLong(rg)
+	item.Limit = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseGetMetrics3Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -459,6 +481,12 @@ func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGe
 func (item *StatshouseGetMetrics3Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetMetrics3Bytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetJournalResponsenewBytes
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

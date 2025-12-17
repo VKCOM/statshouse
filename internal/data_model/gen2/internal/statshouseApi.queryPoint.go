@@ -54,6 +54,24 @@ func (item *StatshouseApiQueryPoint) Reset() {
 	item.What = item.What[:0]
 }
 
+func (item *StatshouseApiQueryPoint) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b10)
+	item.Version = basictl.RandomInt(rg)
+	item.TopN = basictl.RandomInt(rg)
+	item.MetricName = basictl.RandomString(rg)
+	item.TimeFrom = basictl.RandomLong(rg)
+	item.TimeTo = basictl.RandomLong(rg)
+	item.Function.FillRandom(rg)
+	BuiltinVectorStringFillRandom(rg, &item.GroupBy)
+	BuiltinVectorStatshouseApiFilterFillRandom(rg, &item.Filter)
+	BuiltinVectorLongFillRandom(rg, &item.TimeShift)
+	if item.FieldsMask&(1<<1) != 0 {
+		BuiltinVectorStatshouseApiFunctionFillRandom(rg, &item.What)
+	} else {
+		item.What = item.What[:0]
+	}
+}
+
 func (item *StatshouseApiQueryPoint) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

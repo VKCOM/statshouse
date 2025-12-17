@@ -31,6 +31,17 @@ func (item MetadataGetInvertMappingResponse) TLTag() uint32 {
 }
 
 func (item *MetadataGetInvertMappingResponse) Reset() { item.ResetToGetInvertMappingResponse() }
+func (item *MetadataGetInvertMappingResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	index := basictl.RandomUint(rg) % 2
+	switch index {
+	case 0:
+		item.index = 0
+		item.valueGetInvertMappingResponse.FillRandom(rg, nat_field_mask)
+	case 1:
+		item.index = 1
+	default:
+	}
+}
 
 func (item *MetadataGetInvertMappingResponse) IsGetInvertMappingResponse() bool {
 	return item.index == 0
@@ -186,6 +197,10 @@ func (item *MetadataGetInvertMappingResponse0) Reset() {
 	item.Key = ""
 }
 
+func (item *MetadataGetInvertMappingResponse0) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.Key = basictl.RandomString(rg)
+}
+
 func (item *MetadataGetInvertMappingResponse0) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Key)
 }
@@ -287,6 +302,9 @@ func (MetadataGetInvertMappingResponseKeyNotExists) TLName() string {
 func (MetadataGetInvertMappingResponseKeyNotExists) TLTag() uint32 { return 0x9286abab }
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) Reset() {}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+}
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil

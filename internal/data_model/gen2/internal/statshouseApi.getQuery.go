@@ -28,6 +28,12 @@ func (item *StatshouseApiGetQuery) Reset() {
 	item.Query.Reset()
 }
 
+func (item *StatshouseApiGetQuery) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000)
+	item.AccessToken = basictl.RandomString(rg)
+	item.Query.FillRandom(rg)
+}
+
 func (item *StatshouseApiGetQuery) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGe
 func (item *StatshouseApiGetQuery) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseApiGetQuery) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseApiGetQueryResponse
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

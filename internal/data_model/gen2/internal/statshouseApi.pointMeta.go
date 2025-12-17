@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiPointMetaFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseApiPointMeta) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseApiPointMeta, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseApiPointMetaRead(w []byte, vec *[]StatshouseApiPointMeta) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -112,6 +121,19 @@ func (item *StatshouseApiPointMeta) Reset() {
 	item.To = 0
 	BuiltinVectorDictionaryFieldStringReset(item.Tags)
 	item.What.Reset()
+}
+
+func (item *StatshouseApiPointMeta) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b10)
+	item.TimeShift = basictl.RandomLong(rg)
+	item.From = basictl.RandomLong(rg)
+	item.To = basictl.RandomLong(rg)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Tags)
+	if item.FieldsMask&(1<<1) != 0 {
+		item.What.FillRandom(rg)
+	} else {
+		item.What.Reset()
+	}
 }
 
 func (item *StatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {

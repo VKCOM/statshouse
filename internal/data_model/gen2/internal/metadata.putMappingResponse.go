@@ -21,6 +21,8 @@ func (MetadataPutMappingResponse) TLTag() uint32  { return 0x9286abfe }
 
 func (item *MetadataPutMappingResponse) Reset() {}
 
+func (item *MetadataPutMappingResponse) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *MetadataPutMappingResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *MetadataPutMappingResponse) WriteGeneral(w []byte) (_ []byte, err error) {

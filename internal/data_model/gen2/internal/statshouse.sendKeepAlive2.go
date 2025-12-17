@@ -26,6 +26,11 @@ func (item *StatshouseSendKeepAlive2) Reset() {
 	item.Header.Reset()
 }
 
+func (item *StatshouseSendKeepAlive2) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+}
+
 func (item *StatshouseSendKeepAlive2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -87,6 +92,12 @@ func (item *StatshouseSendKeepAlive2) WriteResultJSON(w []byte, ret string) (_ [
 func (item *StatshouseSendKeepAlive2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
+}
+
+func (item *StatshouseSendKeepAlive2) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret string
+	ret = basictl.RandomString(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseSendKeepAlive2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -219,6 +230,11 @@ func (item *StatshouseSendKeepAlive2Bytes) Reset() {
 	item.Header.Reset()
 }
 
+func (item *StatshouseSendKeepAlive2Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000000)
+	item.Header.FillRandom(rg, item.FieldsMask)
+}
+
 func (item *StatshouseSendKeepAlive2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -280,6 +296,12 @@ func (item *StatshouseSendKeepAlive2Bytes) WriteResultJSON(w []byte, ret []byte)
 func (item *StatshouseSendKeepAlive2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret []byte
+	ret = basictl.RandomStringBytes(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

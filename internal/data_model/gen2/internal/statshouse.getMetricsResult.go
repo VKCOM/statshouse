@@ -26,6 +26,11 @@ func (item *StatshouseGetMetricsResult) Reset() {
 	item.Metrics = item.Metrics[:0]
 }
 
+func (item *StatshouseGetMetricsResult) FillRandom(rg *basictl.RandGenerator) {
+	item.Version = basictl.RandomString(rg)
+	BuiltinVectorStringFillRandom(rg, &item.Metrics)
+}
+
 func (item *StatshouseGetMetricsResult) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Version); err != nil {
 		return w, err
@@ -166,6 +171,11 @@ func (StatshouseGetMetricsResultBytes) TLTag() uint32  { return 0x0c803d05 }
 func (item *StatshouseGetMetricsResultBytes) Reset() {
 	item.Version = item.Version[:0]
 	item.Metrics = item.Metrics[:0]
+}
+
+func (item *StatshouseGetMetricsResultBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.Version = basictl.RandomStringBytes(rg)
+	BuiltinVectorStringBytesFillRandom(rg, &item.Metrics)
 }
 
 func (item *StatshouseGetMetricsResultBytes) Read(w []byte) (_ []byte, err error) {

@@ -38,6 +38,16 @@ func (item *MetadataResetFlood2) Reset() {
 	item.Value = 0
 }
 
+func (item *MetadataResetFlood2) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b10)
+	item.Metric = basictl.RandomString(rg)
+	if item.FieldMask&(1<<1) != 0 {
+		item.Value = basictl.RandomInt(rg)
+	} else {
+		item.Value = 0
+	}
+}
+
 func (item *MetadataResetFlood2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -109,6 +119,12 @@ func (item *MetadataResetFlood2) WriteResultJSON(w []byte, ret MetadataResetFloo
 func (item *MetadataResetFlood2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataResetFloodResponse2) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *MetadataResetFlood2) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataResetFloodResponse2
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataResetFlood2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

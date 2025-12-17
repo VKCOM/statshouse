@@ -26,6 +26,11 @@ func (item *EngineSetVerbosityType) Reset() {
 	item.Verbosity = 0
 }
 
+func (item *EngineSetVerbosityType) FillRandom(rg *basictl.RandGenerator) {
+	item.Type = basictl.RandomString(rg)
+	item.Verbosity = basictl.RandomInt(rg)
+}
+
 func (item *EngineSetVerbosityType) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Type); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *EngineSetVerbosityType) WriteResultJSON(w []byte, ret True) (_ []byt
 func (item *EngineSetVerbosityType) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSetVerbosityType) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSetVerbosityType) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

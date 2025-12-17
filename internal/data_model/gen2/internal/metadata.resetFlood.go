@@ -24,6 +24,10 @@ func (item *MetadataResetFlood) Reset() {
 	item.Metric = ""
 }
 
+func (item *MetadataResetFlood) FillRandom(rg *basictl.RandGenerator) {
+	item.Metric = basictl.RandomString(rg)
+}
+
 func (item *MetadataResetFlood) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Metric)
 }
@@ -78,6 +82,12 @@ func (item *MetadataResetFlood) WriteResultJSON(w []byte, ret MetadataResetFlood
 func (item *MetadataResetFlood) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *MetadataResetFlood) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataResetFloodResponse
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataResetFlood) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseTopElementFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseTopElement) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseTopElement, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseTopElementRead(w []byte, vec *[]StatshouseTopElement) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshouseTopElementWriteJSONOpt(tctx *basictl.JSONWriteContex
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshouseTopElementBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseTopElementBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseTopElementBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseTopElementBytesRead(w []byte, vec *[]StatshouseTopElementBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -178,6 +196,17 @@ func (item *StatshouseTopElement) Reset() {
 	item.FieldsMask = 0
 	item.Tag = 0
 	item.Value.Reset()
+}
+
+func (item *StatshouseTopElement) FillRandom(rg *basictl.RandGenerator) {
+	item.Stag = basictl.RandomString(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1011100011111111111)
+	if item.FieldsMask&(1<<10) != 0 {
+		item.Tag = basictl.RandomInt(rg)
+	} else {
+		item.Tag = 0
+	}
+	item.Value.FillRandom(rg, item.FieldsMask)
 }
 
 func (item *StatshouseTopElement) Read(w []byte) (_ []byte, err error) {
@@ -389,6 +418,17 @@ func (item *StatshouseTopElementBytes) Reset() {
 	item.FieldsMask = 0
 	item.Tag = 0
 	item.Value.Reset()
+}
+
+func (item *StatshouseTopElementBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.Stag = basictl.RandomStringBytes(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1011100011111111111)
+	if item.FieldsMask&(1<<10) != 0 {
+		item.Tag = basictl.RandomInt(rg)
+	} else {
+		item.Tag = 0
+	}
+	item.Value.FillRandom(rg, item.FieldsMask)
 }
 
 func (item *StatshouseTopElementBytes) Read(w []byte) (_ []byte, err error) {

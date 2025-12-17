@@ -28,6 +28,12 @@ func (item *StatshouseApiReleaseChunks) Reset() {
 	item.ResponseId = 0
 }
 
+func (item *StatshouseApiReleaseChunks) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	item.AccessToken = basictl.RandomString(rg)
+	item.ResponseId = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseApiReleaseChunks) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *StatshouseApiReleaseChunks) WriteResultJSON(w []byte, ret Statshouse
 func (item *StatshouseApiReleaseChunks) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *StatshouseApiReleaseChunks) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseApiReleaseChunksResponse
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

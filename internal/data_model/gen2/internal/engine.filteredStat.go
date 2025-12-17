@@ -24,6 +24,10 @@ func (item *EngineFilteredStat) Reset() {
 	item.StatNames = item.StatNames[:0]
 }
 
+func (item *EngineFilteredStat) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStringFillRandom(rg, &item.StatNames)
+}
+
 func (item *EngineFilteredStat) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStringRead(w, &item.StatNames)
 }
@@ -78,6 +82,12 @@ func (item *EngineFilteredStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, e
 func (item *EngineFilteredStat) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret Stat) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineFilteredStat) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret Stat
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineFilteredStat) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

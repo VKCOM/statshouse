@@ -30,6 +30,13 @@ func (item *EngineReplaceConfigServer) Reset() {
 	item.Port = 0
 }
 
+func (item *EngineReplaceConfigServer) FillRandom(rg *basictl.RandGenerator) {
+	item.ClusterName = basictl.RandomString(rg)
+	item.ServerOffset = basictl.RandomInt(rg)
+	item.Host = basictl.RandomString(rg)
+	item.Port = basictl.RandomInt(rg)
+}
+
 func (item *EngineReplaceConfigServer) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.ClusterName); err != nil {
 		return w, err
@@ -96,6 +103,12 @@ func (item *EngineReplaceConfigServer) WriteResultJSON(w []byte, ret True) (_ []
 func (item *EngineReplaceConfigServer) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineReplaceConfigServer) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret True
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineReplaceConfigServer) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiFunctionFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseApiFunction) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseApiFunction, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseApiFunctionRead(w []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -213,6 +222,82 @@ func (item StatshouseApiFunction) TLName() string { return _StatshouseApiFunctio
 func (item StatshouseApiFunction) TLTag() uint32  { return _StatshouseApiFunction[item.index].TLTag }
 
 func (item *StatshouseApiFunction) Reset() { item.index = 0 }
+func (item *StatshouseApiFunction) FillRandom(rg *basictl.RandGenerator) {
+	index := basictl.RandomUint(rg) % 35
+	switch index {
+	case 0:
+		item.index = 0
+	case 1:
+		item.index = 1
+	case 2:
+		item.index = 2
+	case 3:
+		item.index = 3
+	case 4:
+		item.index = 4
+	case 5:
+		item.index = 5
+	case 6:
+		item.index = 6
+	case 7:
+		item.index = 7
+	case 8:
+		item.index = 8
+	case 9:
+		item.index = 9
+	case 10:
+		item.index = 10
+	case 11:
+		item.index = 11
+	case 12:
+		item.index = 12
+	case 13:
+		item.index = 13
+	case 14:
+		item.index = 14
+	case 15:
+		item.index = 15
+	case 16:
+		item.index = 16
+	case 17:
+		item.index = 17
+	case 18:
+		item.index = 18
+	case 19:
+		item.index = 19
+	case 20:
+		item.index = 20
+	case 21:
+		item.index = 21
+	case 22:
+		item.index = 22
+	case 23:
+		item.index = 23
+	case 24:
+		item.index = 24
+	case 25:
+		item.index = 25
+	case 26:
+		item.index = 26
+	case 27:
+		item.index = 27
+	case 28:
+		item.index = 28
+	case 29:
+		item.index = 29
+	case 30:
+		item.index = 30
+	case 31:
+		item.index = 31
+	case 32:
+		item.index = 32
+	case 33:
+		item.index = 33
+	case 34:
+		item.index = 34
+	default:
+	}
+}
 
 func (item StatshouseApiFunction) IsFnCount() bool { return item.index == 0 }
 func (item *StatshouseApiFunction) SetFnCount()    { item.index = 0 }
