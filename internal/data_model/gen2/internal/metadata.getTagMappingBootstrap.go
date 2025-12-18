@@ -24,6 +24,10 @@ func (item *MetadataGetTagMappingBootstrap) Reset() {
 	item.FieldsMask = 0
 }
 
+func (item *MetadataGetTagMappingBootstrap) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+}
+
 func (item *MetadataGetTagMappingBootstrap) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
@@ -78,6 +82,12 @@ func (item *MetadataGetTagMappingBootstrap) WriteResultJSON(w []byte, ret Statsh
 func (item *MetadataGetTagMappingBootstrap) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *MetadataGetTagMappingBootstrap) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTagMappingBootstrapResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetTagMappingBootstrap) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

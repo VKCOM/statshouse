@@ -30,11 +30,6 @@ func easyjson7a1b8754DecodeGithubComVKCOMStatshouseInternalApi(in *jlexer.Lexer,
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "data":
 			if m, ok := out.Data.(easyjson.Unmarshaler); ok {
@@ -45,7 +40,11 @@ func easyjson7a1b8754DecodeGithubComVKCOMStatshouseInternalApi(in *jlexer.Lexer,
 				out.Data = in.Interface()
 			}
 		case "error":
-			out.Error = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Error = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}

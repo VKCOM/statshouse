@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+	statshouseui "github.com/VKCOM/statshouse/statshouse-ui"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 
@@ -263,8 +264,11 @@ func run() int {
 		rpcCryptoKey = rpcCryptoKeys[0]
 	}
 
+	staticFS := statshouseui.FS()
 	if staticFS == nil {
 		staticFS = os.DirFS(argv.staticDir)
+	} else if argv.staticDir != "" {
+		log.Printf("[warning] staticDir %q ignored, running build with embedded static files", argv.staticDir)
 	}
 
 	jwtHelper := vkuth.NewJWTHelper(argv.vkuthPublicKeys, argv.vkuthAppName)
@@ -578,9 +582,10 @@ func parseCommandLine() (err error) {
 	if math.Abs(float64(argv.utcOffsetHours)) > 168 { // hours in week (24*7=168)
 		return fmt.Errorf("invalid --utc-offset value")
 	}
-	if staticFS != nil && argv.staticDir != "" {
-		return fmt.Errorf("--static-dir must not be specified when static is embedded into the binary")
-	}
+	//TODO - return check after --static-dir is removed in production
+	//if statshouseui.FS() != nil && argv.staticDir != "" {
+	//	return fmt.Errorf("--static-dir must not be specified when static is embedded into the binary")
+	//}
 	if argv.vkuthPublicKeys, err = vkuth.ParseVkuthKeys(argv.vkuthPublicKeysArg); err != nil {
 		return err
 	}

@@ -650,7 +650,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.Version4Start.Store(cfg.Version4Start)
-		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig)
+		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
 		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.ConfigMu.Lock()
 		h.DisableCHAddr = cfg.DisableCHAddr
@@ -1122,52 +1122,43 @@ func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, versi
 }
 
 func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
-	origPath := r.URL.Path
-	switch r.URL.Path {
-	case "/":
-	case "/index.html":
-		r.URL.Path = "/"
-	default:
-		f, err := h.staticDir.Open(r.URL.Path) // stat is more efficient, but will require manual path manipulations
-		if f != nil {
-			_ = f.Close()
-		}
-
-		// 404 -> index.html, for client-side routing
-		if err != nil && os.IsNotExist(err) { // TODO - replace with errors.Is(err, fs.ErrNotExist) when jessie is upgraded to go 1.16
-			r.URL.Path = "/"
-		}
-	}
-
-	switch {
-	case r.URL.Path == "/":
-		// make sure browser does not use stale versions
-		w.Header().Set("Cache-Control", "public, no-cache, must-revalidate")
-	case strings.HasPrefix(r.URL.Path, "/static/"):
-		// everything under /static/ can be cached indefinitely (filenames contain content hashes)
-		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheMaxAgeSeconds))
-	}
-
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if origPath != "/embed" {
+	if r.URL.Path != "/embed" {
 		w.Header().Set("X-Frame-Options", "deny")
 	}
 
-	if r.URL.Path == "/" {
-		data := struct {
-			OpenGraph *openGraphInfo
-			Settings  string
-		}{
-			getOpenGraphInfo(r, origPath),
-			h.indexSettings,
+	if strings.HasPrefix(r.URL.Path, "/assets/") {
+		// everything under /assets/ can be cached indefinitely (filenames contain content hashes)
+		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticAssetsSeconds))
+		http.FileServer(h.staticDir).ServeHTTP(w, r) // 404 for non-existing assets
+		return
+	}
+	if r.URL.Path != "/index.html" { // we have this static file, but we process it with template below
+		if f, err := h.staticDir.Open(r.URL.Path); err == nil {
+			_ = f.Close()
+			// other static will be cached for some time, as we update it sometimes
+			w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticOtherSeconds))
+			http.FileServer(h.staticDir).ServeHTTP(w, r) // should be never 404
+			return
 		}
-		if err := h.indexTemplate.Execute(w, data); err != nil {
-			log.Printf("[error] failed to write index.html: %v", err)
-		}
-	} else {
-		http.FileServer(h.staticDir).ServeHTTP(w, r)
+	}
+	// Ignore all FS errors, except fs.ErrNotExist, they must never appear in production, as we use static embedding.
+	// All other paths are managed by client side, so we return our application code (index.html).
+
+	// make sure browser does not use stale versions
+	w.Header().Set("Cache-Control", "public, no-cache, must-revalidate")
+	data := struct {
+		OpenGraph *openGraphInfo
+		Settings  string
+	}{
+		getOpenGraphInfo(r, r.URL.Path),
+		h.indexSettings,
+	}
+	if err := h.indexTemplate.Execute(w, data); err != nil {
+		// cannot send error here, as we've already started writing body
+		log.Printf("[error] failed to write index.html: %v", err)
 	}
 }
 

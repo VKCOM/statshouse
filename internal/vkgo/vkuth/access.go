@@ -115,7 +115,8 @@ type Data struct {
 	VkID         *int64   `json:"vk_id"`
 	IsService    bool     `json:"is_service"`
 	EmployeeID   *int64   `json:"employee_id"`
-	UnitsIDOwner *string  `json:"units_id_owner"` // owner/team lead
+	UnitsIDOwner *string  `json:"units_id_owner"`          // owner/team lead
+	HasMoreBits  bool     `json:"has_more_bits,omitempty"` // true if bits were truncated for cookie size
 }
 
 type Claims struct {

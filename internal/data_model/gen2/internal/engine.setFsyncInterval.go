@@ -24,6 +24,10 @@ func (item *EngineSetFsyncInterval) Reset() {
 	item.Seconds = 0
 }
 
+func (item *EngineSetFsyncInterval) FillRandom(rg *basictl.RandGenerator) {
+	item.Seconds = basictl.RandomDouble(rg)
+}
+
 func (item *EngineSetFsyncInterval) Read(w []byte) (_ []byte, err error) {
 	return basictl.DoubleRead(w, &item.Seconds)
 }
@@ -78,6 +82,12 @@ func (item *EngineSetFsyncInterval) WriteResultJSON(w []byte, ret BoolStat) (_ [
 func (item *EngineSetFsyncInterval) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret BoolStat) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSetFsyncInterval) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret BoolStat
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSetFsyncInterval) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

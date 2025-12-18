@@ -25,7 +25,8 @@ message MetricBatch {
 // to compile
 // sudo apt-get install libprotobuf-dev
 // go install google.golang.org/protobuf/cmd/protoc-gen-go
-// ~/go/src/github.com/VKCOM/statshouse$ protoc -I=internal/receiver --go_out=../../../../.. statshouse.proto
+// ~/go/src/github.com/VKCOM/statshouse$ protoc -I=internal/receiver --go_out=. statshouse.proto
+// then copy from created github.com dir. IDK what morons designed that tool behavior(
 
 // to compile if proto3 format not supported, for example by protocute
 

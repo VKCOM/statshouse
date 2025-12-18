@@ -26,6 +26,11 @@ func (item *MetadataPutBootstrapEvent) Reset() {
 	item.Mappings = item.Mappings[:0]
 }
 
+func (item *MetadataPutBootstrapEvent) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Mappings)
+}
+
 func (item *MetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

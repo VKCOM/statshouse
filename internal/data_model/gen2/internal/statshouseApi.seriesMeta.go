@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiSeriesMetaFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseApiSeriesMeta, nat_t uint32) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseApiSeriesMeta, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg, nat_t)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseApiSeriesMetaRead(w []byte, vec *[]StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -180,6 +189,37 @@ func (item *StatshouseApiSeriesMeta) Reset() {
 	item.Color = ""
 	item.Total = 0
 	item.MaxHosts = item.MaxHosts[:0]
+}
+
+func (item *StatshouseApiSeriesMeta) FillRandom(rg *basictl.RandGenerator, nat_query_fields_mask uint32) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b10)
+	item.TimeShift = basictl.RandomLong(rg)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Tags)
+	if item.FieldsMask&(1<<1) != 0 {
+		item.What.FillRandom(rg)
+	} else {
+		item.What.Reset()
+	}
+	if nat_query_fields_mask&(1<<4) != 0 {
+		item.Name = basictl.RandomString(rg)
+	} else {
+		item.Name = ""
+	}
+	if nat_query_fields_mask&(1<<5) != 0 {
+		item.Color = basictl.RandomString(rg)
+	} else {
+		item.Color = ""
+	}
+	if nat_query_fields_mask&(1<<6) != 0 {
+		item.Total = basictl.RandomInt(rg)
+	} else {
+		item.Total = 0
+	}
+	if nat_query_fields_mask&(1<<7) != 0 {
+		BuiltinVectorStringFillRandom(rg, &item.MaxHosts)
+	} else {
+		item.MaxHosts = item.MaxHosts[:0]
+	}
 }
 
 func (item *StatshouseApiSeriesMeta) Read(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {

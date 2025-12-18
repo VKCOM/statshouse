@@ -28,6 +28,12 @@ func (item *BoolStat) Reset() {
 	item.StatUnknown = 0
 }
 
+func (item *BoolStat) FillRandom(rg *basictl.RandGenerator) {
+	item.StatTrue = basictl.RandomInt(rg)
+	item.StatFalse = basictl.RandomInt(rg)
+	item.StatUnknown = basictl.RandomInt(rg)
+}
+
 func (item *BoolStat) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.StatTrue); err != nil {
 		return w, err

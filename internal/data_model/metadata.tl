@@ -21,14 +21,14 @@ metadata.event#9286affa
     metadata: field_mask.1?string = metadata.Event;
 
 
-metadata.history_short_response_event#1186baaf {field_mask: #}
+metadata.historyShortResponseEvent#1186baaf {field_mask: #}
     version: long
     metadata: string
-        = metadata.History_Short_Response_event field_mask;
+        = metadata.HistoryShortResponseEvent field_mask;
 
-metadata.history_short_response#7186baaf {field_mask: #}
-    events: (Vector (metadata.history_short_response_event field_mask))
-    = metadata.History_Short_Response field_mask;
+metadata.historyShortResponse#7186baaf {field_mask: #}
+    events: (Vector (metadata.historyShortResponseEvent field_mask))
+    = metadata.HistoryShortResponse field_mask;
 
 metadata.getMetricsResponse#9286abfb {field_mask: #}
     current_version: long
@@ -91,7 +91,7 @@ metadata.resetFloodResponse2#9286abef
 @readwrite metadata.getHistoryShortInfo#22ff6a79
     fields_mask: #
     id: long
-     = metadata.History_Short_Response fields_mask;
+     = metadata.HistoryShortResponse fields_mask;
 
 @read metadata.getMetrics#93ba92f5
     field_mask: #

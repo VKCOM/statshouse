@@ -19,6 +19,7 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tltracing"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
@@ -53,6 +54,8 @@ type Request struct {
 	ReadOnly     bool   // no side effects, can be retried by client
 
 	queryID int64 // unique per client, assigned by client
+
+	startTime time.Time
 }
 
 // QueryID is always non-zero (guaranteed by [ClientImpl.GetRequest]).
@@ -60,10 +63,16 @@ func (req *Request) QueryID() int64 {
 	return req.queryID
 }
 
+type callResult struct {
+	resp *Response
+	err  error
+}
+
 type Response struct {
-	body  *[]byte // slice for reuse, always len 0
-	Body  []byte  // rest of body after parsing various extras
-	Extra ResponseExtra
+	reuseBody *[]byte // slice for reuse, always len 0
+	Body      []byte  // rest of body after parsing various extras
+	actorID   int64
+	Extra     ResponseExtra
 
 	// We use Response as a call context to reduce # of allocations. Fields below represent call context.
 	queryID            int64
@@ -71,18 +80,22 @@ type Response struct {
 	readonly           bool // set in setupCall call and never changes. TODO - implement logic
 	bodyFormatTL2      bool
 	req                *Request // If empty, request was sent (moved to goSend local writeQ)
-	stale              bool     // Request was cancelled before sending. Instead of removing from the write queue which is O(N), we set the flag  and check before sending
 	deadline           time.Time
 
-	singleResult chan *Response // channel for single caller is reused here
-	result       chan *Response // can point to singleResult or multiResult if used by MultiClient
+	// channel for single caller is reused here
+	singleResult chan callResult
 
-	cb       ClientCallback // callback-style API, if set result channels are unused
+	// can point to singleResult or multiResult if used by MultiClient
+	// if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
+	result chan callResult
+
+	// callback-style API, if set, result channels are not used
+	cb       ClientCallback
 	userData any
 
-	err error // if set, we have error response, sometimes we have Body and Extra with it. May point to rpcErr.
-
 	hook ClientHook
+
+	debugRequestSentTime time.Time
 }
 
 func (resp *Response) QueryID() int64      { return resp.queryID }
@@ -146,6 +159,8 @@ type ClientHook interface {
 	BeforeSend(ctx context.Context, addr NetAddr, req *Request) error
 	AfterSend(resp *Response, err error)
 }
+
+type LatencyHandler func(duration time.Duration)
 
 type ClientImpl struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
@@ -233,50 +248,55 @@ func (c *ClientImpl) Logf(format string, args ...any) {
 }
 
 func (c *ClientImpl) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	var err error
-	var response = c.getResponse()
-	hook := response.hook
-
-	var afterSend = func(response *Response, err error) {
-		if hook == nil {
-			return
-		}
-
-		hook.AfterSend(response, err)
+	if c.u != nil && strings.HasPrefix(network, "udp") {
+		// UdpClient Do is fully independent, must have copy of logic below
+		return c.u.Do(ctx, network, address, req)
 	}
-
+	req.startTime = time.Now()
+	response := c.getResponse(req)
+	response.debugRequestSentTime = time.Time{}
+	hook := response.hook
 	if hook != nil {
-		err = hook.BeforeSend(ctx, NetAddr{
-			Network: network,
-			Address: address,
-		}, req)
-
+		err := hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
 		if err != nil {
 			return response, err
 		}
 	}
-
-	if c.u != nil && strings.HasPrefix(network, "udp") {
-		response, err = c.u.Do(ctx, network, address, req)
-		afterSend(response, err)
-		return response, err
+	err := c.do(ctx, network, address, req, response)
+	if hook != nil {
+		hook.AfterSend(response, err)
 	}
-	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, response, nil, nil, nil)
-	if err != nil { // got ownership of cctx, if not nil
-		afterSend(response, err)
-		return response, err
+	return response, err
+}
+
+func (c *ClientImpl) do(ctx context.Context, network string, address string, req *Request, response *Response) error {
+	if req.ActorID == requestLatencyDebugActorId && c.opts.beforeSendHookLatencyHandler != nil {
+		latency := time.Since(req.startTime)
+		c.opts.beforeSendHookLatencyHandler(latency)
+	}
+
+	response.result = response.singleResult // delivery to singleResult channel
+	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, response)
+	if err != nil {
+		// response.singleResult is empty (not sent), reuse
+		return err
 	}
 	select {
 	case <-ctx.Done():
-		afterSend(nil, ctx.Err())
 		// We check deadline inside cancelCallImpl to see if we need to send CancelReq packet.
 		// We do not rely on checking ctx.Err().
-		// deliverError=nil because we already unblocked from select, this helps to reuse cctx normally
-		_ = pc.cancelCall(response.queryID, nil)
-		return nil, ctx.Err()
-	case r := <-response.result: // got ownership of cctx
-		afterSend(response, r.err)
-		return response, r.err
+		_ = pc.cancelCall(response.queryID)
+
+		// response.singleResult is dirty (could have being sent, but not received).
+		// but it will not be sent after pc.cancelCall, so we drain channel for reuse
+		select {
+		case <-response.singleResult:
+		default:
+		}
+		return ctx.Err()
+	case r := <-response.singleResult:
+		// response.singleResult is empty (sent+received), reuse
+		return r.err
 	}
 }
 
@@ -293,13 +313,16 @@ func (cc CallbackContext) QueryID() int64 { return cc.queryID } // so client wil
 // Either error is returned immediately, or ClientCallback will be called in the future.
 // We add explicit userData, because for many users it will avoid allocation of lambda during capture of userData in cb
 func (c *ClientImpl) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) (CallbackContext, error) {
-	resp := c.getResponse()
+	req.startTime = time.Now()
+
+	resp := c.getResponse(req)
+	resp.cb = cb
+	resp.userData = userData
+
 	queryID := req.QueryID() // must not access cctx or req after setupCall, because callback can be already called and cctx reused
-	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, resp, nil, cb, userData)
-	return CallbackContext{
-		pc:      pc,
-		queryID: queryID,
-	}, err
+	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, resp)
+
+	return CallbackContext{pc: pc, queryID: queryID}, err
 }
 
 // Callback will never be called twice, but you should be ready for callback even after you call Cancel.
@@ -308,43 +331,58 @@ func (c *ClientImpl) DoCallback(ctx context.Context, network string, address str
 // if cancelled == true, call was cancelled before callback scheduled for calling/called
 // if cancelled == false, call result was already being delivered/delivered
 func (c *ClientImpl) CancelDoCallback(cc CallbackContext) (cancelled bool) {
-	return cc.pc.cancelCall(cc.queryID, nil)
+	cctx := cc.pc.cancelCall(cc.queryID)
+	if cctx != nil {
+		cc.pc.client.PutResponse(cctx)
+	}
+	return cctx != nil
+}
+
+// Common code for all requests independent of transport
+func (c *ClientImpl) prepareCall(ctx context.Context, req *Request, startTime time.Time) (deadline time.Time, err error) {
+	if req.Extra.IsSetNoResult() {
+		// We consider it antipattern.
+		// If you ever need them, do not implement).
+		// If you still need them, call finishCall from sendLoop after sending for correct in flight accounting.
+		return time.Time{}, fmt.Errorf("sending no_result requests is not supported")
+	}
+	// hctx := GetHandlerContext(ctx) <-- we must never touch hctx outside handler,
+	// ctx lifetime can be larger, so we actually store copies of EC and TC
+	if req.ActorID > 0 { // TODO - document, why this check, and also reasons for logic below.
+		if ec := GetExecutionContext(ctx); ec != "" {
+			if !req.Extra.IsSetExecutionContext() {
+				req.Extra.SetExecutionContext(ec)
+			}
+		}
+		if c.opts.TracingInject != nil {
+			c.opts.TracingInject(ctx, &req.Extra.TraceContext)
+			if req.Extra.TraceContext != (tltracing.TraceContext{}) {
+				req.Extra.Flags |= 1 << 29 // optimization of req.Extra.SetTraceContext(req.Extra.TraceContext)
+			}
+		} else if tc := GetTracingContext(ctx); tc != (tltracing.TraceContext{}) {
+			if !req.Extra.IsSetTraceContext() {
+				req.Extra.SetTraceContext(tc)
+			}
+		}
+	}
+	deadline, err = c.fillRequestTimeout(ctx, req, startTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if err = preparePacket(req); err != nil {
+		return time.Time{}, err
+	}
+	return deadline, err
 }
 
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, resp *Response, multiResult chan *Response, cb ClientCallback, userData any) (*clientConn, error) {
-	var err error
-	if req.Extra.IsSetNoResult() {
-		// We consider it antipattern.
-		// If you ever need them, do not implement.
-		// If you still need them, call finishCall from sendLoop after sending for correct in flight accounting.
-		return nil, fmt.Errorf("sending no_result requests is not supported")
-	}
-	hctx := GetHandlerContext(ctx)
-	if hctx != nil {
-		if req.ActorID > 0 && !req.Extra.IsSetExecutionContext() && hctx.RequestExtra.ExecutionContext != "" {
-			req.Extra.SetExecutionContext(hctx.RequestExtra.ExecutionContext)
-		}
-	}
-
-	if req.ActorID > 0 && c.opts.TracingInject != nil {
-		c.opts.TracingInject(ctx, &req.Extra.TraceContext)
-		if req.Extra.TraceContext.TraceId.Hi != 0 || req.Extra.TraceContext.TraceId.Lo != 0 {
-			req.Extra.Flags |= 1 << 29
-		}
-	} else if req.ActorID > 0 && hctx != nil {
-		if !req.Extra.IsSetTraceContext() && hctx.RequestExtra.IsSetTraceContext() {
-			req.Extra.SetTraceContext(hctx.RequestExtra.TraceContext)
-		}
-	}
-	deadline, err := c.fillRequestTimeout(ctx, req)
+func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Request, resp *Response) (*clientConn, error) {
+	deadline, err := c.prepareCall(ctx, req, req.startTime)
 	if err != nil {
 		return nil, err
 	}
-	if err := preparePacket(req); err != nil {
-		return nil, err
-	}
+	resp.deadline = deadline
 
 	c.mu.RLock()
 	// ------ to test RACE detector, replace lines below
@@ -364,7 +402,7 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
-		err = pc.setupCallLocked(req, resp, deadline, multiResult, cb, userData)
+		err = pc.setupCallLocked(req, resp)
 		pc.mu.Unlock()
 		pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 		return pc, err
@@ -403,13 +441,13 @@ func (c *ClientImpl) setupCall(ctx context.Context, address NetAddr, req *Reques
 		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
-	err = pc.setupCallLocked(req, resp, deadline, multiResult, cb, userData)
+	err = pc.setupCallLocked(req, resp)
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 	return pc, err
 }
 
-func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request) (time.Time, error) {
+func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request, startTime time.Time) (time.Time, error) {
 	UpdateExtraTimeout(&req.Extra, c.opts.DefaultTimeout)
 	if !req.Extra.IsSetCustomTimeoutMs() && req.Extra.CustomTimeoutMs != 0 { // protect against programmer's mistake
 		return time.Time{}, fmt.Errorf("rpc: custom timeout should be set with extra.SetCustomTimeoutMs function, otherwise custom timeout is ignored")
@@ -418,7 +456,7 @@ func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request) (time
 		return time.Time{}, fmt.Errorf("rpc: extra.CustomTimeoutMs (%d) should not be negative", req.Extra.CustomTimeoutMs)
 	}
 	if deadline, ok := ctx.Deadline(); ok {
-		to := time.Until(deadline)
+		to := deadline.Sub(startTime)
 		if to <= 0 { // local timeout, <= is the only correct comparison
 			return time.Time{}, context.DeadlineExceeded
 		}
@@ -433,7 +471,7 @@ func (c *ClientImpl) fillRequestTimeout(ctx context.Context, req *Request) (time
 		req.Extra.ClearCustomTimeoutMs() // normalize by not sending infinite timeout
 		return time.Time{}, nil
 	}
-	return time.Now().Add(time.Millisecond * time.Duration(req.Extra.CustomTimeoutMs)), nil
+	return startTime.Add(time.Millisecond * time.Duration(req.Extra.CustomTimeoutMs)), nil
 }
 
 // ResetReconnectDelay resets timer before the next reconnect attempt.
@@ -528,18 +566,29 @@ func (c *ClientImpl) putResponseData(resp *[]byte) {
 	}
 }
 
-func (c *ClientImpl) getResponse() *Response {
-	v := c.responsePool.Get()
-	if v != nil {
+func (c *ClientImpl) getResponse(req *Request) *Response {
+	resp := c.getResponseImpl()
+	resp.req = req // beware, this is marker of request ownership between Response and write!
+	resp.actorID = req.ActorID
+	resp.queryID = req.QueryID()
+	resp.failIfNoConnection = req.FailIfNoConnection
+	resp.bodyFormatTL2 = req.BodyFormatTL2
+	resp.readonly = req.ReadOnly
+
+	if resp.singleResult == nil { // was dirty, so not reused
+		resp.singleResult = make(chan callResult, 1)
+	}
+	return resp
+}
+
+func (c *ClientImpl) getResponseImpl() *Response {
+	if v := c.responsePool.Get(); v != nil {
 		return v.(*Response)
 	}
-	cctx := &Response{
-		singleResult: make(chan *Response, 1), // TODO - reuse channel by tracking empty/nonEmpty channel
-	}
+	cctx := &Response{}
 	if c.hookMaker != nil {
 		cctx.hook = c.hookMaker()
 	}
-	cctx.result = cctx.singleResult
 	return cctx
 }
 
@@ -551,10 +600,9 @@ func (c *ClientImpl) PutResponse(cctx *Response) {
 	if cctx.req != nil {
 		c.putRequest(cctx.req)
 	}
-	c.putResponseData(cctx.body)
+	c.putResponseData(cctx.reuseBody)
 	*cctx = Response{
 		singleResult: cctx.singleResult,
-		result:       cctx.singleResult,
 		hook:         cctx.hook,
 	}
 

@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/algo"
 	"github.com/VKCOM/statshouse/internal/vkgo/etchosts"
@@ -92,13 +93,28 @@ func (c *udpClient) closeHandler(conn *udp.Connection) {
 	if pc == nil {
 		return
 	}
+	finishedCallbacks := pc.massCancelRequests()
+	for _, finishedCall := range finishedCallbacks {
+		finishedCall.resp.cb(pc.client.client, finishedCall.resp, finishedCall.err)
+	}
+}
+
+func (pc *udpClientConn) massCancelRequests() (finishedCallbacks []callResult) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	for _, resp := range pc.calls {
-		resp.err = ErrClientConnClosedSideEffect
-		resp.deliverResult(c.client)
+	for _, cctx := range pc.calls {
+		finishedCall := callResult{resp: cctx, err: ErrClientConnClosedSideEffect}
+		if cctx.result != nil {
+			// results must be delivered to channels under lock
+			cctx.result <- finishedCall
+		} else {
+			// we do some allocations here, but after disconnect we allocate anyway
+			// we cannot call callbacks under any lock, otherwise deadlock
+			finishedCallbacks = append(finishedCallbacks, finishedCall)
+		}
 	}
 	clear(pc.calls)
+	return
 }
 
 func (c *udpClient) deallocateMessage(messagePtr *[]byte) {
@@ -114,59 +130,81 @@ func (c *udpClient) allocateMessage(size int) *[]byte {
 }
 
 func (c *udpClient) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
-	if err != nil { // got ownership of cctx, if not nil
-		return cctx, err
+	req.startTime = time.Now()
+	response := c.client.getResponse(req)
+
+	hook := response.hook
+	if hook != nil {
+		err := hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
+		if err != nil {
+			return response, err
+		}
+	}
+	err := c.do(ctx, network, address, req, response)
+	if hook != nil {
+		hook.AfterSend(response, err)
+	}
+	return response, err
+}
+
+func (c *udpClient) do(ctx context.Context, network string, address string, req *Request, response *Response) error {
+
+	response.result = response.singleResult // delivery to singleResult channel
+	pc, err := c.setupCall(ctx, NetAddr{network, address}, req, response)
+	if err != nil {
+		// response.singleResult is empty (not sent), reuse
+		return err
 	}
 	select {
 	case <-ctx.Done():
-		_ = pc.cancelCall(cctx.queryID, nil) // do not unblock, reuse normally
-		return nil, ctx.Err()
-	case r := <-cctx.result: // got ownership of cctx
-		return cctx, r.err
+		_ = pc.cancelCall(response.queryID) // do not unblock, reuse normally
+
+		// response.singleResult is dirty (could have being sent, but not received).
+		// but it will not be sent after pc.cancelCall, so we drain channel for reuse
+		select {
+		case <-response.singleResult:
+		default:
+		}
+		return ctx.Err()
+	case r := <-response.singleResult: // got ownership of cctx
+		// response.singleResult is empty (sent+received), reuse
+		return r.err
 	}
 }
 
-func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *Response, cb ClientCallback, userData any) (*udpClientConn, *Response, error) {
-	if req.Extra.IsSetNoResult() {
-		// We consider it antipattern. TODO - implement)
-		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
-	}
-
-	deadline, err := c.client.fillRequestTimeout(ctx, req)
+func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request, cctx *Response) (*udpClientConn, error) {
+	deadline, err := c.client.prepareCall(ctx, req, req.startTime)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err := preparePacket(req); err != nil {
-		return nil, nil, err
-	}
+	cctx.deadline = deadline
 
 	c.mu.RLock()
 	// ------ to test RACE detector, replace lines below
 	if c.closed {
 		c.mu.RUnlock()
-		return nil, nil, ErrClientClosed
+		return nil, ErrClientClosed
 	}
 	pc := c.conns[address]
 
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
-		cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
+		err := pc.setupCallLocked(req, cctx)
 		pc.mu.Unlock()
-		return pc, cctx, err
+		return pc, err
 	}
 	c.mu.RUnlock()
 
 	if address.Network != "udp4" && address.Network != "udp6" && address.Network != "udp" { // optimization: check only if not found in client.conns
-		return nil, nil, fmt.Errorf("unsupported network type %q", address.Network)
+		return nil, fmt.Errorf("unsupported network type %q", address.Network)
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock() // for simplicity, this is not a fastpath
 
 	if c.closed {
-		return nil, nil, ErrClientClosed
+		return nil, ErrClientClosed
 	}
 
 	pc = c.conns[address]
@@ -174,18 +212,18 @@ func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request
 		host, portStr, err := net.SplitHostPort(address.Address)
 		if err != nil {
 			// TODO return understandable error
-			return nil, nil, err
+			return nil, err
 		}
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if ip := net.ParseIP(host); ip == nil {
 			if hostIP := etchosts.Resolve(host); hostIP != "" {
 				host = hostIP
 			} else {
-				return nil, nil, fmt.Errorf("cannot resolve hostname %s", host)
+				return nil, fmt.Errorf("cannot resolve hostname %s", host)
 			}
 		}
 
@@ -208,9 +246,9 @@ func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request
 		)
 		if err != nil {
 			if err == udp.ErrTransportClosed {
-				return nil, nil, ErrClientClosed
+				return nil, ErrClientClosed
 			}
-			return nil, nil, err
+			return nil, err
 		}
 		if conn.UserData != nil {
 			pc = conn.UserData.(*udpClientConn)
@@ -223,9 +261,9 @@ func (c *udpClient) setupCall(ctx context.Context, address NetAddr, req *Request
 	}
 
 	pc.mu.Lock()
-	cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
+	err = pc.setupCallLocked(req, cctx)
 	pc.mu.Unlock()
-	return pc, cctx, err
+	return pc, err
 }
 
 func (c *udpClient) Close() error {

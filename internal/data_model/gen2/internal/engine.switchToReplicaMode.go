@@ -21,6 +21,8 @@ func (EngineSwitchToReplicaMode) TLTag() uint32  { return 0x23c3a87e }
 
 func (item *EngineSwitchToReplicaMode) Reset() {}
 
+func (item *EngineSwitchToReplicaMode) FillRandom(rg *basictl.RandGenerator) {}
+
 func (item *EngineSwitchToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineSwitchToReplicaMode) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -72,6 +74,12 @@ func (item *EngineSwitchToReplicaMode) WriteResultJSON(w []byte, ret EngineSwitc
 func (item *EngineSwitchToReplicaMode) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineSwitchToReplicaMode) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret EngineSwitchMasterReplicaModeResult
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineSwitchToReplicaMode) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

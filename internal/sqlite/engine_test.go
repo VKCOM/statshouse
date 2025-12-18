@@ -146,7 +146,7 @@ func isEquals(a, b []string) error {
 	}
 	for i := range a {
 		if a[i] != b[i] {
-			return fmt.Errorf(strings.Join(a, ",") + "\n" + strings.Join(b, ","))
+			return fmt.Errorf("%s\n%s", strings.Join(a, ","), strings.Join(b, ","))
 		}
 	}
 	return nil

@@ -12,7 +12,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
+	"github.com/VKCOM/statshouse/internal/vkgo/kittenhouseclient/rowbinary"
 	"github.com/hrissan/tdigest"
 )
 

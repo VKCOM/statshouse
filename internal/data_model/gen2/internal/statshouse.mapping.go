@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseMappingFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMapping) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMapping, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMappingRead(w []byte, vec *[]StatshouseMapping) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -83,6 +92,15 @@ func BuiltinVectorStatshouseMappingWriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	return append(w, ']')
 }
 
+func BuiltinVectorStatshouseMappingBytesFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseMappingBytes) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]StatshouseMappingBytes, l)
+	for i := range *vec {
+		(*vec)[i].FillRandom(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorStatshouseMappingBytesRead(w []byte, vec *[]StatshouseMappingBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -164,6 +182,11 @@ func (StatshouseMapping) TLTag() uint32  { return 0xbf401d4b }
 func (item *StatshouseMapping) Reset() {
 	item.Str = ""
 	item.Value = 0
+}
+
+func (item *StatshouseMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.Str = basictl.RandomString(rg)
+	item.Value = basictl.RandomInt(rg)
 }
 
 func (item *StatshouseMapping) Read(w []byte) (_ []byte, err error) {
@@ -306,6 +329,11 @@ func (StatshouseMappingBytes) TLTag() uint32  { return 0xbf401d4b }
 func (item *StatshouseMappingBytes) Reset() {
 	item.Str = item.Str[:0]
 	item.Value = 0
+}
+
+func (item *StatshouseMappingBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.Str = basictl.RandomStringBytes(rg)
+	item.Value = basictl.RandomInt(rg)
 }
 
 func (item *StatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {

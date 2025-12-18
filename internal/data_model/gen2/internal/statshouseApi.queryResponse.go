@@ -58,6 +58,15 @@ func (item *StatshouseApiGetQueryResponse) Reset() {
 	item.ResponseId = 0
 }
 
+func (item *StatshouseApiGetQueryResponse) FillRandom(rg *basictl.RandGenerator, nat_query_fields_mask uint32) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
+	item.Series.FillRandom(rg)
+	BuiltinVectorStatshouseApiSeriesMetaFillRandom(rg, &item.SeriesMeta, nat_query_fields_mask)
+	BuiltinVectorIntFillRandom(rg, &item.ChunkIds)
+	item.TotalTimePoints = basictl.RandomInt(rg)
+	item.ResponseId = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseApiGetQueryResponse) Read(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

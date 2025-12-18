@@ -26,6 +26,11 @@ func (item *MetadataGetInvertMapping) Reset() {
 	item.Id = 0
 }
 
+func (item *MetadataGetInvertMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomUint(rg)
+	item.Id = basictl.RandomInt(rg)
+}
+
 func (item *MetadataGetInvertMapping) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -84,6 +89,12 @@ func (item *MetadataGetInvertMapping) WriteResultJSON(w []byte, ret MetadataGetI
 func (item *MetadataGetInvertMapping) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
 	return w, nil
+}
+
+func (item *MetadataGetInvertMapping) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetInvertMappingResponse
+	ret.FillRandom(rg, item.FieldMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetInvertMapping) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

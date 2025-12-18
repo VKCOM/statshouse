@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
-	"github.com/VKCOM/statshouse/internal/vkgo/tlbarsic"
+	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/tlbarsic"
 )
 
 type StartCmd = tlbarsic.Start

@@ -7,6 +7,9 @@ REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VER
 TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
+TL_GEN := go run github.com/vkcom/tl/cmd/tlgen@v1.2.29
+#TL_GEN := /home/user/devbox/VKCOM/tl/target/bin/tlgen # for quick switch to locally developed tlgen
+
 COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
 	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.machine=$(BUILD_MACHINE)' \
 	-X 'github.com/VKCOM/statshouse/internal/vkgo/build.commit=$(BUILD_COMMIT)' \
@@ -18,10 +21,10 @@ COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(
 COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 
 .PHONY: all build-go build-ui \
-	build-sh build-sh-api build-sh-api-embed build-sh-metadata build-sh-grafana \
+	build-sh build-sh-api build-sh-api-noembed build-sh-metadata build-sh-grafana \
 	build-sh-ui build-grafana-ui
 
-all: build-go build-ui
+all: build-ui build-go # order important
 build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-igp build-agg
 build-ui: build-sh-ui build-grafana-ui
 build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp build-agg
@@ -32,10 +35,12 @@ build-sh:
 	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 
 build-sh-api:
-	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
+	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
+	CGO_ENABLED=0 go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
-build-sh-api-embed:
-	go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
+build-sh-api-noembed:
+	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
+	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
 build-sh-metadata:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
@@ -51,8 +56,6 @@ build-sh-grafana:
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
-	rm -rf cmd/statshouse-api/build || true
-	cp -r statshouse-ui/build cmd/statshouse-api/ || true
 
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
@@ -61,14 +64,15 @@ build-deb:
 	./build/makedeb.sh
 
 .PHONY: gen
-gen: gen-tl gen-sqlite gen-easyjson
+gen: gen-tl gen-easyjson gen-yaml
 
 gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/data_model/engine.tl ./internal/data_model/metadata.tl ./internal/data_model/public.tl ./internal/data_model/schema.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.2.25 --language=go --outdir=./internal/data_model/gen2 -v \
+	$(TL_GEN) --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--generateRandomCode \
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
 		--copyrightPath=./copyright \
@@ -81,28 +85,61 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
 
-gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
-	go run github.com/vkcom/tl/cmd/tlgen@v1.2.19 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+#		--tl2-generate \
+#		--tl2WhiteList=statshouse.,statshouseApi.,metadata. \
+#		--tl2-migration-file=internal/data_model \
+#		--tl2-migration-by-namespaces \
+#		--tl2-continuous-migration \
+#		--tl2-migration-whitelist=statshouse.,metadata. \
+
+gen-tl2:
+	$(TL_GEN) --language=go --outdir=./internal/data_model/gen2 -v \
 		--generateRPCCode=true \
-		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
 		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
-		--generateByteVersions=sqlite. \
+		--generateRandomCode \
+		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+		--rawHandlerWhiteList=statshouse.,metadata. \
+		--tl2WhiteList=statshouse.,statshouseApi.,metadata. \
+		--tl2-generate \
 		--copyrightPath=./copyright \
+		./internal/data_model/api.tl \
 		./internal/data_model/common.tl \
-		./internal/sqlitev2/checkpoint/metainfo.tl
+		./internal/data_model/engine.tl \
+		./internal/data_model/namespaces/__common_namespace.tl2 \
+		./internal/data_model/namespaces/metadata.tl2 \
+		./internal/data_model/namespaces/statshouse.tl2
 	@echo "Checking that generated code actually compiles..."
-	@go build ./internal/sqlitev2/checkpoint/gen2/...
+	@go build ./internal/data_model/gen2/...
+
+# we now copy those files from vkgo together with the rest of sqlitev2 engine
+#gen-sqlite: ./internal/data_model/common.tl ./internal/sqlitev2/checkpoint/metainfo.tl
+#	go run github.com/vkcom/tl/cmd/tlgen@v1.2.19 --language=go --outdir=./internal/sqlitev2/checkpoint/gen2 -v \
+#		--generateRPCCode=true \
+#		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
+#		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
+#		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+#		--generateByteVersions=sqlite. \
+#		--copyrightPath=./copyright \
+#		./internal/data_model/common.tl \
+#		./internal/sqlitev2/checkpoint/metainfo.tl
+#	@echo "Checking that generated code actually compiles..."
+#	@go build ./internal/sqlitev2/checkpoint/gen2/...
 
 gen-easyjson: ./internal/format/format.go ./internal/api/handler.go ./internal/api/httputil.go
 	@echo "you may need to install easyjson version: go install github.com/mailru/easyjson/...@latest"
 	go generate ./internal/api/handler.go
 	go generate ./internal/format/format.go
 
+gen-yaml: ./internal/promql/parser/parse.y
+	@echo "you may need to install yaml version: go install gopkg.in/yaml.v2/...@latest"
+	go generate ./internal/promql/parser/...
+
 .PHONY: lint test check
 lint:
-	staticcheck -version
-	staticcheck ./...
+	go run honnef.co/go/tools/cmd/staticcheck@latest -version
+	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
 test:
 	CGO_LDFLAGS="-w" go test -race ./...
@@ -112,3 +149,49 @@ test-integration:
 	CGO_LDFLAGS="-w" go test -v -race -tags integration -run '.*Integration'  ./...
 
 check: lint test
+
+upgrade_mod:
+	# commented those, which need code regeneration
+	go get -u github.com/ClickHouse/ch-go
+	go get -u github.com/ClickHouse/clickhouse-go/v2
+	go get -u github.com/VKCOM/statshouse-go
+	go get -u github.com/cloudflare/tableflip
+	go get -u github.com/dchest/siphash
+	go get -u github.com/dgryski/go-maglev
+	go get -u github.com/fsnotify/fsnotify
+	go get -u github.com/go-kit/log
+	go get -u github.com/gogo/protobuf
+	go get -u github.com/golang-jwt/jwt/v4
+	go get -u github.com/google/btree
+	go get -u github.com/google/go-cmp
+	go get -u github.com/google/uuid
+	go get -u github.com/gorilla/handlers
+	go get -u github.com/gorilla/mux
+	go get -u github.com/gotd/ige
+	go get -u github.com/hrissan/tdigest
+	go get -u github.com/mailru/easyjson
+	go get -u github.com/petar/GoLLRB
+	go get -u github.com/pierrec/lz4
+	go get -u github.com/pkg/errors
+	go get -u github.com/prometheus/procfs
+	go get -u github.com/spf13/pflag
+	go get -u github.com/stretchr/testify
+	go get -u github.com/tinylib/msgp
+	go get -u github.com/xi2/xz
+	go get -u github.com/zeebo/xxh3
+	go get -u go.uber.org/atomic
+	go get -u go.uber.org/multierr
+	go get -u go4.org/mem
+	go get -u golang.org/x/crypto golang.org/x/exp golang.org/x/sync golang.org/x/sys
+	go get -u google.golang.org/protobuf
+	go get -u gopkg.in/yaml.v2
+	go get -u pgregory.net/rand
+	go get -u pgregory.net/rapid
+	go get -u github.com/grafana/grafana-plugin-sdk-go
+	go get -u k8s.io/apimachinery
+	go get -u github.com/testcontainers/testcontainers-go github.com/testcontainers/testcontainers-go/modules/clickhouse
+	# updating prometheus breaks our promql engine
+	# go get -u github.com/prometheus/common github.com/prometheus/prometheus
+	go get go@1.24
+	go mod tidy
+	@echo "you may need to regenerate code with make gen if packages with code generation changed, which might require 'go install' appropriate tools (yes what morons designed this)"

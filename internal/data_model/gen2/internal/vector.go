@@ -13,6 +13,15 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorVectorDoubleFillRandom(rg *basictl.RandGenerator, vec *[][]float64) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([][]float64, l)
+	for i := range *vec {
+		BuiltinVectorDoubleFillRandom(rg, &(*vec)[i])
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorVectorDoubleRead(w []byte, vec *[][]float64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -91,6 +100,11 @@ func (VectorDictionaryFieldEngineMetafilesStatBoxed) TLTag() uint32  { return 0x
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Reset() {
 	ptr := (*map[string]EngineMetafilesStat)(item)
 	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
+}
+
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]EngineMetafilesStat)(item)
+	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, ptr)
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Read(w []byte) (_ []byte, err error) {
@@ -175,6 +189,11 @@ func (item *VectorDictionaryFieldString) Reset() {
 	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
+func (item *VectorDictionaryFieldString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]string)(item)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+}
+
 func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
@@ -255,6 +274,11 @@ func (VectorDictionaryFieldStringBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorDictionaryFieldStringBytes) Reset() {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorDictionaryFieldStringBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorDictionaryFieldStringBytes) Read(w []byte) (_ []byte, err error) {
@@ -339,6 +363,11 @@ func (item *VectorDouble) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorDouble) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]float64)(item)
+	BuiltinVectorDoubleFillRandom(rg, ptr)
+}
+
 func (item *VectorDouble) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]float64)(item)
 	return BuiltinVectorDoubleRead(w, ptr)
@@ -419,6 +448,11 @@ func (VectorEngineBinlogPrefix) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorEngineBinlogPrefix) Reset() {
 	ptr := (*[]EngineBinlogPrefix)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorEngineBinlogPrefix) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]EngineBinlogPrefix)(item)
+	BuiltinVectorEngineBinlogPrefixFillRandom(rg, ptr)
 }
 
 func (item *VectorEngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
@@ -503,6 +537,11 @@ func (item *VectorEngineMetafilesOneMemoryStat) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorEngineMetafilesOneMemoryStat) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
+	BuiltinVectorEngineMetafilesOneMemoryStatFillRandom(rg, ptr)
+}
+
 func (item *VectorEngineMetafilesOneMemoryStat) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
 	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, ptr)
@@ -583,6 +622,11 @@ func (VectorInt) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorInt) Reset() {
 	ptr := (*[]int32)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorInt) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]int32)(item)
+	BuiltinVectorIntFillRandom(rg, ptr)
 }
 
 func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
@@ -667,6 +711,11 @@ func (item *VectorLong) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorLong) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]int64)(item)
+	BuiltinVectorLongFillRandom(rg, ptr)
+}
+
 func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
 	return BuiltinVectorLongRead(w, ptr)
@@ -747,6 +796,11 @@ func (VectorMetadataEvent) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorMetadataEvent) Reset() {
 	ptr := (*[]MetadataEvent)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorMetadataEvent) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]MetadataEvent)(item)
+	BuiltinVectorMetadataEventFillRandom(rg, ptr)
 }
 
 func (item *VectorMetadataEvent) Read(w []byte) (_ []byte, err error) {
@@ -831,6 +885,11 @@ func (item *VectorMetadataEventBytes) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorMetadataEventBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]MetadataEventBytes)(item)
+	BuiltinVectorMetadataEventBytesFillRandom(rg, ptr)
+}
+
 func (item *VectorMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEventBytes)(item)
 	return BuiltinVectorMetadataEventBytesRead(w, ptr)
@@ -913,6 +972,11 @@ func (item *VectorMetadataHistoryShortResponseEvent) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorMetadataHistoryShortResponseEvent) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	BuiltinVectorMetadataHistoryShortResponseEventFillRandom(rg, ptr, nat_t)
+}
+
 func (item *VectorMetadataHistoryShortResponseEvent) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
 	return BuiltinVectorMetadataHistoryShortResponseEventRead(w, ptr, nat_t)
@@ -977,6 +1041,11 @@ func (item *VectorMetadataMetricOld) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorMetadataMetricOld) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	ptr := (*[]MetadataMetricOld)(item)
+	BuiltinVectorMetadataMetricOldFillRandom(rg, ptr, nat_t)
+}
+
 func (item *VectorMetadataMetricOld) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
 	return BuiltinVectorMetadataMetricOldRead(w, ptr, nat_t)
@@ -1039,6 +1108,11 @@ func (VectorStatshouseApiFilter) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseApiFilter) Reset() {
 	ptr := (*[]StatshouseApiFilter)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseApiFilter) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseApiFilter)(item)
+	BuiltinVectorStatshouseApiFilterFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
@@ -1123,6 +1197,11 @@ func (item *VectorStatshouseApiFunction) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseApiFunction) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseApiFunction)(item)
+	BuiltinVectorStatshouseApiFunctionFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseApiFunction) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
 	return BuiltinVectorStatshouseApiFunctionRead(w, ptr)
@@ -1203,6 +1282,11 @@ func (VectorStatshouseApiPointMeta) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseApiPointMeta) Reset() {
 	ptr := (*[]StatshouseApiPointMeta)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseApiPointMeta) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	BuiltinVectorStatshouseApiPointMetaFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
@@ -1287,6 +1371,11 @@ func (item *VectorStatshouseApiSeriesMeta) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseApiSeriesMeta) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	ptr := (*[]StatshouseApiSeriesMeta)(item)
+	BuiltinVectorStatshouseApiSeriesMetaFillRandom(rg, ptr, nat_t)
+}
+
 func (item *VectorStatshouseApiSeriesMeta) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
 	return BuiltinVectorStatshouseApiSeriesMetaRead(w, ptr, nat_t)
@@ -1349,6 +1438,11 @@ func (VectorStatshouseApiTagValue) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseApiTagValue) Reset() {
 	ptr := (*[]StatshouseApiTagValue)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseApiTagValue) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseApiTagValue)(item)
+	BuiltinVectorStatshouseApiTagValueFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseApiTagValue) Read(w []byte) (_ []byte, err error) {
@@ -1433,6 +1527,11 @@ func (item *VectorStatshouseCentroidFloat) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseCentroidFloat) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseCentroidFloat)(item)
+	BuiltinVectorStatshouseCentroidFloatFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseCentroidFloat) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseCentroidFloat)(item)
 	return BuiltinVectorStatshouseCentroidFloatRead(w, ptr)
@@ -1513,6 +1612,11 @@ func (VectorStatshouseIngestionStatus2) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseIngestionStatus2) Reset() {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseIngestionStatus2) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseIngestionStatus2)(item)
+	BuiltinVectorStatshouseIngestionStatus2FillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
@@ -1597,6 +1701,11 @@ func (item *VectorStatshouseMapping) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseMapping) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMapping)(item)
+	BuiltinVectorStatshouseMappingFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseMapping) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMapping)(item)
 	return BuiltinVectorStatshouseMappingRead(w, ptr)
@@ -1677,6 +1786,11 @@ func (VectorStatshouseMappingBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseMappingBytes) Reset() {
 	ptr := (*[]StatshouseMappingBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMappingBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMappingBytes)(item)
+	BuiltinVectorStatshouseMappingBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
@@ -1761,6 +1875,11 @@ func (item *VectorStatshouseMetric) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseMetric) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMetric)(item)
+	BuiltinVectorStatshouseMetricFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetric)(item)
 	return BuiltinVectorStatshouseMetricRead(w, ptr)
@@ -1841,6 +1960,11 @@ func (VectorStatshouseMetricBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseMetricBytes) Reset() {
 	ptr := (*[]StatshouseMetricBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMetricBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMetricBytes)(item)
+	BuiltinVectorStatshouseMetricBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
@@ -1925,6 +2049,11 @@ func (item *VectorStatshouseMultiItem) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseMultiItem) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMultiItem)(item)
+	BuiltinVectorStatshouseMultiItemFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItem)(item)
 	return BuiltinVectorStatshouseMultiItemRead(w, ptr)
@@ -2005,6 +2134,11 @@ func (VectorStatshouseMultiItemBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseMultiItemBytes) Reset() {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMultiItemBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseMultiItemBytes)(item)
+	BuiltinVectorStatshouseMultiItemBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
@@ -2089,6 +2223,11 @@ func (item *VectorStatshousePromTarget) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshousePromTarget) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	ptr := (*[]StatshousePromTarget)(item)
+	BuiltinVectorStatshousePromTargetFillRandom(rg, ptr, nat_t)
+}
+
 func (item *VectorStatshousePromTarget) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTarget)(item)
 	return BuiltinVectorStatshousePromTargetRead(w, ptr, nat_t)
@@ -2153,6 +2292,11 @@ func (item *VectorStatshousePromTargetBytes) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshousePromTargetBytes) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	ptr := (*[]StatshousePromTargetBytes)(item)
+	BuiltinVectorStatshousePromTargetBytesFillRandom(rg, ptr, nat_t)
+}
+
 func (item *VectorStatshousePromTargetBytes) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTargetBytes)(item)
 	return BuiltinVectorStatshousePromTargetBytesRead(w, ptr, nat_t)
@@ -2215,6 +2359,11 @@ func (VectorStatshouseSampleFactor) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseSampleFactor) Reset() {
 	ptr := (*[]StatshouseSampleFactor)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseSampleFactor)(item)
+	BuiltinVectorStatshouseSampleFactorFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
@@ -2299,6 +2448,11 @@ func (item *VectorStatshouseTopElement) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorStatshouseTopElement) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseTopElement)(item)
+	BuiltinVectorStatshouseTopElementFillRandom(rg, ptr)
+}
+
 func (item *VectorStatshouseTopElement) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElement)(item)
 	return BuiltinVectorStatshouseTopElementRead(w, ptr)
@@ -2379,6 +2533,11 @@ func (VectorStatshouseTopElementBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStatshouseTopElementBytes) Reset() {
 	ptr := (*[]StatshouseTopElementBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseTopElementBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]StatshouseTopElementBytes)(item)
+	BuiltinVectorStatshouseTopElementBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorStatshouseTopElementBytes) Read(w []byte) (_ []byte, err error) {
@@ -2463,6 +2622,11 @@ func (item *VectorString) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]string)(item)
+	BuiltinVectorStringFillRandom(rg, ptr)
+}
+
 func (item *VectorString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
 	return BuiltinVectorStringRead(w, ptr)
@@ -2543,6 +2707,11 @@ func (VectorStringBytes) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorStringBytes) Reset() {
 	ptr := (*[][]byte)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStringBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[][]byte)(item)
+	BuiltinVectorStringBytesFillRandom(rg, ptr)
 }
 
 func (item *VectorStringBytes) Read(w []byte) (_ []byte, err error) {
@@ -2627,6 +2796,11 @@ func (item *VectorTupleDouble2) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
+func (item *VectorTupleDouble2) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[][2]float64)(item)
+	BuiltinVectorTupleDouble2FillRandom(rg, ptr)
+}
+
 func (item *VectorTupleDouble2) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[][2]float64)(item)
 	return BuiltinVectorTupleDouble2Read(w, ptr)
@@ -2707,6 +2881,11 @@ func (VectorVectorDouble) TLTag() uint32  { return 0x1cb5c415 }
 func (item *VectorVectorDouble) Reset() {
 	ptr := (*[][]float64)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorVectorDouble) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[][]float64)(item)
+	BuiltinVectorVectorDoubleFillRandom(rg, ptr)
 }
 
 func (item *VectorVectorDouble) Read(w []byte) (_ []byte, err error) {

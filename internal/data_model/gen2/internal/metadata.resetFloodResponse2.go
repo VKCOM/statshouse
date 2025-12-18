@@ -26,6 +26,11 @@ func (item *MetadataResetFloodResponse2) Reset() {
 	item.BudgetAfter = 0
 }
 
+func (item *MetadataResetFloodResponse2) FillRandom(rg *basictl.RandGenerator) {
+	item.BudgetBefore = basictl.RandomInt(rg)
+	item.BudgetAfter = basictl.RandomInt(rg)
+}
+
 func (item *MetadataResetFloodResponse2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.BudgetBefore); err != nil {
 		return w, err

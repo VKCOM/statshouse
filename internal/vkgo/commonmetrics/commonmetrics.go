@@ -114,3 +114,23 @@ type Method struct {
 	Group string
 	Name  string
 }
+
+type LogMetrics struct {
+	TraceMetric logCounter
+	DebugMetric logCounter
+	InfoMetric  logCounter
+	WarnMetric  logCounter
+	ErrorMetric logCounter
+	PanicMetric logCounter
+	FatalMetric logCounter
+}
+
+type logCounter struct {
+}
+
+func (l logCounter) Count(f float64) {
+}
+
+func NewLogMetrics(subsystem string) LogMetrics {
+	return LogMetrics{}
+}

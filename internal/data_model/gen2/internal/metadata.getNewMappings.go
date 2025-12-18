@@ -38,6 +38,12 @@ func (item *MetadataGetNewMappings) Reset() {
 	item.Limit = 0
 }
 
+func (item *MetadataGetNewMappings) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1000)
+	item.From = basictl.RandomInt(rg)
+	item.Limit = basictl.RandomInt(rg)
+}
+
 func (item *MetadataGetNewMappings) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -103,6 +109,12 @@ func (item *MetadataGetNewMappings) WriteResultJSON(w []byte, ret MetadataGetNew
 func (item *MetadataGetNewMappings) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetNewMappingsResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
 	return w, nil
+}
+
+func (item *MetadataGetNewMappings) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetNewMappingsResponse
+	ret.FillRandom(rg, item.FieldMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetNewMappings) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

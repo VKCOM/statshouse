@@ -24,6 +24,10 @@ func (item *EngineGetReadWriteMode) Reset() {
 	item.FieldsMask = 0
 }
 
+func (item *EngineGetReadWriteMode) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
+}
+
 func (item *EngineGetReadWriteMode) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
@@ -78,6 +82,12 @@ func (item *EngineGetReadWriteMode) WriteResultJSON(w []byte, ret EngineReadWrit
 func (item *EngineGetReadWriteMode) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *EngineGetReadWriteMode) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret EngineReadWriteMode
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineGetReadWriteMode) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

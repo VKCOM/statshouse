@@ -23,6 +23,7 @@ type RpcInvokeReqExtra struct {
 	// ReturnQueryStats (TrueType) // Conditional: item.Flags.6
 	// NoResult (TrueType) // Conditional: item.Flags.7
 	// MustBeMaster (TrueType) // Conditional: item.Flags.8
+	RequesterId int64 // Conditional: item.Flags.9
 	// ReturnShardsBinlogPos (TrueType) // Conditional: item.Flags.14
 	WaitShardsBinlogPos         map[string]int64 // Conditional: item.Flags.15
 	WaitBinlogPos               int64            // Conditional: item.Flags.16
@@ -113,6 +114,16 @@ func (item *RpcInvokeReqExtra) SetMustBeMaster(v bool) {
 	}
 }
 func (item *RpcInvokeReqExtra) IsSetMustBeMaster() bool { return item.Flags&(1<<8) != 0 }
+
+func (item *RpcInvokeReqExtra) SetRequesterId(v int64) {
+	item.RequesterId = v
+	item.Flags |= 1 << 9
+}
+func (item *RpcInvokeReqExtra) ClearRequesterId() {
+	item.RequesterId = 0
+	item.Flags &^= 1 << 9
+}
+func (item *RpcInvokeReqExtra) IsSetRequesterId() bool { return item.Flags&(1<<9) != 0 }
 
 func (item *RpcInvokeReqExtra) SetReturnShardsBinlogPos(v bool) {
 	if v {
@@ -256,6 +267,7 @@ func (item *RpcInvokeReqExtra) IsSetExecutionContext() bool { return item.Flags&
 
 func (item *RpcInvokeReqExtra) Reset() {
 	item.Flags = 0
+	item.RequesterId = 0
 	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
 	item.WaitBinlogPos = 0
 	item.StringForwardKeys = item.StringForwardKeys[:0]
@@ -271,7 +283,12 @@ func (item *RpcInvokeReqExtra) Reset() {
 }
 
 func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
-	item.Flags = basictl.RandomFieldMask(rg, 0b1111110101111011100000111011111)
+	item.Flags = basictl.RandomFieldMask(rg, 0b1111110101111011100001111011111)
+	if item.Flags&(1<<9) != 0 {
+		item.RequesterId = basictl.RandomLong(rg)
+	} else {
+		item.RequesterId = 0
+	}
 	if item.Flags&(1<<15) != 0 {
 		BuiltinVectorDictionaryFieldLongFillRandom(rg, &item.WaitShardsBinlogPos)
 	} else {
@@ -337,6 +354,13 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err
+	}
+	if item.Flags&(1<<9) != 0 {
+		if w, err = basictl.LongRead(w, &item.RequesterId); err != nil {
+			return w, err
+		}
+	} else {
+		item.RequesterId = 0
 	}
 	if item.Flags&(1<<15) != 0 {
 		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.WaitShardsBinlogPos); err != nil {
@@ -431,6 +455,9 @@ func (item *RpcInvokeReqExtra) WriteGeneral(w []byte) (_ []byte, err error) {
 
 func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
+	if item.Flags&(1<<9) != 0 {
+		w = basictl.LongWrite(w, item.RequesterId)
+	}
 	if item.Flags&(1<<15) != 0 {
 		w = BuiltinVectorDictionaryFieldLongWrite(w, item.WaitShardsBinlogPos)
 	}
@@ -513,6 +540,7 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 	var trueTypeNoResultValue bool
 	var trueTypeMustBeMasterPresented bool
 	var trueTypeMustBeMasterValue bool
+	var propRequesterIdPresented bool
 	var trueTypeReturnShardsBinlogPosPresented bool
 	var trueTypeReturnShardsBinlogPosValue bool
 	var propWaitShardsBinlogPosPresented bool
@@ -611,6 +639,14 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 					return err
 				}
 				trueTypeMustBeMasterPresented = true
+			case "requester_id":
+				if propRequesterIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqExtra", "requester_id")
+				}
+				if err := Json2ReadInt64(in, &item.RequesterId); err != nil {
+					return err
+				}
+				propRequesterIdPresented = true
 			case "return_shards_binlog_pos":
 				if trueTypeReturnShardsBinlogPosPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqExtra", "return_shards_binlog_pos")
@@ -736,6 +772,9 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 	if !propFlagsPresented {
 		item.Flags = 0
 	}
+	if !propRequesterIdPresented {
+		item.RequesterId = 0
+	}
 	if !propWaitShardsBinlogPosPresented {
 		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
 	}
@@ -811,6 +850,9 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 		if trueTypeMustBeMasterValue {
 			item.Flags |= 1 << 8
 		}
+	}
+	if propRequesterIdPresented {
+		item.Flags |= 1 << 9
 	}
 	if trueTypeReturnShardsBinlogPosPresented {
 		if trueTypeReturnShardsBinlogPosValue {
@@ -950,6 +992,11 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []
 	if item.Flags&(1<<8) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"must_be_master":true`...)
+	}
+	if item.Flags&(1<<9) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"requester_id":`...)
+		w = basictl.JSONWriteInt64(w, item.RequesterId)
 	}
 	if item.Flags&(1<<14) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

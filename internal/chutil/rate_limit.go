@@ -126,6 +126,11 @@ func (r *RateLimit) GetMetrics() RateLimitMetric {
 	}
 }
 
+// GetReplicaKey only concurrent read operations
+func (r *RateLimit) GetReplicaKey() int {
+	return r.replicaKey
+}
+
 func (r *RateLimit) Start() {
 	go func() {
 		defer log.Printf("[RateLimit] recalc worker quit")
@@ -295,6 +300,9 @@ func (s *HealthState) recalc(cfg RateLimitConfig, now time.Time) Stage {
 	if s.InflightWeight < weight {
 		s.WeightUpdatedAt = now
 		s.InflightWeight = weight
+		if s.InflightWeight == cfg.MaxInflightWeight {
+			return StageSleep
+		}
 	}
 	if s.InflightWeight > weight && now.Sub(s.WeightUpdatedAt) > cfg.RecoverGapDuration {
 		s.WeightUpdatedAt = now

@@ -24,6 +24,10 @@ func (item *EngineMetafilesStat) Reset() {
 	item.Data = item.Data[:0]
 }
 
+func (item *EngineMetafilesStat) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorEngineMetafilesOneMemoryStatFillRandom(rg, &item.Data)
+}
+
 func (item *EngineMetafilesStat) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, &item.Data)
 }

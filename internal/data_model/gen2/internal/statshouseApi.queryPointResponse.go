@@ -28,6 +28,12 @@ func (item *StatshouseApiGetQueryPointResponse) Reset() {
 	item.Meta = item.Meta[:0]
 }
 
+func (item *StatshouseApiGetQueryPointResponse) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomUint(rg)
+	BuiltinVectorDoubleFillRandom(rg, &item.Data)
+	BuiltinVectorStatshouseApiPointMetaFillRandom(rg, &item.Meta)
+}
+
 func (item *StatshouseApiGetQueryPointResponse) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err

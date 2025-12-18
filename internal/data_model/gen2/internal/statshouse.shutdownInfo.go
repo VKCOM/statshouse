@@ -68,6 +68,32 @@ func (item *StatshouseShutdownInfo) Reset() {
 	item.N = 0
 }
 
+func (item *StatshouseShutdownInfo) FillRandom(rg *basictl.RandGenerator) {
+	item.StartShutdownTime = basictl.RandomLong(rg)
+	item.FinishShutdownTime = basictl.RandomLong(rg)
+	item.StopRecentSenders = basictl.RandomLong(rg)
+	item.StopReceivers = basictl.RandomLong(rg)
+	item.StopFlusher = basictl.RandomLong(rg)
+	item.StopFlushing = basictl.RandomLong(rg)
+	item.StopPreprocessor = basictl.RandomLong(rg)
+	item.StopInserters = basictl.RandomLong(rg)
+	item.StopRPCServer = basictl.RandomLong(rg)
+	item.SaveMappings = basictl.RandomLong(rg)
+	item.SaveJournal = basictl.RandomLong(rg)
+	item.C = basictl.RandomLong(rg)
+	item.D = basictl.RandomLong(rg)
+	item.E = basictl.RandomLong(rg)
+	item.F = basictl.RandomLong(rg)
+	item.G = basictl.RandomLong(rg)
+	item.H = basictl.RandomLong(rg)
+	item.I = basictl.RandomLong(rg)
+	item.J = basictl.RandomLong(rg)
+	item.K = basictl.RandomLong(rg)
+	item.L = basictl.RandomLong(rg)
+	item.M = basictl.RandomLong(rg)
+	item.N = basictl.RandomLong(rg)
+}
+
 func (item *StatshouseShutdownInfo) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.StartShutdownTime); err != nil {
 		return w, err

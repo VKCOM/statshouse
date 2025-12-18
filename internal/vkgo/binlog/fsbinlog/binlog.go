@@ -24,7 +24,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
-	"github.com/VKCOM/statshouse/internal/vkgo/tlbarsic"
+	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/tlbarsic"
 )
 
 const (

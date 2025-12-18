@@ -28,6 +28,12 @@ func (item *MetadataGetMetrics) Reset() {
 	item.Limit = 0
 }
 
+func (item *MetadataGetMetrics) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b1100)
+	item.From = basictl.RandomLong(rg)
+	item.Limit = basictl.RandomLong(rg)
+}
+
 func (item *MetadataGetMetrics) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
@@ -90,6 +96,12 @@ func (item *MetadataGetMetrics) WriteResultJSON(w []byte, ret MetadataGetMetrics
 func (item *MetadataGetMetrics) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetMetricsResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
 	return w, nil
+}
+
+func (item *MetadataGetMetrics) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret MetadataGetMetricsResponse
+	ret.FillRandom(rg, item.FieldMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *MetadataGetMetrics) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

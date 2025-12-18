@@ -46,6 +46,17 @@ func (item *StatshouseGetConfigResult) Reset() {
 	item.Ts = 0
 }
 
+func (item *StatshouseGetConfigResult) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	BuiltinVectorStringFillRandom(rg, &item.Addresses)
+	item.MaxAddressesCount = basictl.RandomInt(rg)
+	item.PreviousAddresses = basictl.RandomInt(rg)
+	if nat_fields_mask&(1<<0) != 0 {
+		item.Ts = basictl.RandomLong(rg)
+	} else {
+		item.Ts = 0
+	}
+}
+
 func (item *StatshouseGetConfigResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStringRead(w, &item.Addresses); err != nil {
 		return w, err
@@ -242,6 +253,17 @@ func (item *StatshouseGetConfigResultBytes) Reset() {
 	item.MaxAddressesCount = 0
 	item.PreviousAddresses = 0
 	item.Ts = 0
+}
+
+func (item *StatshouseGetConfigResultBytes) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	BuiltinVectorStringBytesFillRandom(rg, &item.Addresses)
+	item.MaxAddressesCount = basictl.RandomInt(rg)
+	item.PreviousAddresses = basictl.RandomInt(rg)
+	if nat_fields_mask&(1<<0) != 0 {
+		item.Ts = basictl.RandomLong(rg)
+	} else {
+		item.Ts = 0
+	}
 }
 
 func (item *StatshouseGetConfigResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {

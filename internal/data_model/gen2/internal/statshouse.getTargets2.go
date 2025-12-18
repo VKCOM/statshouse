@@ -56,6 +56,23 @@ func (item *StatshouseGetTargets2) Reset() {
 	item.MetricRelabelConfigs = false
 }
 
+func (item *StatshouseGetTargets2) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.PromHostName = basictl.RandomString(rg)
+	item.OldHash = basictl.RandomString(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.GaugeMetrics = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.GaugeMetrics = false
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.MetricRelabelConfigs = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.MetricRelabelConfigs = false
+	}
+}
+
 func (item *StatshouseGetTargets2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -145,6 +162,12 @@ func (item *StatshouseGetTargets2) WriteResultJSON(w []byte, ret StatshouseGetTa
 func (item *StatshouseGetTargets2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTargetsResult) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetTargets2) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTargetsResult
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTargets2) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
@@ -403,6 +426,23 @@ func (item *StatshouseGetTargets2Bytes) Reset() {
 	item.MetricRelabelConfigs = false
 }
 
+func (item *StatshouseGetTargets2Bytes) FillRandom(rg *basictl.RandGenerator) {
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.Header.FillRandom(rg, item.FieldsMask)
+	item.PromHostName = basictl.RandomStringBytes(rg)
+	item.OldHash = basictl.RandomStringBytes(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.GaugeMetrics = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.GaugeMetrics = false
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.MetricRelabelConfigs = basictl.RandomUint(rg)&1 == 1
+	} else {
+		item.MetricRelabelConfigs = false
+	}
+}
+
 func (item *StatshouseGetTargets2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -492,6 +532,12 @@ func (item *StatshouseGetTargets2Bytes) WriteResultJSON(w []byte, ret Statshouse
 func (item *StatshouseGetTargets2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetTargetsResultBytes) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
+}
+
+func (item *StatshouseGetTargets2Bytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseGetTargetsResultBytes
+	ret.FillRandom(rg, item.FieldsMask)
+	return item.WriteResult(w, ret)
 }
 
 func (item *StatshouseGetTargets2Bytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -94,6 +94,20 @@ func (item *StatshouseCommonProxyHeader) Reset() {
 	item.Owner = ""
 }
 
+func (item *StatshouseCommonProxyHeader) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	item.ShardReplica = basictl.RandomInt(rg)
+	item.ShardReplicaTotal = basictl.RandomInt(rg)
+	BuiltinTuple4IntFillRandom(rg, &item.AgentIp)
+	item.HostName = basictl.RandomString(rg)
+	item.ComponentTag = basictl.RandomInt(rg)
+	item.BuildArch = basictl.RandomInt(rg)
+	if nat_fields_mask&(1<<28) != 0 {
+		item.Owner = basictl.RandomString(rg)
+	} else {
+		item.Owner = ""
+	}
+}
+
 func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.ShardReplica); err != nil {
 		return w, err
@@ -409,6 +423,20 @@ func (item *StatshouseCommonProxyHeaderBytes) Reset() {
 	item.ComponentTag = 0
 	item.BuildArch = 0
 	item.Owner = item.Owner[:0]
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	item.ShardReplica = basictl.RandomInt(rg)
+	item.ShardReplicaTotal = basictl.RandomInt(rg)
+	BuiltinTuple4IntFillRandom(rg, &item.AgentIp)
+	item.HostName = basictl.RandomStringBytes(rg)
+	item.ComponentTag = basictl.RandomInt(rg)
+	item.BuildArch = basictl.RandomInt(rg)
+	if nat_fields_mask&(1<<28) != 0 {
+		item.Owner = basictl.RandomStringBytes(rg)
+	} else {
+		item.Owner = item.Owner[:0]
+	}
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {

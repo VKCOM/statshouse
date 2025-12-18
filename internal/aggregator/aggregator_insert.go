@@ -25,7 +25,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/vkgo/rowbinary"
+	"github.com/VKCOM/statshouse/internal/vkgo/kittenhouseclient/rowbinary"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 

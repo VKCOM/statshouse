@@ -23,6 +23,11 @@ func (item *DictionaryEngineMetafilesStatBoxed) Reset() {
 	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
 }
 
+func (item *DictionaryEngineMetafilesStatBoxed) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]EngineMetafilesStat)(item)
+	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, ptr)
+}
+
 func (item *DictionaryEngineMetafilesStatBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
 	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
@@ -105,6 +110,11 @@ func (item *DictionaryString) Reset() {
 	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
+func (item *DictionaryString) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*map[string]string)(item)
+	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+}
+
 func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
 	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
@@ -185,6 +195,11 @@ func (DictionaryStringBytes) TLTag() uint32  { return 0x1f4c618f }
 func (item *DictionaryStringBytes) Reset() {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
 	*ptr = (*ptr)[:0]
+}
+
+func (item *DictionaryStringBytes) FillRandom(rg *basictl.RandGenerator) {
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, ptr)
 }
 
 func (item *DictionaryStringBytes) Read(w []byte) (_ []byte, err error) {

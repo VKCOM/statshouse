@@ -24,6 +24,10 @@ func (item *EngineUnregisterDynamicLib) Reset() {
 	item.LibId = ""
 }
 
+func (item *EngineUnregisterDynamicLib) FillRandom(rg *basictl.RandGenerator) {
+	item.LibId = basictl.RandomString(rg)
+}
+
 func (item *EngineUnregisterDynamicLib) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.LibId)
 }
@@ -78,6 +82,12 @@ func (item *EngineUnregisterDynamicLib) WriteResultJSON(w []byte, ret BoolStat) 
 func (item *EngineUnregisterDynamicLib) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret BoolStat) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w)
 	return w, nil
+}
+
+func (item *EngineUnregisterDynamicLib) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret BoolStat
+	ret.FillRandom(rg)
+	return item.WriteResult(w, ret)
 }
 
 func (item *EngineUnregisterDynamicLib) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {

@@ -26,6 +26,10 @@ func (item *StatshouseGetTagMappingBootstrapResult) Reset() {
 	item.Mappings = item.Mappings[:0]
 }
 
+func (item *StatshouseGetTagMappingBootstrapResult) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Mappings)
+}
+
 func (item *StatshouseGetTagMappingBootstrapResult) Read(w []byte) (_ []byte, err error) {
 	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
@@ -143,6 +147,10 @@ func (StatshouseGetTagMappingBootstrapResultBytes) TLTag() uint32 { return 0x486
 
 func (item *StatshouseGetTagMappingBootstrapResultBytes) Reset() {
 	item.Mappings = item.Mappings[:0]
+}
+
+func (item *StatshouseGetTagMappingBootstrapResultBytes) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStatshouseMappingBytesFillRandom(rg, &item.Mappings)
 }
 
 func (item *StatshouseGetTagMappingBootstrapResultBytes) Read(w []byte) (_ []byte, err error) {

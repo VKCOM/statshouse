@@ -19,20 +19,12 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
-type writeRespCancel struct {
-	// We must have 2 request kinds ordered, that's why we need a queue for them
-	// 1. cctx != nil, not a cancel
-	// 2. cctx == nil, cancel cancelQueryID
-	cctx          *Response
-	cancelQueryID int64
-}
-
 type writeReqCancel struct {
 	// We must have 2 request kinds ordered, that's why we need a queue for them
 	// 1. req != nil, not a cancel
-	// 2. req == nil, cancel cancelQueryID
-	req           *Request
-	cancelQueryID int64
+	// 2. req == nil, cancel queryID
+	req     *Request // we can only touch it if it is in calls (otherwise it is released), so we store separate queryID
+	queryID int64
 }
 
 type clientConn struct {
@@ -42,19 +34,14 @@ type clientConn struct {
 
 	mu         sync.Mutex
 	writeQCond sync.Cond
-	// initially cctx is added both to calls and writeQ.
-	// when cctx is taken from writeQ, cctx.req is set to nil, indicating that request is going to be sent/
-	// request is then sent and freed.
-	// if cctx is cancelled, and cctx.req is nil, then request is not in writeQ and can be deleted from calls,
-	// but if cctx.req is not nil, cctx is somewhere in writeQ and we, instead of searching for it with O(n),
-	// set cctx.stale = true. If writeQ encounters such stale cctx, it frees it.
-	// So, ownership rules table is:
-	// if cctx.req == nil: cctx is owned by calls
-	// else if cctx.stale: cctx is owned by writeQ
-	// otherwise, cctx is shared by calls and writeQ
+	// initially cctx is added calls, cctx.req != nil and cctx.req is in writeQ.
+	// when request is taken from writeQ by sender, we look up queryId in calls.
+	// if cctx is in calls, cctx.req is set to nil, and ownership of req is transferred to send goroutine.
+	// Request is then sent and freed.
+	// if cctx is not in calls, then req was already freed by cancelCall, and we drop writeQ element.
 	calls               map[int64]*Response
-	writeQ              []writeRespCancel // writeRespCancel.cctx.req is to be sent
-	inFlight            int               // # of not cancelled calls in flight. During shutdown, wait for this to become 0 before closing connection to server.
+	writeQ              []writeReqCancel
+	inFlight            int // # of not cancelled calls in flight. During shutdown, wait for this to become 0 before closing connection to server.
 	isShutdown          bool
 	writeClientWantsFin bool
 	writeBuiltin        bool
@@ -105,19 +92,7 @@ func (pc *clientConn) shutdown() {
 	_ = conn.Close() // not under lock
 }
 
-// if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
-func (pc *clientConn) setupCallLocked(req *Request, cctx *Response, deadline time.Time, multiResult chan *Response, cb ClientCallback, userData any) error {
-	cctx.queryID = req.QueryID()
-	if multiResult != nil {
-		cctx.result = multiResult // overrides single-result channel
-	}
-	cctx.cb = cb
-	cctx.req = req
-	cctx.deadline = deadline
-	cctx.userData = userData
-	cctx.failIfNoConnection = req.FailIfNoConnection
-	cctx.bodyFormatTL2 = req.BodyFormatTL2
-	cctx.readonly = req.ReadOnly
+func (pc *clientConn) setupCallLocked(req *Request, cctx *Response) error {
 
 	if pc.closeCC == nil {
 		return ErrClientClosed
@@ -133,28 +108,19 @@ func (pc *clientConn) setupCallLocked(req *Request, cctx *Response, deadline tim
 
 	pc.calls[cctx.queryID] = cctx
 
-	pc.writeQ = append(pc.writeQ, writeRespCancel{cctx: cctx})
+	pc.writeQ = append(pc.writeQ, writeReqCancel{req: req, queryID: req.queryID})
 
 	// Here cctx is owned by both writeQ and calls map
 
 	return nil
 }
 
-func (pc *clientConn) cancelCall(queryID int64, deliverError error) (cancelled bool) {
+func (pc *clientConn) cancelCall(queryID int64) *Response {
 	cctx, closeNow := pc.cancelCallImpl(queryID)
 	if closeNow != nil { // not under lock
 		_ = closeNow.Close()
 	}
-	if cctx != nil {
-		// exclusive ownership of cctx by this function
-		if deliverError != nil {
-			cctx.err = deliverError
-			cctx.deliverResult(pc.client)
-		} else {
-			pc.client.PutResponse(cctx)
-		}
-	}
-	return cctx != nil
+	return cctx
 }
 
 func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response, closeNow *PacketConn) {
@@ -167,8 +133,7 @@ func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response
 	deadlinePassed := !cctx.deadline.IsZero() && time.Now().After(cctx.deadline)
 	delete(pc.calls, queryID)
 	if cctx.req != nil { // was not sent, residing somewhere in writeQ
-		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
-		return nil, nil
+		return cctx, nil
 	}
 	// was sent
 	pc.inFlight--
@@ -188,105 +153,111 @@ func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response
 		return cctx, conn
 	}
 	if !deadlinePassed && pc.conn.FlagCancelReq() {
-		pc.writeQ = append(pc.writeQ, writeRespCancel{cancelQueryID: queryID})
+		pc.writeQ = append(pc.writeQ, writeReqCancel{queryID: queryID})
 		pc.writeQCond.Signal()
 	}
 	return cctx, nil
 }
 
-func (pc *clientConn) finishCall(queryID int64) (_ *Response, closeNow *PacketConn) {
+func (pc *clientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, extra *ResponseExtra, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool, requestSentTime time.Time, closeNow *PacketConn) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
 	cctx, ok := pc.calls[queryID]
 	if !ok {
-		return nil, nil
+		return false, callResult{}, false, time.Time{}, nil
 	}
-	if cctx.req != nil { // was not sent, residing somewhere in writeQ
-		// In finish call, this is possible if server sends response with a queryID before request was sent by client.
-		// We should treat it as a NOP
-		return nil, nil
-	}
+	//if cctx.req != nil { // was not sent, residing somewhere in writeQ
+	// In finish call, this is possible if server sends response with a queryID before request was sent by client.
+	// We treat it as a normal cancel
+	//}
 	// was sent
 	delete(pc.calls, queryID)
 	pc.inFlight--
 	if pc.inFlight < 0 {
 		panic("rpc.Client invariant violation: pc.inFlight < 0")
 	}
-	if pc.conn == nil {
-		return cctx, nil
+	recordLatency = cctx.actorID == requestLatencyDebugActorId
+	requestSentTime = cctx.debugRequestSentTime
+	cctx.reuseBody = reuseBody
+	cctx.Body = body
+	cctx.Extra = *extra
+	if cctx.result != nil {
+		cctx.result <- callResult{resp: cctx, err: err} // must deliver under lock
+	} else {
+		finishedCallback = callResult{resp: cctx, err: err}
 	}
-	if pc.isShutdown && pc.inFlight == 0 {
+	bodyOwned = true
+
+	if pc.conn != nil && pc.isShutdown && pc.inFlight == 0 {
 		if debugPrint {
 			fmt.Printf("%v client %p conn %p finishCall inFlight == 0\n", time.Now(), pc.client, pc)
 		}
-		conn := pc.conn
+		closeNow = pc.conn
 		pc.conn = nil
 		pc.writeQCond.Signal()
-		return cctx, conn
 	}
-	return cctx, nil
+	return
 }
 
-func (pc *clientConn) massCancelRequestsLocked() (finishedCalls []*Response) {
+func (pc *clientConn) massCancelRequestsLocked() (finishedCallbacks []callResult) {
 	pc.writeBuiltin = false
 	pc.isShutdown = false
 	pc.writeClientWantsFin = false
 	now := time.Now()
-	for i, wr := range pc.writeQ {
-		if wr.cctx != nil && wr.cctx.stale { // not in calls, so we are owner
-			pc.client.PutResponse(wr.cctx)
-		}
-		pc.writeQ[i] = writeRespCancel{} // free memory
+	for i := range pc.writeQ {
+		pc.writeQ[i] = writeReqCancel{} // free memory
 	}
 	pc.writeQ = pc.writeQ[:0]
 
 	// unblock all possible calls
 	for queryID, cctx := range pc.calls {
+		finishedCall := callResult{resp: cctx}
 		if cctx.req == nil { // was sent
 			pc.inFlight--
 			if pc.inFlight < 0 {
 				panic("rpc.Client invariant violation: pc.inFlight < 0")
 			}
-			cctx.err = ErrClientConnClosedSideEffect
+			finishedCall.err = ErrClientConnClosedSideEffect
 		} else if cctx.failIfNoConnection || pc.closeCC == nil {
-			cctx.err = ErrClientConnClosedNoSideEffect
+			finishedCall.err = ErrClientConnClosedNoSideEffect
 		} else if !cctx.deadline.IsZero() && now.After(cctx.deadline) {
-			cctx.err = context.DeadlineExceeded
+			finishedCall.err = context.DeadlineExceeded
 		} else {
-			pc.writeQ = append(pc.writeQ, writeRespCancel{cctx: cctx})
+			pc.writeQ = append(pc.writeQ, writeReqCancel{req: cctx.req, queryID: cctx.req.queryID})
 			continue
 		}
 		delete(pc.calls, queryID)
-		if cctx.cb == nil { // code moved from deliverResult to avoid allocation for common case of not using callbacks
-			cctx.result <- cctx
+		if cctx.result != nil {
+			// results must be delivered to channels under lock
+			cctx.result <- finishedCall
 		} else {
 			// we do some allocations here, but after disconnect we allocate anyway
 			// we cannot call callbacks under any lock, otherwise deadlock
-			finishedCalls = append(finishedCalls, cctx)
+			finishedCallbacks = append(finishedCallbacks, finishedCall)
 		}
 	}
 	return
 }
 
 func (pc *clientConn) continueRunning(previousGoodHandshake bool) bool {
-	finishedCalls, result := pc.continueRunningImpl(previousGoodHandshake)
-	for _, cctx := range finishedCalls {
-		cctx.deliverResult(pc.client)
+	finishedCallbacks, result := pc.continueRunningImpl(previousGoodHandshake)
+	for _, finishedCall := range finishedCallbacks {
+		finishedCall.resp.cb(pc.client, finishedCall.resp, finishedCall.err)
 	}
 	return result
 }
 
-func (pc *clientConn) continueRunningImpl(previousGoodHandshake bool) (finishedCalls []*Response, _ bool) {
+func (pc *clientConn) continueRunningImpl(previousGoodHandshake bool) (finishedCallbacks []callResult, _ bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
-	finishedCalls = pc.massCancelRequestsLocked()
+	finishedCallbacks = pc.massCancelRequestsLocked()
 
 	if !previousGoodHandshake {
 		pc.waitingToReconnect = true
 	}
-	return finishedCalls, pc.closeCC != nil && len(pc.calls) != 0
+	return finishedCallbacks, pc.closeCC != nil && len(pc.calls) != 0
 }
 
 func (pc *clientConn) setClientConn(conn *PacketConn) bool {
@@ -348,10 +319,10 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 			if debugPrint {
 				fmt.Printf("%v closeCC == nil for pc %p", time.Now(), pc)
 			}
-			finishedCalls := pc.massCancelRequestsLocked()
+			finishedCallbacks := pc.massCancelRequestsLocked()
 			pc.mu.Unlock()
-			for _, cctx := range finishedCalls {
-				cctx.deliverResult(pc.client)
+			for _, finishedCall := range finishedCallbacks {
+				finishedCall.resp.cb(pc.client, finishedCall.resp, finishedCall.err)
 			}
 			break
 		}
@@ -417,6 +388,8 @@ func (pc *clientConn) run() (goodHandshake bool) {
 	return true
 }
 
+var requestLatencyDebugActorId int64 = 11260
+
 func (pc *clientConn) sendLoop(conn *PacketConn) error {
 	if debugPrint {
 		fmt.Printf("%v sendLoop %p conn %p start\n", time.Now(), pc.client, pc)
@@ -462,6 +435,18 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 		for _, wr := range writeQ {
 			sentNow = true
 			if wr.req != nil {
+				if wr.req.ActorID == requestLatencyDebugActorId {
+					now := time.Now()
+					latency := now.Sub(wr.req.startTime)
+					if pc.client.opts.sendLatencyHandler != nil {
+						pc.client.opts.sendLatencyHandler(latency)
+					}
+					pc.mu.Lock()
+					if call, exists := pc.calls[wr.req.queryID]; exists {
+						call.debugRequestSentTime = now
+					}
+					pc.mu.Unlock()
+				}
 				err := writeRequestUnlocked(conn, wr.req, pc.client.opts.PacketTimeout)
 				pc.client.putRequest(wr.req)
 				if err != nil {
@@ -471,7 +456,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 					return err
 				}
 			} else {
-				ret := tl.RpcCancelReq{QueryId: wr.cancelQueryID}
+				ret := tl.RpcCancelReq{QueryId: wr.queryID}
 				customBody = ret.Write(customBody[:0])
 				err := conn.WritePacketNoFlushUnlocked(tl.RpcCancelReq{}.TLTag(), customBody, pc.client.opts.PacketTimeout)
 				if err != nil {
@@ -515,10 +500,12 @@ func (pc *clientConn) receiveLoop(conn *PacketConn) {
 		respBody := *respReuseData
 		var responseType uint32
 
+		var readTime time.Time
 		for {
 			var isBuiltin bool
 			var err error
 			responseType, respBody, isBuiltin, _, err = conn.ReadPacketUnlocked(respBody, pc.client.opts.PacketTimeout)
+			readTime = time.Now()
 			if len(respBody) < maxGoAllocSizeClass { // Prepare for reuse immediately
 				*respReuseData = respBody[:0]
 			}
@@ -536,65 +523,70 @@ func (pc *clientConn) receiveLoop(conn *PacketConn) {
 			pc.mu.Unlock()
 			pc.writeQCond.Signal()
 		}
-		resp, err := pc.handlePacket(responseType, respReuseData, respBody)
+		bodyOwned, finishedCallback, recordLatency, requestSentTime, err := pc.handlePacket(responseType, respReuseData, respBody)
+		if bodyOwned {
+			respReuseData = pc.client.getResponseData()
+		}
 		if err != nil { // resp is always nil here
 			pc.client.opts.Logf("rpc: failed to handle packet from %s, disconnecting: %v", conn.RemoteAddr(), err)
 			return
 		}
-		if resp != nil {
-			// resp now owns respReuseData, we need to break alias before callback for panic safety
-			respReuseData = pc.client.getResponseData()
-			resp.deliverResult(pc.client)
+		if finishedCallback.resp != nil {
+			finishedCallback.resp.cb(pc.client, finishedCallback.resp, finishedCallback.err)
+		}
+		if recordLatency {
+			if pc.client.opts.proxyLatencyHandler != nil {
+				latency := readTime.Sub(requestSentTime)
+				pc.client.opts.proxyLatencyHandler(latency)
+			}
+			if pc.client.opts.receiveLatencyHandler != nil {
+				latency := time.Since(readTime)
+				pc.client.opts.receiveLatencyHandler(latency)
+			}
 		}
 	}
 }
 
-func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, respBody []byte) (resp *Response, _ error) {
+func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, respBody []byte) (bodyOwned bool, finishedCallback callResult, recordLatency bool, requestSentTime time.Time, err error) {
 	switch responseType {
 	case tl.RpcServerWantsFin{}.TLTag():
 		if debugPrint {
 			fmt.Printf("%v client %p conn %p read Let's FIN\n", time.Now(), pc.client, pc)
 		}
 		pc.shutdown()
-		return nil, nil
+		return false, callResult{}, false, time.Time{}, nil
 	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var reqResultError tl.RpcReqResultError
 		var err error
 		if respBody, err = reqResultError.Read(respBody); err != nil {
-			return nil, fmt.Errorf("failed to read RpcReqResultError: %w", err)
+			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
-		cctx, closeNow := pc.finishCall(reqResultError.QueryId)
+		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
+		var extra ResponseExtra
+		var closeNow *PacketConn
+		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, &extra, err)
 		if closeNow != nil { // not under lock
 			_ = closeNow.Close()
 		}
-		if cctx == nil {
-			// we expect that cctx can be nil because of teardownCall after context was done (and not because server decided to send garbage)
-			return nil, nil // already cancelled or served
-		}
-		cctx.body = respReuseData
-		cctx.Body = respBody
-		cctx.err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
-		return cctx, nil
+		return bodyOwned, finishedCallback, recordLatency, requestSentTime, nil
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
 		var err error
 		if respBody, err = header.Read(respBody); err != nil {
-			return nil, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
+			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
-		cctx, closeNow := pc.finishCall(header.QueryId)
+		var extra ResponseExtra
+		var closeNow *PacketConn
+		respBody, err = parseResponseExtra(&extra, respBody)
+
+		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(header.QueryId, respReuseData, respBody, &extra, err)
 		if closeNow != nil { // not under lock
 			_ = closeNow.Close()
 		}
-		if cctx == nil {
-			// we expect that cctx can be nil because of teardownCall after context was done (and not because server decided to send garbage)
-			return nil, nil // already cancelled or served
-		}
-		cctx.body = respReuseData
-		cctx.Body, cctx.err = parseResponseExtra(&cctx.Extra, respBody)
-		return cctx, nil
+		return bodyOwned, finishedCallback, recordLatency, requestSentTime, nil
 	default:
 		pc.client.opts.Logf("rpc: unknown packet type 0x%x", responseType)
-		return nil, nil
+		return false, callResult{}, false, time.Time{}, nil
 	}
 }
 
@@ -622,20 +614,24 @@ func writeRequest(conn *PacketConn, req *Request, writeTimeout time.Duration) er
 
 func (pc *clientConn) moveRequestsToSendLocked(writeQ []writeReqCancel) []writeReqCancel {
 	for i, wr := range pc.writeQ {
-		if wr.cctx == nil {
-			writeQ = append(writeQ, writeReqCancel{cancelQueryID: wr.cancelQueryID})
-		} else if wr.cctx.stale {
-			pc.client.PutResponse(wr.cctx) // free cancelled requests, we own
+		if wr.req == nil { // cancelReq
+			writeQ = append(writeQ, wr)
 		} else {
-			if wr.cctx.req == nil {
-				panic("rpc.Client invariant violation: double sent")
+			response, ok := pc.calls[wr.queryID]
+			if ok {
+				if response.req == nil {
+					panic("rpc.Client invariant violation: double sent")
+				}
+				if response.req != wr.req {
+					panic("rpc.Client invariant violation: wrong request in queue")
+				}
+				pc.inFlight++
+				writeQ = append(writeQ, wr)
+				response.req = nil // point of potential side effect
+				// TODO - we want to move side effect just before WritePacket, but this would require locking there
 			}
-			pc.inFlight++
-			writeQ = append(writeQ, writeReqCancel{req: wr.cctx.req})
-			wr.cctx.req = nil // point of potential side effect
-			// TODO - we want to move side effect just before WritePacket, but this would require locking there
 		}
-		pc.writeQ[i] = writeRespCancel{} // free memory
+		pc.writeQ[i] = writeReqCancel{} // free memory
 	}
 	pc.writeQ = pc.writeQ[:0]
 	return writeQ

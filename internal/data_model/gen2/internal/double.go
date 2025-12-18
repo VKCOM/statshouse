@@ -19,6 +19,14 @@ func BuiltinTuple2DoubleReset(vec *[2]float64) {
 	}
 }
 
+func BuiltinTuple2DoubleFillRandom(rg *basictl.RandGenerator, vec *[2]float64) {
+	rg.IncreaseDepth()
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomDouble(rg)
+	}
+	rg.DecreaseDepth()
+}
+
 func BuiltinTuple2DoubleRead(w []byte, vec *[2]float64) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.DoubleRead(w, &(*vec)[i]); err != nil {
@@ -75,6 +83,15 @@ func BuiltinTuple2DoubleWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, v
 	return append(w, ']')
 }
 
+func BuiltinVectorDoubleFillRandom(rg *basictl.RandGenerator, vec *[]float64) {
+	rg.IncreaseDepth()
+	l := basictl.RandomSize(rg)
+	*vec = make([]float64, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomDouble(rg)
+	}
+	rg.DecreaseDepth()
+}
 func BuiltinVectorDoubleRead(w []byte, vec *[]float64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {

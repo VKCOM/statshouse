@@ -26,6 +26,11 @@ func (item *MetadataGetJournalResponsenew) Reset() {
 	item.Events = item.Events[:0]
 }
 
+func (item *MetadataGetJournalResponsenew) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.CurrentVersion = basictl.RandomLong(rg)
+	BuiltinVectorMetadataEventFillRandom(rg, &item.Events)
+}
+
 func (item *MetadataGetJournalResponsenew) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
@@ -146,6 +151,11 @@ func (MetadataGetJournalResponsenewBytes) TLTag() uint32  { return 0x9286aaaa }
 func (item *MetadataGetJournalResponsenewBytes) Reset() {
 	item.CurrentVersion = 0
 	item.Events = item.Events[:0]
+}
+
+func (item *MetadataGetJournalResponsenewBytes) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
+	item.CurrentVersion = basictl.RandomLong(rg)
+	BuiltinVectorMetadataEventBytesFillRandom(rg, &item.Events)
 }
 
 func (item *MetadataGetJournalResponsenewBytes) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
