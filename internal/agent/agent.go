@@ -26,6 +26,8 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 
+	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -123,9 +125,14 @@ type Agent struct {
 	// copy of builtin metric, but with resolution set to 1
 	// allows agent to manually spread this metric around minute freely
 	// while aggregator correctly merges into more coarse resolution
-	builtinMetricMetaUsageCPU         format.MetricMetaValue
-	builtinMetricMetaUsageMemory      format.MetricMetaValue
-	builtinMetricMetaHeartbeatVersion format.MetricMetaValue
+	builtinMetricMetaUsageCPU                format.MetricMetaValue
+	builtinMetricMetaUsageMemory             format.MetricMetaValue
+	builtinMetricMetaHeartbeatVersion        format.MetricMetaValue
+	builtinMetricMetaHeartbeatVersionAgent   format.MetricMetaValue
+	builtinMetricMetaHeartbeatVersionIngress format.MetricMetaValue
+
+	// Parsed command line arguments for heartbeat metrics (parsed once at startup)
+	heartbeatArgTags statshouse.Tags
 }
 
 func stagingLevel(statsHouseEnv string) int {
@@ -166,32 +173,34 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	cancelFlushCtx, cancelFlushFunc := context.WithCancel(context.Background())
 
 	result := &Agent{
-		cancelSendsCtx:                    cancelSendsCtx,
-		cancelSendsFunc:                   cancelSendsFunc,
-		cancelFlushCtx:                    cancelFlushCtx,
-		cancelFlushFunc:                   cancelFlushFunc,
-		hostName:                          string(format.ForceValidStringValue(hostName)), // worse alternative is do not run at all
-		componentTag:                      componentTag,
-		heartBeatEventType:                format.TagValueIDHeartbeatEventStart,
-		heartBeatSecondBucket:             uint32(rnd.Intn(60)),
-		config:                            config,
-		cacheDir:                          cacheDir,
-		rpcClientConfig:                   newClient(),
-		network:                           network,
-		argsHash:                          int32(binary.BigEndian.Uint32(argsHash[:])),
-		argsLen:                           int32(len(allArgs)),
-		args:                              string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
-		logF:                              logF,
-		buildArchTag:                      format.GetBuildArchKey(runtime.GOARCH),
-		mappingsCache:                     mappingsCache,
-		journalFastHV:                     journalFastHV,
-		journalCompactHV:                  journalCompactHV,
-		metricStorage:                     metricStorage,
-		beforeFlushBucketFunc:             beforeFlushBucketFunc,
-		envLoader:                         envLoader,
-		builtinMetricMetaUsageCPU:         *format.BuiltinMetricMetaUsageCPU,
-		builtinMetricMetaUsageMemory:      *format.BuiltinMetricMetaUsageMemory,
-		builtinMetricMetaHeartbeatVersion: *format.BuiltinMetricMetaHeartbeatVersion,
+		cancelSendsCtx:                           cancelSendsCtx,
+		cancelSendsFunc:                          cancelSendsFunc,
+		cancelFlushCtx:                           cancelFlushCtx,
+		cancelFlushFunc:                          cancelFlushFunc,
+		hostName:                                 string(format.ForceValidStringValue(hostName)), // worse alternative is do not run at all
+		componentTag:                             componentTag,
+		heartBeatEventType:                       format.TagValueIDHeartbeatEventStart,
+		heartBeatSecondBucket:                    uint32(rnd.Intn(60)),
+		config:                                   config,
+		cacheDir:                                 cacheDir,
+		rpcClientConfig:                          newClient(),
+		network:                                  network,
+		argsHash:                                 int32(binary.BigEndian.Uint32(argsHash[:])),
+		argsLen:                                  int32(len(allArgs)),
+		args:                                     string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
+		logF:                                     logF,
+		buildArchTag:                             format.GetBuildArchKey(runtime.GOARCH),
+		mappingsCache:                            mappingsCache,
+		journalFastHV:                            journalFastHV,
+		journalCompactHV:                         journalCompactHV,
+		metricStorage:                            metricStorage,
+		beforeFlushBucketFunc:                    beforeFlushBucketFunc,
+		envLoader:                                envLoader,
+		builtinMetricMetaUsageCPU:                *format.BuiltinMetricMetaUsageCPU,
+		builtinMetricMetaUsageMemory:             *format.BuiltinMetricMetaUsageMemory,
+		builtinMetricMetaHeartbeatVersion:        *format.BuiltinMetricMetaHeartbeatVersion,
+		builtinMetricMetaHeartbeatVersionAgent:   *format.BuiltinMetricMetaHeartbeatVersionAgent,
+		builtinMetricMetaHeartbeatVersionIngress: *format.BuiltinMetricMetaHeartbeatVersionIngress,
 	}
 	result.hostNameBytes = []byte(result.hostName)
 	result.historicWindow.Store(uint32(config.HistoricWindow))
@@ -201,6 +210,21 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	result.builtinMetricMetaUsageMemory.EffectiveResolution = 1
 	result.builtinMetricMetaHeartbeatVersion.Resolution = 1
 	result.builtinMetricMetaHeartbeatVersion.EffectiveResolution = 1
+	result.builtinMetricMetaHeartbeatVersionAgent.Resolution = 1
+	result.builtinMetricMetaHeartbeatVersionAgent.EffectiveResolution = 1
+	result.builtinMetricMetaHeartbeatVersionIngress.Resolution = 1
+	result.builtinMetricMetaHeartbeatVersionIngress.EffectiveResolution = 1
+
+	// Parse command line arguments once at startup based on component type
+	switch componentTag {
+	case format.TagValueIDComponentAgent:
+		result.heartbeatArgTags = util.HeartbeatVersionAgentArgTags()
+	case format.TagValueIDComponentIngressProxy:
+		result.heartbeatArgTags = util.HeartbeatVersionIngressArgTags()
+	default:
+		result.heartbeatArgTags = statshouse.Tags{} // No arguments for other components
+	}
+
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
 	if l := stagingLevel(config.StatsHouseEnv); l >= 0 {
@@ -673,23 +697,43 @@ func (s *Agent) MapTagForProxy(str string) (int32, bool) {
 func (s *Agent) addBuiltInsHeartbeatsLocked(nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.startTimestamp)
 
-	stags := [48]string(util.HeartbeatVersionArgTags())
-	stags[7] = s.hostName
-	stags[9] = s.getOwner()
-	stags[18] = s.agentAddrV6
-	stags[19] = s.GetConfigResult.ConnectedTo
+	var metricMeta *format.MetricMetaValue
+	var tags = [48]int32{}
+	var stags = [48]string{}
+	switch s.componentTag {
+	case format.TagValueIDComponentAgent:
+		metricMeta = &s.builtinMetricMetaHeartbeatVersionAgent
+	case format.TagValueIDComponentIngressProxy:
+		metricMeta = &s.builtinMetricMetaHeartbeatVersionIngress
+	default:
+		metricMeta = &s.builtinMetricMetaHeartbeatVersion
+	}
+	if s.componentTag == format.TagValueIDComponentAgent || s.componentTag == format.TagValueIDComponentIngressProxy {
+		stags = s.heartbeatArgTags
+		tags[1] = s.heartBeatEventType
+		tags[2] = int32(build.CommitTag())
+		tags[3] = int32(build.CommitTimestamp())
+		stags[4] = s.hostName
+		stags[5] = s.getOwner()
+		tags[6] = s.agentAddrTag
+		tags[7] = s.agentAddrV4
+		stags[8] = s.agentAddrV6
+		stags[9] = s.GetConfigResult.ConnectedTo
+	} else {
+		tags[1] = s.componentTag
+		tags[2] = s.heartBeatEventType
+		tags[4] = int32(build.CommitTag())
+		tags[6] = int32(build.CommitTimestamp())
+		stags[7] = s.hostName
+		stags[9] = s.getOwner()
+		tags[16] = s.agentAddrTag
+		tags[17] = s.agentAddrV4
+		stags[18] = s.agentAddrV6
+		stags[19] = s.GetConfigResult.ConnectedTo
+	}
 	stags[format.StringTopTagIndexV3] = build.Commit()
 
-	s.AddValueCounterS(nowUnix, &s.builtinMetricMetaHeartbeatVersion,
-		[]int32{
-			1:  s.componentTag,
-			2:  s.heartBeatEventType,
-			4:  int32(build.CommitTag()),
-			6:  int32(build.CommitTimestamp()),
-			16: s.agentAddrTag,
-			17: s.agentAddrV4},
-		stags[:],
-		uptimeSec, count)
+	s.AddValueCounterS(nowUnix, metricMeta, tags[:], stags[:], uptimeSec, count)
 }
 
 func (s *Agent) goFlushIteration(now time.Time) {

@@ -288,14 +288,14 @@ func run() error {
 	defer statshouse.Close()
 
 	startTimestamp := time.Now()
-	heartbeatTags := util.HeartbeatVersionArgTags()
-	heartbeatTags[1] = fmt.Sprint(format.TagValueIDComponentMetadata)
-	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventStart)
-	heartbeatTags[4] = fmt.Sprint(build.CommitTag())
-	heartbeatTags[6] = fmt.Sprint(build.CommitTimestamp())
-	heartbeatTags[7] = srvfunc.HostnameForStatshouse()
-	heartbeatTags[statshouse.StringTopTag] = build.Commit()
-
+	heartbeatTags := statshouse.Tags{
+		1:                       fmt.Sprint(format.TagValueIDComponentMetadata),
+		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		4:                       fmt.Sprint(build.CommitTag()),
+		6:                       fmt.Sprint(build.CommitTimestamp()),
+		7:                       srvfunc.HostnameForStatshouse(),
+		statshouse.StringTopTag: build.Commit(),
+	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
 
 	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)

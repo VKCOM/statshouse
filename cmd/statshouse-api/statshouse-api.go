@@ -22,9 +22,10 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	statshouseui "github.com/VKCOM/statshouse/statshouse-ui"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
+
+	statshouseui "github.com/VKCOM/statshouse/statshouse-ui"
 
 	"github.com/VKCOM/statshouse/internal/api"
 	"github.com/VKCOM/statshouse/internal/chutil"
@@ -429,14 +430,14 @@ func run() int {
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
 	startTimestamp := time.Now()
-	heartbeatTags := util.HeartbeatVersionArgTags()
-	heartbeatTags[1] = fmt.Sprint(format.TagValueIDComponentAPI)
-	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventStart)
-	heartbeatTags[4] = fmt.Sprint(build.CommitTag())
-	heartbeatTags[6] = fmt.Sprint(build.CommitTimestamp())
-	heartbeatTags[7] = srvfunc.HostnameForStatshouse()
-	heartbeatTags[statshouse.StringTopTag] = build.Commit()
-
+	heartbeatTags := statshouse.Tags{
+		1:                       fmt.Sprint(format.TagValueIDComponentAPI),
+		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		4:                       fmt.Sprint(build.CommitTag()),
+		6:                       fmt.Sprint(build.CommitTimestamp()),
+		7:                       srvfunc.HostnameForStatshouse(),
+		statshouse.StringTopTag: build.Commit(),
+	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
 
 	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)

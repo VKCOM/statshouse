@@ -886,33 +886,6 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 		Description: "remote_addr_v6",
 	}, 18: {
 		Description: "connected_to",
-	}, 30: {
-		Description: "arg_agg_addr",
-	}, 31: {
-		Description: "arg_file_dir {cache-dir, historic-storage, disk-cache, db-path, log-file, l}",
-	}, 32: {
-		Description: "arg_listen_addr {p, ingress-addr, listen-addr, ipv6, unix}",
-	}, 33: {
-		Description: "arg_flags {disable-remote-config, hardware-metric-scrape-disable, prometheus-push-remote, " +
-			"pprof-http, auto-create-default-namespace, auto-create, version, show-invisible, " +
-			"clickhouse-v2-debug, clickhouse-v1-debug, access-log, verbose, readonly, " +
-			"query-sequential, insecure-mode, local-mode, send-source-bucket2}",
-	}, 34: {
-		Description: "arg_definition {cluster, hostname, u, g}",
-	}, 35: {
-		Description: "arg_pwd_file {aes-pwd-file, ingress-pwd-dir, kh-password-file, env-file-path}",
-	}, 36: {
-		Description: "arg_budgets {sample-budget, clickhouse-max-queries, clickhouse-v1-max-conns, clickhouse-v2-max-hardware-slow-conns, " +
-			"clickhouse-v2-max-hardware-fast-conns, clickhouse-v2-max-heavy-slow-conns, clickhouse-v2-max-heavy-conns, " +
-			"clickhouse-v2-max-light-slow-conns, clickhouse-v2-max-conns, historic-inserters, max-budget}",
-	}, 37: {
-		Description: "arg_external_addr {ingress-external-addr, ipv6}",
-	}, 38: {
-		Description: "arg_system_limits {max-open-files, cores, cores-udp, buffer-size-udp, max-chunks-count, default-num-series}",
-	}, 39: {
-		Description: "arg_ch_addrs {clickhouse-v2-addrs, clickhouse-v1-addrs, kh, kh-v1, kh-user, kh-v1-user}",
-	}, 45: {
-		Description: "arg_other",
 	}},
 }
 
@@ -2992,4 +2965,152 @@ var BuiltinMetricMetaIngestionStatusNoShard = &MetricMetaValue{
 	PreKeyTagID:   "1",
 	ShardStrategy: ShardFixed, // always sharded to the zero shard
 	ShardNum:      0,
+}
+
+const BuiltinMetricIDHeartbeatVersionAgent = -149
+
+var BuiltinMetricMetaHeartbeatVersionAgent = &MetricMetaValue{
+	Name:                    "__heartbeat_version_agent",
+	Kind:                    MetricKindValue,
+	Description:             "Heartbeat value is uptime (agent only)",
+	MetricType:              MetricSecond,
+	StringTopDescription:    "Build Commit",
+	Resolution:              60,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "event_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDHeartbeatEventStart:     "start",
+			TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
+	}, {
+		Description: "commit_hash",
+		RawKind:     "hex",
+	}, {
+		Description: "commit_timestamp",
+		RawKind:     "timestamp",
+	}, {
+		Description: "host",
+	}, {
+		Description: "owner",
+	}, {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, {
+		Description: "remote_addr_v6",
+	}, {
+		Description: "connected_to",
+	}, 19: {
+		Description: "arg_truncated_length",
+		RawKind:     "int",
+	}, 20: {
+		Description: "arg_agg_addr",
+	}, 21: {
+		Description: "arg_cache_dir",
+	}, 22: {
+		Description: "arg_p",
+	}, 23: {
+		Description: "arg_listen_addr_ipv6",
+	}, 24: {
+		Description: "arg_listen_addr_unix",
+	}, 25: {
+		Description: "arg_cluster",
+	}, 26: {
+		Description: "arg_hostname",
+	}, 27: {
+		Description: "arg_l",
+	}, 28: {
+		Description: "arg_aes_pwd_file",
+	}, 29: {
+		Description: "arg_env_file_path",
+	}, 30: {
+		Description: "arg_historic_storage",
+	}, 31: {
+		Description: "arg_max_disk_size",
+	}, 32: {
+		Description: "arg_sample_budget",
+	}, 33: {
+		Description: "arg_disable_remote_config",
+	}, 45: {
+		Description: "arg_other",
+	}},
+}
+
+const BuiltinMetricIDHeartbeatVersionIngress = -150
+
+var BuiltinMetricMetaHeartbeatVersionIngress = &MetricMetaValue{
+	Name:                    "__heartbeat_version_ingress",
+	Kind:                    MetricKindValue,
+	Description:             "Heartbeat value is uptime (ingress only)",
+	MetricType:              MetricSecond,
+	StringTopDescription:    "Build Commit",
+	Resolution:              60,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "event_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDHeartbeatEventStart:     "start",
+			TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
+	}, {
+		Description: "commit_hash",
+		RawKind:     "hex",
+	}, {
+		Description: "commit_timestamp",
+		RawKind:     "timestamp",
+	}, {
+		Description: "host",
+	}, {
+		Description: "owner",
+	}, {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, {
+		Description: "remote_addr_v6",
+	}, {
+		Description: "connected_to",
+	}, 19: {
+		Description: "arg_truncated_length",
+		RawKind:     "int",
+	}, 20: {
+		Description: "arg_agg_addr",
+	}, 21: {
+		Description: "arg_cache_dir",
+	}, 22: {
+		Description: "arg_ingress_addr",
+	}, 23: {
+		Description: "arg_ingress_addr_ipv6",
+	}, 24: {
+		Description: "arg_ingress_external_addr",
+	}, 25: {
+		Description: "arg_ingress_external_addr_ipv6",
+	}, 26: {
+		Description: "arg_ingress_pwd_dir",
+	}, 27: {
+		Description: "arg_cluster",
+	}, 28: {
+		Description: "arg_hostname",
+	}, 29: {
+		Description: "arg_l",
+	}, 30: {
+		Description: "arg_aes_pwd_file",
+	}, 31: {
+		Description: "arg_max_open_files",
+	}, 45: {
+		Description: "arg_other",
+	}},
 }
