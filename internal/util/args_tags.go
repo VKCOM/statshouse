@@ -11,6 +11,17 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 )
 
+func HeartbeatVersionArgTags(componentTag int32) statshouse.Tags {
+	switch componentTag {
+	case format.TagValueIDComponentAgent:
+		return HeartbeatVersionAgentArgTags()
+	case format.TagValueIDComponentIngressProxy:
+		return HeartbeatVersionIngressArgTags()
+	default:
+		return statshouse.Tags{}
+	}
+}
+
 func HeartbeatVersionAgentArgTags() statshouse.Tags {
 	argMap := parseCommandLineArgs()
 	popularKeys := map[string]int{

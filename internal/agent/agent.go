@@ -214,16 +214,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 	result.builtinMetricMetaHeartbeatVersionAgent.EffectiveResolution = 1
 	result.builtinMetricMetaHeartbeatVersionIngress.Resolution = 1
 	result.builtinMetricMetaHeartbeatVersionIngress.EffectiveResolution = 1
-
-	// Parse command line arguments once at startup based on component type
-	switch componentTag {
-	case format.TagValueIDComponentAgent:
-		result.heartbeatArgTags = util.HeartbeatVersionAgentArgTags()
-	case format.TagValueIDComponentIngressProxy:
-		result.heartbeatArgTags = util.HeartbeatVersionIngressArgTags()
-	default:
-		result.heartbeatArgTags = statshouse.Tags{} // No arguments for other components
-	}
+	result.heartbeatArgTags = util.HeartbeatVersionArgTags(componentTag)
 
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
