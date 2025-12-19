@@ -131,7 +131,7 @@ type Agent struct {
 	builtinMetricMetaHeartbeatVersionAgent   format.MetricMetaValue
 	builtinMetricMetaHeartbeatVersionIngress format.MetricMetaValue
 
-	// Parsed command line arguments for heartbeat metrics (parsed once at startup)
+	// Parsed command line arguments for heartbeat metrics
 	heartbeatArgTags statshouse.Tags
 }
 
