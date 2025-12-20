@@ -77,6 +77,9 @@ func parseCommandLineArgs() map[string]string {
 			value = args[i+1]
 			i++
 		}
+		if value == "" {
+			value = "true"
+		}
 		if v, ok := argMap[key]; ok {
 			argMap[key] = fmt.Sprintf("%s,%s", v, value)
 		}
