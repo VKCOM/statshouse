@@ -76,6 +76,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				StepSec:     lod.StepSec,
 				Version:     lod.Version,
 				UseV4Tables: lod.UseV4Tables,
+				UseV5Tables: lod.UseV5Tables,
 				Metric:      pq.metric,
 				NewSharding: h.newSharding(metricMeta, lod.FromSec),
 				HasPreKey:   lod.HasPreKey,

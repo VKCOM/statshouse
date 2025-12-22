@@ -10,9 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/stretchr/testify/assert"
 )
 
 const utcOffset = 3600 * 3 // GMT+3
@@ -41,6 +42,7 @@ func getLodForV4(t *testing.T, start int64, end int64, time_now int64, utc_offse
 		Version:       Version3,
 		Version3Start: 1,
 		Version4Start: 2,
+		Version5Start: 3,
 		Start:         start,
 		End:           end,
 		ScreenWidth:   100,

@@ -302,7 +302,9 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
-		if lod.UseV4Tables {
+		if lod.UseV5Tables {
+			b.ensurePrimaryKeyPrefix(sb)
+		} else if lod.UseV4Tables {
 			b.ensurePrimaryKeyPrefix(sb)
 			sb.WriteString(" AND ")
 			b.writeTimeCoarseClause(sb, lod)
@@ -319,7 +321,7 @@ func (b *queryBuilder) ensurePrimaryKeyPrefix(sb *strings.Builder) {
 	// So when we filter by a range or multiple values for a column like time/time_coarse range
 	// explicitly setting values for preceding PK columns greatly increases performance
 
-	// NOTE2: optimized for v3 and v4 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
+	// NOTE2: optimized for v3 and v4 and v5 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
 	// NOTE3: assumes that metric value and time/time_coarse range are set elsewhere
 	// NOTE4: assumes that if rows with `index_type != 0 OR pre_tag != 0 OR !empty(pre_stag)` ever appear in CH, they won't be needed in api queries
 	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND pre_stag='' ")

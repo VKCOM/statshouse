@@ -651,6 +651,7 @@ func (l *cache2Loader) loadChunks() {
 		StepSec:     l.lod.StepSec,
 		Version:     l.lod.Version,
 		UseV4Tables: l.lod.UseV4Tables,
+		UseV5Tables: l.lod.UseV5Tables,
 		Metric:      l.lod.Metric,
 		NewSharding: l.lod.NewSharding,
 		HasPreKey:   l.lod.HasPreKey,
