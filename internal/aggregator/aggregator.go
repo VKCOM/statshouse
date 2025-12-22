@@ -436,12 +436,6 @@ func (a *Aggregator) SaveJournals() {
 	_, _, _ = a.journalCompact.Save()
 }
 
-func (a *Aggregator) SaveMappings() {
-	if _, err := a.mappingsStorage.Save(); err != nil {
-		log.Printf("Mappings storage save failed: %v", err)
-	}
-}
-
 func (a *Aggregator) Agent() *agent.Agent {
 	return a.sh2
 }
