@@ -51,6 +51,10 @@ func BuiltinVectorStatshousePromTargetWrite(w []byte, vec []StatshousePromTarget
 	return w
 }
 
+func BuiltinVectorStatshousePromTargetInternalReadTL2(r []byte, vec *[]StatshousePromTarget) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshousePromTarget")
+}
+
 func BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -128,6 +132,10 @@ func BuiltinVectorStatshousePromTargetBytesWrite(w []byte, vec []StatshousePromT
 		w = elem.Write(w, nat_t)
 	}
 	return w
+}
+
+func BuiltinVectorStatshousePromTargetBytesInternalReadTL2(r []byte, vec *[]StatshousePromTargetBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshousePromTargetBytes")
 }
 
 func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
@@ -654,6 +662,14 @@ func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	return append(w, '}')
 }
 
+func (item *StatshousePromTarget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshousePromTarget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.promTarget")
+}
+
 type StatshousePromTargetBytes struct {
 	FieldsMask     uint32
 	JobName        []byte
@@ -1137,4 +1153,12 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 		w = basictl.JSONWriteStringBytes(w, item.MetricRelabelConfigs)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshousePromTargetBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshousePromTargetBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.promTarget")
 }

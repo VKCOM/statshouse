@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFuncti
 	return w
 }
 
+func BuiltinVectorStatshouseApiFunctionInternalReadTL2(r []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseApiFunction")
+}
+
 func BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -527,6 +531,14 @@ func (item *StatshouseApiFunction) WriteBoxedGeneral(w []byte) (_ []byte, err er
 func (item *StatshouseApiFunction) WriteBoxed(w []byte) []byte {
 	w = basictl.NatWrite(w, _StatshouseApiFunction[item.index].TLTag)
 	return w
+}
+
+func (item *StatshouseApiFunction) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiFunction) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.Function")
 }
 
 func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {

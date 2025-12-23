@@ -344,6 +344,14 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	return append(w, '}')
 }
 
+func (item *StatshouseCommonProxyHeader) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseCommonProxyHeader) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader")
+}
+
 type StatshouseCommonProxyHeaderBytes struct {
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
 	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
@@ -673,4 +681,12 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWri
 		w = basictl.JSONWriteStringBytes(w, item.Owner)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseCommonProxyHeaderBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader")
 }

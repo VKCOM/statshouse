@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseMultiItemWrite(w []byte, vec []StatshouseMultiItem) 
 	return w
 }
 
+func BuiltinVectorStatshouseMultiItemInternalReadTL2(r []byte, vec *[]StatshouseMultiItem) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseMultiItem")
+}
+
 func BuiltinVectorStatshouseMultiItemReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMultiItem) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -128,6 +132,10 @@ func BuiltinVectorStatshouseMultiItemBytesWrite(w []byte, vec []StatshouseMultiI
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorStatshouseMultiItemBytesInternalReadTL2(r []byte, vec *[]StatshouseMultiItemBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseMultiItemBytes")
 }
 
 func BuiltinVectorStatshouseMultiItemBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMultiItemBytes) error {
@@ -549,6 +557,14 @@ func (item *StatshouseMultiItem) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseMultiItem) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMultiItem) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.multiItem")
+}
+
 type StatshouseMultiItemBytes struct {
 	FieldsMask uint32
 	Metric     int32
@@ -927,4 +943,12 @@ func (item *StatshouseMultiItemBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.multiItem", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseMultiItemBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMultiItemBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.multiItem")
 }

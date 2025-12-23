@@ -130,6 +130,14 @@ func (item *StatshouseApiGetChunk) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
+func (item *StatshouseApiGetChunk) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getChunk")
+}
+
+func (item *StatshouseApiGetChunk) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getChunk")
+}
+
 func (item StatshouseApiGetChunk) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -262,4 +270,12 @@ func (item *StatshouseApiGetChunk) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.getChunk", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseApiGetChunk) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetChunk) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getChunk")
 }

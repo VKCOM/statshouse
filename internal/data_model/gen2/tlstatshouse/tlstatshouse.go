@@ -869,7 +869,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.AddMetricsBatch != nil {
 			var args AddMetricsBatch
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.addMetricsBatch", err)
 			}
@@ -902,7 +907,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.AutoCreate != nil {
 			var args AutoCreate
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.autoCreate", err)
 			}
@@ -935,7 +945,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetConfig2 != nil {
 			var args GetConfig2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getConfig2", err)
 			}
@@ -968,7 +983,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetConfig3 != nil {
 			var args GetConfig3
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getConfig3", err)
 			}
@@ -1001,7 +1021,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetMetrics3 != nil {
 			var args GetMetrics3
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getMetrics3", err)
 			}
@@ -1034,7 +1059,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetTagMapping2 != nil {
 			var args GetTagMapping2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getTagMapping2", err)
 			}
@@ -1067,7 +1097,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetTagMappingBootstrap != nil {
 			var args GetTagMappingBootstrap
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getTagMappingBootstrap", err)
 			}
@@ -1100,7 +1135,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetTargets2 != nil {
 			var args GetTargets2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.getTargets2", err)
 			}
@@ -1133,7 +1173,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.SendKeepAlive2 != nil {
 			var args SendKeepAlive2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.sendKeepAlive2", err)
 			}
@@ -1166,7 +1211,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.SendKeepAlive3 != nil {
 			var args SendKeepAlive3
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.sendKeepAlive3", err)
 			}
@@ -1199,7 +1249,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.SendSourceBucket3 != nil {
 			var args SendSourceBucket3
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.sendSourceBucket3", err)
 			}
@@ -1232,7 +1287,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.TestConnection2 != nil {
 			var args TestConnection2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouse.testConnection2", err)
 			}

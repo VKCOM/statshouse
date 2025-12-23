@@ -116,6 +116,14 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, 
 	return r, w, err
 }
 
+func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.putTagMappingBootstrap")
+}
+
+func (item *MetadataPutTagMappingBootstrap) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.putTagMappingBootstrap")
+}
+
 func (item MetadataPutTagMappingBootstrap) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -210,4 +218,12 @@ func (item *MetadataPutTagMappingBootstrap) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
 	}
 	return nil
+}
+
+func (item *MetadataPutTagMappingBootstrap) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataPutTagMappingBootstrap) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.putTagMappingBootstrap")
 }

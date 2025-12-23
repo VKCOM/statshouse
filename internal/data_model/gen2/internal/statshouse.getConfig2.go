@@ -146,6 +146,14 @@ func (item *StatshouseGetConfig2) ReadResultJSONWriteResult(r []byte, w []byte) 
 	return r, w, err
 }
 
+func (item *StatshouseGetConfig2) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
+}
+
+func (item *StatshouseGetConfig2) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
+}
+
 // Set field "ts" in "statshouse.getConfigResult" by changing fieldMask "fields_mask"
 func (item *StatshouseGetConfig2) SetStatshouseGetConfigResultTs(value bool) {
 	if value {
@@ -318,6 +326,14 @@ func (item *StatshouseGetConfig2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseGetConfig2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetConfig2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
+}
+
 type StatshouseGetConfig2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
@@ -451,6 +467,14 @@ func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResult(r []byte, w []b
 	}
 	w, err = item.WriteResult(w, ret)
 	return r, w, err
+}
+
+func (item *StatshouseGetConfig2Bytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
+}
+
+func (item *StatshouseGetConfig2Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
 // Set field "ts" in "statshouse.getConfigResult" by changing fieldMask "fields_mask"
@@ -623,4 +647,12 @@ func (item *StatshouseGetConfig2Bytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetConfig2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetConfig2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }

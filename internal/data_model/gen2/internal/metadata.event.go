@@ -51,6 +51,10 @@ func BuiltinVectorMetadataEventWrite(w []byte, vec []MetadataEvent) []byte {
 	return w
 }
 
+func BuiltinVectorMetadataEventInternalReadTL2(r []byte, vec *[]MetadataEvent) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]MetadataEvent")
+}
+
 func BuiltinVectorMetadataEventReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataEvent) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -128,6 +132,10 @@ func BuiltinVectorMetadataEventBytesWrite(w []byte, vec []MetadataEventBytes) []
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorMetadataEventBytesInternalReadTL2(r []byte, vec *[]MetadataEventBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]MetadataEventBytes")
 }
 
 func BuiltinVectorMetadataEventBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataEventBytes) error {
@@ -571,6 +579,14 @@ func (item *MetadataEvent) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *MetadataEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.event")
+}
+
 type MetadataEventBytes struct {
 	FieldMask   uint32
 	Id          int64
@@ -969,4 +985,12 @@ func (item *MetadataEventBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("metadata.event", err.Error())
 	}
 	return nil
+}
+
+func (item *MetadataEventBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataEventBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.event")
 }

@@ -100,6 +100,18 @@ func (item *DictionaryEngineMetafilesStatBoxed) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *DictionaryEngineMetafilesStatBoxed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryEngineMetafilesStatBoxed) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionary")
+}
+
+func (item *DictionaryEngineMetafilesStatBoxed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type DictionaryString map[string]string
 
 func (DictionaryString) TLName() string { return "dictionary" }
@@ -187,6 +199,18 @@ func (item *DictionaryString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *DictionaryString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryString) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionary")
+}
+
+func (item *DictionaryString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type DictionaryStringBytes []DictionaryFieldStringBytes
 
 func (DictionaryStringBytes) TLName() string { return "dictionary" }
@@ -272,4 +296,16 @@ func (item *DictionaryStringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil
+}
+
+func (item *DictionaryStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionary")
+}
+
+func (item *DictionaryStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

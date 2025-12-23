@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseInge
 	return w
 }
 
+func BuiltinVectorStatshouseIngestionStatus2InternalReadTL2(r []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseIngestionStatus2")
+}
+
 func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -263,4 +267,12 @@ func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.ingestionStatus2", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseIngestionStatus2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseIngestionStatus2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.ingestionStatus2")
 }

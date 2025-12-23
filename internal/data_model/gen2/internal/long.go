@@ -51,6 +51,10 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
 	return w
 }
 
+func BuiltinVectorLongInternalReadTL2(r []byte, vec *[]int64) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]int64")
+}
+
 func BuiltinVectorLongReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]int64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0

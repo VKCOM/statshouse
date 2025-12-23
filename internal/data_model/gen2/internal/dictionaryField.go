@@ -81,6 +81,10 @@ func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w []byte, m map[s
 	return w
 }
 
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedInternalReadTL2(r []byte, m *map[string]EngineMetafilesStat) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("map[string]EngineMetafilesStat")
+}
+
 func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, m *map[string]EngineMetafilesStat) error {
 	var data map[string]EngineMetafilesStat
 	if *m == nil {
@@ -202,6 +206,10 @@ func BuiltinVectorDictionaryFieldStringWrite(w []byte, m map[string]string) []by
 	return w
 }
 
+func BuiltinVectorDictionaryFieldStringInternalReadTL2(r []byte, m *map[string]string) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("map[string]string")
+}
+
 func BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, m *map[string]string) error {
 	var data map[string]string
 	if *m == nil {
@@ -294,6 +302,10 @@ func BuiltinVectorDictionaryFieldStringBytesWrite(w []byte, vec []DictionaryFiel
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorDictionaryFieldStringBytesInternalReadTL2(r []byte, vec *[]DictionaryFieldStringBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]DictionaryFieldStringBytes")
 }
 
 func BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]DictionaryFieldStringBytes) error {
@@ -484,6 +496,14 @@ func (item *DictionaryFieldEngineMetafilesStatBoxed) UnmarshalJSON(b []byte) err
 	return nil
 }
 
+func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryFieldEngineMetafilesStatBoxed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionaryField")
+}
+
 type DictionaryFieldString struct {
 	Key   string
 	Value string
@@ -631,6 +651,14 @@ func (item *DictionaryFieldString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *DictionaryFieldString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryFieldString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionaryField")
+}
+
 type DictionaryFieldStringBytes struct {
 	Key   []byte
 	Value []byte
@@ -776,4 +804,12 @@ func (item *DictionaryFieldStringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("dictionaryField", err.Error())
 	}
 	return nil
+}
+
+func (item *DictionaryFieldStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryFieldStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionaryField")
 }

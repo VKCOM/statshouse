@@ -196,3 +196,11 @@ func (item *StatshouseApiGetMappingResponse) WriteJSONOpt(tctx *basictl.JSONWrit
 	}
 	return append(w, '}')
 }
+
+func (item *StatshouseApiGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getMappingResponse")
+}

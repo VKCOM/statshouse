@@ -106,6 +106,14 @@ func (item *EngineAlreadyInMasterMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *EngineAlreadyInMasterMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineAlreadyInMasterMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.alreadyInMasterMode")
+}
+
 func (item EngineAlreadyInReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
 	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetAlreadyInReplicaMode()
@@ -197,6 +205,14 @@ func (item *EngineAlreadyInReplicaMode) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.alreadyInReplicaMode", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineAlreadyInReplicaMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineAlreadyInReplicaMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.alreadyInReplicaMode")
 }
 
 func (item EngineFailedToSwitchMode) AsUnion() EngineSwitchMasterReplicaModeResult {
@@ -324,6 +340,14 @@ func (item *EngineFailedToSwitchMode) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.failedToSwitchMode", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineFailedToSwitchMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineFailedToSwitchMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.failedToSwitchMode")
 }
 
 var _EngineSwitchMasterReplicaModeResult = [6]UnionElement{
@@ -500,6 +524,14 @@ func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) []byte {
 		w = item.valueFailedToSwitchMode.Write(w)
 	}
 	return w
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.SwitchMasterReplicaModeResult")
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -777,6 +809,14 @@ func (item *EngineSwitchedToMasterMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *EngineSwitchedToMasterMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSwitchedToMasterMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.switchedToMasterMode")
+}
+
 func (item EngineSwitchedToMasterModeForcefully) AsUnion() EngineSwitchMasterReplicaModeResult {
 	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToMasterModeForcefully(item)
@@ -906,6 +946,14 @@ func (item *EngineSwitchedToMasterModeForcefully) UnmarshalJSON(b []byte) error 
 	return nil
 }
 
+func (item *EngineSwitchedToMasterModeForcefully) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSwitchedToMasterModeForcefully) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.switchedToMasterModeForcefully")
+}
+
 func (item EngineSwitchedToReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
 	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToReplicaMode()
@@ -997,4 +1045,12 @@ func (item *EngineSwitchedToReplicaMode) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.switchedToReplicaMode", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineSwitchedToReplicaMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSwitchedToReplicaMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.switchedToReplicaMode")
 }

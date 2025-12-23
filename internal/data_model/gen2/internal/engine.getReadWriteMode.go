@@ -109,6 +109,14 @@ func (item *EngineGetReadWriteMode) ReadResultJSONWriteResult(r []byte, w []byte
 	return r, w, err
 }
 
+func (item *EngineGetReadWriteMode) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getReadWriteMode")
+}
+
+func (item *EngineGetReadWriteMode) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getReadWriteMode")
+}
+
 // Set field "read_enabled" in "engine.mode" by changing fieldMask "fields_mask"
 func (item *EngineGetReadWriteMode) SetEngineReadWriteModeReadEnabled(value bool) {
 	if value {
@@ -202,4 +210,12 @@ func (item *EngineGetReadWriteMode) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.getReadWriteMode", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineGetReadWriteMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineGetReadWriteMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.getReadWriteMode")
 }

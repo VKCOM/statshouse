@@ -105,7 +105,7 @@ func StringWriteTL2(w []byte, v string) []byte {
 	return w
 }
 
-func StringBytesWriteTL2(w []byte, v []byte) []byte {
+func StringWriteTL2Bytes(w []byte, v []byte) []byte {
 	w = TL2WriteSize(w, len(v))
 	w = append(w, v...)
 	return w
@@ -123,7 +123,7 @@ func StringReadTL2(r []byte, dst *string) (_ []byte, err error) {
 	return r[l:], nil
 }
 
-func StringReadBytesTL2(r []byte, dst *[]byte) (_ []byte, err error) {
+func StringReadTL2Bytes(r []byte, dst *[]byte) (_ []byte, err error) {
 	var l int
 	if r, err = TL2ReadSize(r, &l); err != nil {
 		return r, err
@@ -240,4 +240,50 @@ func SkipFixedSizedValue(r []byte, l int) (_ []byte, err error) {
 	}
 	r = r[l:]
 	return r, err
+}
+
+func VectorBoolContentWriteTL2(w []byte, vec []bool) []byte {
+	blockOffset := 0
+	for ; blockOffset+8 <= len(vec); blockOffset += 8 {
+		var block byte
+		for j := 0; j < 8; j++ {
+			if vec[blockOffset+j] {
+				block |= (1 << j)
+			}
+		}
+		w = append(w, block)
+	}
+	if blockOffset < len(vec) {
+		var block byte
+		for j := 0; j < len(vec)-blockOffset; j++ {
+			if vec[blockOffset+j] {
+				block |= (1 << j)
+			}
+		}
+		w = append(w, block)
+	}
+	return w
+}
+
+func VectorBoolContentReadTL2(w []byte, vec []bool) (_ []byte, err error) {
+	blockOffset := 0
+	for ; blockOffset+8 <= len(vec); blockOffset += 8 {
+		var block byte
+		if w, err = ByteReadTL2(w, &block); err != nil {
+			return w, err
+		}
+		for j := 0; j < 8; j++ {
+			vec[blockOffset+j] = (block & (1 << j)) != 0
+		}
+	}
+	if blockOffset < len(vec) {
+		var block byte
+		if w, err = ByteReadTL2(w, &block); err != nil {
+			return w, err
+		}
+		for j := 0; j < len(vec)-blockOffset; j++ {
+			vec[blockOffset+j] = (block & (1 << j)) != 0
+		}
+	}
+	return w, nil
 }

@@ -109,6 +109,14 @@ func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([
 	return r, w, err
 }
 
+func (item *EngineFilteredStat) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.filteredStat")
+}
+
+func (item *EngineFilteredStat) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.filteredStat")
+}
+
 func (item EngineFilteredStat) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -184,4 +192,12 @@ func (item *EngineFilteredStat) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.filteredStat", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineFilteredStat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineFilteredStat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.filteredStat")
 }

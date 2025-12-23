@@ -43,6 +43,10 @@ func BuiltinTuple2DoubleWrite(w []byte, vec *[2]float64) []byte {
 	return w
 }
 
+func BuiltinTuple2DoubleInternalReadTL2(r []byte, vec *[2]float64) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[2]float64")
+}
+
 func BuiltinTuple2DoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[2]float64) error {
 	index := 0
 	if in != nil {
@@ -119,6 +123,10 @@ func BuiltinVectorDoubleWrite(w []byte, vec []float64) []byte {
 		w = basictl.DoubleWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorDoubleInternalReadTL2(r []byte, vec *[]float64) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]float64")
 }
 
 func BuiltinVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]float64) error {

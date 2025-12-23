@@ -258,7 +258,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("statshouseApi.getChunk")
 		if h.GetChunk != nil {
 			var args GetChunk
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getChunk", err)
 			}
@@ -280,7 +285,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("statshouseApi.getMapping")
 		if h.GetMapping != nil {
 			var args GetMapping
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getMapping", err)
 			}
@@ -302,7 +312,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("statshouseApi.getQuery")
 		if h.GetQuery != nil {
 			var args GetQuery
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getQuery", err)
 			}
@@ -324,7 +339,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("statshouseApi.getQueryPoint")
 		if h.GetQueryPoint != nil {
 			var args GetQueryPoint
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.getQueryPoint", err)
 			}
@@ -346,7 +366,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("statshouseApi.releaseChunks")
 		if h.ReleaseChunks != nil {
 			var args ReleaseChunks
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("statshouseApi.releaseChunks", err)
 			}

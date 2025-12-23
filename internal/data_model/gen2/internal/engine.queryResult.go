@@ -126,6 +126,14 @@ func (item *EngineQueryResult) WriteBoxed(w []byte) []byte {
 	return w
 }
 
+func (item *EngineQueryResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineQueryResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.QueryResult")
+}
+
 func (item *EngineQueryResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	return item.ReadJSONGeneral(&tctx, in)
@@ -378,6 +386,14 @@ func (item *EngineQueryResult0) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *EngineQueryResult0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineQueryResult0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.queryResult")
+}
+
 func (item EngineQueryResultAio) AsUnion() EngineQueryResult {
 	var ret EngineQueryResult
 	ret.SetAio()
@@ -469,6 +485,14 @@ func (item *EngineQueryResultAio) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.queryResultAio", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineQueryResultAio) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineQueryResultAio) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.queryResultAio")
 }
 
 func (item EngineQueryResultError) AsUnion() EngineQueryResult {
@@ -622,4 +646,12 @@ func (item *EngineQueryResultError) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.queryResultError", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineQueryResultError) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineQueryResultError) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.queryResultError")
 }

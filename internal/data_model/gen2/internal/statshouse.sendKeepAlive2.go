@@ -119,6 +119,14 @@ func (item *StatshouseSendKeepAlive2) ReadResultJSONWriteResult(r []byte, w []by
 	return r, w, err
 }
 
+func (item *StatshouseSendKeepAlive2) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
+}
+
+func (item *StatshouseSendKeepAlive2) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
+}
+
 func (item StatshouseSendKeepAlive2) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -215,6 +223,14 @@ func (item *StatshouseSendKeepAlive2) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseSendKeepAlive2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendKeepAlive2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
 }
 
 type StatshouseSendKeepAlive2Bytes struct {
@@ -323,6 +339,14 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSONWriteResult(r []byte, w
 	return r, w, err
 }
 
+func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
+}
+
 func (item StatshouseSendKeepAlive2Bytes) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -419,4 +443,12 @@ func (item *StatshouseSendKeepAlive2Bytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.sendKeepAlive2", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendKeepAlive2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendKeepAlive2")
 }

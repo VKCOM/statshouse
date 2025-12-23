@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.2.29" }
+func SchemaGenerator() string { return "v1.2.32" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -38,6 +38,9 @@ type Object interface {
 	// like MarshalJSON, but appends to w and returns it
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
 	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
+
+	ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error)
+	WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte
 }
 
 type Function interface {
@@ -49,6 +52,9 @@ type Function interface {
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
 	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
 	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+
+	ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error)
+	ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error)
 }
 
 func GetAllTLItems() []TLItem {
@@ -212,6 +218,14 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON(item.tlName, err.Error())
 	}
 	return nil
+}
+
+func (item *TLItem) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, nil
+}
+
+func (item *TLItem) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
 }
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]

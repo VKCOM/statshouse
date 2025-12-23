@@ -116,6 +116,14 @@ func (item *StatshouseGetTagMappingBootstrap) ReadResultJSONWriteResult(r []byte
 	return r, w, err
 }
 
+func (item *StatshouseGetTagMappingBootstrap) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
+}
+
+func (item *StatshouseGetTagMappingBootstrap) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
+}
+
 func (item StatshouseGetTagMappingBootstrap) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -212,6 +220,14 @@ func (item *StatshouseGetTagMappingBootstrap) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.getTagMappingBootstrap", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetTagMappingBootstrap) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMappingBootstrap) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
 }
 
 type StatshouseGetTagMappingBootstrapBytes struct {
@@ -319,6 +335,14 @@ func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultJSONWriteResult(r [
 	return r, w, err
 }
 
+func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
+}
+
 func (item StatshouseGetTagMappingBootstrapBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -415,4 +439,12 @@ func (item *StatshouseGetTagMappingBootstrapBytes) UnmarshalJSON(b []byte) error
 		return ErrorInvalidJSON("statshouse.getTagMappingBootstrap", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMappingBootstrapBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrap")
 }

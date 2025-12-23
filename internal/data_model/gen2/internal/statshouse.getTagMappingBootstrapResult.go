@@ -136,6 +136,14 @@ func (item *StatshouseGetTagMappingBootstrapResult) UnmarshalJSON(b []byte) erro
 	return nil
 }
 
+func (item *StatshouseGetTagMappingBootstrapResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMappingBootstrapResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrapResult")
+}
+
 type StatshouseGetTagMappingBootstrapResultBytes struct {
 	Mappings []StatshouseMappingBytes
 }
@@ -257,4 +265,12 @@ func (item *StatshouseGetTagMappingBootstrapResultBytes) UnmarshalJSON(b []byte)
 		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMappingBootstrapResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMappingBootstrapResult")
 }

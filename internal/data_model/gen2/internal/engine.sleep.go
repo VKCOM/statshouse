@@ -108,6 +108,14 @@ func (item *EngineSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, 
 	return r, w, err
 }
 
+func (item *EngineSleep) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.sleep")
+}
+
+func (item *EngineSleep) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.sleep")
+}
+
 func (item EngineSleep) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -183,4 +191,12 @@ func (item *EngineSleep) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.sleep", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineSleep) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSleep) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.sleep")
 }

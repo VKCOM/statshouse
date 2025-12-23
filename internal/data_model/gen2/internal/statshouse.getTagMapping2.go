@@ -154,6 +154,14 @@ func (item *StatshouseGetTagMapping2) ReadResultJSONWriteResult(r []byte, w []by
 	return r, w, err
 }
 
+func (item *StatshouseGetTagMapping2) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
+}
+
+func (item *StatshouseGetTagMapping2) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
+}
+
 func (item StatshouseGetTagMapping2) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -351,6 +359,14 @@ func (item *StatshouseGetTagMapping2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseGetTagMapping2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMapping2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
+}
+
 type StatshouseGetTagMapping2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
@@ -490,6 +506,14 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResultJSONWriteResult(r []byte, w
 	}
 	w, err = item.WriteResult(w, ret)
 	return r, w, err
+}
+
+func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
+}
+
+func (item *StatshouseGetTagMapping2Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
 }
 
 func (item StatshouseGetTagMapping2Bytes) String() string {
@@ -687,4 +711,12 @@ func (item *StatshouseGetTagMapping2Bytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.getTagMapping2", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetTagMapping2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTagMapping2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTagMapping2")
 }

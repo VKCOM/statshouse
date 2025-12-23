@@ -101,6 +101,14 @@ func (item *EngineWriteNop) ReadResultJSONWriteResult(r []byte, w []byte) ([]byt
 	return r, w, err
 }
 
+func (item *EngineWriteNop) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.writeNop")
+}
+
+func (item *EngineWriteNop) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.writeNop")
+}
+
 func (item EngineWriteNop) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -150,4 +158,12 @@ func (item *EngineWriteNop) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.writeNop", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineWriteNop) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineWriteNop) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.writeNop")
 }
