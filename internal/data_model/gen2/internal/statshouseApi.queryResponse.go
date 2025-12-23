@@ -318,3 +318,11 @@ func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(tctx *basictl.JSONWriteC
 	}
 	return append(w, '}')
 }
+
+func (item *StatshouseApiGetQueryResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetQueryResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.queryResponse")
+}

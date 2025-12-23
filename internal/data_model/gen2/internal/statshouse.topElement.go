@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseTopElementWrite(w []byte, vec []StatshouseTopElement
 	return w
 }
 
+func BuiltinVectorStatshouseTopElementInternalReadTL2(r []byte, vec *[]StatshouseTopElement) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseTopElement")
+}
+
 func BuiltinVectorStatshouseTopElementReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseTopElement) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -128,6 +132,10 @@ func BuiltinVectorStatshouseTopElementBytesWrite(w []byte, vec []StatshouseTopEl
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorStatshouseTopElementBytesInternalReadTL2(r []byte, vec *[]StatshouseTopElementBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseTopElementBytes")
 }
 
 func BuiltinVectorStatshouseTopElementBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseTopElementBytes) error {
@@ -393,6 +401,14 @@ func (item *StatshouseTopElement) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseTopElement) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseTopElement) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.topElement")
+}
+
 type StatshouseTopElementBytes struct {
 	Stag       []byte
 	FieldsMask uint32
@@ -613,4 +629,12 @@ func (item *StatshouseTopElementBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.topElement", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseTopElementBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseTopElementBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.topElement")
 }

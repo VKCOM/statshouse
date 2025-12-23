@@ -51,6 +51,10 @@ func BuiltinVectorMetadataMetricOldWrite(w []byte, vec []MetadataMetricOld, nat_
 	return w
 }
 
+func BuiltinVectorMetadataMetricOldInternalReadTL2(r []byte, vec *[]MetadataMetricOld) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]MetadataMetricOld")
+}
+
 func BuiltinVectorMetadataMetricOldReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataMetricOld, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -401,4 +405,12 @@ func (item *MetadataMetricOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []
 		w = w[:backupIndexData]
 	}
 	return append(w, '}')
+}
+
+func (item *MetadataMetricOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataMetricOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.metricOld")
 }

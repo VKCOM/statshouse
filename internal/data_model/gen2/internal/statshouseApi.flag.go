@@ -80,6 +80,14 @@ func (item *StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 	return w
 }
 
+func (item *StatshouseApiFlag) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiFlag) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.Flag")
+}
+
 func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	return item.ReadJSONGeneral(&tctx, in)

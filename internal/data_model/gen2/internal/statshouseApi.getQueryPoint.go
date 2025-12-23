@@ -123,6 +123,14 @@ func (item *StatshouseApiGetQueryPoint) ReadResultJSONWriteResult(r []byte, w []
 	return r, w, err
 }
 
+func (item *StatshouseApiGetQueryPoint) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getQueryPoint")
+}
+
+func (item *StatshouseApiGetQueryPoint) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getQueryPoint")
+}
+
 func (item StatshouseApiGetQueryPoint) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -232,4 +240,12 @@ func (item *StatshouseApiGetQueryPoint) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.getQueryPoint", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseApiGetQueryPoint) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetQueryPoint) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getQueryPoint")
 }

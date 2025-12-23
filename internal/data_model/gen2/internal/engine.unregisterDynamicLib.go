@@ -109,6 +109,14 @@ func (item *EngineUnregisterDynamicLib) ReadResultJSONWriteResult(r []byte, w []
 	return r, w, err
 }
 
+func (item *EngineUnregisterDynamicLib) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
+}
+
+func (item *EngineUnregisterDynamicLib) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
+}
+
 func (item EngineUnregisterDynamicLib) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -184,4 +192,12 @@ func (item *EngineUnregisterDynamicLib) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.unregisterDynamicLib", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineUnregisterDynamicLib) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineUnregisterDynamicLib) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
 }

@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseApiPointMetaWrite(w []byte, vec []StatshouseApiPoint
 	return w
 }
 
+func BuiltinVectorStatshouseApiPointMetaInternalReadTL2(r []byte, vec *[]StatshouseApiPointMeta) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseApiPointMeta")
+}
+
 func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -365,4 +369,12 @@ func (item *StatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.pointMeta", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseApiPointMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiPointMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.pointMeta")
 }

@@ -173,6 +173,14 @@ func (item *StatshouseApiGetMapping) ReadResultJSONWriteResult(r []byte, w []byt
 	return r, w, err
 }
 
+func (item *StatshouseApiGetMapping) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
+}
+
+func (item *StatshouseApiGetMapping) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
+}
+
 // Set field "intValue" in "statshouseApi.getMappingResponse" by changing fieldMask "fields_mask"
 func (item *StatshouseApiGetMapping) SetStatshouseApiGetMappingResponseIntValue(value bool) {
 	if value {
@@ -325,4 +333,12 @@ func (item *StatshouseApiGetMapping) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.getMapping", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseApiGetMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
 }

@@ -51,6 +51,10 @@ func BuiltinVectorMetadataHistoryShortResponseEventWrite(w []byte, vec []Metadat
 	return w
 }
 
+func BuiltinVectorMetadataHistoryShortResponseEventInternalReadTL2(r []byte, vec *[]MetadataHistoryShortResponseEvent) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]MetadataHistoryShortResponseEvent")
+}
+
 func BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -217,4 +221,12 @@ func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.JSONWr
 		w = w[:backupIndexMetadata]
 	}
 	return append(w, '}')
+}
+
+func (item *MetadataHistoryShortResponseEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataHistoryShortResponseEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.historyShortResponseEvent")
 }

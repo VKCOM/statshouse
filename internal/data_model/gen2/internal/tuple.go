@@ -51,6 +51,10 @@ func BuiltinVectorTupleDouble2Write(w []byte, vec [][2]float64) []byte {
 	return w
 }
 
+func BuiltinVectorTupleDouble2InternalReadTL2(r []byte, vec *[][2]float64) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[][2]float64")
+}
+
 func BuiltinVectorTupleDouble2ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][2]float64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -177,4 +181,16 @@ func (item *TupleDouble2) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("tuple", err.Error())
 	}
 	return nil
+}
+
+func (item *TupleDouble2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *TupleDouble2) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("tuple")
+}
+
+func (item *TupleDouble2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

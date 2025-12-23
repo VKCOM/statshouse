@@ -185,3 +185,11 @@ func (item *StatshouseApiGetQueryPointResponse) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+func (item *StatshouseApiGetQueryPointResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiGetQueryPointResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.queryPointResponse")
+}

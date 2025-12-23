@@ -160,6 +160,14 @@ func (item *StatshouseGetMetrics3) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
+func (item *StatshouseGetMetrics3) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
+}
+
+func (item *StatshouseGetMetrics3) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
+}
+
 func (item StatshouseGetMetrics3) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -361,6 +369,14 @@ func (item *StatshouseGetMetrics3) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseGetMetrics3) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetMetrics3) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
+}
+
 type StatshouseGetMetrics3Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
@@ -506,6 +522,14 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultJSONWriteResult(r []byte, w []
 	}
 	w, err = item.WriteResult(w, ret)
 	return r, w, err
+}
+
+func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
+}
+
+func (item *StatshouseGetMetrics3Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
 }
 
 func (item StatshouseGetMetrics3Bytes) String() string {
@@ -707,4 +731,12 @@ func (item *StatshouseGetMetrics3Bytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseGetMetrics3Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetMetrics3Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getMetrics3")
 }

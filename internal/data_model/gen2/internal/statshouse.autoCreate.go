@@ -194,6 +194,14 @@ func (item *StatshouseAutoCreate) ReadResultJSONWriteResult(r []byte, w []byte) 
 	return r, w, err
 }
 
+func (item *StatshouseAutoCreate) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
+}
+
+func (item *StatshouseAutoCreate) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
+}
+
 func (item StatshouseAutoCreate) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -389,6 +397,14 @@ func (item *StatshouseAutoCreate) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseAutoCreate) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseAutoCreate) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
+}
+
 type StatshouseAutoCreateBytes struct {
 	FieldsMask  uint32
 	Header      StatshouseCommonProxyHeaderBytes
@@ -568,6 +584,14 @@ func (item *StatshouseAutoCreateBytes) ReadResultJSONWriteResult(r []byte, w []b
 	}
 	w, err = item.WriteResult(w, ret)
 	return r, w, err
+}
+
+func (item *StatshouseAutoCreateBytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
+}
+
+func (item *StatshouseAutoCreateBytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
 }
 
 func (item StatshouseAutoCreateBytes) String() string {
@@ -763,4 +787,12 @@ func (item *StatshouseAutoCreateBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.autoCreate", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseAutoCreateBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseAutoCreateBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.autoCreate")
 }

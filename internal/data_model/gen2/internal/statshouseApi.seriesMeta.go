@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseApiSeriesMetaWrite(w []byte, vec []StatshouseApiSeri
 	return w
 }
 
+func BuiltinVectorStatshouseApiSeriesMetaInternalReadTL2(r []byte, vec *[]StatshouseApiSeriesMeta) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseApiSeriesMeta")
+}
+
 func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -505,4 +509,12 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext
 		w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.MaxHosts)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshouseApiSeriesMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiSeriesMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.seriesMeta")
 }

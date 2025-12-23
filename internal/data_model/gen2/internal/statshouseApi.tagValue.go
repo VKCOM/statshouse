@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseApiTagValueWrite(w []byte, vec []StatshouseApiTagVal
 	return w
 }
 
+func BuiltinVectorStatshouseApiTagValueInternalReadTL2(r []byte, vec *[]StatshouseApiTagValue) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseApiTagValue")
+}
+
 func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -285,4 +289,12 @@ func (item *StatshouseApiTagValue) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.tagValue", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseApiTagValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseApiTagValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouseApi.tagValue")
 }

@@ -51,6 +51,10 @@ func BuiltinVectorVectorDoubleWrite(w []byte, vec [][]float64) []byte {
 	return w
 }
 
+func BuiltinVectorVectorDoubleInternalReadTL2(r []byte, vec *[][]float64) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[][]float64")
+}
+
 func BuiltinVectorVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]float64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -179,6 +183,18 @@ func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) UnmarshalJSON(b []byt
 	return nil
 }
 
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorDictionaryFieldString map[string]string
 
 func (VectorDictionaryFieldString) TLName() string { return "vector" }
@@ -264,6 +280,18 @@ func (item *VectorDictionaryFieldString) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorDictionaryFieldString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorDictionaryFieldString) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorDictionaryFieldString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorDictionaryFieldStringBytes []DictionaryFieldStringBytes
@@ -353,6 +381,18 @@ func (item *VectorDictionaryFieldStringBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorDictionaryFieldStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorDictionaryFieldStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorDictionaryFieldStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorDouble []float64
 
 func (VectorDouble) TLName() string { return "vector" }
@@ -438,6 +478,18 @@ func (item *VectorDouble) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorDouble) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorDouble) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorDouble) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorEngineBinlogPrefix []EngineBinlogPrefix
@@ -527,6 +579,18 @@ func (item *VectorEngineBinlogPrefix) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorEngineBinlogPrefix) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorEngineBinlogPrefix) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorEngineBinlogPrefix) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorEngineMetafilesOneMemoryStat []EngineMetafilesOneMemoryStat
 
 func (VectorEngineMetafilesOneMemoryStat) TLName() string { return "vector" }
@@ -612,6 +676,18 @@ func (item *VectorEngineMetafilesOneMemoryStat) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorEngineMetafilesOneMemoryStat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorEngineMetafilesOneMemoryStat) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorEngineMetafilesOneMemoryStat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorInt []int32
@@ -701,6 +777,18 @@ func (item *VectorInt) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorInt) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorInt) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorInt) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorLong []int64
 
 func (VectorLong) TLName() string { return "vector" }
@@ -786,6 +874,18 @@ func (item *VectorLong) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorLong) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorLong) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorLong) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorMetadataEvent []MetadataEvent
@@ -875,6 +975,18 @@ func (item *VectorMetadataEvent) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorMetadataEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorMetadataEvent) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorMetadataEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorMetadataEventBytes []MetadataEventBytes
 
 func (VectorMetadataEventBytes) TLName() string { return "vector" }
@@ -962,6 +1074,18 @@ func (item *VectorMetadataEventBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorMetadataEventBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorMetadataEventBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorMetadataEventBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorMetadataHistoryShortResponseEvent []MetadataHistoryShortResponseEvent
 
 func (VectorMetadataHistoryShortResponseEvent) TLName() string { return "vector" }
@@ -1031,6 +1155,18 @@ func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.
 	return w
 }
 
+func (item *VectorMetadataHistoryShortResponseEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorMetadataMetricOld []MetadataMetricOld
 
 func (VectorMetadataMetricOld) TLName() string { return "vector" }
@@ -1098,6 +1234,18 @@ func (item *VectorMetadataMetricOld) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	ptr := (*[]MetadataMetricOld)(item)
 	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
+}
+
+func (item *VectorMetadataMetricOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorMetadataMetricOld) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorMetadataMetricOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseApiFilter []StatshouseApiFilter
@@ -1187,6 +1335,18 @@ func (item *VectorStatshouseApiFilter) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseApiFilter) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseApiFilter) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseApiFilter) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseApiFunction []StatshouseApiFunction
 
 func (VectorStatshouseApiFunction) TLName() string { return "vector" }
@@ -1272,6 +1432,18 @@ func (item *VectorStatshouseApiFunction) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseApiFunction) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseApiFunction) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseApiFunction) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseApiPointMeta []StatshouseApiPointMeta
@@ -1361,6 +1533,18 @@ func (item *VectorStatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseApiPointMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseApiPointMeta) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseApiPointMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseApiSeriesMeta []StatshouseApiSeriesMeta
 
 func (VectorStatshouseApiSeriesMeta) TLName() string { return "vector" }
@@ -1428,6 +1612,18 @@ func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteC
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
 	w = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
+}
+
+func (item *VectorStatshouseApiSeriesMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseApiSeriesMeta) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseApiSeriesMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseApiTagValue []StatshouseApiTagValue
@@ -1517,6 +1713,18 @@ func (item *VectorStatshouseApiTagValue) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseApiTagValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseApiTagValue) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseApiTagValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseCentroidFloat []StatshouseCentroidFloat
 
 func (VectorStatshouseCentroidFloat) TLName() string { return "vector" }
@@ -1602,6 +1810,18 @@ func (item *VectorStatshouseCentroidFloat) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseCentroidFloat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseCentroidFloat) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseCentroidFloat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseIngestionStatus2 []StatshouseIngestionStatus2
@@ -1691,6 +1911,18 @@ func (item *VectorStatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseIngestionStatus2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseIngestionStatus2) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseIngestionStatus2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseMapping []StatshouseMapping
 
 func (VectorStatshouseMapping) TLName() string { return "vector" }
@@ -1776,6 +2008,18 @@ func (item *VectorStatshouseMapping) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMapping) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseMappingBytes []StatshouseMappingBytes
@@ -1865,6 +2109,18 @@ func (item *VectorStatshouseMappingBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseMappingBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMappingBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMappingBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseMetric []StatshouseMetric
 
 func (VectorStatshouseMetric) TLName() string { return "vector" }
@@ -1950,6 +2206,18 @@ func (item *VectorStatshouseMetric) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseMetric) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMetric) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMetric) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseMetricBytes []StatshouseMetricBytes
@@ -2039,6 +2307,18 @@ func (item *VectorStatshouseMetricBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseMetricBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMetricBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMetricBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseMultiItem []StatshouseMultiItem
 
 func (VectorStatshouseMultiItem) TLName() string { return "vector" }
@@ -2124,6 +2404,18 @@ func (item *VectorStatshouseMultiItem) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseMultiItem) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMultiItem) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMultiItem) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseMultiItemBytes []StatshouseMultiItemBytes
@@ -2213,6 +2505,18 @@ func (item *VectorStatshouseMultiItemBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseMultiItemBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseMultiItemBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMultiItemBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshousePromTarget []StatshousePromTarget
 
 func (VectorStatshousePromTarget) TLName() string { return "vector" }
@@ -2282,6 +2586,18 @@ func (item *VectorStatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	return w
 }
 
+func (item *VectorStatshousePromTarget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshousePromTarget) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshousePromTarget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshousePromTargetBytes []StatshousePromTargetBytes
 
 func (VectorStatshousePromTargetBytes) TLName() string { return "vector" }
@@ -2349,6 +2665,18 @@ func (item *VectorStatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWrit
 	ptr := (*[]StatshousePromTargetBytes)(item)
 	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(tctx, w, *ptr, nat_t)
 	return w
+}
+
+func (item *VectorStatshousePromTargetBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshousePromTargetBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshousePromTargetBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseSampleFactor []StatshouseSampleFactor
@@ -2438,6 +2766,18 @@ func (item *VectorStatshouseSampleFactor) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseSampleFactor) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseSampleFactor) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseSampleFactor) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorStatshouseTopElement []StatshouseTopElement
 
 func (VectorStatshouseTopElement) TLName() string { return "vector" }
@@ -2523,6 +2863,18 @@ func (item *VectorStatshouseTopElement) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorStatshouseTopElement) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseTopElement) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseTopElement) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStatshouseTopElementBytes []StatshouseTopElementBytes
@@ -2612,6 +2964,18 @@ func (item *VectorStatshouseTopElementBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStatshouseTopElementBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStatshouseTopElementBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseTopElementBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorString []string
 
 func (VectorString) TLName() string { return "vector" }
@@ -2697,6 +3061,18 @@ func (item *VectorString) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorString) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }
 
 type VectorStringBytes [][]byte
@@ -2786,6 +3162,18 @@ func (item *VectorStringBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorTupleDouble2 [][2]float64
 
 func (VectorTupleDouble2) TLName() string { return "vector" }
@@ -2873,6 +3261,18 @@ func (item *VectorTupleDouble2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *VectorTupleDouble2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorTupleDouble2) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorTupleDouble2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type VectorVectorDouble [][]float64
 
 func (VectorVectorDouble) TLName() string { return "vector" }
@@ -2958,4 +3358,16 @@ func (item *VectorVectorDouble) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+func (item *VectorVectorDouble) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *VectorVectorDouble) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorVectorDouble) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

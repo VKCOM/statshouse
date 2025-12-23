@@ -43,6 +43,10 @@ func BuiltinTuple3StringWrite(w []byte, vec *[3]string) []byte {
 	return w
 }
 
+func BuiltinTuple3StringInternalReadTL2(r []byte, vec *[3]string) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[3]string")
+}
+
 func BuiltinTuple3StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3]string) error {
 	index := 0
 	if in != nil {
@@ -111,6 +115,10 @@ func BuiltinTuple3StringBytesWrite(w []byte, vec *[3][]byte) []byte {
 		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w
+}
+
+func BuiltinTuple3StringBytesInternalReadTL2(r []byte, vec *[3][]byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[3][]byte")
 }
 
 func BuiltinTuple3StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3][]byte) error {
@@ -191,6 +199,10 @@ func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 	return w
 }
 
+func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]string")
+}
+
 func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -268,6 +280,10 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[][]byte")
 }
 
 func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
@@ -398,6 +414,18 @@ func (item *String) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *String) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *String) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("string")
+}
+
+func (item *String) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type StringBytes []byte
 
 func (StringBytes) TLName() string { return "string" }
@@ -483,4 +511,16 @@ func (item *StringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil
+}
+
+func (item *StringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("string")
+}
+
+func (item *StringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

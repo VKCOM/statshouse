@@ -43,6 +43,10 @@ func BuiltinTuple4IntWrite(w []byte, vec *[4]int32) []byte {
 	return w
 }
 
+func BuiltinTuple4IntInternalReadTL2(r []byte, vec *[4]int32) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[4]int32")
+}
+
 func BuiltinTuple4IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4]int32) error {
 	index := 0
 	if in != nil {
@@ -111,6 +115,10 @@ func BuiltinTuple7IntWrite(w []byte, vec *[7]int32) []byte {
 		w = basictl.IntWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinTuple7IntInternalReadTL2(r []byte, vec *[7]int32) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[7]int32")
 }
 
 func BuiltinTuple7IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[7]int32) error {
@@ -189,6 +197,10 @@ func BuiltinVectorIntWrite(w []byte, vec []int32) []byte {
 		w = basictl.IntWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorIntInternalReadTL2(r []byte, vec *[]int32) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]int32")
 }
 
 func BuiltinVectorIntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]int32) error {
@@ -317,4 +329,16 @@ func (item *Int) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("int", err.Error())
 	}
 	return nil
+}
+
+func (item *Int) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *Int) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("int")
+}
+
+func (item *Int) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

@@ -222,6 +222,14 @@ func (item *StatshouseGetConfigResult) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	return append(w, '}')
 }
 
+func (item *StatshouseGetConfigResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetConfigResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult")
+}
+
 type StatshouseGetConfigResultBytes struct {
 	Addresses         [][]byte
 	MaxAddressesCount int32
@@ -429,4 +437,12 @@ func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(tctx *basictl.JSONWrite
 		w = basictl.JSONWriteInt64(w, item.Ts)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshouseGetConfigResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetConfigResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult")
 }

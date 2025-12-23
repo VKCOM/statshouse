@@ -51,6 +51,10 @@ func BuiltinVectorEngineBinlogPrefixWrite(w []byte, vec []EngineBinlogPrefix) []
 	return w
 }
 
+func BuiltinVectorEngineBinlogPrefixInternalReadTL2(r []byte, vec *[]EngineBinlogPrefix) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]EngineBinlogPrefix")
+}
+
 func BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineBinlogPrefix) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -237,4 +241,12 @@ func (item *EngineBinlogPrefix) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.binlogPrefix", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineBinlogPrefix) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineBinlogPrefix) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.binlogPrefix")
 }

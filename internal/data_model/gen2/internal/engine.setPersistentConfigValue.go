@@ -116,6 +116,14 @@ func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResult(r []byte, 
 	return r, w, err
 }
 
+func (item *EngineSetPersistentConfigValue) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
+}
+
+func (item *EngineSetPersistentConfigValue) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
+}
+
 func (item EngineSetPersistentConfigValue) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -210,4 +218,12 @@ func (item *EngineSetPersistentConfigValue) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.setPersistentConfigValue", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineSetPersistentConfigValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSetPersistentConfigValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
 }

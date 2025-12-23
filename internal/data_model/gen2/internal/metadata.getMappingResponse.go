@@ -147,6 +147,14 @@ func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint
 	return w
 }
 
+func (item *MetadataGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.GetMappingResponse")
+}
+
 func (item *MetadataGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	_tag, _value, err := Json2ReadUnion("metadata.GetMappingResponse", in)
 	if err != nil {
@@ -378,6 +386,14 @@ func (item *MetadataGetMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	return append(w, '}')
 }
 
+func (item *MetadataGetMappingResponse0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetMappingResponse0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponse")
+}
+
 func (item MetadataGetMappingResponseCreated) AsUnion() MetadataGetMappingResponse {
 	var ret MetadataGetMappingResponse
 	ret.SetCreated(item)
@@ -485,6 +501,14 @@ func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(tctx *basictl.JSONWr
 	return append(w, '}')
 }
 
+func (item *MetadataGetMappingResponseCreated) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetMappingResponseCreated) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseCreated")
+}
+
 func (item MetadataGetMappingResponseFloodLimitError) AsUnion() MetadataGetMappingResponse {
 	var ret MetadataGetMappingResponse
 	ret.SetFloodLimitError()
@@ -563,6 +587,14 @@ func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(tctx *basict
 	return append(w, '}')
 }
 
+func (item *MetadataGetMappingResponseFloodLimitError) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetMappingResponseFloodLimitError) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseFloodLimitError")
+}
+
 func (item MetadataGetMappingResponseKeyNotExists) AsUnion() MetadataGetMappingResponse {
 	var ret MetadataGetMappingResponse
 	ret.SetKeyNotExists()
@@ -639,4 +671,12 @@ func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_fiel
 func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	return append(w, '}')
+}
+
+func (item *MetadataGetMappingResponseKeyNotExists) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetMappingResponseKeyNotExists) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseKeyNotExists")
 }

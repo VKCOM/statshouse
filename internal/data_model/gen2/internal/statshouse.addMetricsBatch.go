@@ -116,6 +116,14 @@ func (item *StatshouseAddMetricsBatch) ReadResultJSONWriteResult(r []byte, w []b
 	return r, w, err
 }
 
+func (item *StatshouseAddMetricsBatch) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
+}
+
+func (item *StatshouseAddMetricsBatch) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
+}
+
 func (item StatshouseAddMetricsBatch) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -210,6 +218,14 @@ func (item *StatshouseAddMetricsBatch) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.addMetricsBatch", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseAddMetricsBatch) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseAddMetricsBatch) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
 }
 
 type StatshouseAddMetricsBatchBytes struct {
@@ -315,6 +331,14 @@ func (item *StatshouseAddMetricsBatchBytes) ReadResultJSONWriteResult(r []byte, 
 	return r, w, err
 }
 
+func (item *StatshouseAddMetricsBatchBytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
+}
+
+func (item *StatshouseAddMetricsBatchBytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
+}
+
 func (item StatshouseAddMetricsBatchBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -409,4 +433,12 @@ func (item *StatshouseAddMetricsBatchBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.addMetricsBatch", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseAddMetricsBatchBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseAddMetricsBatchBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
 }
