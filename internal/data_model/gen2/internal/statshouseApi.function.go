@@ -51,8 +51,89 @@ func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFuncti
 	return w
 }
 
+func BuiltinVectorStatshouseApiFunctionCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFunction) ([]int, int) {
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 0
+	lastUsedByte := 0
+	var sz int
+
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+		lastUsedByte = currentSize
+	}
+	for i := 0; i < len(*vec); i++ {
+		sizes, sz = (*vec)[i].CalculateLayout(sizes, false)
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if optimizeEmpty && currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	} else {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func BuiltinVectorStatshouseApiFunctionInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFunction) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	w = basictl.TL2WriteSize(w, len(*vec))
+
+	var sz int
+	for i := 0; i < len(*vec); i++ {
+		w, sizes, _ = (*vec)[i].InternalWriteTL2(w, sizes, false)
+	}
+	Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
+}
+
 func BuiltinVectorStatshouseApiFunctionInternalReadTL2(r []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("[]StatshouseApiFunction")
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([]StatshouseApiFunction, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = (*vec)[i].InternalReadTL2(currentR); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiFunction) error {
@@ -533,12 +614,91 @@ func (item *StatshouseApiFunction) WriteBoxed(w []byte) []byte {
 	return w
 }
 
+func (item *StatshouseApiFunction) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	currentSize := 1
+	lastUsedByte := 0
+	if item.index != 0 {
+		currentSize += basictl.TL2CalculateSize(item.index)
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes = append(sizes, currentSize)
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiFunction) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	if item.index != 0 {
+		w = append(w, 1)
+		w = basictl.TL2WriteSize(w, item.index)
+	} else {
+		w = append(w, 0)
+	}
+	return w, sizes, currentSize
+}
+
+func (item *StatshouseApiFunction) InternalReadTL2(r []byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+		return r, err
+	}
+	if (block & 1) != 0 {
+		if currentR, item.index, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	} else {
+		item.index = 0
+	}
+	if item.index < 0 || item.index >= 35 {
+		return r, ErrorInvalidUnionIndex("statshouseApi.Function", item.index)
+	}
+	Unused(currentR)
+	return r, nil
+}
 func (item *StatshouseApiFunction) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *StatshouseApiFunction) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
-	return r, ErrorTL2SerializersNotGenerated("statshouseApi.Function")
+	return item.InternalReadTL2(r)
 }
 
 func (item *StatshouseApiFunction) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {

@@ -51,8 +51,89 @@ func BuiltinVectorVectorDoubleWrite(w []byte, vec [][]float64) []byte {
 	return w
 }
 
+func BuiltinVectorVectorDoubleCalculateLayout(sizes []int, optimizeEmpty bool, vec *[][]float64) ([]int, int) {
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 0
+	lastUsedByte := 0
+	var sz int
+
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+		lastUsedByte = currentSize
+	}
+	for i := 0; i < len(*vec); i++ {
+		sizes, sz = BuiltinVectorDoubleCalculateLayout(sizes, false, &(*vec)[i])
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if optimizeEmpty && currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	} else {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func BuiltinVectorVectorDoubleInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[][]float64) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	w = basictl.TL2WriteSize(w, len(*vec))
+
+	var sz int
+	for i := 0; i < len(*vec); i++ {
+		w, sizes, _ = BuiltinVectorDoubleInternalWriteTL2(w, sizes, false, &(*vec)[i])
+	}
+	Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
+}
+
 func BuiltinVectorVectorDoubleInternalReadTL2(r []byte, vec *[][]float64) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("[][]float64")
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([][]float64, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = BuiltinVectorDoubleInternalReadTL2(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]float64) error {
@@ -283,11 +364,32 @@ func (item *VectorDictionaryFieldString) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorDictionaryFieldString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*map[string]string)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorDictionaryFieldStringCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorDictionaryFieldStringInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorDictionaryFieldString) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*map[string]string)(item)
+	if r, err = BuiltinVectorDictionaryFieldStringInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorDictionaryFieldString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -382,11 +484,32 @@ func (item *VectorDictionaryFieldStringBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorDictionaryFieldStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorDictionaryFieldStringBytesCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorDictionaryFieldStringBytesInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorDictionaryFieldStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	if r, err = BuiltinVectorDictionaryFieldStringBytesInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorDictionaryFieldStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -481,11 +604,32 @@ func (item *VectorDouble) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorDouble) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]float64)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorDoubleCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorDoubleInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorDouble) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]float64)(item)
+	if r, err = BuiltinVectorDoubleInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorDouble) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -778,11 +922,32 @@ func (item *VectorInt) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorInt) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]int32)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorIntCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorIntInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorInt) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]int32)(item)
+	if r, err = BuiltinVectorIntInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorInt) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -877,11 +1042,32 @@ func (item *VectorLong) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorLong) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]int64)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorLongCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorLongInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorLong) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]int64)(item)
+	if r, err = BuiltinVectorLongInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorLong) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1336,11 +1522,32 @@ func (item *VectorStatshouseApiFilter) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorStatshouseApiFilter) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]StatshouseApiFilter)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStatshouseApiFilterCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStatshouseApiFilterInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStatshouseApiFilter) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]StatshouseApiFilter)(item)
+	if r, err = BuiltinVectorStatshouseApiFilterInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStatshouseApiFilter) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1435,11 +1642,32 @@ func (item *VectorStatshouseApiFunction) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorStatshouseApiFunction) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]StatshouseApiFunction)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStatshouseApiFunctionCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStatshouseApiFunctionInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStatshouseApiFunction) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]StatshouseApiFunction)(item)
+	if r, err = BuiltinVectorStatshouseApiFunctionInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStatshouseApiFunction) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1534,11 +1762,32 @@ func (item *VectorStatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorStatshouseApiPointMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStatshouseApiPointMetaCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStatshouseApiPointMetaInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStatshouseApiPointMeta) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	if r, err = BuiltinVectorStatshouseApiPointMetaInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStatshouseApiPointMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1615,11 +1864,32 @@ func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteC
 }
 
 func (item *VectorStatshouseApiSeriesMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]StatshouseApiSeriesMeta)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStatshouseApiSeriesMetaCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStatshouseApiSeriesMetaInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStatshouseApiSeriesMeta) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]StatshouseApiSeriesMeta)(item)
+	if r, err = BuiltinVectorStatshouseApiSeriesMetaInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStatshouseApiSeriesMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1714,11 +1984,32 @@ func (item *VectorStatshouseApiTagValue) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorStatshouseApiTagValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]StatshouseApiTagValue)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStatshouseApiTagValueCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStatshouseApiTagValueInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStatshouseApiTagValue) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]StatshouseApiTagValue)(item)
+	if r, err = BuiltinVectorStatshouseApiTagValueInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStatshouseApiTagValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -3064,11 +3355,32 @@ func (item *VectorString) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]string)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStringCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStringInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorString) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[]string)(item)
+	if r, err = BuiltinVectorStringInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -3163,11 +3475,32 @@ func (item *VectorStringBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[][]byte)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorStringBytesCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorStringBytesInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[][]byte)(item)
+	if r, err = BuiltinVectorStringBytesInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -3361,11 +3694,32 @@ func (item *VectorVectorDouble) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorVectorDouble) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[][]float64)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorVectorDoubleCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorVectorDoubleInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
 func (item *VectorVectorDouble) InternalReadTL2(r []byte) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("vector")
+	ptr := (*[][]float64)(item)
+	if r, err = BuiltinVectorVectorDoubleInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 func (item *VectorVectorDouble) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

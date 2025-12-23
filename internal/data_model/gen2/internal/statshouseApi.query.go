@@ -33,6 +33,7 @@ type StatshouseApiQuery struct {
 	// ColorFlag (TrueType) // Conditional: item.FieldsMask.5
 	// TotalFlag (TrueType) // Conditional: item.FieldsMask.6
 	// MaxHostFlag (TrueType) // Conditional: item.FieldsMask.7
+	tl2mask0 byte
 }
 
 func (StatshouseApiQuery) TLName() string { return "statshouseApi.query" }
@@ -41,22 +42,26 @@ func (StatshouseApiQuery) TLTag() uint32  { return 0xc9951bb9 }
 func (item *StatshouseApiQuery) SetPromql(v string) {
 	item.Promql = v
 	item.FieldsMask |= 1 << 0
+	item.tl2mask0 |= 1
 }
 func (item *StatshouseApiQuery) ClearPromql() {
 	item.Promql = ""
 	item.FieldsMask &^= 1 << 0
+	item.tl2mask0 &^= 1
 }
-func (item *StatshouseApiQuery) IsSetPromql() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseApiQuery) IsSetPromql() bool { return item.tl2mask0&1 != 0 }
 
 func (item *StatshouseApiQuery) SetWhat(v []StatshouseApiFunction) {
 	item.What = v
 	item.FieldsMask |= 1 << 1
+	item.tl2mask0 |= 2
 }
 func (item *StatshouseApiQuery) ClearWhat() {
 	item.What = item.What[:0]
 	item.FieldsMask &^= 1 << 1
+	item.tl2mask0 &^= 2
 }
-func (item *StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseApiQuery) IsSetWhat() bool { return item.tl2mask0&2 != 0 }
 
 func (item *StatshouseApiQuery) SetExcessPointsFlag(v bool) {
 	if v {
@@ -64,18 +69,25 @@ func (item *StatshouseApiQuery) SetExcessPointsFlag(v bool) {
 	} else {
 		item.FieldsMask &^= 1 << 2
 	}
+	if v {
+		item.tl2mask0 |= 4
+	} else {
+		item.tl2mask0 &^= 4
+	}
 }
-func (item *StatshouseApiQuery) IsSetExcessPointsFlag() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item *StatshouseApiQuery) IsSetExcessPointsFlag() bool { return item.tl2mask0&4 != 0 }
 
 func (item *StatshouseApiQuery) SetWidthAgg(v string) {
 	item.WidthAgg = v
 	item.FieldsMask |= 1 << 3
+	item.tl2mask0 |= 8
 }
 func (item *StatshouseApiQuery) ClearWidthAgg() {
 	item.WidthAgg = ""
 	item.FieldsMask &^= 1 << 3
+	item.tl2mask0 &^= 8
 }
-func (item *StatshouseApiQuery) IsSetWidthAgg() bool { return item.FieldsMask&(1<<3) != 0 }
+func (item *StatshouseApiQuery) IsSetWidthAgg() bool { return item.tl2mask0&8 != 0 }
 
 func (item *StatshouseApiQuery) SetNameFlag(v bool) {
 	if v {
@@ -83,8 +95,13 @@ func (item *StatshouseApiQuery) SetNameFlag(v bool) {
 	} else {
 		item.FieldsMask &^= 1 << 4
 	}
+	if v {
+		item.tl2mask0 |= 16
+	} else {
+		item.tl2mask0 &^= 16
+	}
 }
-func (item *StatshouseApiQuery) IsSetNameFlag() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item *StatshouseApiQuery) IsSetNameFlag() bool { return item.tl2mask0&16 != 0 }
 
 func (item *StatshouseApiQuery) SetColorFlag(v bool) {
 	if v {
@@ -92,8 +109,13 @@ func (item *StatshouseApiQuery) SetColorFlag(v bool) {
 	} else {
 		item.FieldsMask &^= 1 << 5
 	}
+	if v {
+		item.tl2mask0 |= 32
+	} else {
+		item.tl2mask0 &^= 32
+	}
 }
-func (item *StatshouseApiQuery) IsSetColorFlag() bool { return item.FieldsMask&(1<<5) != 0 }
+func (item *StatshouseApiQuery) IsSetColorFlag() bool { return item.tl2mask0&32 != 0 }
 
 func (item *StatshouseApiQuery) SetTotalFlag(v bool) {
 	if v {
@@ -101,8 +123,13 @@ func (item *StatshouseApiQuery) SetTotalFlag(v bool) {
 	} else {
 		item.FieldsMask &^= 1 << 6
 	}
+	if v {
+		item.tl2mask0 |= 64
+	} else {
+		item.tl2mask0 &^= 64
+	}
 }
-func (item *StatshouseApiQuery) IsSetTotalFlag() bool { return item.FieldsMask&(1<<6) != 0 }
+func (item *StatshouseApiQuery) IsSetTotalFlag() bool { return item.tl2mask0&64 != 0 }
 
 func (item *StatshouseApiQuery) SetMaxHostFlag(v bool) {
 	if v {
@@ -110,8 +137,13 @@ func (item *StatshouseApiQuery) SetMaxHostFlag(v bool) {
 	} else {
 		item.FieldsMask &^= 1 << 7
 	}
+	if v {
+		item.tl2mask0 |= 128
+	} else {
+		item.tl2mask0 &^= 128
+	}
 }
-func (item *StatshouseApiQuery) IsSetMaxHostFlag() bool { return item.FieldsMask&(1<<7) != 0 }
+func (item *StatshouseApiQuery) IsSetMaxHostFlag() bool { return item.tl2mask0&128 != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0
@@ -128,9 +160,11 @@ func (item *StatshouseApiQuery) Reset() {
 	item.Promql = ""
 	item.What = item.What[:0]
 	item.WidthAgg = ""
+	item.tl2mask0 = 0
 }
 
 func (item *StatshouseApiQuery) FillRandom(rg *basictl.RandGenerator) {
+	item.tl2mask0 = 0
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111111)
 	item.Version = basictl.RandomInt(rg)
 	item.TopN = basictl.RandomInt(rg)
@@ -143,23 +177,42 @@ func (item *StatshouseApiQuery) FillRandom(rg *basictl.RandGenerator) {
 	BuiltinVectorStatshouseApiFilterFillRandom(rg, &item.Filter)
 	BuiltinVectorLongFillRandom(rg, &item.TimeShift)
 	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
 		item.Promql = basictl.RandomString(rg)
 	} else {
 		item.Promql = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
 		BuiltinVectorStatshouseApiFunctionFillRandom(rg, &item.What)
 	} else {
 		item.What = item.What[:0]
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		item.tl2mask0 |= 4
+	}
 	if item.FieldsMask&(1<<3) != 0 {
+		item.tl2mask0 |= 8
 		item.WidthAgg = basictl.RandomString(rg)
 	} else {
 		item.WidthAgg = ""
 	}
+	if item.FieldsMask&(1<<4) != 0 {
+		item.tl2mask0 |= 16
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		item.tl2mask0 |= 32
+	}
+	if item.FieldsMask&(1<<6) != 0 {
+		item.tl2mask0 |= 64
+	}
+	if item.FieldsMask&(1<<7) != 0 {
+		item.tl2mask0 |= 128
+	}
 }
 
 func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
+	item.tl2mask0 = 0
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -194,6 +247,7 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
 		if w, err = basictl.StringRead(w, &item.Promql); err != nil {
 			return w, err
 		}
@@ -201,18 +255,35 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 		item.Promql = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
 		if w, err = BuiltinVectorStatshouseApiFunctionRead(w, &item.What); err != nil {
 			return w, err
 		}
 	} else {
 		item.What = item.What[:0]
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		item.tl2mask0 |= 4
+	}
 	if item.FieldsMask&(1<<3) != 0 {
+		item.tl2mask0 |= 8
 		if w, err = basictl.StringRead(w, &item.WidthAgg); err != nil {
 			return w, err
 		}
 	} else {
 		item.WidthAgg = ""
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		item.tl2mask0 |= 16
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		item.tl2mask0 |= 32
+	}
+	if item.FieldsMask&(1<<6) != 0 {
+		item.tl2mask0 |= 64
+	}
+	if item.FieldsMask&(1<<7) != 0 {
+		item.tl2mask0 |= 128
 	}
 	return w, nil
 }
@@ -563,6 +634,30 @@ func (item *StatshouseApiQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, i
 	if trueTypeMaxHostFlagPresented && !trueTypeMaxHostFlagValue && (item.FieldsMask&(1<<7) != 0) {
 		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit item.FieldsMask.7 is indefinite because of the contradictions in values")
 	}
+	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		item.tl2mask0 |= 4
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		item.tl2mask0 |= 8
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		item.tl2mask0 |= 16
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		item.tl2mask0 |= 32
+	}
+	if item.FieldsMask&(1<<6) != 0 {
+		item.tl2mask0 |= 64
+	}
+	if item.FieldsMask&(1<<7) != 0 {
+		item.tl2mask0 |= 128
+	}
 	return nil
 }
 
@@ -699,10 +794,396 @@ func (item *StatshouseApiQuery) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseApiQuery) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	sizes = append(sizes, 3381992377)
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 1
+	lastUsedByte := 0
+	var sz int
+
+	if item.FieldsMask != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if item.Version != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if item.TopN != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if len(item.MetricName) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.MetricName)) + len(item.MetricName)
+		lastUsedByte = currentSize
+	}
+	if item.TimeFrom != 0 {
+		currentSize += 8
+		lastUsedByte = currentSize
+	}
+	if item.TimeTo != 0 {
+		currentSize += 8
+		lastUsedByte = currentSize
+	}
+	if len(item.Interval) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.Interval)) + len(item.Interval)
+		lastUsedByte = currentSize
+	}
+	currentSize++
+	if sizes, sz = item.Function.CalculateLayout(sizes, true); sz != 0 {
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if sizes, sz = BuiltinVectorStringCalculateLayout(sizes, true, &item.GroupBy); sz != 0 {
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if sizes, sz = BuiltinVectorStatshouseApiFilterCalculateLayout(sizes, true, &item.Filter); sz != 0 {
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if sizes, sz = BuiltinVectorLongCalculateLayout(sizes, true, &item.TimeShift); sz != 0 {
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&1 != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.Promql)) + len(item.Promql)
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&2 != 0 {
+		sizes, sz = BuiltinVectorStatshouseApiFunctionCalculateLayout(sizes, false, &item.What)
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&4 != 0 {
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&8 != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.WidthAgg)) + len(item.WidthAgg)
+		lastUsedByte = currentSize
+	}
+	currentSize++
+	if item.tl2mask0&16 != 0 {
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&32 != 0 {
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&64 != 0 {
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&128 != 0 {
+		lastUsedByte = currentSize
+	}
+
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	}
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiQuery) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	if sizes[0] != 3381992377 {
+		panic("tl2: tag mismatch between calculate and write")
+	}
+	currentSize := sizes[1]
+	sizes = sizes[2:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	var sz int
+	var currentBlock byte
+	currentBlockPosition := len(w)
+	w = append(w, 0)
+	if item.FieldsMask != 0 {
+		w = basictl.NatWrite(w, item.FieldsMask)
+		currentBlock |= 2
+	}
+	if item.Version != 0 {
+		w = basictl.IntWrite(w, item.Version)
+		currentBlock |= 4
+	}
+	if item.TopN != 0 {
+		w = basictl.IntWrite(w, item.TopN)
+		currentBlock |= 8
+	}
+	if len(item.MetricName) != 0 {
+		w = basictl.StringWriteTL2(w, item.MetricName)
+		currentBlock |= 16
+	}
+	if item.TimeFrom != 0 {
+		w = basictl.LongWrite(w, item.TimeFrom)
+		currentBlock |= 32
+	}
+	if item.TimeTo != 0 {
+		w = basictl.LongWrite(w, item.TimeTo)
+		currentBlock |= 64
+	}
+	if len(item.Interval) != 0 {
+		w = basictl.StringWriteTL2(w, item.Interval)
+		currentBlock |= 128
+	}
+	w[currentBlockPosition] = currentBlock
+	currentBlock = 0
+	// start the next block
+	currentBlockPosition = len(w)
+	if len(w)-oldLen < currentSize {
+		w = append(w, 0)
+	}
+	if w, sizes, sz = item.Function.InternalWriteTL2(w, sizes, true); sz != 0 {
+		currentBlock |= 1
+	}
+	if w, sizes, sz = BuiltinVectorStringInternalWriteTL2(w, sizes, true, &item.GroupBy); sz != 0 {
+		currentBlock |= 2
+	}
+	if w, sizes, sz = BuiltinVectorStatshouseApiFilterInternalWriteTL2(w, sizes, true, &item.Filter); sz != 0 {
+		currentBlock |= 4
+	}
+	if w, sizes, sz = BuiltinVectorLongInternalWriteTL2(w, sizes, true, &item.TimeShift); sz != 0 {
+		currentBlock |= 8
+	}
+	if item.tl2mask0&1 != 0 {
+		w = basictl.StringWriteTL2(w, item.Promql)
+		currentBlock |= 16
+	}
+	if item.tl2mask0&2 != 0 {
+		w, sizes, _ = BuiltinVectorStatshouseApiFunctionInternalWriteTL2(w, sizes, false, &item.What)
+		currentBlock |= 32
+	}
+	if item.tl2mask0&4 != 0 {
+		currentBlock |= 64
+	}
+	if item.tl2mask0&8 != 0 {
+		w = basictl.StringWriteTL2(w, item.WidthAgg)
+		currentBlock |= 128
+	}
+	w[currentBlockPosition] = currentBlock
+	currentBlock = 0
+	// start the next block
+	currentBlockPosition = len(w)
+	if len(w)-oldLen < currentSize {
+		w = append(w, 0)
+	}
+	if item.tl2mask0&16 != 0 {
+		currentBlock |= 1
+	}
+	if item.tl2mask0&32 != 0 {
+		currentBlock |= 2
+	}
+	if item.tl2mask0&64 != 0 {
+		currentBlock |= 4
+	}
+	if item.tl2mask0&128 != 0 {
+		currentBlock |= 8
+	}
+	if currentBlockPosition < len(w) {
+		w[currentBlockPosition] = currentBlock
+	}
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	Unused(sz)
+	return w, sizes, 1
+}
+
 func (item *StatshouseApiQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
+func (item *StatshouseApiQuery) InternalReadTL2(r []byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+		return currentR, err
+	}
+	// read No of constructor
+	if block&1 != 0 {
+		var index int
+		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+			return currentR, err
+		}
+		if index != 0 {
+			return r, ErrorInvalidUnionIndex("statshouseApi.query", index)
+		}
+	}
+	item.tl2mask0 = 0
+	if block&2 != 0 {
+		if currentR, err = basictl.NatRead(currentR, &item.FieldsMask); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.FieldsMask = 0
+	}
+	if block&4 != 0 {
+		if currentR, err = basictl.IntRead(currentR, &item.Version); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.Version = 0
+	}
+	if block&8 != 0 {
+		if currentR, err = basictl.IntRead(currentR, &item.TopN); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.TopN = 0
+	}
+	if block&16 != 0 {
+		if currentR, err = basictl.StringReadTL2(currentR, &item.MetricName); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.MetricName = ""
+	}
+	if block&32 != 0 {
+		if currentR, err = basictl.LongRead(currentR, &item.TimeFrom); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.TimeFrom = 0
+	}
+	if block&64 != 0 {
+		if currentR, err = basictl.LongRead(currentR, &item.TimeTo); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.TimeTo = 0
+	}
+	if block&128 != 0 {
+		if currentR, err = basictl.StringReadTL2(currentR, &item.Interval); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.Interval = ""
+	}
+	// start the next block
+	if len(currentR) > 0 {
+		if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+			return currentR, err
+		}
+	} else {
+		block = 0
+	}
+	if block&1 != 0 {
+		if currentR, err = item.Function.InternalReadTL2(currentR); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.Function.Reset()
+	}
+	if block&2 != 0 {
+		if currentR, err = BuiltinVectorStringInternalReadTL2(currentR, &item.GroupBy); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.GroupBy = item.GroupBy[:0]
+	}
+	if block&4 != 0 {
+		if currentR, err = BuiltinVectorStatshouseApiFilterInternalReadTL2(currentR, &item.Filter); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.Filter = item.Filter[:0]
+	}
+	if block&8 != 0 {
+		if currentR, err = BuiltinVectorLongInternalReadTL2(currentR, &item.TimeShift); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.TimeShift = item.TimeShift[:0]
+	}
+	if block&16 != 0 {
+		item.tl2mask0 |= 1
+		if currentR, err = basictl.StringReadTL2(currentR, &item.Promql); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.Promql = ""
+	}
+	if block&32 != 0 {
+		item.tl2mask0 |= 2
+		if currentR, err = BuiltinVectorStatshouseApiFunctionInternalReadTL2(currentR, &item.What); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.What = item.What[:0]
+	}
+	if block&64 != 0 {
+		item.tl2mask0 |= 4
+	}
+	if block&128 != 0 {
+		item.tl2mask0 |= 8
+		if currentR, err = basictl.StringReadTL2(currentR, &item.WidthAgg); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.WidthAgg = ""
+	}
+	// start the next block
+	if len(currentR) > 0 {
+		if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+			return currentR, err
+		}
+	} else {
+		block = 0
+	}
+	if block&1 != 0 {
+		item.tl2mask0 |= 16
+	}
+	if block&2 != 0 {
+		item.tl2mask0 |= 32
+	}
+	if block&4 != 0 {
+		item.tl2mask0 |= 64
+	}
+	if block&8 != 0 {
+		item.tl2mask0 |= 128
+	}
+	Unused(currentR)
+	return r, nil
+}
+
 func (item *StatshouseApiQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("statshouseApi.query")
+	return item.InternalReadTL2(r)
 }
