@@ -58,4 +58,7 @@ export interface IMetric {
   readonly fair_key_tag_ids?: string[];
   readonly shard_strategy?: MetricMetaSharedStrategy;
   readonly shard_num?: number;
+  readonly shard?: number;
+  readonly shard2?: number;
+  readonly shard2_timestamp?: number;
 }
