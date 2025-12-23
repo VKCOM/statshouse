@@ -347,7 +347,7 @@ func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi
 		err = &rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: "must set eithee string or int value"}
 	}
 	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-	return res, nil
+	return res, err
 }
 
 func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesRequest, error) {
