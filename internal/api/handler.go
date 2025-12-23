@@ -188,6 +188,7 @@ type (
 		Version3Prob          atomic.Float64
 		Version3StrcmpOff     atomic.Bool
 		Version4Start         atomic.Int64
+		Version5Start         atomic.Int64
 		NewShardingStart      atomic.Int64
 		ConfigMu              sync.RWMutex
 		DisableCHAddr         []string
@@ -650,6 +651,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.Version4Start.Store(cfg.Version4Start)
+		h.Version5Start.Store(cfg.Version5Start)
 		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
 		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.ConfigMu.Lock()
@@ -1996,6 +1998,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		UTCOffset:        h.utcOffset,
 		Version3Start:    h.Version3Start.Load(),
 		Version4Start:    h.Version4Start.Load(),
+		Version5Start:    h.Version5Start.Load(),
 		NewShardingStart: h.NewShardingStart.Load(),
 	})
 	if err != nil {
@@ -2153,6 +2156,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 			Version:          req.version,
 			Version3Start:    r.Version3Start.Load(),
 			Version4Start:    r.Version4Start.Load(),
+			Version5Start:    r.Version5Start.Load(),
 			NewShardingStart: r.NewShardingStart.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,
@@ -2290,6 +2294,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 				Version:          req.version,
 				Version3Start:    h.Version3Start.Load(),
 				Version4Start:    h.Version4Start.Load(),
+				Version5Start:    h.Version5Start.Load(),
 				NewShardingStart: h.NewShardingStart.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
@@ -2529,6 +2534,7 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		Version:          req.version,
 		Version3Start:    h.Version3Start.Load(),
 		Version4Start:    h.Version4Start.Load(),
+		Version5Start:    h.Version5Start.Load(),
 		Start:            req.from.Unix(),
 		End:              req.to.Unix(),
 		Step:             req.step,
@@ -2667,6 +2673,7 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 			Version:          req.version,
 			Version3Start:    h.Version3Start.Load(),
 			Version4Start:    h.Version4Start.Load(),
+			Version5Start:    h.Version5Start.Load(),
 			NewShardingStart: h.NewShardingStart.Load(),
 			Mode:             opt.mode,
 			AvoidCache:       req.avoidCache,

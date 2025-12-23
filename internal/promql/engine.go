@@ -53,6 +53,7 @@ type Options struct {
 	Version          string
 	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Version4Start    int64 // timestamp of schema version 4 start, zero means v4 feature is disabled
+	Version5Start    int64 // timestamp of schema version 5 start, zero means v5 feature is disabled
 	Namespace        string
 	AvoidCache       bool
 	TimeNow          int64
@@ -273,6 +274,7 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 		Version:          qry.Options.Version,
 		Version3Start:    qry.Options.Version3Start,
 		Version4Start:    qry.Options.Version4Start,
+		Version5Start:    qry.Options.Version5Start,
 		Start:            qry.Start,
 		End:              qry.End,
 		Step:             qry.Step,

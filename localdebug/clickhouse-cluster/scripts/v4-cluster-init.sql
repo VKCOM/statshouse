@@ -22,8 +22,8 @@
 -- matview v3_inc->v4_1s, v4_1m, v4_1h:
 -- where time >= now() - 3 * 86400
 --   and time < now() + 3600
---   and time >= 1762992000; -- Thu Nov 13 2025 00:00:00 GMT+0000 / Thu Nov 13 2025 03:00:00 GMT+0300 (МСК)
--- время выбирается как полночь по GMT+0 со дня релиза на следующий в виде unix timestamp
+--   and time >= 1762992000; -- Thu Nov 13 2025 00:00:00 GMT+0000 / Thu Nov 13 2025 03:00:00 GMT+0300 (MSK)
+-- time choose by midnight GMT+0 from the next day of release day (unix timestamp)
 
 
 

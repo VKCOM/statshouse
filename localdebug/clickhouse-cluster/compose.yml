@@ -30,6 +30,9 @@ services:
         source: ./scripts/v4-cluster-init.sql
         target: /docker-entrypoint-initdb.d/v4-cluster-init.sql
       - type: bind
+        source: ./scripts/v4-cluster-init.sql
+        target: /docker-entrypoint-initdb.d/v5-cluster-init.sql
+      - type: bind
         source: ./scripts/migration.sql
         target: /docker-entrypoint-initdb.d/migration.sql
     expose:
