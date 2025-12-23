@@ -2931,6 +2931,8 @@ var BuiltinMetricMetaAPIRateLimit = &MetricMetaValue{
 	}, {
 		Description: "replica_key",
 		RawKind:     "int",
+	}, {
+		Description: "host",
 	}},
 }
 

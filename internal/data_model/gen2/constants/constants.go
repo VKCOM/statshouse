@@ -191,6 +191,8 @@ const (
 	StatshouseApiFnUnique                        = 0xf20fb854 // statshouseApi.fnUnique
 	StatshouseApiFnUniqueNorm                    = 0x9ceb6f68 // statshouseApi.fnUniqueNorm
 	StatshouseApiGetChunk                        = 0x52721884 // statshouseApi.getChunk
+	StatshouseApiGetMapping                      = 0x4239a8f8 // statshouseApi.getMapping
+	StatshouseApiGetMappingResponse              = 0xfd15ff23 // statshouseApi.getMappingResponse
 	StatshouseApiGetQuery                        = 0x0c7349bb // statshouseApi.getQuery
 	StatshouseApiGetQueryPoint                   = 0x0c7348bb // statshouseApi.getQueryPoint
 	StatshouseApiPointMeta                       = 0x5c2bf296 // statshouseApi.pointMeta

@@ -22,6 +22,8 @@ type (
 	Function                      = internal.StatshouseApiFunction
 	GetChunk                      = internal.StatshouseApiGetChunk
 	GetChunkResponse              = internal.StatshouseApiGetChunkResponse
+	GetMapping                    = internal.StatshouseApiGetMapping
+	GetMappingResponse            = internal.StatshouseApiGetMappingResponse
 	GetQuery                      = internal.StatshouseApiGetQuery
 	GetQueryPoint                 = internal.StatshouseApiGetQueryPoint
 	GetQueryPointResponse         = internal.StatshouseApiGetQueryPointResponse
@@ -114,6 +116,36 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 		resp.Body, err = args.ReadResult(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.InvokeReqExtra, ret *GetMappingResponse) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "statshouseApi.getMapping"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouseApi.getMapping", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("statshouseApi.getMapping", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		resp.Body, err = args.ReadResult(resp.Body, ret)
+		if err != nil {
+			return internal.ErrorClientReadResult("statshouseApi.getMapping", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -212,6 +244,7 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 
 type Handler struct {
 	GetChunk      func(ctx context.Context, args GetChunk) (GetChunkResponse, error)           // statshouseApi.getChunk
+	GetMapping    func(ctx context.Context, args GetMapping) (GetMappingResponse, error)       // statshouseApi.getMapping
 	GetQuery      func(ctx context.Context, args GetQuery) (GetQueryResponse, error)           // statshouseApi.getQuery
 	GetQueryPoint func(ctx context.Context, args GetQueryPoint) (GetQueryPointResponse, error) // statshouseApi.getQueryPoint
 	ReleaseChunks func(ctx context.Context, args ReleaseChunks) (ReleaseChunksResponse, error) // statshouseApi.releaseChunks
@@ -240,6 +273,28 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			hctx.Response, err = args.WriteResult(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.getChunk", err)
+			}
+			return nil
+		}
+	case 0x4239a8f8: // statshouseApi.getMapping
+		hctx.SetRequestFunctionName("statshouseApi.getMapping")
+		if h.GetMapping != nil {
+			var args GetMapping
+			_, err = args.Read(r)
+			if err != nil {
+				return internal.ErrorServerRead("statshouseApi.getMapping", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetMapping(ctx, args)
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouseApi.getMapping", err)
+			}
+			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if err != nil {
+				return internal.ErrorServerWriteResult("statshouseApi.getMapping", err)
 			}
 			return nil
 		}

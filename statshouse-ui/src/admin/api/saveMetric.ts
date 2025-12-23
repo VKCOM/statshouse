@@ -69,6 +69,9 @@ export function mapMetricToEdit({ data: { metric } }: ApiMetric): IMetric {
     skip_sum_square: !!metric.skip_sum_square,
     shard_strategy: metric.shard_strategy ?? '',
     shard_num: metric.shard_num ?? 0,
+    shard: metric.shard ?? 0,
+    shard2: metric.shard2 ?? 0,
+    shard2_timestamp: metric.shard2_timestamp ?? 0,
   };
 }
 
@@ -113,5 +116,8 @@ export function mapEditToMetric(metric: IMetric): MetricMetaValue {
     fair_key_tag_ids: metric.fair_key_tag_ids,
     shard_strategy: metric.shard_strategy,
     shard_num: metric.shard_num,
+    shard: metric.shard ?? 0,
+    shard2: metric.shard2 ?? 0,
+    shard2_timestamp: metric.shard2_timestamp ?? 0,
   };
 }

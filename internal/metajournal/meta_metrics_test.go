@@ -905,6 +905,9 @@ func TestMetricsStorage(t *testing.T) {
 			{FieldMask: 1, Id: 2, Version: 2},
 			{FieldMask: 1, Id: 3, Version: 3},
 		}
+		for i, ev := range events {
+			events[i].SetNamespaceId(ev.NamespaceId)
+		}
 		err := journal.updateJournal(nil)
 		require.NoError(t, err)
 		t.Run("full journal", test(0, events))
