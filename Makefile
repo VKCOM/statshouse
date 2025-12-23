@@ -77,7 +77,7 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 		--rawHandlerWhiteList=statshouse.,metadata. \
 		--copyrightPath=./copyright \
 		--tl2-generate \
-		--tl2WhiteList= \
+		--tl2WhiteList=statshouseApi. \
 		./internal/data_model/api.tl \
 		./internal/data_model/common.tl \
 		./internal/data_model/engine.tl \

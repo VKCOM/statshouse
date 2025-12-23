@@ -125,8 +125,88 @@ func BuiltinVectorDoubleWrite(w []byte, vec []float64) []byte {
 	return w
 }
 
+func BuiltinVectorDoubleCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]float64) ([]int, int) {
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 0
+	lastUsedByte := 0
+	var sz int
+
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+		lastUsedByte = currentSize
+	}
+	for i := 0; i < len(*vec); i++ {
+		currentSize += 8
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if optimizeEmpty && currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	} else {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func BuiltinVectorDoubleInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]float64) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	w = basictl.TL2WriteSize(w, len(*vec))
+
+	var sz int
+	for i := 0; i < len(*vec); i++ {
+		w = basictl.DoubleWrite(w, (*vec)[i])
+	}
+	Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
+}
+
 func BuiltinVectorDoubleInternalReadTL2(r []byte, vec *[]float64) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("[]float64")
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([]float64, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = basictl.DoubleRead(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorDoubleReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]float64) error {

@@ -165,7 +165,7 @@ statshouseApi.getChunk#52721884 fields_mask:#
 statshouseApi.releaseChunks#62adc773 fields_mask:#
     access_token: string
     response_id: long
-    = statshouseApi.ReleaseChunksResponse;/////
+    = statshouseApi.ReleaseChunksResponse;
 
 @readwrite statshouseApi.getMapping#4239a8f8
     fields_mask:#

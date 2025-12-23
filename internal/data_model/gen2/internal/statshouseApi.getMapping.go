@@ -18,6 +18,7 @@ type StatshouseApiGetMapping struct {
 	AccessToken string
 	IntValue    int32  // Conditional: item.FieldsMask.0
 	StringValue string // Conditional: item.FieldsMask.1
+	tl2mask0    byte
 }
 
 func (StatshouseApiGetMapping) TLName() string { return "statshouseApi.getMapping" }
@@ -26,39 +27,47 @@ func (StatshouseApiGetMapping) TLTag() uint32  { return 0x4239a8f8 }
 func (item *StatshouseApiGetMapping) SetIntValue(v int32) {
 	item.IntValue = v
 	item.FieldsMask |= 1 << 0
+	item.tl2mask0 |= 1
 }
 func (item *StatshouseApiGetMapping) ClearIntValue() {
 	item.IntValue = 0
 	item.FieldsMask &^= 1 << 0
+	item.tl2mask0 &^= 1
 }
-func (item *StatshouseApiGetMapping) IsSetIntValue() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseApiGetMapping) IsSetIntValue() bool { return item.tl2mask0&1 != 0 }
 
 func (item *StatshouseApiGetMapping) SetStringValue(v string) {
 	item.StringValue = v
 	item.FieldsMask |= 1 << 1
+	item.tl2mask0 |= 2
 }
 func (item *StatshouseApiGetMapping) ClearStringValue() {
 	item.StringValue = ""
 	item.FieldsMask &^= 1 << 1
+	item.tl2mask0 &^= 2
 }
-func (item *StatshouseApiGetMapping) IsSetStringValue() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseApiGetMapping) IsSetStringValue() bool { return item.tl2mask0&2 != 0 }
 
 func (item *StatshouseApiGetMapping) Reset() {
 	item.FieldsMask = 0
 	item.AccessToken = ""
 	item.IntValue = 0
 	item.StringValue = ""
+	item.tl2mask0 = 0
 }
 
 func (item *StatshouseApiGetMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.tl2mask0 = 0
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11011)
 	item.AccessToken = basictl.RandomString(rg)
 	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
 		item.IntValue = basictl.RandomInt(rg)
 	} else {
 		item.IntValue = 0
 	}
 	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
 		item.StringValue = basictl.RandomString(rg)
 	} else {
 		item.StringValue = ""
@@ -66,6 +75,7 @@ func (item *StatshouseApiGetMapping) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *StatshouseApiGetMapping) Read(w []byte) (_ []byte, err error) {
+	item.tl2mask0 = 0
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -73,6 +83,7 @@ func (item *StatshouseApiGetMapping) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
 		if w, err = basictl.IntRead(w, &item.IntValue); err != nil {
 			return w, err
 		}
@@ -80,6 +91,7 @@ func (item *StatshouseApiGetMapping) Read(w []byte) (_ []byte, err error) {
 		item.IntValue = 0
 	}
 	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
 		if w, err = basictl.StringRead(w, &item.StringValue); err != nil {
 			return w, err
 		}
@@ -130,6 +142,115 @@ func (item *StatshouseApiGetMapping) WriteResult(w []byte, ret StatshouseApiGetM
 	return w, nil
 }
 
+func (item *StatshouseApiGetMapping) ReadResultTL2(r []byte, ctx *basictl.TL2ReadContext, ret *StatshouseApiGetMappingResponse) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentSize != 0 {
+		if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+			return r, err
+		}
+	}
+
+	// check no of constructor
+	if block&1 != 0 {
+		return currentR, basictl.TL2Error("function result must not use variant type field")
+	}
+
+	if block&2 != 0 {
+		if currentR, err = ret.InternalReadTL2(currentR); err != nil {
+			return currentR, err
+		}
+	} else {
+		ret.Reset()
+	}
+	return r, nil
+}
+
+func (item *StatshouseApiGetMapping) calculateLayoutResult(sizes []int, optimizeEmpty bool, ret StatshouseApiGetMappingResponse) ([]int, int) {
+	sizes = append(sizes, 1111075064)
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 1
+	lastUsedByte := 0
+	var sz int
+	if sizes, sz = ret.CalculateLayout(sizes, true); sz != 0 {
+		currentSize += sz
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	}
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiGetMapping) writeResultTL2(w []byte, sizes []int, optimizeEmpty bool, ret StatshouseApiGetMappingResponse) ([]byte, []int, int) {
+	if sizes[0] != 1111075064 {
+		panic("tl2: tag mismatch between calculate and write")
+	}
+	currentSize := sizes[1]
+	sizes = sizes[2:]
+
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	var sz int
+	var currentBlock byte
+	currentBlockPosition := len(w)
+	w = append(w, 0)
+
+	if w, sizes, sz = ret.InternalWriteTL2(w, sizes, true); sz != 0 {
+		currentBlock |= 2
+	}
+	if currentBlockPosition < len(w) {
+		w[currentBlockPosition] = currentBlock
+	}
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	Unused(sz)
+	return w, sizes, currentSize
+}
+
+func (item *StatshouseApiGetMapping) WriteResultTL2(w []byte, ctx *basictl.TL2WriteContext, ret StatshouseApiGetMappingResponse) (_ []byte, err error) {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.calculateLayoutResult(sizes, false, ret)
+	w, sizes2, _ = item.writeResultTL2(w, sizes, false, ret)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
+	return w, nil
+}
+
 func (item *StatshouseApiGetMapping) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetMappingResponse) error {
 	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
@@ -174,11 +295,21 @@ func (item *StatshouseApiGetMapping) ReadResultJSONWriteResult(r []byte, w []byt
 }
 
 func (item *StatshouseApiGetMapping) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
+	var ret StatshouseApiGetMappingResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.WriteResultTL2(w, tctx, ret)
+	return r, w, err
 }
 
 func (item *StatshouseApiGetMapping) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	return r, w, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
+	var ret StatshouseApiGetMappingResponse
+	if r, err = item.ReadResultTL2(r, tctx, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.WriteResult(w, ret)
+	return r, w, err
 }
 
 // Set field "intValue" in "statshouseApi.getMappingResponse" by changing fieldMask "fields_mask"
@@ -283,6 +414,12 @@ func (item *StatshouseApiGetMapping) ReadJSONGeneral(tctx *basictl.JSONReadConte
 	if propStringValuePresented {
 		item.FieldsMask |= 1 << 1
 	}
+	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
+	}
 	return nil
 }
 
@@ -335,10 +472,171 @@ func (item *StatshouseApiGetMapping) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseApiGetMapping) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	sizes = append(sizes, 1111075064)
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 1
+	lastUsedByte := 0
+	var sz int
+
+	if item.FieldsMask != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if len(item.AccessToken) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.AccessToken)) + len(item.AccessToken)
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&1 != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&2 != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.StringValue)) + len(item.StringValue)
+		lastUsedByte = currentSize
+	}
+
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	}
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiGetMapping) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	if sizes[0] != 1111075064 {
+		panic("tl2: tag mismatch between calculate and write")
+	}
+	currentSize := sizes[1]
+	sizes = sizes[2:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	var sz int
+	var currentBlock byte
+	currentBlockPosition := len(w)
+	w = append(w, 0)
+	if item.FieldsMask != 0 {
+		w = basictl.NatWrite(w, item.FieldsMask)
+		currentBlock |= 2
+	}
+	if len(item.AccessToken) != 0 {
+		w = basictl.StringWriteTL2(w, item.AccessToken)
+		currentBlock |= 4
+	}
+	if item.tl2mask0&1 != 0 {
+		w = basictl.IntWrite(w, item.IntValue)
+		currentBlock |= 8
+	}
+	if item.tl2mask0&2 != 0 {
+		w = basictl.StringWriteTL2(w, item.StringValue)
+		currentBlock |= 16
+	}
+	if currentBlockPosition < len(w) {
+		w[currentBlockPosition] = currentBlock
+	}
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	Unused(sz)
+	return w, sizes, 1
+}
+
 func (item *StatshouseApiGetMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
+func (item *StatshouseApiGetMapping) InternalReadTL2(r []byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+		return currentR, err
+	}
+	// read No of constructor
+	if block&1 != 0 {
+		var index int
+		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+			return currentR, err
+		}
+		if index != 0 {
+			return r, ErrorInvalidUnionIndex("statshouseApi.getMapping", index)
+		}
+	}
+	item.tl2mask0 = 0
+	if block&2 != 0 {
+		if currentR, err = basictl.NatRead(currentR, &item.FieldsMask); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.FieldsMask = 0
+	}
+	if block&4 != 0 {
+		if currentR, err = basictl.StringReadTL2(currentR, &item.AccessToken); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.AccessToken = ""
+	}
+	if block&8 != 0 {
+		item.tl2mask0 |= 1
+		if currentR, err = basictl.IntRead(currentR, &item.IntValue); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.IntValue = 0
+	}
+	if block&16 != 0 {
+		item.tl2mask0 |= 2
+		if currentR, err = basictl.StringReadTL2(currentR, &item.StringValue); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.StringValue = ""
+	}
+	Unused(currentR)
+	return r, nil
+}
+
 func (item *StatshouseApiGetMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getMapping")
+	return item.InternalReadTL2(r)
 }

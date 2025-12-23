@@ -16,6 +16,7 @@ var _ = basictl.NatWrite
 type StatshouseApiGetMappingResponse struct {
 	IntValue    int32  // Conditional: nat_fields_mask.3
 	StringValue string // Conditional: nat_fields_mask.4
+	tl2mask0    byte
 }
 
 func (StatshouseApiGetMappingResponse) TLName() string { return "statshouseApi.getMappingResponse" }
@@ -26,45 +27,49 @@ func (item *StatshouseApiGetMappingResponse) SetIntValue(v int32, nat_fields_mas
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 3
 	}
+	item.tl2mask0 |= 1
 }
 func (item *StatshouseApiGetMappingResponse) ClearIntValue(nat_fields_mask *uint32) {
 	item.IntValue = 0
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 3
 	}
+	item.tl2mask0 &^= 1
 }
-func (item *StatshouseApiGetMappingResponse) IsSetIntValue(nat_fields_mask uint32) bool {
-	return nat_fields_mask&(1<<3) != 0
-}
+func (item *StatshouseApiGetMappingResponse) IsSetIntValue() bool { return item.tl2mask0&1 != 0 }
 
 func (item *StatshouseApiGetMappingResponse) SetStringValue(v string, nat_fields_mask *uint32) {
 	item.StringValue = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 4
 	}
+	item.tl2mask0 |= 2
 }
 func (item *StatshouseApiGetMappingResponse) ClearStringValue(nat_fields_mask *uint32) {
 	item.StringValue = ""
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 4
 	}
+	item.tl2mask0 &^= 2
 }
-func (item *StatshouseApiGetMappingResponse) IsSetStringValue(nat_fields_mask uint32) bool {
-	return nat_fields_mask&(1<<4) != 0
-}
+func (item *StatshouseApiGetMappingResponse) IsSetStringValue() bool { return item.tl2mask0&2 != 0 }
 
 func (item *StatshouseApiGetMappingResponse) Reset() {
 	item.IntValue = 0
 	item.StringValue = ""
+	item.tl2mask0 = 0
 }
 
 func (item *StatshouseApiGetMappingResponse) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
+	item.tl2mask0 = 0
 	if nat_fields_mask&(1<<3) != 0 {
+		item.tl2mask0 |= 1
 		item.IntValue = basictl.RandomInt(rg)
 	} else {
 		item.IntValue = 0
 	}
 	if nat_fields_mask&(1<<4) != 0 {
+		item.tl2mask0 |= 2
 		item.StringValue = basictl.RandomString(rg)
 	} else {
 		item.StringValue = ""
@@ -72,7 +77,9 @@ func (item *StatshouseApiGetMappingResponse) FillRandom(rg *basictl.RandGenerato
 }
 
 func (item *StatshouseApiGetMappingResponse) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	item.tl2mask0 = 0
 	if nat_fields_mask&(1<<3) != 0 {
+		item.tl2mask0 |= 1
 		if w, err = basictl.IntRead(w, &item.IntValue); err != nil {
 			return w, err
 		}
@@ -80,6 +87,7 @@ func (item *StatshouseApiGetMappingResponse) Read(w []byte, nat_fields_mask uint
 		item.IntValue = 0
 	}
 	if nat_fields_mask&(1<<4) != 0 {
+		item.tl2mask0 |= 2
 		if w, err = basictl.StringRead(w, &item.StringValue); err != nil {
 			return w, err
 		}
@@ -170,6 +178,12 @@ func (item *StatshouseApiGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONR
 	if !propStringValuePresented {
 		item.StringValue = ""
 	}
+	if nat_fields_mask&(1<<3) != 0 {
+		item.tl2mask0 |= 1
+	}
+	if nat_fields_mask&(1<<4) != 0 {
+		item.tl2mask0 |= 2
+	}
 	return nil
 }
 
@@ -197,10 +211,141 @@ func (item *StatshouseApiGetMappingResponse) WriteJSONOpt(tctx *basictl.JSONWrit
 	return append(w, '}')
 }
 
+func (item *StatshouseApiGetMappingResponse) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	sizes = append(sizes, 4246077219)
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 1
+	lastUsedByte := 0
+	var sz int
+
+	if item.tl2mask0&1 != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&2 != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.StringValue)) + len(item.StringValue)
+		lastUsedByte = currentSize
+	}
+
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	}
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiGetMappingResponse) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	if sizes[0] != 4246077219 {
+		panic("tl2: tag mismatch between calculate and write")
+	}
+	currentSize := sizes[1]
+	sizes = sizes[2:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	var sz int
+	var currentBlock byte
+	currentBlockPosition := len(w)
+	w = append(w, 0)
+	if item.tl2mask0&1 != 0 {
+		w = basictl.IntWrite(w, item.IntValue)
+		currentBlock |= 2
+	}
+	if item.tl2mask0&2 != 0 {
+		w = basictl.StringWriteTL2(w, item.StringValue)
+		currentBlock |= 4
+	}
+	if currentBlockPosition < len(w) {
+		w[currentBlockPosition] = currentBlock
+	}
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	Unused(sz)
+	return w, sizes, 1
+}
+
 func (item *StatshouseApiGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
 	return w
 }
 
+func (item *StatshouseApiGetMappingResponse) InternalReadTL2(r []byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+		return currentR, err
+	}
+	// read No of constructor
+	if block&1 != 0 {
+		var index int
+		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+			return currentR, err
+		}
+		if index != 0 {
+			return r, ErrorInvalidUnionIndex("statshouseApi.getMappingResponse", index)
+		}
+	}
+	item.tl2mask0 = 0
+	if block&2 != 0 {
+		item.tl2mask0 |= 1
+		if currentR, err = basictl.IntRead(currentR, &item.IntValue); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.IntValue = 0
+	}
+	if block&4 != 0 {
+		item.tl2mask0 |= 2
+		if currentR, err = basictl.StringReadTL2(currentR, &item.StringValue); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.StringValue = ""
+	}
+	Unused(currentR)
+	return r, nil
+}
+
 func (item *StatshouseApiGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
-	return r, ErrorTL2SerializersNotGenerated("statshouseApi.getMappingResponse")
+	return item.InternalReadTL2(r)
 }
