@@ -45,6 +45,7 @@ const (
 	EndpointKnownTags           = "known-tags"
 	EndpointStatistics          = "stat"
 	endpointChunk               = "chunk"
+	endpointMapping             = "mapping"
 	EndpointHistory             = "history"
 	EndpointHealthcheck         = "healthcheck"
 

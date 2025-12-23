@@ -162,6 +162,7 @@ func init() {
 	meta.SetGlobalFactoryCreateForEnumElement(0x9ceb6f68)
 	meta.SetGlobalFactoryCreateForFunction(0x52721884, func() meta.Object { var ret internal.StatshouseApiGetChunk; return &ret }, func() meta.Function { var ret internal.StatshouseApiGetChunk; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x63928b42, func() meta.Object { var ret internal.StatshouseApiGetChunkResponse; return &ret })
+	meta.SetGlobalFactoryCreateForFunction(0x4239a8f8, func() meta.Object { var ret internal.StatshouseApiGetMapping; return &ret }, func() meta.Function { var ret internal.StatshouseApiGetMapping; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x0c7349bb, func() meta.Object { var ret internal.StatshouseApiGetQuery; return &ret }, func() meta.Function { var ret internal.StatshouseApiGetQuery; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x0c7348bb, func() meta.Object { var ret internal.StatshouseApiGetQueryPoint; return &ret }, func() meta.Function { var ret internal.StatshouseApiGetQueryPoint; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForObject(0x4487e41a, func() meta.Object { var ret internal.StatshouseApiGetQueryPointResponse; return &ret })
