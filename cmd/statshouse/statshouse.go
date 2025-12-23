@@ -701,7 +701,7 @@ func parseCommandLine() (int, error) {
 		flag.DurationVar(&argv.tlclientTimeout, "timeout", 2*time.Second, "timeout of RPC call to agent")
 		build.FlagParseShowVersionHelp()
 		return mainTLClient(), nil
-	case "tlclient.api":
+	case "tlclient.api", "tlclient.api.stub":
 		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 		flag.StringVar(&argv.statshouseAddr, "api-addr", "127.0.0.1:2400", "statshouse API address for tlclient")
 		flag.StringVar(&argv.statshouseNet, "api-net", "tcp4", "statshouse API network for tlclient")
@@ -709,6 +709,9 @@ func parseCommandLine() (int, error) {
 		flag.BoolVar(&preferTL2, "tl2", false, "prefer TL2")
 		flag.DurationVar(&argv.tlclientTimeout, "timeout", 2*time.Second, "timeout of RPC call to statshouse API")
 		build.FlagParseShowVersionHelp()
+		if verb == "tlclient.api.stub" {
+			return mainTLClientAPIStub(preferTL2), nil
+		}
 		return mainTLClientAPI(preferTL2), nil
 	case "tag_mapping":
 		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
