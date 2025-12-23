@@ -354,13 +354,13 @@ func mainModules() int {
 	return 0
 }
 
-func mainTLClientAPI() int {
+func mainTLClientAPI(preferTL2 bool) int {
 	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
 		Client:  client,
-		Network: "tcp4",
-		Address: "127.0.0.1:13347",
+		Network: argv.statshouseNet,
+		Address: argv.statshouseAddr,
 	}
 	var requests []tlstatshouseApi.GetQuery
 	query := tlstatshouseApi.Query{
@@ -398,8 +398,9 @@ func mainTLClientAPI() int {
 
 	ctx := context.Background()
 	for _, request := range requests {
+		extra := rpc.InvokeReqExtra{PreferTL2: preferTL2}
 		var ret tlstatshouseApi.GetQueryResponse
-		if err := tlapiclient.GetQuery(ctx, request, nil, &ret); err != nil {
+		if err := tlapiclient.GetQuery(ctx, request, &extra, &ret); err != nil {
 			log.Fatalf("tlapiclient.GetQuery failed - %v", err)
 		}
 
