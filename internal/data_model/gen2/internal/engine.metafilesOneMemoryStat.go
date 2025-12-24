@@ -51,6 +51,10 @@ func BuiltinVectorEngineMetafilesOneMemoryStatWrite(w []byte, vec []EngineMetafi
 	return w
 }
 
+func BuiltinVectorEngineMetafilesOneMemoryStatInternalReadTL2(r []byte, vec *[]EngineMetafilesOneMemoryStat) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]EngineMetafilesOneMemoryStat")
+}
+
 func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -263,4 +267,12 @@ func (item *EngineMetafilesOneMemoryStat) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.metafilesOneMemoryStat", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineMetafilesOneMemoryStat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineMetafilesOneMemoryStat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.metafilesOneMemoryStat")
 }

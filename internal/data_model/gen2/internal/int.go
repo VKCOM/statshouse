@@ -43,6 +43,10 @@ func BuiltinTuple4IntWrite(w []byte, vec *[4]int32) []byte {
 	return w
 }
 
+func BuiltinTuple4IntInternalReadTL2(r []byte, vec *[4]int32) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[4]int32")
+}
+
 func BuiltinTuple4IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[4]int32) error {
 	index := 0
 	if in != nil {
@@ -111,6 +115,10 @@ func BuiltinTuple7IntWrite(w []byte, vec *[7]int32) []byte {
 		w = basictl.IntWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinTuple7IntInternalReadTL2(r []byte, vec *[7]int32) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[7]int32")
 }
 
 func BuiltinTuple7IntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[7]int32) error {
@@ -189,6 +197,90 @@ func BuiltinVectorIntWrite(w []byte, vec []int32) []byte {
 		w = basictl.IntWrite(w, elem)
 	}
 	return w
+}
+
+func BuiltinVectorIntCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]int32) ([]int, int) {
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 0
+	lastUsedByte := 0
+	var sz int
+
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+		lastUsedByte = currentSize
+	}
+	for i := 0; i < len(*vec); i++ {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if optimizeEmpty && currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	} else {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func BuiltinVectorIntInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]int32) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	w = basictl.TL2WriteSize(w, len(*vec))
+
+	var sz int
+	for i := 0; i < len(*vec); i++ {
+		w = basictl.IntWrite(w, (*vec)[i])
+	}
+	Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
+}
+
+func BuiltinVectorIntInternalReadTL2(r []byte, vec *[]int32) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([]int32, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = basictl.IntRead(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
 }
 
 func BuiltinVectorIntReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]int32) error {
@@ -317,4 +409,16 @@ func (item *Int) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("int", err.Error())
 	}
 	return nil
+}
+
+func (item *Int) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *Int) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("int")
+}
+
+func (item *Int) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

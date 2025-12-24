@@ -223,6 +223,14 @@ func (item *StatshouseSendSourceBucket3Response) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseSendSourceBucket3Response) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendSourceBucket3Response) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3Response")
+}
+
 type StatshouseSendSourceBucket3ResponseBytes struct {
 	FieldMask uint32
 	// Discard (TrueType) // Conditional: item.FieldMask.0
@@ -431,4 +439,12 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) UnmarshalJSON(b []byte) er
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseSendSourceBucket3ResponseBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendSourceBucket3ResponseBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3Response")
 }

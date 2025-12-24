@@ -104,6 +104,14 @@ func (item *MetadataGetInvertMappingResponse) WriteBoxed(w []byte, nat_field_mas
 	return w
 }
 
+func (item *MetadataGetInvertMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetInvertMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.GetInvertMappingResponse")
+}
+
 func (item *MetadataGetInvertMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	_tag, _value, err := Json2ReadUnion("metadata.GetInvertMappingResponse", in)
 	if err != nil {
@@ -287,6 +295,14 @@ func (item *MetadataGetInvertMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWr
 	return append(w, '}')
 }
 
+func (item *MetadataGetInvertMappingResponse0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetInvertMappingResponse0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getInvertMappingResponse")
+}
+
 func (item MetadataGetInvertMappingResponseKeyNotExists) AsUnion() MetadataGetInvertMappingResponse {
 	var ret MetadataGetInvertMappingResponse
 	ret.SetKeyNotExists()
@@ -363,4 +379,12 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSON(w []byte, na
 func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	return append(w, '}')
+}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetInvertMappingResponseKeyNotExists) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getInvertMappingResponseKeyNotExists")
 }

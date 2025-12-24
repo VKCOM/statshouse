@@ -100,6 +100,18 @@ func (item *DictionaryEngineMetafilesStatBoxed) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *DictionaryEngineMetafilesStatBoxed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *DictionaryEngineMetafilesStatBoxed) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("dictionary")
+}
+
+func (item *DictionaryEngineMetafilesStatBoxed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type DictionaryString map[string]string
 
 func (DictionaryString) TLName() string { return "dictionary" }
@@ -187,6 +199,39 @@ func (item *DictionaryString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *DictionaryString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*map[string]string)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorDictionaryFieldStringCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorDictionaryFieldStringInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
+	return w
+}
+
+func (item *DictionaryString) InternalReadTL2(r []byte) (_ []byte, err error) {
+	ptr := (*map[string]string)(item)
+	if r, err = BuiltinVectorDictionaryFieldStringInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
+}
+
+func (item *DictionaryString) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
 type DictionaryStringBytes []DictionaryFieldStringBytes
 
 func (DictionaryStringBytes) TLName() string { return "dictionary" }
@@ -272,4 +317,37 @@ func (item *DictionaryStringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil
+}
+
+func (item *DictionaryStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	var sz int
+	var currentSize int
+	sizes, sz = BuiltinVectorDictionaryFieldStringBytesCalculateLayout(sizes, false, ptr)
+	currentSize += sz
+	w, sizes, _ = BuiltinVectorDictionaryFieldStringBytesInternalWriteTL2(w, sizes, false, ptr)
+
+	Unused(ptr)
+	Unused(currentSize)
+	Unused(sz)
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
+	return w
+}
+
+func (item *DictionaryStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
+	ptr := (*[]DictionaryFieldStringBytes)(item)
+	if r, err = BuiltinVectorDictionaryFieldStringBytesInternalReadTL2(r, ptr); err != nil {
+		return r, err
+	}
+	return r, nil
+}
+
+func (item *DictionaryStringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
 }

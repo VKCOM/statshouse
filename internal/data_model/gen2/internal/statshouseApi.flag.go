@@ -80,6 +80,93 @@ func (item *StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 	return w
 }
 
+func (item *StatshouseApiFlag) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	currentSize := 1
+	lastUsedByte := 0
+	if item.index != 0 {
+		currentSize += basictl.TL2CalculateSize(item.index)
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes = append(sizes, currentSize)
+	if !optimizeEmpty || currentSize != 0 {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	return sizes, currentSize
+}
+
+func (item *StatshouseApiFlag) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	if item.index != 0 {
+		w = append(w, 1)
+		w = basictl.TL2WriteSize(w, item.index)
+	} else {
+		w = append(w, 0)
+	}
+	return w, sizes, currentSize
+}
+
+func (item *StatshouseApiFlag) InternalReadTL2(r []byte) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	var block byte
+	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+		return r, err
+	}
+	if (block & 1) != 0 {
+		if currentR, item.index, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	} else {
+		item.index = 0
+	}
+	if item.index < 0 || item.index >= 3 {
+		return r, ErrorInvalidUnionIndex("statshouseApi.Flag", item.index)
+	}
+	Unused(currentR)
+	return r, nil
+}
+func (item *StatshouseApiFlag) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	var sizes, sizes2 []int
+	if ctx != nil {
+		sizes = ctx.SizeBuffer[:0]
+	}
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
+	if ctx != nil {
+		ctx.SizeBuffer = sizes
+	}
+	return w
+}
+
+func (item *StatshouseApiFlag) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return item.InternalReadTL2(r)
+}
+
 func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	return item.ReadJSONGeneral(&tctx, in)

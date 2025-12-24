@@ -136,6 +136,14 @@ func (item *MetadataGetNewMappings) ReadResultJSONWriteResult(r []byte, w []byte
 	return r, w, err
 }
 
+func (item *MetadataGetNewMappings) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.getNewMappings")
+}
+
+func (item *MetadataGetNewMappings) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.getNewMappings")
+}
+
 func (item MetadataGetNewMappings) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -272,4 +280,12 @@ func (item *MetadataGetNewMappings) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("metadata.getNewMappings", err.Error())
 	}
 	return nil
+}
+
+func (item *MetadataGetNewMappings) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetNewMappings) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getNewMappings")
 }

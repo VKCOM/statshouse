@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
-func SchemaGenerator() string { return "v1.2.29" }
+func SchemaGenerator() string { return "v1.2.32" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -38,6 +38,9 @@ type Object interface {
 	// like MarshalJSON, but appends to w and returns it
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
 	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
+
+	ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error)
+	WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte
 }
 
 type Function interface {
@@ -49,6 +52,9 @@ type Function interface {
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
 	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
 	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+
+	ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error)
+	ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error)
 }
 
 func GetAllTLItems() []TLItem {
@@ -212,6 +218,14 @@ func (item *TLItem) UnmarshalJSON(b []byte) error {
 		return internal.ErrorInvalidJSON(item.tlName, err.Error())
 	}
 	return nil
+}
+
+func (item *TLItem) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+	return r, nil
+}
+
+func (item *TLItem) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
 }
 func FactoryItemByTLTag(tag uint32) *TLItem {
 	return itemsByTag[tag]
@@ -468,6 +482,7 @@ func init() {
 	fillObject("statshouseApi.fnUniqueNorm#9ceb6f68", "#9ceb6f68", &TLItem{tag: 0x9ceb6f68, annotations: 0x0, tlName: "statshouseApi.fnUniqueNorm", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouseApi.getChunk#52721884", "#52721884", &TLItem{tag: 0x52721884, annotations: 0x8, tlName: "statshouseApi.getChunk", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillObject("statshouseApi.chunkResponse#63928b42", "#63928b42", &TLItem{tag: 0x63928b42, annotations: 0x0, tlName: "statshouseApi.chunkResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillFunction("statshouseApi.getMapping#4239a8f8", "#4239a8f8", &TLItem{tag: 0x4239a8f8, annotations: 0x10, tlName: "statshouseApi.getMapping", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
 	fillFunction("statshouseApi.getQuery#0c7349bb", "#0c7349bb", &TLItem{tag: 0x0c7349bb, annotations: 0x10, tlName: "statshouseApi.getQuery", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
 	fillFunction("statshouseApi.getQueryPoint#0c7348bb", "#0c7348bb", &TLItem{tag: 0x0c7348bb, annotations: 0x8, tlName: "statshouseApi.getQueryPoint", isTL2: false, resultTypeContainsUnionTypes: true, argumentsTypesContainUnionTypes: true})
 	fillObject("statshouseApi.queryPointResponse#4487e41a", "#4487e41a", &TLItem{tag: 0x4487e41a, annotations: 0x0, tlName: "statshouseApi.queryPointResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})

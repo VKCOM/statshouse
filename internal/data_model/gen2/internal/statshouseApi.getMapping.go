@@ -13,74 +13,136 @@ import (
 
 var _ = basictl.NatWrite
 
-type StatshouseApiGetQuery struct {
+type StatshouseApiGetMapping struct {
 	FieldsMask  uint32
 	AccessToken string
-	Query       StatshouseApiQuery
+	IntValue    int32  // Conditional: item.FieldsMask.0
+	StringValue string // Conditional: item.FieldsMask.1
+	tl2mask0    byte
 }
 
-func (StatshouseApiGetQuery) TLName() string { return "statshouseApi.getQuery" }
-func (StatshouseApiGetQuery) TLTag() uint32  { return 0x0c7349bb }
+func (StatshouseApiGetMapping) TLName() string { return "statshouseApi.getMapping" }
+func (StatshouseApiGetMapping) TLTag() uint32  { return 0x4239a8f8 }
 
-func (item *StatshouseApiGetQuery) Reset() {
+func (item *StatshouseApiGetMapping) SetIntValue(v int32) {
+	item.IntValue = v
+	item.FieldsMask |= 1 << 0
+	item.tl2mask0 |= 1
+}
+func (item *StatshouseApiGetMapping) ClearIntValue() {
+	item.IntValue = 0
+	item.FieldsMask &^= 1 << 0
+	item.tl2mask0 &^= 1
+}
+func (item *StatshouseApiGetMapping) IsSetIntValue() bool { return item.tl2mask0&1 != 0 }
+
+func (item *StatshouseApiGetMapping) SetStringValue(v string) {
+	item.StringValue = v
+	item.FieldsMask |= 1 << 1
+	item.tl2mask0 |= 2
+}
+func (item *StatshouseApiGetMapping) ClearStringValue() {
+	item.StringValue = ""
+	item.FieldsMask &^= 1 << 1
+	item.tl2mask0 &^= 2
+}
+func (item *StatshouseApiGetMapping) IsSetStringValue() bool { return item.tl2mask0&2 != 0 }
+
+func (item *StatshouseApiGetMapping) Reset() {
 	item.FieldsMask = 0
 	item.AccessToken = ""
-	item.Query.Reset()
+	item.IntValue = 0
+	item.StringValue = ""
+	item.tl2mask0 = 0
 }
 
-func (item *StatshouseApiGetQuery) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000)
+func (item *StatshouseApiGetMapping) FillRandom(rg *basictl.RandGenerator) {
+	item.tl2mask0 = 0
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11011)
 	item.AccessToken = basictl.RandomString(rg)
-	item.Query.FillRandom(rg)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
+		item.IntValue = basictl.RandomInt(rg)
+	} else {
+		item.IntValue = 0
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
+		item.StringValue = basictl.RandomString(rg)
+	} else {
+		item.StringValue = ""
+	}
 }
 
-func (item *StatshouseApiGetQuery) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) Read(w []byte) (_ []byte, err error) {
+	item.tl2mask0 = 0
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringRead(w, &item.AccessToken); err != nil {
 		return w, err
 	}
-	return item.Query.Read(w)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
+		if w, err = basictl.IntRead(w, &item.IntValue); err != nil {
+			return w, err
+		}
+	} else {
+		item.IntValue = 0
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
+		if w, err = basictl.StringRead(w, &item.StringValue); err != nil {
+			return w, err
+		}
+	} else {
+		item.StringValue = ""
+	}
+	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) WriteGeneral(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteGeneral(w []byte) (_ []byte, err error) {
 	return item.Write(w), nil
 }
 
-func (item *StatshouseApiGetQuery) Write(w []byte) []byte {
+func (item *StatshouseApiGetMapping) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.AccessToken)
-	w = item.Query.Write(w)
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.IntWrite(w, item.IntValue)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.StringWrite(w, item.StringValue)
+	}
 	return w
 }
 
-func (item *StatshouseApiGetQuery) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x0c7349bb); err != nil {
+func (item *StatshouseApiGetMapping) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x4239a8f8); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *StatshouseApiGetQuery) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
 	return item.WriteBoxed(w), nil
 }
 
-func (item *StatshouseApiGetQuery) WriteBoxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x0c7349bb)
+func (item *StatshouseApiGetMapping) WriteBoxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x4239a8f8)
 	return item.Write(w)
 }
 
-func (item *StatshouseApiGetQuery) ReadResult(w []byte, ret *StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) ReadResult(w []byte, ret *StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseApiGetQuery) WriteResult(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteResult(w []byte, ret StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	w = ret.WriteBoxed(w, item.FieldsMask)
 	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadResultTL2(r []byte, ctx *basictl.TL2ReadContext, ret *StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) ReadResultTL2(r []byte, ctx *basictl.TL2ReadContext, ret *StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	currentSize := 0
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
@@ -114,8 +176,8 @@ func (item *StatshouseApiGetQuery) ReadResultTL2(r []byte, ctx *basictl.TL2ReadC
 	return r, nil
 }
 
-func (item *StatshouseApiGetQuery) calculateLayoutResult(sizes []int, optimizeEmpty bool, ret StatshouseApiGetQueryResponse) ([]int, int) {
-	sizes = append(sizes, 208882107)
+func (item *StatshouseApiGetMapping) calculateLayoutResult(sizes []int, optimizeEmpty bool, ret StatshouseApiGetMappingResponse) ([]int, int) {
+	sizes = append(sizes, 1111075064)
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
 
@@ -140,8 +202,8 @@ func (item *StatshouseApiGetQuery) calculateLayoutResult(sizes []int, optimizeEm
 	return sizes, currentSize
 }
 
-func (item *StatshouseApiGetQuery) writeResultTL2(w []byte, sizes []int, optimizeEmpty bool, ret StatshouseApiGetQueryResponse) ([]byte, []int, int) {
-	if sizes[0] != 208882107 {
+func (item *StatshouseApiGetMapping) writeResultTL2(w []byte, sizes []int, optimizeEmpty bool, ret StatshouseApiGetMappingResponse) ([]byte, []int, int) {
+	if sizes[0] != 1111075064 {
 		panic("tl2: tag mismatch between calculate and write")
 	}
 	currentSize := sizes[1]
@@ -173,7 +235,7 @@ func (item *StatshouseApiGetQuery) writeResultTL2(w []byte, sizes []int, optimiz
 	return w, sizes, currentSize
 }
 
-func (item *StatshouseApiGetQuery) WriteResultTL2(w []byte, ctx *basictl.TL2WriteContext, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteResultTL2(w []byte, ctx *basictl.TL2WriteContext, ret StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	var sizes, sizes2 []int
 	if ctx != nil {
 		sizes = ctx.SizeBuffer[:0]
@@ -189,7 +251,7 @@ func (item *StatshouseApiGetQuery) WriteResultTL2(w []byte, ctx *basictl.TL2Writ
 	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetQueryResponse) error {
+func (item *StatshouseApiGetMapping) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetMappingResponse) error {
 	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
 		return err
@@ -197,24 +259,24 @@ func (item *StatshouseApiGetQuery) ReadResultJSON(legacyTypeNames bool, in *basi
 	return nil
 }
 
-func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteResultJSON(w []byte, ret StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	tctx := basictl.JSONWriteContext{}
 	return item.writeResultJSON(&tctx, w, ret)
 }
 
-func (item *StatshouseApiGetQuery) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiGetMappingResponse) (_ []byte, err error) {
 	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
 	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
-	var ret StatshouseApiGetQueryResponse
+func (item *StatshouseApiGetMapping) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+	var ret StatshouseApiGetMappingResponse
 	ret.FillRandom(rg, item.FieldsMask)
 	return item.WriteResult(w, ret)
 }
 
-func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseApiGetQueryResponse
+func (item *StatshouseApiGetMapping) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiGetMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -222,8 +284,8 @@ func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(tctx *basictl.JSONW
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	var ret StatshouseApiGetQueryResponse
+func (item *StatshouseApiGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+	var ret StatshouseApiGetMappingResponse
 	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
 	if err != nil {
 		return r, w, err
@@ -232,8 +294,8 @@ func (item *StatshouseApiGetQuery) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseApiGetQueryResponse
+func (item *StatshouseApiGetMapping) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiGetMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -241,8 +303,8 @@ func (item *StatshouseApiGetQuery) ReadResultWriteResultTL2(tctx *basictl.TL2Wri
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseApiGetQueryResponse
+func (item *StatshouseApiGetMapping) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiGetMappingResponse
 	if r, err = item.ReadResultTL2(r, tctx, &ret); err != nil {
 		return r, w, err
 	}
@@ -250,8 +312,17 @@ func (item *StatshouseApiGetQuery) ReadResultTL2WriteResult(tctx *basictl.TL2Rea
 	return r, w, err
 }
 
-// Set field "name" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
-func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaName(value bool) {
+// Set field "intValue" in "statshouseApi.getMappingResponse" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetMapping) SetStatshouseApiGetMappingResponseIntValue(value bool) {
+	if value {
+		item.FieldsMask |= 1 << 3
+	} else {
+		item.FieldsMask &^= 1 << 3
+	}
+}
+
+// Set field "stringValue" in "statshouseApi.getMappingResponse" by changing fieldMask "fields_mask"
+func (item *StatshouseApiGetMapping) SetStatshouseApiGetMappingResponseStringValue(value bool) {
 	if value {
 		item.FieldsMask |= 1 << 4
 	} else {
@@ -259,46 +330,20 @@ func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaName(value bool) {
 	}
 }
 
-// Set field "color" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
-func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaColor(value bool) {
-	if value {
-		item.FieldsMask |= 1 << 5
-	} else {
-		item.FieldsMask &^= 1 << 5
-	}
-}
-
-// Set field "total" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
-func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaTotal(value bool) {
-	if value {
-		item.FieldsMask |= 1 << 6
-	} else {
-		item.FieldsMask &^= 1 << 6
-	}
-}
-
-// Set field "max_hosts" in "statshouseApi.seriesMeta" by changing fieldMask "fields_mask"
-func (item *StatshouseApiGetQuery) SetStatshouseApiSeriesMetaMaxHosts(value bool) {
-	if value {
-		item.FieldsMask |= 1 << 7
-	} else {
-		item.FieldsMask &^= 1 << 7
-	}
-}
-
-func (item StatshouseApiGetQuery) String() string {
+func (item StatshouseApiGetMapping) String() string {
 	return string(item.WriteJSON(nil))
 }
 
-func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+func (item *StatshouseApiGetMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
 	return item.ReadJSONGeneral(&tctx, in)
 }
 
-func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiGetMapping) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propAccessTokenPresented bool
-	var propQueryPresented bool
+	var propIntValuePresented bool
+	var propStringValuePresented bool
 
 	if in != nil {
 		in.Delim('{')
@@ -311,7 +356,7 @@ func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext
 			switch key {
 			case "fields_mask":
 				if propFieldsMaskPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "fields_mask")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getMapping", "fields_mask")
 				}
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
@@ -319,22 +364,30 @@ func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext
 				propFieldsMaskPresented = true
 			case "access_token":
 				if propAccessTokenPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "access_token")
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getMapping", "access_token")
 				}
 				if err := Json2ReadString(in, &item.AccessToken); err != nil {
 					return err
 				}
 				propAccessTokenPresented = true
-			case "query":
-				if propQueryPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "query")
+			case "intValue":
+				if propIntValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getMapping", "intValue")
 				}
-				if err := item.Query.ReadJSONGeneral(tctx, in); err != nil {
+				if err := Json2ReadInt32(in, &item.IntValue); err != nil {
 					return err
 				}
-				propQueryPresented = true
+				propIntValuePresented = true
+			case "stringValue":
+				if propStringValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getMapping", "stringValue")
+				}
+				if err := Json2ReadString(in, &item.StringValue); err != nil {
+					return err
+				}
+				propStringValuePresented = true
 			default:
-				return ErrorInvalidJSONExcessElement("statshouseApi.getQuery", key)
+				return ErrorInvalidJSONExcessElement("statshouseApi.getMapping", key)
 			}
 			in.WantComma()
 		}
@@ -349,22 +402,37 @@ func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext
 	if !propAccessTokenPresented {
 		item.AccessToken = ""
 	}
-	if !propQueryPresented {
-		item.Query.Reset()
+	if !propIntValuePresented {
+		item.IntValue = 0
+	}
+	if !propStringValuePresented {
+		item.StringValue = ""
+	}
+	if propIntValuePresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propStringValuePresented {
+		item.FieldsMask |= 1 << 1
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		item.tl2mask0 |= 1
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		item.tl2mask0 |= 2
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiGetQuery) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(tctx, w), nil
 }
 
-func (item *StatshouseApiGetQuery) WriteJSON(w []byte) []byte {
+func (item *StatshouseApiGetMapping) WriteJSON(w []byte) []byte {
 	tctx := basictl.JSONWriteContext{}
 	return item.WriteJSONOpt(&tctx, w)
 }
-func (item *StatshouseApiGetQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiGetMapping) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -380,25 +448,32 @@ func (item *StatshouseApiGetQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	if (len(item.AccessToken) != 0) == false {
 		w = w[:backupIndexAccessToken]
 	}
-	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"query":`...)
-	w = item.Query.WriteJSONOpt(tctx, w)
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"intValue":`...)
+		w = basictl.JSONWriteInt32(w, item.IntValue)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"stringValue":`...)
+		w = basictl.JSONWriteString(w, item.StringValue)
+	}
 	return append(w, '}')
 }
 
-func (item *StatshouseApiGetQuery) MarshalJSON() ([]byte, error) {
+func (item *StatshouseApiGetMapping) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil), nil
 }
 
-func (item *StatshouseApiGetQuery) UnmarshalJSON(b []byte) error {
+func (item *StatshouseApiGetMapping) UnmarshalJSON(b []byte) error {
 	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouseApi.getQuery", err.Error())
+		return ErrorInvalidJSON("statshouseApi.getMapping", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseApiGetQuery) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
-	sizes = append(sizes, 208882107)
+func (item *StatshouseApiGetMapping) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	sizes = append(sizes, 1111075064)
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
 
@@ -414,8 +489,12 @@ func (item *StatshouseApiGetQuery) CalculateLayout(sizes []int, optimizeEmpty bo
 		currentSize += basictl.TL2CalculateSize(len(item.AccessToken)) + len(item.AccessToken)
 		lastUsedByte = currentSize
 	}
-	if sizes, sz = item.Query.CalculateLayout(sizes, true); sz != 0 {
-		currentSize += sz
+	if item.tl2mask0&1 != 0 {
+		currentSize += 4
+		lastUsedByte = currentSize
+	}
+	if item.tl2mask0&2 != 0 {
+		currentSize += basictl.TL2CalculateSize(len(item.StringValue)) + len(item.StringValue)
 		lastUsedByte = currentSize
 	}
 
@@ -433,8 +512,8 @@ func (item *StatshouseApiGetQuery) CalculateLayout(sizes []int, optimizeEmpty bo
 	return sizes, currentSize
 }
 
-func (item *StatshouseApiGetQuery) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
-	if sizes[0] != 208882107 {
+func (item *StatshouseApiGetMapping) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	if sizes[0] != 1111075064 {
 		panic("tl2: tag mismatch between calculate and write")
 	}
 	currentSize := sizes[1]
@@ -459,8 +538,13 @@ func (item *StatshouseApiGetQuery) InternalWriteTL2(w []byte, sizes []int, optim
 		w = basictl.StringWriteTL2(w, item.AccessToken)
 		currentBlock |= 4
 	}
-	if w, sizes, sz = item.Query.InternalWriteTL2(w, sizes, true); sz != 0 {
+	if item.tl2mask0&1 != 0 {
+		w = basictl.IntWrite(w, item.IntValue)
 		currentBlock |= 8
+	}
+	if item.tl2mask0&2 != 0 {
+		w = basictl.StringWriteTL2(w, item.StringValue)
+		currentBlock |= 16
 	}
 	if currentBlockPosition < len(w) {
 		w[currentBlockPosition] = currentBlock
@@ -472,7 +556,7 @@ func (item *StatshouseApiGetQuery) InternalWriteTL2(w []byte, sizes []int, optim
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiGetQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiGetMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
 	if ctx != nil {
 		sizes = ctx.SizeBuffer[:0]
@@ -488,7 +572,7 @@ func (item *StatshouseApiGetQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteConte
 	return w
 }
 
-func (item *StatshouseApiGetQuery) InternalReadTL2(r []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) InternalReadTL2(r []byte) (_ []byte, err error) {
 	currentSize := 0
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
@@ -515,9 +599,10 @@ func (item *StatshouseApiGetQuery) InternalReadTL2(r []byte) (_ []byte, err erro
 			return currentR, err
 		}
 		if index != 0 {
-			return r, ErrorInvalidUnionIndex("statshouseApi.getQuery", index)
+			return r, ErrorInvalidUnionIndex("statshouseApi.getMapping", index)
 		}
 	}
+	item.tl2mask0 = 0
 	if block&2 != 0 {
 		if currentR, err = basictl.NatRead(currentR, &item.FieldsMask); err != nil {
 			return currentR, err
@@ -533,16 +618,25 @@ func (item *StatshouseApiGetQuery) InternalReadTL2(r []byte) (_ []byte, err erro
 		item.AccessToken = ""
 	}
 	if block&8 != 0 {
-		if currentR, err = item.Query.InternalReadTL2(currentR); err != nil {
+		item.tl2mask0 |= 1
+		if currentR, err = basictl.IntRead(currentR, &item.IntValue); err != nil {
 			return currentR, err
 		}
 	} else {
-		item.Query.Reset()
+		item.IntValue = 0
+	}
+	if block&16 != 0 {
+		item.tl2mask0 |= 2
+		if currentR, err = basictl.StringReadTL2(currentR, &item.StringValue); err != nil {
+			return currentR, err
+		}
+	} else {
+		item.StringValue = ""
 	}
 	Unused(currentR)
 	return r, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiGetMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

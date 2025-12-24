@@ -7,7 +7,7 @@ REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VER
 TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
-TL_GEN := go run github.com/vkcom/tl/cmd/tlgen@v1.2.29
+TL_GEN := go run github.com/vkcom/tl/cmd/tlgen@v1.2.32
 #TL_GEN := /home/user/devbox/VKCOM/tl/target/bin/tlgen # for quick switch to locally developed tlgen
 
 COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
@@ -76,6 +76,8 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
 		--copyrightPath=./copyright \
+		--tl2-generate \
+		--tl2WhiteList=statshouseApi. \
 		./internal/data_model/api.tl \
 		./internal/data_model/common.tl \
 		./internal/data_model/engine.tl \

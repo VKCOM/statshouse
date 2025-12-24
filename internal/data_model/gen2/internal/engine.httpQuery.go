@@ -277,3 +277,11 @@ func (item *EngineHttpQuery) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+func (item *EngineHttpQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineHttpQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.httpQuery")
+}

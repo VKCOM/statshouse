@@ -662,6 +662,60 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
         </div>
         <div id="shardNumHelpBlock" className="form-text"></div>
       </div>
+      <div className="row mb-3">
+        <label htmlFor="shard" className="col-sm-2 col-form-label">
+          Fixed shard key
+        </label>
+        <div className="col-sm-auto">
+          <input
+            id="shard"
+            type="number"
+            min={0}
+            step={1}
+            className="form-control"
+            value={toNumber(values.shard, 0)}
+            onChange={(e) => dispatch({ shard: toNumber(e.target.value, 0) })}
+            disabled={isReadonly || !adminMode}
+          />
+        </div>
+        <div id="shardHelpBlock" className="form-text"></div>
+      </div>
+      <div className="row mb-3">
+        <label htmlFor="shard2" className="col-sm-2 col-form-label">
+          Second fixed shard key
+        </label>
+        <div className="col-sm-auto">
+          <input
+            id="shard2"
+            type="number"
+            min={0}
+            step={1}
+            className="form-control"
+            value={toNumber(values.shard2, 0)}
+            onChange={(e) => dispatch({ shard2: toNumber(e.target.value, 0) })}
+            disabled={isReadonly || !adminMode}
+          />
+        </div>
+        <div id="shard2HelpBlock" className="form-text"></div>
+      </div>
+      <div className="row mb-3">
+        <label htmlFor="shard2_timestamp" className="col-sm-2 col-form-label">
+          Second shard ts start
+        </label>
+        <div className="col-sm-auto">
+          <input
+            id="shard2_timestamp"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="form-control"
+            value={String(toNumber(values.shard2_timestamp, 0))}
+            onChange={(e) => dispatch({ shard2_timestamp: toNumber(e.target.value, 0) })}
+            disabled={isReadonly || !adminMode}
+          />
+        </div>
+        <div id="shard2TimestampHelpBlock" className="form-text"></div>
+      </div>
 
       <div>
         {/*<button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>*/}

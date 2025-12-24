@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseMetricWrite(w []byte, vec []StatshouseMetric) []byte
 	return w
 }
 
+func BuiltinVectorStatshouseMetricInternalReadTL2(r []byte, vec *[]StatshouseMetric) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseMetric")
+}
+
 func BuiltinVectorStatshouseMetricReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetric) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -128,6 +132,10 @@ func BuiltinVectorStatshouseMetricBytesWrite(w []byte, vec []StatshouseMetricByt
 		w = elem.Write(w)
 	}
 	return w
+}
+
+func BuiltinVectorStatshouseMetricBytesInternalReadTL2(r []byte, vec *[]StatshouseMetricBytes) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseMetricBytes")
 }
 
 func BuiltinVectorStatshouseMetricBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetricBytes) error {
@@ -582,6 +590,14 @@ func (item *StatshouseMetric) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseMetric) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMetric) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.metric")
+}
+
 type StatshouseMetricBytes struct {
 	FieldsMask uint32
 	Name       []byte
@@ -991,4 +1007,12 @@ func (item *StatshouseMetricBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.metric", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseMetricBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMetricBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.metric")
 }

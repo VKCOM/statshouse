@@ -202,6 +202,14 @@ func (item *StatshouseGetTargetsResult) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	return append(w, '}')
 }
 
+func (item *StatshouseGetTargetsResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTargetsResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult")
+}
+
 type StatshouseGetTargetsResultBytes struct {
 	Targets      []StatshousePromTargetBytes
 	Hash         []byte
@@ -389,4 +397,12 @@ func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(tctx *basictl.JSONWrit
 		w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, item.GaugeMetrics)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshouseGetTargetsResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseGetTargetsResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult")
 }

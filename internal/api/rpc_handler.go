@@ -82,31 +82,29 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 		w.endpointStat.report(code, format.BuiltinMetricMetaAPIResponseTime.Name)
 	}()
 	var tag uint32
-	var req []byte
-	var hfn func(context.Context, *rpc.HandlerContext) error
-	tag, req, _ = basictl.NatReadTag(hctx.Request)
+	router := tlstatshouseApi.Handler{
+		GetChunk:      w.getChunk,
+		GetMapping:    w.getMapping,
+		GetQuery:      w.getQuery,
+		GetQueryPoint: w.getQueryPoint,
+		ReleaseChunks: w.releaseChunks,
+	}
+	tag, _ = basictl.NatPeekTag(hctx.Request)
 	switch tag {
 	case 0x0c7349bb:
-		hctx.SetRequestFunctionName("statshouseApi.getQuery")
-		hfn = w.rawGetQuery
 		w.endpointStat.endpoint = EndpointQuery
 	case 0x0c7348bb:
-		hctx.SetRequestFunctionName("statshouseApi.getQueryPoint")
-		hfn = w.rawGetQueryPoint
 		w.endpointStat.endpoint = EndpointPoint
 	case 0x52721884:
-		hctx.SetRequestFunctionName("statshouseApi.getChunk")
-		hfn = w.rawGetChunk
 		w.endpointStat.endpoint = endpointChunk
 	case 0x62adc773:
-		hctx.SetRequestFunctionName("statshouseApi.releaseChunks")
 		w.endpointStat.endpoint = endpointChunk
-		hfn = w.rawReleaseChunks
+	case 0x4239a8f8:
+		w.endpointStat.endpoint = endpointMapping
 	default:
 		return rpc.ErrNoHandler
 	}
-	hctx.Request = req
-	if err = hfn(ctx, hctx); err != nil {
+	if err = router.Handle(ctx, hctx); err != nil {
 		return fmt.Errorf("failed to handle %s: %w", hctx.RequestFunctionName(), err)
 	}
 	return nil
@@ -120,14 +118,9 @@ func (h *rpcRequestHandler) init(accessToken string, version int32) (err error) 
 	return h.requestHandler.init(accessToken, sourceJWTNotSet, s)
 }
 
-func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
-	var args tlstatshouseApi.GetQueryPoint
-	if _, err = args.Read(hctx.Request); err != nil {
-		err = fmt.Errorf("failed to deserialize statshouseApi.GetQueryPoint request: %w", err)
-		return err
-	}
-	if err = h.init(args.AccessToken, args.Query.Version); err != nil {
-		return err
+func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouseApi.GetQueryPoint) (tlstatshouseApi.GetQueryPointResponse, error) {
+	if err := h.init(args.AccessToken, args.Query.Version); err != nil {
+		return tlstatshouseApi.GetQueryPointResponse{}, err
 	}
 	qry := seriesRequestRPC{
 		filter:      args.Query.Filter,
@@ -143,13 +136,13 @@ func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.Hand
 	}
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
-		return err
+		return tlstatshouseApi.GetQueryPointResponse{}, err
 	}
 	sr, cancel, err := h.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery})
 	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 	if err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
-		return err
+		return tlstatshouseApi.GetQueryPointResponse{}, err
 	}
 	defer cancel()
 	res := tlstatshouseApi.GetQueryPointResponse{}
@@ -174,20 +167,12 @@ func (h *rpcRequestHandler) rawGetQueryPoint(ctx context.Context, hctx *rpc.Hand
 		res.Meta = append(res.Meta, meta)
 		res.Data = append(res.Data, (*d.Values)[0])
 	}
-	if hctx.Response, err = args.WriteResult(hctx.Response, res); err != nil {
-		return fmt.Errorf("failed to serialize tlstatshouseApi.GetQueryPointResponse response: %w", err)
-	}
-	return nil
+	return res, nil
 }
 
-func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
-	var args tlstatshouseApi.GetQuery
-	if _, err = args.Read(hctx.Request); err != nil {
-		err = fmt.Errorf("failed to deserialize statshouseApi.getQuery request: %w", err)
-		return err
-	}
-	if err = h.init(args.AccessToken, args.Query.Version); err != nil {
-		return err
+func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
+	if err := h.init(args.AccessToken, args.Query.Version); err != nil {
+		return tlstatshouseApi.GetQueryResponse{}, err
 	}
 	qry := seriesRequestRPC{
 		filter:      args.Query.Filter,
@@ -206,12 +191,12 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 	}
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
-		return err
+		return tlstatshouseApi.GetQueryResponse{}, err
 	}
 	srs, cancel, err := h.handleSeriesRequestS(ctx, req, make([]seriesResponse, 1))
 	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 	if err != nil {
-		return err
+		return tlstatshouseApi.GetQueryResponse{}, err
 	}
 	defer cancel()
 	sr := h.buildSeriesResponse(srs...)
@@ -248,7 +233,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 			res.Series.SeriesData = append(res.Series.SeriesData, *FloatSlicePtrToNative(data))
 		}
 	} else if chunkMaxSize < metaSize {
-		return &rpc.Error{
+		return tlstatshouseApi.GetQueryResponse{}, &rpc.Error{
 			Code:        rpcErrorCodeChunkStorageFailed,
 			Description: fmt.Sprintf("response metadata size %d out of range", metaSize),
 		}
@@ -257,7 +242,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 		res.Series = chunks[0] // return first chunk immediately
 		rid := int64(rand.Uint64())
 		if err = h.brs.Set(ctx, rid, h.accessInfo.user, chunks[1:], bigResponseTTL); err != nil {
-			return &rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
+			return tlstatshouseApi.GetQueryResponse{}, &rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
 		}
 		res.ResponseId = rid
 		res.ChunkIds = make([]int32, 0, len(chunks)-1)
@@ -265,10 +250,7 @@ func (h *rpcRequestHandler) rawGetQuery(ctx context.Context, hctx *rpc.HandlerCo
 			res.ChunkIds = append(res.ChunkIds, int32(i-1))
 		}
 	}
-	if hctx.Response, err = args.WriteResult(hctx.Response, res); err != nil {
-		return fmt.Errorf("failed to serialize statshouseApi.getQuery response: %w", err)
-	}
-	return nil
+	return res, nil
 }
 
 type seriesRequestRPC struct {
@@ -287,70 +269,85 @@ type seriesRequestRPC struct {
 	whatFlagSet bool
 }
 
-func (h *rpcRequestHandler) rawGetChunk(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
-	var args tlstatshouseApi.GetChunk
-	if _, err = args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize %s request: %w", args.TLName(), err)
-	}
-	if err = h.init(args.AccessToken, 0); err != nil {
+func (h *rpcRequestHandler) getChunk(ctx context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.GetChunkResponse, error) {
+	if err := h.init(args.AccessToken, 0); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
-		return err
+		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
-		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		err := &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return err
+		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	if br.owner != h.accessInfo.user {
-		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
+		err := &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return err
+		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	if int(args.ChunkId) > len(br.chunks)-1 {
-		err = &rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
+		err := &rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return err
+		return tlstatshouseApi.GetChunkResponse{}, err
 	}
 	h.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
 	res := tlstatshouseApi.GetChunkResponse{
 		Series: br.chunks[int(args.ChunkId)],
 		Index:  args.ChunkId,
 	}
-	if hctx.Response, err = args.WriteResult(hctx.Response, res); err != nil {
-		return fmt.Errorf("failed to serialize %s response: %w", res.TLName(), err)
-	}
-	return nil
+	return res, nil
 }
 
-func (h *rpcRequestHandler) rawReleaseChunks(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
-	var args tlstatshouseApi.ReleaseChunks
-	if _, err = args.Read(hctx.Request); err != nil {
-		return fmt.Errorf("failed to deserialize %s request: %w", args.TLName(), err)
-	}
-	if err = h.init(args.AccessToken, 0); err != nil {
+func (h *rpcRequestHandler) releaseChunks(ctx context.Context, args tlstatshouseApi.ReleaseChunks) (tlstatshouseApi.ReleaseChunksResponse, error) {
+	if err := h.init(args.AccessToken, 0); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
-		return err
+		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
-		err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
+		err := &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return err
+		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	if br.owner != h.accessInfo.user {
-		err = &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
+		err := &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return err
+		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
 	h.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
 	res := tlstatshouseApi.ReleaseChunksResponse{
 		ReleasedChunkCount: int32(h.brs.Release(args.ResponseId)),
 	}
-	if hctx.Response, err = args.WriteResult(hctx.Response, res); err != nil {
-		return fmt.Errorf("failed to serialize %s response: %w", res.TLName(), err)
+	return res, nil
+}
+
+func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi.GetMapping) (tlstatshouseApi.GetMappingResponse, error) {
+	if err := h.init(args.AccessToken, 0); err != nil {
+		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
+		return tlstatshouseApi.GetMappingResponse{}, err
 	}
-	return nil
+	var res tlstatshouseApi.GetMappingResponse
+	var err error
+	switch {
+	case args.IsSetStringValue():
+		value, ok := h.mappingsStorage.GetValue(args.StringValue)
+		if ok {
+			res.SetIntValue(value, nil)
+		} else {
+			err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find mapping for %q", args.StringValue)}
+		}
+	case args.IsSetIntValue():
+		value, ok := h.mappingsStorage.GetString(args.IntValue)
+		if ok {
+			res.SetStringValue(value, nil)
+		} else {
+			err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find string corresponding to %d", args.IntValue)}
+		}
+	default:
+		err = &rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: "must set eithee string or int value"}
+	}
+	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
+	return res, err
 }
 
 func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesRequest, error) {

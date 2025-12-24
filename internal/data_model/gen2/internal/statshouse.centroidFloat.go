@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseCentroidFloatWrite(w []byte, vec []StatshouseCentroi
 	return w
 }
 
+func BuiltinVectorStatshouseCentroidFloatInternalReadTL2(r []byte, vec *[]StatshouseCentroidFloat) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseCentroidFloat")
+}
+
 func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseCentroidFloat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -237,4 +241,12 @@ func (item *StatshouseCentroidFloat) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.centroidFloat", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseCentroidFloat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseCentroidFloat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.centroidFloat")
 }

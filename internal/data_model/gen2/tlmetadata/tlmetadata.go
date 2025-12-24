@@ -517,7 +517,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.EditEntitynew != nil {
 			var args EditEntitynew
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.editEntitynew", err)
 			}
@@ -550,7 +555,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetEntity != nil {
 			var args GetEntity
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getEntity", err)
 			}
@@ -583,7 +593,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetHistoryShortInfo != nil {
 			var args GetHistoryShortInfo
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getHistoryShortInfo", err)
 			}
@@ -616,7 +631,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetInvertMapping != nil {
 			var args GetInvertMapping
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getInvertMapping", err)
 			}
@@ -649,7 +669,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetJournalnew != nil {
 			var args GetJournalnew
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getJournalnew", err)
 			}
@@ -682,7 +707,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetMapping != nil {
 			var args GetMapping
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getMapping", err)
 			}
@@ -715,7 +745,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetMetrics != nil {
 			var args GetMetrics
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getMetrics", err)
 			}
@@ -748,7 +783,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetNewMappings != nil {
 			var args GetNewMappings
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getNewMappings", err)
 			}
@@ -781,7 +821,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.GetTagMappingBootstrap != nil {
 			var args GetTagMappingBootstrap
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.getTagMappingBootstrap", err)
 			}
@@ -814,7 +859,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.PutMapping != nil {
 			var args PutMapping
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.putMapping", err)
 			}
@@ -847,7 +897,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.PutTagMappingBootstrap != nil {
 			var args PutTagMappingBootstrap
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.putTagMappingBootstrap", err)
 			}
@@ -880,7 +935,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.ResetFlood != nil {
 			var args ResetFlood
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.resetFlood", err)
 			}
@@ -913,7 +973,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		}
 		if h.ResetFlood2 != nil {
 			var args ResetFlood2
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("metadata.resetFlood2", err)
 			}

@@ -51,6 +51,10 @@ func BuiltinVectorStatshouseSampleFactorWrite(w []byte, vec []StatshouseSampleFa
 	return w
 }
 
+func BuiltinVectorStatshouseSampleFactorInternalReadTL2(r []byte, vec *[]StatshouseSampleFactor) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("[]StatshouseSampleFactor")
+}
+
 func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -237,4 +241,12 @@ func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.sampleFactor", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseSampleFactor) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSampleFactor) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sampleFactor")
 }

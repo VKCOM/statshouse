@@ -51,6 +51,90 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
 	return w
 }
 
+func BuiltinVectorLongCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]int64) ([]int, int) {
+	sizePosition := len(sizes)
+	sizes = append(sizes, 0)
+
+	currentSize := 0
+	lastUsedByte := 0
+	var sz int
+
+	if len(*vec) != 0 {
+		currentSize += basictl.TL2CalculateSize(len(*vec))
+		lastUsedByte = currentSize
+	}
+	for i := 0; i < len(*vec); i++ {
+		currentSize += 8
+		lastUsedByte = currentSize
+	}
+	if lastUsedByte < currentSize {
+		currentSize = lastUsedByte
+	}
+	sizes[sizePosition] = currentSize
+	if optimizeEmpty && currentSize == 0 {
+		sizes = sizes[:sizePosition+1]
+	} else {
+		currentSize += basictl.TL2CalculateSize(currentSize)
+	}
+	Unused(sz)
+	return sizes, currentSize
+}
+
+func BuiltinVectorLongInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]int64) ([]byte, []int, int) {
+	currentSize := sizes[0]
+	sizes = sizes[1:]
+	if optimizeEmpty && currentSize == 0 {
+		return w, sizes, 0
+	}
+	w = basictl.TL2WriteSize(w, currentSize)
+	oldLen := len(w)
+	if len(w)-oldLen == currentSize {
+		return w, sizes, 1
+	}
+	w = basictl.TL2WriteSize(w, len(*vec))
+
+	var sz int
+	for i := 0; i < len(*vec); i++ {
+		w = basictl.LongWrite(w, (*vec)[i])
+	}
+	Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
+}
+
+func BuiltinVectorLongInternalReadTL2(r []byte, vec *[]int64) (_ []byte, err error) {
+	currentSize := 0
+	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
+		return r, err
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
+	currentR := r[:currentSize]
+	r = r[currentSize:]
+
+	elementCount := 0
+	if currentSize != 0 {
+		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
+			return r, err
+		}
+	}
+
+	if cap(*vec) < elementCount {
+		*vec = make([]int64, elementCount)
+	}
+	*vec = (*vec)[:elementCount]
+	for i := 0; i < elementCount; i++ {
+		if currentR, err = basictl.LongRead(currentR, &(*vec)[i]); err != nil {
+			return currentR, err
+		}
+	}
+	return r, nil
+}
+
 func BuiltinVectorLongReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]int64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0

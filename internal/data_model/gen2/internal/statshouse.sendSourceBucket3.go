@@ -178,6 +178,14 @@ func (item *StatshouseSendSourceBucket3) ReadResultJSONWriteResult(r []byte, w [
 	return r, w, err
 }
 
+func (item *StatshouseSendSourceBucket3) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
+}
+
+func (item *StatshouseSendSourceBucket3) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
+}
+
 func (item StatshouseSendSourceBucket3) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -436,6 +444,14 @@ func (item *StatshouseSendSourceBucket3) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (item *StatshouseSendSourceBucket3) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendSourceBucket3) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
+}
+
 type StatshouseSendSourceBucket3Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
@@ -601,6 +617,14 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadResultJSONWriteResult(r []byte
 	}
 	w, err = item.WriteResult(w, ret)
 	return r, w, err
+}
+
+func (item *StatshouseSendSourceBucket3Bytes) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
+}
+
+func (item *StatshouseSendSourceBucket3Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
 }
 
 func (item StatshouseSendSourceBucket3Bytes) String() string {
@@ -859,4 +883,12 @@ func (item *StatshouseSendSourceBucket3Bytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3", err.Error())
 	}
 	return nil
+}
+
+func (item *StatshouseSendSourceBucket3Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseSendSourceBucket3Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3")
 }

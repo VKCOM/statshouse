@@ -354,13 +354,52 @@ func mainModules() int {
 	return 0
 }
 
-func mainTLClientAPI() int {
+// user@boot3879:~/devbox/statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
+// 2025/12/23 16:39:18 {"intValue":0,"stringValue":"boot3879"}
+// user@boot3879:~/devbox/statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
+// statshouseApi.getMapping failed - statshouseApi.getMapping request to tcp4://0@127.0.0.1:10889 failed: context deadline exceeded
+func mainTLClientAPI(preferTL2 bool) int {
 	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
 		Client:  client,
-		Network: "tcp4",
-		Address: "127.0.0.1:13347",
+		Network: argv.statshouseNet,
+		Address: argv.statshouseAddr,
+	}
+	pkt, err := io.ReadAll(os.Stdin)
+	if err != nil && err != io.EOF {
+		_, _ = fmt.Fprintf(os.Stderr, "read JSON from stdin failed - %v", err)
+		return 1
+	}
+	var batch tlstatshouseApi.GetMapping
+	if err := batch.UnmarshalJSON(pkt); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "parsing statshouseApi.getMapping failed - %v", err)
+		return 1
+	}
+	var ret tlstatshouseApi.GetMappingResponse
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTL2: preferTL2}
+	ctx, cancel := context.WithTimeout(context.Background(), argv.tlclientTimeout)
+	defer cancel()
+	if err := tlapiclient.GetMapping(ctx, batch, &extra, &ret); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "statshouseApi.getMapping failed - %v", err)
+		return 1
+	}
+	str, err := batch.WriteResultJSON(nil, ret)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "statshouseApi.getMapping result failed to serialize into JSON - %v", err)
+	}
+
+	log.Printf("%s\n", str)
+	return 0
+}
+
+func mainTLClientAPIStub(preferTL2 bool) int {
+	client, _ := argvCreateClient()
+
+	tlapiclient := tlstatshouseApi.Client{
+		Client:  client,
+		Network: argv.statshouseNet,
+		Address: argv.statshouseAddr,
 	}
 	var requests []tlstatshouseApi.GetQuery
 	query := tlstatshouseApi.Query{
@@ -398,8 +437,9 @@ func mainTLClientAPI() int {
 
 	ctx := context.Background()
 	for _, request := range requests {
+		extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTL2: preferTL2}
 		var ret tlstatshouseApi.GetQueryResponse
-		if err := tlapiclient.GetQuery(ctx, request, nil, &ret); err != nil {
+		if err := tlapiclient.GetQuery(ctx, request, &extra, &ret); err != nil {
 			log.Fatalf("tlapiclient.GetQuery failed - %v", err)
 		}
 

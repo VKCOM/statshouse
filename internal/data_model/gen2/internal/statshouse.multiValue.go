@@ -828,6 +828,14 @@ func (item *StatshouseMultiValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	return append(w, '}')
 }
 
+func (item *StatshouseMultiValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMultiValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.multiValue")
+}
+
 type StatshouseMultiValueBytes struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
@@ -1641,4 +1649,12 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 		w = basictl.JSONWriteStringBytes(w, item.MaxCounterHostStag)
 	}
 	return append(w, '}')
+}
+
+func (item *StatshouseMultiValueBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *StatshouseMultiValueBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("statshouse.multiValue")
 }

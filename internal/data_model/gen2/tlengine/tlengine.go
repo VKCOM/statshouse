@@ -1313,7 +1313,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.asyncSleep")
 		if h.AsyncSleep != nil {
 			var args AsyncSleep
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.asyncSleep", err)
 			}
@@ -1335,7 +1340,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.count")
 		if h.Count != nil {
 			var args Count
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.count", err)
 			}
@@ -1357,7 +1367,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.dumpForceQueries")
 		if h.DumpForceQueries != nil {
 			var args DumpForceQueries
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.dumpForceQueries", err)
 			}
@@ -1379,7 +1394,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.dumpLastQueries")
 		if h.DumpLastQueries != nil {
 			var args DumpLastQueries
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.dumpLastQueries", err)
 			}
@@ -1401,7 +1421,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.dumpNextQueries")
 		if h.DumpNextQueries != nil {
 			var args DumpNextQueries
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.dumpNextQueries", err)
 			}
@@ -1423,7 +1448,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.enableMetafilesAnalyzer")
 		if h.EnableMetafilesAnalyzer != nil {
 			var args EnableMetafilesAnalyzer
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.enableMetafilesAnalyzer", err)
 			}
@@ -1445,7 +1475,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.filteredStat")
 		if h.FilteredStat != nil {
 			var args FilteredStat
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.filteredStat", err)
 			}
@@ -1467,7 +1502,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.getBinlogPrefixes")
 		if h.GetBinlogPrefixes != nil {
 			var args GetBinlogPrefixes
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.getBinlogPrefixes", err)
 			}
@@ -1489,7 +1529,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.getExpectedMetafilesStats")
 		if h.GetExpectedMetafilesStats != nil {
 			var args GetExpectedMetafilesStats
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.getExpectedMetafilesStats", err)
 			}
@@ -1511,7 +1556,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.getReadWriteMode")
 		if h.GetReadWriteMode != nil {
 			var args GetReadWriteMode
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.getReadWriteMode", err)
 			}
@@ -1533,7 +1583,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.getReindexStatus")
 		if h.GetReindexStatus != nil {
 			var args GetReindexStatus
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.getReindexStatus", err)
 			}
@@ -1555,7 +1610,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.invokeHttpQuery")
 		if h.InvokeHttpQuery != nil {
 			var args InvokeHttpQuery
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.invokeHttpQuery", err)
 			}
@@ -1577,7 +1637,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.isProduction")
 		if h.IsProduction != nil {
 			var args IsProduction
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.isProduction", err)
 			}
@@ -1599,7 +1664,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.nop")
 		if h.Nop != nil {
 			var args Nop
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.nop", err)
 			}
@@ -1621,7 +1691,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.pid")
 		if h.Pid != nil {
 			var args Pid
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.pid", err)
 			}
@@ -1643,7 +1718,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.pushStat")
 		if h.PushStat != nil {
 			var args PushStat
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.pushStat", err)
 			}
@@ -1665,7 +1745,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.readNop")
 		if h.ReadNop != nil {
 			var args ReadNop
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.readNop", err)
 			}
@@ -1687,7 +1772,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.recordNextQueries")
 		if h.RecordNextQueries != nil {
 			var args RecordNextQueries
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.recordNextQueries", err)
 			}
@@ -1709,7 +1799,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.registerDynamicLib")
 		if h.RegisterDynamicLib != nil {
 			var args RegisterDynamicLib
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.registerDynamicLib", err)
 			}
@@ -1731,7 +1826,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.reloadDynamicLib")
 		if h.ReloadDynamicLib != nil {
 			var args ReloadDynamicLib
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.reloadDynamicLib", err)
 			}
@@ -1753,7 +1853,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.replaceConfigServer")
 		if h.ReplaceConfigServer != nil {
 			var args ReplaceConfigServer
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.replaceConfigServer", err)
 			}
@@ -1775,7 +1880,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.sendSignal")
 		if h.SendSignal != nil {
 			var args SendSignal
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.sendSignal", err)
 			}
@@ -1797,7 +1907,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setFsyncInterval")
 		if h.SetFsyncInterval != nil {
 			var args SetFsyncInterval
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setFsyncInterval", err)
 			}
@@ -1819,7 +1934,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setMetafileMemory")
 		if h.SetMetafileMemory != nil {
 			var args SetMetafileMemory
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setMetafileMemory", err)
 			}
@@ -1841,7 +1961,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setNoPersistentConfigArray")
 		if h.SetNoPersistentConfigArray != nil {
 			var args SetNoPersistentConfigArray
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setNoPersistentConfigArray", err)
 			}
@@ -1863,7 +1988,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setNoPersistentConfigValue")
 		if h.SetNoPersistentConfigValue != nil {
 			var args SetNoPersistentConfigValue
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setNoPersistentConfigValue", err)
 			}
@@ -1885,7 +2015,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setPersistentConfigArray")
 		if h.SetPersistentConfigArray != nil {
 			var args SetPersistentConfigArray
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setPersistentConfigArray", err)
 			}
@@ -1907,7 +2042,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setPersistentConfigValue")
 		if h.SetPersistentConfigValue != nil {
 			var args SetPersistentConfigValue
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setPersistentConfigValue", err)
 			}
@@ -1929,7 +2069,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setVerbosity")
 		if h.SetVerbosity != nil {
 			var args SetVerbosity
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setVerbosity", err)
 			}
@@ -1951,7 +2096,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.setVerbosityType")
 		if h.SetVerbosityType != nil {
 			var args SetVerbosityType
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.setVerbosityType", err)
 			}
@@ -1973,7 +2123,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.sleep")
 		if h.Sleep != nil {
 			var args Sleep
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.sleep", err)
 			}
@@ -1995,7 +2150,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.stat")
 		if h.Stat != nil {
 			var args Stat
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.stat", err)
 			}
@@ -2017,7 +2177,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.switchToMasterMode")
 		if h.SwitchToMasterMode != nil {
 			var args SwitchToMasterMode
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.switchToMasterMode", err)
 			}
@@ -2039,7 +2204,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.switchToMasterModeForcefully")
 		if h.SwitchToMasterModeForcefully != nil {
 			var args SwitchToMasterModeForcefully
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.switchToMasterModeForcefully", err)
 			}
@@ -2061,7 +2231,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.switchToReplicaMode")
 		if h.SwitchToReplicaMode != nil {
 			var args SwitchToReplicaMode
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.switchToReplicaMode", err)
 			}
@@ -2083,7 +2258,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.unregisterDynamicLib")
 		if h.UnregisterDynamicLib != nil {
 			var args UnregisterDynamicLib
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.unregisterDynamicLib", err)
 			}
@@ -2105,7 +2285,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.version")
 		if h.Version != nil {
 			var args Version
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.version", err)
 			}
@@ -2127,7 +2312,12 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		hctx.SetRequestFunctionName("engine.writeNop")
 		if h.WriteNop != nil {
 			var args WriteNop
-			_, err = args.Read(r)
+			if hctx.BodyFormatTL2() {
+				tctx := basictl.TL2ReadContext{}
+				_, err = args.ReadTL2(r, &tctx)
+			} else {
+				_, err = args.Read(r)
+			}
 			if err != nil {
 				return internal.ErrorServerRead("engine.writeNop", err)
 			}

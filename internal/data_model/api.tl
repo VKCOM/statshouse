@@ -135,6 +135,11 @@ statshouseApi.releaseChunksResponse#d12dc2bd fields_mask:#
     releasedChunkCount: int
     = statshouseApi.ReleaseChunksResponse;
 
+statshouseApi.getMappingResponse {fields_mask:#}
+    intValue:fields_mask.3?int
+    stringValue:fields_mask.4?string
+    = statshouseApi.GetMappingResponse fields_mask;
+
 ---functions---
 
 @readwrite
@@ -160,4 +165,11 @@ statshouseApi.getChunk#52721884 fields_mask:#
 statshouseApi.releaseChunks#62adc773 fields_mask:#
     access_token: string
     response_id: long
-    = statshouseApi.ReleaseChunksResponse;/////
+    = statshouseApi.ReleaseChunksResponse;
+
+@readwrite statshouseApi.getMapping#4239a8f8
+    fields_mask:#
+    access_token: string
+    intValue:fields_mask.0?int
+    stringValue:fields_mask.1?string
+     = statshouseApi.GetMappingResponse fields_mask;

@@ -109,6 +109,14 @@ func (item *EngineDumpNextQueries) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
+func (item *EngineDumpNextQueries) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.dumpNextQueries")
+}
+
+func (item *EngineDumpNextQueries) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.dumpNextQueries")
+}
+
 func (item EngineDumpNextQueries) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -184,4 +192,12 @@ func (item *EngineDumpNextQueries) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.dumpNextQueries", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineDumpNextQueries) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineDumpNextQueries) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.dumpNextQueries")
 }

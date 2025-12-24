@@ -140,6 +140,14 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(tctx *basictl.JSONWriteC
 	return append(w, '}')
 }
 
+func (item *MetadataGetJournalResponsenew) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetJournalResponsenew) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew")
+}
+
 type MetadataGetJournalResponsenewBytes struct {
 	CurrentVersion int64
 	Events         []MetadataEventBytes
@@ -265,4 +273,12 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(tctx *basictl.JSONW
 		w = w[:backupIndexEvents]
 	}
 	return append(w, '}')
+}
+
+func (item *MetadataGetJournalResponsenewBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *MetadataGetJournalResponsenewBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew")
 }

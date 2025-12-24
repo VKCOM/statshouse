@@ -109,6 +109,14 @@ func (item *EngineInvokeHttpQuery) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
+func (item *EngineInvokeHttpQuery) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.invokeHttpQuery")
+}
+
+func (item *EngineInvokeHttpQuery) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.invokeHttpQuery")
+}
+
 func (item EngineInvokeHttpQuery) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -180,4 +188,12 @@ func (item *EngineInvokeHttpQuery) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.invokeHttpQuery", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineInvokeHttpQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineInvokeHttpQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.invokeHttpQuery")
 }

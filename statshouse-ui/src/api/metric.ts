@@ -84,6 +84,9 @@ export type MetricMetaValue = {
   fair_key_tag_ids?: string[];
   shard_strategy?: MetricMetaSharedStrategy;
   shard_num?: number;
+  shard?: number;
+  shard2?: number;
+  shard2_timestamp?: number;
   [key: string]: unknown;
 };
 

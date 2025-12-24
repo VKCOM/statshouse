@@ -103,6 +103,14 @@ func (item *EngineSwitchToMasterModeForcefully) ReadResultJSONWriteResult(r []by
 	return r, w, err
 }
 
+func (item *EngineSwitchToMasterModeForcefully) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
+}
+
+func (item *EngineSwitchToMasterModeForcefully) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
+}
+
 func (item EngineSwitchToMasterModeForcefully) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -152,4 +160,12 @@ func (item *EngineSwitchToMasterModeForcefully) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.switchToMasterModeForcefully", err.Error())
 	}
 	return nil
+}
+
+func (item *EngineSwitchToMasterModeForcefully) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	return w
+}
+
+func (item *EngineSwitchToMasterModeForcefully) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
 }
