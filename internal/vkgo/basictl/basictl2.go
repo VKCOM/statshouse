@@ -33,13 +33,12 @@ func TL2ExpectedNonZeroError() error {
 	return fmt.Errorf("expected non zero value")
 }
 
-func TL2Error(format string, a ...any) error {
-	return fmt.Errorf("tl2 error: %s", fmt.Sprintf(format, a...))
+func TL2ElementCountError(elementCount int, r []byte) error {
+	return fmt.Errorf("invalid element count: %d for remaining reader length: %d: %w", elementCount, len(r), io.ErrUnexpectedEOF)
 }
 
-func TL2ReadSize(r []byte, l *int) (_ []byte, err error) {
-	r, *l, err = TL2ParseSize(r)
-	return r, err
+func TL2Error(format string, a ...any) error {
+	return fmt.Errorf("tl2 error: %s", fmt.Sprintf(format, a...))
 }
 
 func TL2ParseSize(r []byte) ([]byte, int, error) {
@@ -88,6 +87,23 @@ func TL2WriteSize(w []byte, l int) []byte {
 	return w
 }
 
+// w have at least 9 bytes length
+func TL2PutSize(w []byte, l int) int {
+	switch {
+	case l < bigStringMarker:
+		w[0] = byte(l)
+		return 1
+	case l < bigStringMarker+(1<<16):
+		w[0] = bigStringMarker
+		binary.LittleEndian.PutUint16(w[1:], uint16(l-bigStringMarker))
+		return 3
+	default:
+		w[0] = hugeStringMarker
+		binary.LittleEndian.PutUint64(w[1:], uint64(l))
+		return 9
+	}
+}
+
 func TL2CalculateSize(l int) int {
 	switch {
 	case l < bigStringMarker:
@@ -113,7 +129,7 @@ func StringWriteTL2Bytes(w []byte, v []byte) []byte {
 
 func StringReadTL2(r []byte, dst *string) (_ []byte, err error) {
 	var l int
-	if r, err = TL2ReadSize(r, &l); err != nil {
+	if r, l, err = TL2ParseSize(r); err != nil {
 		return r, err
 	}
 	if len(r) < l {
@@ -125,7 +141,7 @@ func StringReadTL2(r []byte, dst *string) (_ []byte, err error) {
 
 func StringReadTL2Bytes(r []byte, dst *[]byte) (_ []byte, err error) {
 	var l int
-	if r, err = TL2ReadSize(r, &l); err != nil {
+	if r, l, err = TL2ParseSize(r); err != nil {
 		return r, err
 	}
 	if l > 0 {
@@ -189,39 +205,9 @@ func MaybeBoolWriteTL2(w []byte, b bool) []byte {
 	return w
 }
 
-func MaybeBoolReadTL2(r []byte, b *bool) (_ []byte, err error) {
-	var l int
-	if r, err = TL2ReadSize(r, &l); err != nil {
-		return r, err
-	}
-	if l == 0 {
-		*b = false
-	} else {
-		curR := r[:l]
-		r = r[l:]
-
-		var block byte
-		if curR, err = ByteReadTL2(curR, &block); err != nil {
-			return curR, err
-		}
-
-		var constructor int
-		if curR, err = TL2ReadSize(curR, &constructor); err != nil {
-			return curR, err
-		}
-
-		if constructor != 1 {
-			return curR, TL2Error("unknown constructor %d", constructor)
-		}
-
-		*b = (block & (1 << 1)) != 0
-	}
-	return r, err
-}
-
 func SkipSizedValue(r []byte) (_ []byte, err error) {
 	var l int
-	if r, err = TL2ReadSize(r, &l); err != nil {
+	if r, l, err = TL2ParseSize(r); err != nil {
 		return r, err
 	}
 	if len(r) < l {

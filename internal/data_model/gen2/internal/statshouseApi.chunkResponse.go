@@ -228,10 +228,10 @@ func (item *StatshouseApiGetChunkResponse) InternalWriteTL2(w []byte, sizes []in
 		return w, sizes, 0
 	}
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	var sz int
 	var currentBlock byte
 	currentBlockPosition := len(w)
@@ -278,14 +278,14 @@ func (item *StatshouseApiGetChunkResponse) InternalReadTL2(r []byte) (_ []byte, 
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
-	if len(r) < currentSize {
-		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
-	}
-
 	if currentSize == 0 {
 		item.Reset()
 		return r, nil
 	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
 	currentR := r[:currentSize]
 	r = r[currentSize:]
 
@@ -296,7 +296,7 @@ func (item *StatshouseApiGetChunkResponse) InternalReadTL2(r []byte) (_ []byte, 
 	// read No of constructor
 	if block&1 != 0 {
 		var index int
-		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+		if currentR, index, err = basictl.TL2ParseSize(currentR); err != nil {
 			return currentR, err
 		}
 		if index != 0 {

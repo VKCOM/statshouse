@@ -52,46 +52,37 @@ func BuiltinVectorStatshouseApiFilterWrite(w []byte, vec []StatshouseApiFilter) 
 }
 
 func BuiltinVectorStatshouseApiFilterCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFilter) ([]int, int) {
+	if len(*vec) == 0 && optimizeEmpty {
+		return sizes, 0
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
 
 	currentSize := 0
-	lastUsedByte := 0
 	var sz int
 
-	if len(*vec) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*vec))
-		lastUsedByte = currentSize
-	}
+	currentSize += basictl.TL2CalculateSize(len(*vec))
 	for i := 0; i < len(*vec); i++ {
 		sizes, sz = (*vec)[i].CalculateLayout(sizes, false)
 		currentSize += sz
-		lastUsedByte = currentSize
-	}
-	if lastUsedByte < currentSize {
-		currentSize = lastUsedByte
 	}
 	sizes[sizePosition] = currentSize
-	if optimizeEmpty && currentSize == 0 {
-		sizes = sizes[:sizePosition+1]
-	} else {
-		currentSize += basictl.TL2CalculateSize(currentSize)
-	}
+	currentSize += basictl.TL2CalculateSize(currentSize)
 	Unused(sz)
 	return sizes, currentSize
 }
 
 func BuiltinVectorStatshouseApiFilterInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFilter) ([]byte, []int, int) {
-	currentSize := sizes[0]
-	sizes = sizes[1:]
-	if optimizeEmpty && currentSize == 0 {
+	if len(*vec) == 0 && optimizeEmpty {
 		return w, sizes, 0
 	}
+	currentSize := sizes[0]
+	sizes = sizes[1:]
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	w = basictl.TL2WriteSize(w, len(*vec))
 
 	var sz int
@@ -121,6 +112,9 @@ func BuiltinVectorStatshouseApiFilterInternalReadTL2(r []byte, vec *[]Statshouse
 	if currentSize != 0 {
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
+		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
 		}
 	}
 
@@ -396,10 +390,10 @@ func (item *StatshouseApiFilter) InternalWriteTL2(w []byte, sizes []int, optimiz
 		return w, sizes, 0
 	}
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	var sz int
 	var currentBlock byte
 	currentBlockPosition := len(w)
@@ -446,14 +440,14 @@ func (item *StatshouseApiFilter) InternalReadTL2(r []byte) (_ []byte, err error)
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
-	if len(r) < currentSize {
-		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
-	}
-
 	if currentSize == 0 {
 		item.Reset()
 		return r, nil
 	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
 	currentR := r[:currentSize]
 	r = r[currentSize:]
 
@@ -464,7 +458,7 @@ func (item *StatshouseApiFilter) InternalReadTL2(r []byte) (_ []byte, err error)
 	// read No of constructor
 	if block&1 != 0 {
 		var index int
-		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+		if currentR, index, err = basictl.TL2ParseSize(currentR); err != nil {
 			return currentR, err
 		}
 		if index != 0 {

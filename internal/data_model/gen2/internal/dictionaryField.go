@@ -16,9 +16,7 @@ import (
 var _ = basictl.NatWrite
 
 func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(m map[string]EngineMetafilesStat) {
-	for k := range m {
-		delete(m, k)
-	}
+	clear(m)
 }
 
 func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg *basictl.RandGenerator, m *map[string]EngineMetafilesStat) {
@@ -40,19 +38,14 @@ func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w []byte, m *map[s
 	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
 		return w, err
 	}
-	var data map[string]EngineMetafilesStat
-	if *m == nil {
-		if l == 0 {
-			return w, nil
-		}
-		data = make(map[string]EngineMetafilesStat, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
+	clear(*m)
+	if l == 0 {
+		return w, nil
 	}
+	if *m == nil {
+		*m = make(map[string]EngineMetafilesStat, l)
+	}
+	data := *m
 	for i := 0; i < int(l); i++ {
 		var elem DictionaryFieldEngineMetafilesStatBoxed
 		if w, err = elem.Read(w); err != nil {
@@ -86,16 +79,12 @@ func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedInternalReadTL2(r []byt
 }
 
 func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, m *map[string]EngineMetafilesStat) error {
-	var data map[string]EngineMetafilesStat
+	clear(*m)
 	if *m == nil {
 		*m = make(map[string]EngineMetafilesStat, 0)
-		data = *m
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
 	}
+	data := *m
+
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -141,9 +130,7 @@ func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx *basi
 }
 
 func BuiltinVectorDictionaryFieldStringReset(m map[string]string) {
-	for k := range m {
-		delete(m, k)
-	}
+	clear(m)
 }
 
 func BuiltinVectorDictionaryFieldStringFillRandom(rg *basictl.RandGenerator, m *map[string]string) {
@@ -165,19 +152,14 @@ func BuiltinVectorDictionaryFieldStringRead(w []byte, m *map[string]string) (_ [
 	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
 		return w, err
 	}
-	var data map[string]string
-	if *m == nil {
-		if l == 0 {
-			return w, nil
-		}
-		data = make(map[string]string, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
+	clear(*m)
+	if l == 0 {
+		return w, nil
 	}
+	if *m == nil {
+		*m = make(map[string]string, l)
+	}
+	data := *m
 	for i := 0; i < int(l); i++ {
 		var elem DictionaryFieldString
 		if w, err = elem.Read(w); err != nil {
@@ -207,12 +189,16 @@ func BuiltinVectorDictionaryFieldStringWrite(w []byte, m map[string]string) []by
 }
 
 func BuiltinVectorDictionaryFieldStringCalculateLayout(sizes []int, optimizeEmpty bool, m *map[string]string) ([]int, int) {
+	if len(*m) == 0 && optimizeEmpty {
+		return sizes, 0
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
 
 	currentSize := 0
-	lastUsedByte := 0
 	var sz int
+
+	currentSize += basictl.TL2CalculateSize(len(*m))
 
 	keys := make([]string, 0, len(*m))
 	for k := range *m {
@@ -220,40 +206,28 @@ func BuiltinVectorDictionaryFieldStringCalculateLayout(sizes []int, optimizeEmpt
 	}
 	sort.Strings(keys)
 
-	if len(*m) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*m))
-		lastUsedByte = currentSize
-	}
 	for _, key := range keys {
 		elem := DictionaryFieldString{Key: key, Value: (*m)[key]}
 		sizes, sz = elem.CalculateLayout(sizes, false)
 		currentSize += sz
-		lastUsedByte = currentSize
-	}
-	if lastUsedByte < currentSize {
-		currentSize = lastUsedByte
 	}
 	sizes[sizePosition] = currentSize
-	if optimizeEmpty && currentSize == 0 {
-		sizes = sizes[:sizePosition+1]
-	} else {
-		currentSize += basictl.TL2CalculateSize(currentSize)
-	}
+	currentSize += basictl.TL2CalculateSize(currentSize)
 	Unused(sz)
 	return sizes, currentSize
 }
 
 func BuiltinVectorDictionaryFieldStringInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, m *map[string]string) ([]byte, []int, int) {
-	currentSize := sizes[0]
-	sizes = sizes[1:]
-	if optimizeEmpty && currentSize == 0 {
+	if len(*m) == 0 && optimizeEmpty {
 		return w, sizes, 0
 	}
+	currentSize := sizes[0]
+	sizes = sizes[1:]
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	w = basictl.TL2WriteSize(w, len(*m))
 
 	keys := make([]string, 0, len(*m))
@@ -291,16 +265,18 @@ func BuiltinVectorDictionaryFieldStringInternalReadTL2(r []byte, m *map[string]s
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
 		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
+		}
 	}
 
+	clear(*m)
+	if elementCount == 0 {
+		return r, nil
+	}
 	if *m == nil {
-		*m = make(map[string]string)
+		*m = make(map[string]string, elementCount)
 	}
-
-	for key := range *m {
-		delete(*m, key)
-	}
-
 	data := *m
 
 	for i := 0; i < elementCount; i++ {
@@ -314,16 +290,12 @@ func BuiltinVectorDictionaryFieldStringInternalReadTL2(r []byte, m *map[string]s
 }
 
 func BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, m *map[string]string) error {
-	var data map[string]string
+	clear(*m)
 	if *m == nil {
 		*m = make(map[string]string, 0)
-		data = *m
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
 	}
+	data := *m
+
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -408,46 +380,37 @@ func BuiltinVectorDictionaryFieldStringBytesWrite(w []byte, vec []DictionaryFiel
 }
 
 func BuiltinVectorDictionaryFieldStringBytesCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]DictionaryFieldStringBytes) ([]int, int) {
+	if len(*vec) == 0 && optimizeEmpty {
+		return sizes, 0
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
 
 	currentSize := 0
-	lastUsedByte := 0
 	var sz int
 
-	if len(*vec) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*vec))
-		lastUsedByte = currentSize
-	}
+	currentSize += basictl.TL2CalculateSize(len(*vec))
 	for i := 0; i < len(*vec); i++ {
 		sizes, sz = (*vec)[i].CalculateLayout(sizes, false)
 		currentSize += sz
-		lastUsedByte = currentSize
-	}
-	if lastUsedByte < currentSize {
-		currentSize = lastUsedByte
 	}
 	sizes[sizePosition] = currentSize
-	if optimizeEmpty && currentSize == 0 {
-		sizes = sizes[:sizePosition+1]
-	} else {
-		currentSize += basictl.TL2CalculateSize(currentSize)
-	}
+	currentSize += basictl.TL2CalculateSize(currentSize)
 	Unused(sz)
 	return sizes, currentSize
 }
 
 func BuiltinVectorDictionaryFieldStringBytesInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]DictionaryFieldStringBytes) ([]byte, []int, int) {
-	currentSize := sizes[0]
-	sizes = sizes[1:]
-	if optimizeEmpty && currentSize == 0 {
+	if len(*vec) == 0 && optimizeEmpty {
 		return w, sizes, 0
 	}
+	currentSize := sizes[0]
+	sizes = sizes[1:]
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	w = basictl.TL2WriteSize(w, len(*vec))
 
 	var sz int
@@ -477,6 +440,9 @@ func BuiltinVectorDictionaryFieldStringBytesInternalReadTL2(r []byte, vec *[]Dic
 	if currentSize != 0 {
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
+		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
 		}
 	}
 
@@ -878,10 +844,10 @@ func (item *DictionaryFieldString) InternalWriteTL2(w []byte, sizes []int, optim
 		return w, sizes, 0
 	}
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	var sz int
 	var currentBlock byte
 	currentBlockPosition := len(w)
@@ -925,14 +891,14 @@ func (item *DictionaryFieldString) InternalReadTL2(r []byte) (_ []byte, err erro
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
-	if len(r) < currentSize {
-		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
-	}
-
 	if currentSize == 0 {
 		item.Reset()
 		return r, nil
 	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
 	currentR := r[:currentSize]
 	r = r[currentSize:]
 
@@ -943,7 +909,7 @@ func (item *DictionaryFieldString) InternalReadTL2(r []byte) (_ []byte, err erro
 	// read No of constructor
 	if block&1 != 0 {
 		var index int
-		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+		if currentR, index, err = basictl.TL2ParseSize(currentR); err != nil {
 			return currentR, err
 		}
 		if index != 0 {
@@ -1161,10 +1127,10 @@ func (item *DictionaryFieldStringBytes) InternalWriteTL2(w []byte, sizes []int, 
 		return w, sizes, 0
 	}
 	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if currentSize == 0 {
 		return w, sizes, 1
 	}
+	oldLen := len(w)
 	var sz int
 	var currentBlock byte
 	currentBlockPosition := len(w)
@@ -1208,14 +1174,14 @@ func (item *DictionaryFieldStringBytes) InternalReadTL2(r []byte) (_ []byte, err
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
-	if len(r) < currentSize {
-		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
-	}
-
 	if currentSize == 0 {
 		item.Reset()
 		return r, nil
 	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
+	}
+
 	currentR := r[:currentSize]
 	r = r[currentSize:]
 
@@ -1226,7 +1192,7 @@ func (item *DictionaryFieldStringBytes) InternalReadTL2(r []byte) (_ []byte, err
 	// read No of constructor
 	if block&1 != 0 {
 		var index int
-		if currentR, err = basictl.TL2ReadSize(currentR, &index); err != nil {
+		if currentR, index, err = basictl.TL2ParseSize(currentR); err != nil {
 			return currentR, err
 		}
 		if index != 0 {

@@ -45,7 +45,7 @@ type JsonLexer = jlexer.Lexer
 var errBadPadding = fmt.Errorf("non-canonical non-zero string padding")
 
 func CheckLengthSanity(r []byte, natParam uint32, minObjectSize uint32) error {
-	if uint64(len(r)) < uint64(natParam)*uint64(minObjectSize) { // Must wrap io.ErrUnexpectedEOF
+	if uint64(len(r)) < uint64(natParam)*uint64(minObjectSize) {
 		return fmt.Errorf("invalid length: %d for remaining reader length: %d and min object size %d: %w", natParam, len(r), minObjectSize, io.ErrUnexpectedEOF)
 	}
 	return nil

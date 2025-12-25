@@ -39,7 +39,7 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 	var n uint32
 	if hctx.bodyFormatTL2 { // pretend we have variation in format
 		var sz int
-		hctx.Request, err = basictl.TL2ReadSize(hctx.Request, &sz)
+		hctx.Request, sz, err = basictl.TL2ParseSize(hctx.Request)
 		n = uint32(sz)
 	} else {
 		hctx.Request, err = basictl.NatRead(hctx.Request, &n)
