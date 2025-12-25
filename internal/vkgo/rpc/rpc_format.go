@@ -46,7 +46,8 @@ func preparePacket(req *Request) error {
 		headerBuf = extra.WriteBoxed(headerBuf)
 	}
 	if req.BodyFormatTL2 {
-		headerBuf = basictl.NatWrite(headerBuf, tl.RpcTL2Marker{}.TLTag())
+		// rpc-proxy consumes TL2Tag, waiting for fixes
+		headerBuf = basictl.NatWrite(headerBuf, 0x30324c54) // tl.RpcTL2Marker{}.TLTag())
 	}
 	if err := validBodyLen(len(headerBuf)); err != nil { // exact
 		return err
@@ -111,7 +112,7 @@ loop:
 			}
 			actorIDSet++
 			extraSet++
-		case tl.RpcTL2Marker{}.TLTag():
+		case 0x30324c54, tl.RpcTL2Marker{}.TLTag(): // rpc-proxy consumes TL2Tag, waiting for fixes
 			hctx.bodyFormatTL2 = true
 			hctx.Request = afterTag
 			tl2MarkerSet++
