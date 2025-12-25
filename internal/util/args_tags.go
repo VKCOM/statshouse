@@ -25,20 +25,13 @@ func HeartbeatVersionArgTags(componentTag int32) statshouse.Tags {
 func HeartbeatVersionAgentArgTags() statshouse.Tags {
 	argMap := parseCommandLineArgs()
 	popularKeys := map[string]int{
-		"agg-addr":              20,
-		"cache-dir":             21,
-		"p":                     22,
-		"listen-addr-ipv6":      23,
-		"listen-addr-unix":      24,
-		"cluster":               25,
-		"hostname":              26,
-		"l":                     27,
-		"aes-pwd-file":          28,
-		"env-file-path":         29,
-		"historic-storage":      30,
-		"max-disk-size":         31,
-		"sample-budget":         32,
-		"disable-remote-config": 33,
+		"agg-addr":         20,
+		"cache-dir":        21,
+		"listen-addr-ipv6": 22,
+		"listen-addr-unix": 23,
+		"aes-pwd-file":     24,
+		"l":                25,
+		"historic-storage": 26,
 	}
 	return buildHeartbeatArgTags(argMap, popularKeys)
 }
@@ -53,11 +46,8 @@ func HeartbeatVersionIngressArgTags() statshouse.Tags {
 		"ingress-external-addr":      24,
 		"ingress-external-addr-ipv6": 25,
 		"ingress-pwd-dir":            26,
-		"cluster":                    27,
-		"hostname":                   28,
-		"l":                          29,
-		"aes-pwd-file":               30,
-		"max-open-files":             31,
+		"aes-pwd-file":               27,
+		"l":                          28,
 	}
 	return buildHeartbeatArgTags(argMap, popularKeys)
 }

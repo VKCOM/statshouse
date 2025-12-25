@@ -485,9 +485,6 @@ func (s *Agent) getShardReplicaForSecond(shardNum int, timestamp uint32) (shardR
 }
 
 func (s *Agent) updateRemoteConfig() {
-	if s.config.DisableRemoteConfig {
-		return
-	}
 	if s.metricStorage == nil { // nil only on ingress proxy for now
 		return
 	}

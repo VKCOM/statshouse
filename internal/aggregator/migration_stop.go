@@ -177,9 +177,9 @@ func migrateSingleStepStop(httpClient *http.Client, khAddr, khUser, khPassword s
 	selectQuery := fmt.Sprintf(`
 		SELECT stats, time, key1, key2, skey, count
 		FROM %s
-		WHERE time = toDateTime(%d)
+		WHERE date = toDate(%d) AND time = toDateTime(%d)
 		  AND %s`,
-		config.StopTableName, timestamp, shardingCondition,
+		config.StopTableName, timestamp, timestamp, shardingCondition,
 	)
 
 	resp, err := executeStopQuery(httpClient, selectQuery, "RowBinary", config)

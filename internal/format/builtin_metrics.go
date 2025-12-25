@@ -3017,29 +3017,15 @@ var BuiltinMetricMetaHeartbeatVersionAgent = &MetricMetaValue{
 	}, 21: {
 		Description: "arg_cache_dir",
 	}, 22: {
-		Description: "arg_p",
-	}, 23: {
 		Description: "arg_listen_addr_ipv6",
-	}, 24: {
+	}, 23: {
 		Description: "arg_listen_addr_unix",
-	}, 25: {
-		Description: "arg_cluster",
-	}, 26: {
-		Description: "arg_hostname",
-	}, 27: {
-		Description: "arg_l",
-	}, 28: {
+	}, 24: {
 		Description: "arg_aes_pwd_file",
-	}, 29: {
-		Description: "arg_env_file_path",
-	}, 30: {
+	}, 25: {
+		Description: "arg_l",
+	}, 26: {
 		Description: "arg_historic_storage",
-	}, 31: {
-		Description: "arg_max_disk_size",
-	}, 32: {
-		Description: "arg_sample_budget",
-	}, 33: {
-		Description: "arg_disable_remote_config",
 	}, 45: {
 		Description: "arg_other",
 	}},
@@ -3103,15 +3089,9 @@ var BuiltinMetricMetaHeartbeatVersionIngress = &MetricMetaValue{
 	}, 26: {
 		Description: "arg_ingress_pwd_dir",
 	}, 27: {
-		Description: "arg_cluster",
-	}, 28: {
-		Description: "arg_hostname",
-	}, 29: {
-		Description: "arg_l",
-	}, 30: {
 		Description: "arg_aes_pwd_file",
-	}, 31: {
-		Description: "arg_max_open_files",
+	}, 28: {
+		Description: "arg_l",
 	}, 45: {
 		Description: "arg_other",
 	}},
