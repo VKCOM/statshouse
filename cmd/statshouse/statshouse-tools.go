@@ -354,9 +354,9 @@ func mainModules() int {
 	return 0
 }
 
-// user@boot3879:~/devbox/statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
+// statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
 // 2025/12/23 16:39:18 {"intValue":0,"stringValue":"boot3879"}
-// user@boot3879:~/devbox/statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
+// statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
 // statshouseApi.getMapping failed - statshouseApi.getMapping request to tcp4://0@127.0.0.1:10889 failed: context deadline exceeded
 func mainTLClientAPI(preferTL2 bool) int {
 	client, _ := argvCreateClient()

@@ -81,40 +81,29 @@ func (item *StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 }
 
 func (item *StatshouseApiFlag) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
-	currentSize := 1
-	lastUsedByte := 0
-	if item.index != 0 {
-		currentSize += basictl.TL2CalculateSize(item.index)
-		lastUsedByte = currentSize
+	if item.index == 0 && optimizeEmpty {
+		return sizes, 0
 	}
-	if lastUsedByte < currentSize {
-		currentSize = lastUsedByte
+	if item.index == 0 {
+		return sizes, 1
 	}
-	sizes = append(sizes, currentSize)
-	if !optimizeEmpty || currentSize != 0 {
-		currentSize += basictl.TL2CalculateSize(currentSize)
-	}
-	return sizes, currentSize
+	bodySize := 1 + basictl.TL2CalculateSize(item.index)
+	return sizes, 1 + bodySize
 }
 
 func (item *StatshouseApiFlag) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
-	currentSize := sizes[0]
-	sizes = sizes[1:]
-	if optimizeEmpty && currentSize == 0 {
+	if item.index == 0 && optimizeEmpty {
 		return w, sizes, 0
 	}
-	w = basictl.TL2WriteSize(w, currentSize)
-	oldLen := len(w)
-	if len(w)-oldLen == currentSize {
+	if item.index == 0 {
+		w = append(w, 0)
 		return w, sizes, 1
 	}
-	if item.index != 0 {
-		w = append(w, 1)
-		w = basictl.TL2WriteSize(w, item.index)
-	} else {
-		w = append(w, 0)
-	}
-	return w, sizes, currentSize
+	bodySize := 1 + basictl.TL2CalculateSize(item.index)
+	w = append(w, byte(bodySize))
+	w = append(w, 1)
+	w = basictl.TL2WriteSize(w, item.index)
+	return w, sizes, 1 + bodySize
 }
 
 func (item *StatshouseApiFlag) InternalReadTL2(r []byte) (_ []byte, err error) {
@@ -122,10 +111,12 @@ func (item *StatshouseApiFlag) InternalReadTL2(r []byte) (_ []byte, err error) {
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
-
 	if currentSize == 0 {
 		item.Reset()
 		return r, nil
+	}
+	if len(r) < currentSize {
+		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
 	}
 	currentR := r[:currentSize]
 	r = r[currentSize:]
@@ -134,15 +125,14 @@ func (item *StatshouseApiFlag) InternalReadTL2(r []byte) (_ []byte, err error) {
 	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
 		return r, err
 	}
+	item.index = 0
 	if (block & 1) != 0 {
 		if currentR, item.index, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
 		}
-	} else {
-		item.index = 0
-	}
-	if item.index < 0 || item.index >= 3 {
-		return r, ErrorInvalidUnionIndex("statshouseApi.Flag", item.index)
+		if item.index >= 3 {
+			return r, ErrorInvalidUnionIndex("statshouseApi.Flag", item.index)
+		}
 	}
 	Unused(currentR)
 	return r, nil

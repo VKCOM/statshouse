@@ -483,7 +483,7 @@ func parseMappingChunkInplace(chunk []byte, f func(str string, value int32)) err
 	readSize := func() int {
 		var size int
 		curL := len(chunk)
-		chunk, err = basictl.TL2ReadSize(chunk, &size)
+		chunk, size, err = basictl.TL2ParseSize(chunk)
 		newL := len(chunk)
 		chunkStr = chunkStr[curL-newL:]
 		return size
