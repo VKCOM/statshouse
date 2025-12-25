@@ -173,9 +173,9 @@ func migrateSingleStepV1(httpClient *http.Client, khAddr, khUser, khPassword str
 			key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15,
 			count, min, max, sum
 		FROM %s
-		WHERE time = toDateTime(%d)
+		WHERE date = toDate(%d) AND time = toDateTime(%d)
 		  AND %s`,
-		config.V1TableName, timestamp, shardingCondition,
+		config.V1TableName, timestamp, timestamp, shardingCondition,
 	)
 
 	resp, err := executeV1Query(httpClient, selectQuery, "RowBinary", config)

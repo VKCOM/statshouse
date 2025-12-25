@@ -181,7 +181,7 @@ func cleanupTables() error {
 	}
 
 	// Clear stop table data
-	req.Query = "TRUNCATE TABLE stats_1h_agg_stop"
+	req.Query = "TRUNCATE TABLE stats_1h_agg_stop_dist"
 	resp, err = req.Execute(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to clear stop table: %w", err)
@@ -894,7 +894,7 @@ func createStopTestData() []*stopRow {
 func insertStopTestData(httpClient *http.Client, httpAddr, user, password string, rows []*stopRow) error {
 	for _, row := range rows {
 		query := fmt.Sprintf(`
-		INSERT INTO stats_1h_agg_stop
+		INSERT INTO stats_1h_agg_stop_dist
 		SELECT
 			toDate(toDateTime(%d)),
 			toDateTime(%d),
@@ -937,7 +937,7 @@ func TestStopDataParsingIntegration(t *testing.T) {
 
 	selectQuery := fmt.Sprintf(`
 	SELECT stats, time, key1, key2, skey, count
-	FROM stats_1h_agg_stop
+	FROM stats_1h_agg_stop_dist
 	WHERE time = toDateTime(%d)
 	ORDER BY stats`, testData[0].time)
 

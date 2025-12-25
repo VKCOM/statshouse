@@ -889,8 +889,8 @@ var BuiltinMetricMetaHeartbeatVersion = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDHeartbeatArgs = -48 // this metric was writing larger than allowed strings to DB in the past
-var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{
+const BuiltinMetricIDHeartbeatArgs = -48               // this metric was writing larger than allowed strings to DB in the past
+var BuiltinMetricMetaHeartbeatArgs = &MetricMetaValue{ // TODO: REMOVE
 	Name:                    "__heartbeat_args",
 	Kind:                    MetricKindValue,
 	Description:             "Commandline of statshouse components.\nHeartbeat value is uptime.",
@@ -2505,6 +2505,7 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 		Description: "lang",
 		ValueComments: convertToValueComments(map[int32]string{
 			1: "golang",
+			2: "python",
 		}),
 	}, {
 		Description: "cause",
@@ -2966,4 +2967,132 @@ var BuiltinMetricMetaIngestionStatusNoShard = &MetricMetaValue{
 	PreKeyTagID:   "1",
 	ShardStrategy: ShardFixed, // always sharded to the zero shard
 	ShardNum:      0,
+}
+
+const BuiltinMetricIDHeartbeatVersionAgent = -149
+
+var BuiltinMetricMetaHeartbeatVersionAgent = &MetricMetaValue{
+	Name:                    "__heartbeat_version_agent",
+	Kind:                    MetricKindValue,
+	Description:             "Heartbeat value is uptime (agent only)",
+	MetricType:              MetricSecond,
+	StringTopDescription:    "Build Commit",
+	Resolution:              60,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "event_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDHeartbeatEventStart:     "start",
+			TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
+	}, {
+		Description: "commit_hash",
+		RawKind:     "hex",
+	}, {
+		Description: "commit_timestamp",
+		RawKind:     "timestamp",
+	}, {
+		Description: "host",
+	}, {
+		Description: "owner",
+	}, {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, {
+		Description: "remote_addr_v6",
+	}, {
+		Description: "connected_to",
+	}, 19: {
+		Description: "arg_truncated_length",
+		RawKind:     "int",
+	}, 20: {
+		Description: "arg_agg_addr",
+	}, 21: {
+		Description: "arg_cache_dir",
+	}, 22: {
+		Description: "arg_listen_addr_ipv6",
+	}, 23: {
+		Description: "arg_listen_addr_unix",
+	}, 24: {
+		Description: "arg_aes_pwd_file",
+	}, 25: {
+		Description: "arg_l",
+	}, 26: {
+		Description: "arg_historic_storage",
+	}, 45: {
+		Description: "arg_other",
+	}},
+}
+
+const BuiltinMetricIDHeartbeatVersionIngress = -150
+
+var BuiltinMetricMetaHeartbeatVersionIngress = &MetricMetaValue{
+	Name:                    "__heartbeat_version_ingress",
+	Kind:                    MetricKindValue,
+	Description:             "Heartbeat value is uptime (ingress only)",
+	MetricType:              MetricSecond,
+	StringTopDescription:    "Build Commit",
+	Resolution:              60,
+	NoSampleAgent:           true, // limited cardinality, but only on each agent
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   true,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "event_type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDHeartbeatEventStart:     "start",
+			TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
+	}, {
+		Description: "commit_hash",
+		RawKind:     "hex",
+	}, {
+		Description: "commit_timestamp",
+		RawKind:     "timestamp",
+	}, {
+		Description: "host",
+	}, {
+		Description: "owner",
+	}, {
+		Description: "remote_addr_kind",
+		ValueComments: convertToValueComments(map[int32]string{
+			4: "ipv4",
+			6: "ipv6"}),
+	}, {
+		Description: "remote_addr_v4",
+		RawKind:     "ip",
+	}, {
+		Description: "remote_addr_v6",
+	}, {
+		Description: "connected_to",
+	}, 19: {
+		Description: "arg_truncated_length",
+		RawKind:     "int",
+	}, 20: {
+		Description: "arg_agg_addr",
+	}, 21: {
+		Description: "arg_cache_dir",
+	}, 22: {
+		Description: "arg_ingress_addr",
+	}, 23: {
+		Description: "arg_ingress_addr_ipv6",
+	}, 24: {
+		Description: "arg_ingress_external_addr",
+	}, 25: {
+		Description: "arg_ingress_external_addr_ipv6",
+	}, 26: {
+		Description: "arg_ingress_pwd_dir",
+	}, 27: {
+		Description: "arg_aes_pwd_file",
+	}, 28: {
+		Description: "arg_l",
+	}, 45: {
+		Description: "arg_other",
+	}},
 }

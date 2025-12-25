@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/env"
 	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/metricshandler"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"

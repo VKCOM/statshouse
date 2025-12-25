@@ -13,9 +13,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/agent"
 	"go4.org/mem"
 	"pgregory.net/rand"
+
+	"github.com/VKCOM/statshouse/internal/agent"
 
 	"github.com/VKCOM/statshouse/internal/compress"
 
@@ -487,6 +488,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				}
 				if k.Tags[9] == 0 && k.STags[9] == "" {
 					k.SetTagUnion(9, ownerTag)
+				}
+			case format.BuiltinMetricIDHeartbeatVersionAgent, format.BuiltinMetricIDHeartbeatVersionIngress:
+				if k.Tags[2] == 0 {
+					k.Tags[2] = bcTag
+				}
+				if k.Tags[3] == 0 {
+					k.Tags[3] = int32(args.BuildCommitTs)
+				}
+				if k.Tags[4] == 0 && k.STags[4] == "" {
+					k.SetTagUnion(4, hostTag)
+				}
+				if k.Tags[5] == 0 && k.STags[5] == "" {
+					k.SetTagUnion(5, ownerTag)
 				}
 			case format.BuiltinMetricIDRPCRequests:
 				if k.Tags[7] == 0 && k.STags[7] == "" {
