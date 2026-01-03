@@ -543,7 +543,6 @@ func parseCommandLine() (err error) {
 	config.StringSliceVar(flag.CommandLine, &argv.eventPreset, "event-preset", "", "event preset")
 	flag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Directory to store metric metadata cache.")
-	flag.BoolVar(&argv.help, "help", false, "print usage instructions and exit")
 	flag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
 	flag.StringVar(&argv.listenRPCAddr, "listen-rpc-addr", "localhost:13347", "RPC server listen address")
 	flag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
@@ -557,7 +556,6 @@ func parseCommandLine() (err error) {
 	flag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultAddr, "address of udp socket or path to unix socket")
 	flag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	flag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
-	flag.BoolVar(&argv.version, "version", false, "show version information and exit")
 	flag.StringVar(&argv.vkuthAppName, "vkuth-app-name", "statshouse-api", "vkuth application name (access bits namespace)")
 	config.StringSliceVar(flag.CommandLine, &argv.vkuthPublicKeysArg, "vkuth-public-keys", "", "comma-separated list of trusted vkuth public keys; empty list disables token-based access control")
 
@@ -568,7 +566,7 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&argv.mappingsFileCount, "mappings-file-count", 16, "count of files for sharding metadata mappings")
 	argv.HandlerOptions.Bind(flag.CommandLine)
 	argv.Config.Bind(flag.CommandLine, api.DefaultConfig())
-	flag.Parse()
+	build.FlagParseShowVersionHelp()
 
 	if len(flag.Args()) != 0 {
 		return fmt.Errorf("unexpected command line arguments, check command line for typos: %q", flag.Args())
