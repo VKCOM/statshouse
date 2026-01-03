@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{ github.event.inputs.tag }}
           fetch-depth: 0
       - id: main
@@ -41,7 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
       - run: echo "REACT_APP_BUILD_VERSION=${{needs.env.outputs.version}}-${{needs.env.outputs.timestamp}}" >> $GITHUB_ENV
@@ -63,7 +61,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
       - uses: actions/download-artifact@v4
@@ -85,7 +82,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
       - run: build/make-pkg.sh ${{matrix.release}}
@@ -100,7 +96,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
       - uses: actions/download-artifact@v4
