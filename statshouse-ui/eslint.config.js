@@ -83,5 +83,7 @@ export default tseslint.config({
         allowSeparatedGroups: false,
       },
     ],
+    'react-hooks/set-state-in-effect': ['off'],
+    'react-hooks/refs': ['off'],
   },
 });

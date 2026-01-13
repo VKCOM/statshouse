@@ -36,11 +36,10 @@ export function getSystemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? THEMES.Dark : THEMES.Light;
 }
 
-export function getStorageTheme(): Theme {
+export function getStorageTheme(inLinkTheme?: Theme): Theme {
   //for embed mode by link or Light theme
-  const inLink = toTheme(useStatsHouse.getState().params.theme);
-  if (window.location.pathname === '/embed' || inLink) {
-    return inLink ?? THEMES.Light;
+  if (window.location.pathname === '/embed' || inLinkTheme) {
+    return inLinkTheme ?? THEMES.Light;
   }
   return toTheme(window.localStorage.getItem('theme'), THEMES.Light);
 }
@@ -53,8 +52,7 @@ export function setStorageTheme(theme: Theme) {
   }
 }
 
-export function getDark() {
-  const theme = getStorageTheme();
+export function getDark(theme: Theme = THEMES.Light) {
   if (theme === THEMES.Auto) {
     return getSystemTheme() === THEMES.Dark;
   }
@@ -75,23 +73,29 @@ export type ThemeStore = {
 };
 
 export const useThemeStore = createStore<ThemeStore>((_setState, _getState, store) => {
-  window.addEventListener('DOMContentLoaded', updateTheme, false);
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme, false);
+  const updateHandler = () => updateTheme();
+  window.addEventListener('DOMContentLoaded', updateHandler, false);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateHandler, false);
   store.subscribe((state, prevState) => {
     if (state.dark !== prevState.dark) {
       setDarkTheme(state.dark);
     }
   });
+  const theme = getStorageTheme();
+  const dark = getDark(theme);
+  setDarkTheme(dark);
   return {
-    dark: false, //getDark(),
-    theme: THEMES.Light, //getStorageTheme(),
+    dark,
+    theme,
   };
 });
 
 export function updateTheme() {
+  const inLink = toTheme(useStatsHouse?.getState().params.theme) ?? undefined;
+  const theme = getStorageTheme(inLink);
   useThemeStore.setState((state) => {
-    state.dark = getDark();
-    state.theme = getStorageTheme();
+    state.dark = getDark(theme);
+    state.theme = theme;
   });
 }
 

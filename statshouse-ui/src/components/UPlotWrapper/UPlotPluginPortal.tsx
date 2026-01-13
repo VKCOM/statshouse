@@ -4,7 +4,6 @@ import { UPlotWrapperPropsHooks } from './UPlotWrapper';
 import { EventObserver } from '@/common/EventObserver';
 import uPlot from 'uplot';
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const PORTAL_TARGET = {
   OVER: 'over',
   ROOT: 'root',

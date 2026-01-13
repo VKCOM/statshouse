@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <% if (env.PROD) { %>
+    <% if (import.meta.env.PROD) { %>
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; font-src 'self'; manifest-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';"
@@ -18,12 +18,14 @@
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>StatsHouse UI</title>
+
+    <% if (import.meta.env.PROD) { %>
     <meta name="build-version" content="%REACT_APP_BUILD_VERSION%" />
-    <% if (env.PROD) { %>
     <meta name="settings" content="{{.Settings}}" />
     <% } else { %>
-    <meta name="settings" content="%REACT_APP_CONFIG%" />
-    <% } %> <% if (env.PROD) { %><!--{{ if .OpenGraph }}-->
+    <meta name="build-version" content="<%= import.meta.env.REACT_APP_BUILD_VERSION ?? 'dev' %>" />
+    <meta name="settings" content="<%= import.meta.env.REACT_APP_CONFIG %>" />
+    <% } %> <% if (import.meta.env.PROD) { %><!--{{ if .OpenGraph }}-->
     <meta property="og:title" content="{{.OpenGraph.Title}}" />
     <meta property="og:image" content="{{.OpenGraph.Image}}" />
     <meta property="og:image:width" content="{{.OpenGraph.ImageWidth}}" />
@@ -33,6 +35,5 @@
   <body>
     <noscript>You need to enable JavaScript to run StatsHouse UI.</noscript>
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 interface ImportMetaEnv {
-  readonly VITE_PROXY: string;
   readonly REACT_APP_PROXY: string;
   readonly REACT_APP_PROXY_COOKIE: string;
   readonly REACT_APP_CONFIG: string;

@@ -86,4 +86,4 @@ usePlotPreviewStore.subscribe((state, prevState) => {
   }
 });
 
-updateTheme();
+// updateTheme();

@@ -13,7 +13,6 @@ import { useWindowSize, WindowSize } from '@/hooks/useWindowSize';
 
 const popperId = 'popper-group';
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const POPPER_VERTICAL = {
   top: 'top',
   bottom: 'bottom',
@@ -24,7 +23,6 @@ export const POPPER_VERTICAL = {
 
 export type PopperVertical = (typeof POPPER_VERTICAL)[keyof typeof POPPER_VERTICAL];
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const POPPER_HORIZONTAL = {
   left: 'left',
   right: 'right',
