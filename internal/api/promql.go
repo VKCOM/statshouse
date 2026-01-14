@@ -398,7 +398,9 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 
 func (h *requestHandler) MatchMetrics(f *data_model.QueryFilter) error {
 	h.metricsStorage.MatchMetrics(f)
-	for _, metric := range f.MatchingMetrics {
+	for i, metric := range f.MatchingMetrics {
+		metric = h.metricWithResolution(metric)
+		f.MatchingMetrics[i] = metric
 		if !h.accessInfo.CanViewMetric(*metric) {
 			return httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 		}
