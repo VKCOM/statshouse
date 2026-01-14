@@ -46,7 +46,6 @@ jobs:
         if: ${{inputs.run != ''}}
       - uses: actions/checkout@v5
         with:
-          repository: VKCOM/statshouse
           ref: ${{inputs.ref}}
           fetch-depth: 0
       - uses: actions/setup-go@v4
