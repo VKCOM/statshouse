@@ -217,6 +217,34 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
 }
 
+func TestLoadPointsQueryV3WithPrefix(t *testing.T) {
+	// prepare
+	pq := queryBuilder{
+		metric: metric,
+		user:   "test-user",
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+			data_model.DigestSelector{What: data_model.DigestMax},
+		},
+		utcOffset: utcOffset,
+	}
+	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
+	pq.filterNotIn.AppendValue(0, "staging")
+	lod := getLod(t, Version3)
+	lod.UsePKPrefixForV3 = true
+	// execute
+	query, err := pq.buildSeriesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
+
+	// checks
+	assert.NoError(t, err)
+	assert.Equal(t, 2, query.what.len())
+	assert.False(t, query.minMaxHost[0])
+	assert.False(t, query.minMaxHost[1])
+	assert.Equal(t, "3", query.version)
+	assert.Empty(t, query.by)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(sum(1)) AS _val0,toFloat64(max(max)) AS _val1 FROM statshouse_v3_1m_dist WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND pre_stag=''  AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
+}
+
 func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	// prepare
 	pq := queryBuilder{

@@ -76,11 +76,12 @@ type Timescale struct {
 }
 
 type TimescaleLOD struct {
-	Step        int64
-	Len         int // number of elements LOD occupies in time array
-	Version     string
-	UseV4Tables bool // feature option for Version == "3" to use v4 tables
-	UseV5Tables bool // feature option for Version == "3" to use v5 tables
+	Step             int64
+	Len              int // number of elements LOD occupies in time array
+	Version          string
+	UsePKPrefixForV3 bool // feature option for Version == "3" to use primary key prefix for more efficient selects
+	UseV4Tables      bool // feature option for Version == "3" to use v4 tables
+	UseV5Tables      bool // feature option for Version == "3" to use v5 tables
 }
 
 type QueryMode int
@@ -96,6 +97,7 @@ type QueryStat struct {
 type GetTimescaleArgs struct {
 	QueryStat
 	Version          string
+	UsePKPrefixForV3 bool
 	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Version4Start    int64 // timestamp of schema version 4 start, zero means not set
 	Version5Start    int64 // timestamp of schema version 5 start, zero means not set
@@ -114,17 +116,18 @@ type GetTimescaleArgs struct {
 }
 
 type LOD struct {
-	FromSec     int64 // inclusive
-	ToSec       int64 // exclusive
-	StepSec     int64
-	Version     string
-	UseV4Tables bool
-	UseV5Tables bool
-	Metric      *format.MetricMetaValue
-	NewSharding bool
-	HasPreKey   bool
-	PreKeyOnly  bool
-	Location    *time.Location
+	FromSec          int64 // inclusive
+	ToSec            int64 // exclusive
+	StepSec          int64
+	Version          string
+	UsePKPrefixForV3 bool
+	UseV4Tables      bool
+	UseV5Tables      bool
+	Metric           *format.MetricMetaValue
+	NewSharding      bool
+	HasPreKey        bool
+	PreKeyOnly       bool
+	Location         *time.Location
 }
 
 type lodSwitch struct {
@@ -400,12 +403,14 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
 		if lod.Version == Version3 {
+			lod.UsePKPrefixForV3 = args.UsePKPrefixForV3
+
 			if args.Version5Start != 0 && lodEnd > args.Version5Start {
 				// v3-v5 interval is always much bigger than step, so we never need to split by both v3 and v5
 				if lodStart <= args.Version5Start {
 					// version 5 starts inside LOD, split
 					_, len := endOfLOD(lodStart, lod.Step, args.Version5Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3}) // NOTE: UseV5Tables is false by default
+					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
 					resLen += len
 					lod.Len -= len
 					lod.UseV5Tables = true
@@ -418,7 +423,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 				if lodStart <= args.Version4Start {
 					// version 4 starts inside LOD, split
 					_, len := endOfLOD(lodStart, lod.Step, args.Version4Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3}) // NOTE: UseV4Tables is false by default
+					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV4Tables is false by default
 					resLen += len
 					lod.Len -= len
 					lod.UseV4Tables = true
@@ -535,17 +540,18 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			end = StepForward(end, lod.Step, t.Location)
 		}
 		res = append(res, LOD{
-			FromSec:     start,
-			ToSec:       end,
-			StepSec:     lod.Step,
-			Version:     lod.Version,
-			UseV4Tables: lod.UseV4Tables,
-			UseV5Tables: lod.UseV5Tables,
-			Metric:      metric,
-			NewSharding: t.NewShardingStart != 0 && t.NewShardingStart < start,
-			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly:  metric.PreKeyOnly,
-			Location:    t.Location,
+			FromSec:          start,
+			ToSec:            end,
+			StepSec:          lod.Step,
+			Version:          lod.Version,
+			UsePKPrefixForV3: lod.UsePKPrefixForV3,
+			UseV4Tables:      lod.UseV4Tables,
+			UseV5Tables:      lod.UseV5Tables,
+			Metric:           metric,
+			NewSharding:      t.NewShardingStart != 0 && t.NewShardingStart < start,
+			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly:       metric.PreKeyOnly,
+			Location:         t.Location,
 		})
 		start = end
 	}

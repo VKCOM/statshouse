@@ -41,14 +41,15 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:       r.version,
-			Version3Start: r.Version3Start.Load(),
-			Version4Start: r.Version4Start.Load(),
-			Version5Start: r.Version5Start.Load(),
-			Mode:          data_model.InstantQuery,
-			Compat:        true,
-			TimeNow:       time.Now().Unix(),
-			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+			Version:          r.version,
+			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
+			Version3Start:    r.Version3Start.Load(),
+			Version4Start:    r.Version4Start.Load(),
+			Version5Start:    r.Version5Start.Load(),
+			Mode:             data_model.InstantQuery,
+			Compat:           true,
+			TimeNow:          time.Now().Unix(),
+			Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	w := r.Response()
@@ -80,12 +81,13 @@ func HandleRangeQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:       r.version,
-			Version3Start: r.Version3Start.Load(),
-			Version4Start: r.Version4Start.Load(),
-			Version5Start: r.Version5Start.Load(),
-			Compat:        true,
-			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+			Version:          r.version,
+			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
+			Version3Start:    r.Version3Start.Load(),
+			Version4Start:    r.Version4Start.Load(),
+			Version5Start:    r.Version5Start.Load(),
+			Compat:           true,
+			Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	var err error
@@ -151,6 +153,7 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					Expr:  expr,
 					Options: promql.Options{
 						Version:          r.version,
+						UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
 						Version3Start:    r.Version3Start.Load(),
 						Version4Start:    r.Version4Start.Load(),
 						Version5Start:    r.Version5Start.Load(),
@@ -257,6 +260,7 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							Expr:  expr,
 							Options: promql.Options{
 								Version:          r.version,
+								UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
 								Version3Start:    r.Version3Start.Load(),
 								Version4Start:    r.Version4Start.Load(),
 								Version5Start:    r.Version5Start.Load(),
@@ -543,17 +547,18 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		start := qry.Timescale.Time[0]
 		metric := qry.Metric
 		lods = []data_model.LOD{{
-			FromSec:     qry.Timescale.Time[0] - qry.Offset,
-			ToSec:       qry.Timescale.Time[1] - qry.Offset,
-			StepSec:     lod0.Step,
-			Version:     qry.Options.Version,
-			UseV4Tables: lod0.UseV4Tables,
-			UseV5Tables: lod0.UseV5Tables,
-			Metric:      qry.Metric,
-			NewSharding: h.newSharding(qry.Metric, start),
-			HasPreKey:   metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly:  metric.PreKeyOnly,
-			Location:    h.location,
+			FromSec:          qry.Timescale.Time[0] - qry.Offset,
+			ToSec:            qry.Timescale.Time[1] - qry.Offset,
+			StepSec:          lod0.Step,
+			Version:          qry.Options.Version,
+			UsePKPrefixForV3: lod0.UsePKPrefixForV3,
+			UseV4Tables:      lod0.UseV4Tables,
+			UseV5Tables:      lod0.UseV5Tables,
+			Metric:           qry.Metric,
+			NewSharding:      h.newSharding(qry.Metric, start),
+			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly:       metric.PreKeyOnly,
+			Location:         h.location,
 		}}
 	} else {
 		lods = qry.Timescale.GetLODs(qry.Metric, qry.Offset)

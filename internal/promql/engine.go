@@ -51,6 +51,7 @@ type Query struct {
 
 type Options struct {
 	Version          string
+	UsePKPrefixForV3 bool
 	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Version4Start    int64 // timestamp of schema version 4 start, zero means v4 feature is disabled
 	Version5Start    int64 // timestamp of schema version 5 start, zero means v5 feature is disabled
@@ -272,6 +273,7 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
 		QueryStat:        ev.QueryStat,
 		Version:          qry.Options.Version,
+		UsePKPrefixForV3: qry.Options.UsePKPrefixForV3,
 		Version3Start:    qry.Options.Version3Start,
 		Version4Start:    qry.Options.Version4Start,
 		Version5Start:    qry.Options.Version5Start,
