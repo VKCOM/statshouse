@@ -37,15 +37,15 @@ export function PlotHeaderNormal() {
 
   const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
-
-  const [localCustomName, setLocalCustomName] = useState(plot?.customName || metricFullName);
+  const customName = plot?.customName;
+  const [localCustomName, setLocalCustomName] = useState(customName || metricFullName);
   const [localCustomDescription, setLocalCustomDescription] = useState(plot?.customDescription ?? '');
 
   const description = plot?.customDescription || meta?.description;
 
   const onEdit = useCallback(
     (e: React.MouseEvent) => {
-      setLocalCustomName(plot?.customName || metricFullName);
+      setLocalCustomName(customName || metricFullName);
       setLocalCustomDescription(description || '');
       setEditTitle(true);
       setTimeout(() => {
@@ -56,7 +56,7 @@ export function PlotHeaderNormal() {
       }, 0);
       e.stopPropagation();
     },
-    [description, metricFullName, plot?.customName]
+    [description, metricFullName, customName]
   );
   const onSave = useCallback(
     (e: React.FormEvent) => {
