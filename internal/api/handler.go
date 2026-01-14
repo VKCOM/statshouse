@@ -190,6 +190,8 @@ type (
 		Version4Start         atomic.Int64
 		Version5Start         atomic.Int64
 		NewShardingStart      atomic.Int64
+		hardwareMetricRes     atomic.Int64
+		hardwareSlowMetricRes atomic.Int64
 		ConfigMu              sync.RWMutex
 		DisableCHAddr         []string
 		CacheBlacklist        []string
@@ -652,6 +654,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.Version4Start.Store(cfg.Version4Start)
 		h.Version5Start.Store(cfg.Version5Start)
+		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
+		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
 		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
 		h.NewShardingStart.Store(cfg.NewShardingStart)
 		h.ConfigMu.Lock()
@@ -939,10 +943,30 @@ func (h *requestHandler) getMetricID(metricName string) (int32, error) {
 	return v.MetricID, nil
 }
 
+func (h *Handler) metricWithResolution(m *format.MetricMetaValue) *format.MetricMetaValue {
+	if m == nil || !format.HardwareMetric(m.MetricID) {
+		return m
+	}
+	res := int(h.hardwareMetricRes.Load())
+	if m.IsHardwareSlowMetric {
+		res = int(h.hardwareSlowMetricRes.Load())
+	}
+	if res == 0 {
+		return m
+	}
+	if m.Resolution == res && m.EffectiveResolution == format.AllowedResolution(res) {
+		return m
+	}
+	c := *m
+	c.Resolution = res
+	c.EffectiveResolution = format.AllowedResolution(res)
+	return &c
+}
+
 // getMetricMeta only checks view access
 func (h *requestHandler) getMetricMeta(metricName string) (*format.MetricMetaValue, error) {
 	if m, ok := format.BuiltinMetricByName[metricName]; ok {
-		return m, nil
+		return h.metricWithResolution(m), nil
 	}
 	v := h.metricsStorage.GetMetaMetricByName(metricName)
 	if v == nil {
@@ -951,7 +975,7 @@ func (h *requestHandler) getMetricMeta(metricName string) (*format.MetricMetaVal
 	if !h.accessInfo.CanViewMetric(*v) { // We are OK with sharing this bit of information with clients
 		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricName))
 	}
-	return v, nil
+	return h.metricWithResolution(v), nil
 }
 
 func (h *Handler) getMetricNameByID(metricID int32) string {
