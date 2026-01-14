@@ -12,36 +12,39 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/config"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 type Config struct {
-	ApproxCacheMaxSize     int
-	Version3Start          int64
-	Version3Prob           float64
-	Version3StrcmpOff      bool
-	Version4Start          int64
-	Version5Start          int64
-	UserLimitsStr          string
-	UserLimits             []chutil.ConnLimits
-	MaxCacheSize           int // hard limit, in bytes
-	MaxCacheSizeSoft       int // soft limit, in bytes
-	MaxCacheAge            int // seconds
-	CacheChunkSize         int
-	CacheBlacklist         []string
-	CacheWhitelist         []string
-	DisableCHAddr          []string
-	NewShardingStart       int64
-	CHSelectSettingsStr    string
-	CHSelectSettings       map[string]string
-	BlockedMetricPrefixesS string
-	BlockedMetricPrefixes  []string
-	BlockedUsersS          string
-	BlockedUsers           []string
-	AvailableShardsStr     string
-	AvailableShards        []uint32
-	CHMaxShardConnsRatio   int
-	ReplicaThrottleCfgStr  string
-	ReplicaThrottleCfg     *chutil.ReplicaThrottleConfig
+	ApproxCacheMaxSize           int
+	Version3Start                int64
+	Version3Prob                 float64
+	Version3StrcmpOff            bool
+	Version4Start                int64
+	Version5Start                int64
+	UserLimitsStr                string
+	UserLimits                   []chutil.ConnLimits
+	MaxCacheSize                 int // hard limit, in bytes
+	MaxCacheSizeSoft             int // soft limit, in bytes
+	MaxCacheAge                  int // seconds
+	CacheChunkSize               int
+	CacheBlacklist               []string
+	CacheWhitelist               []string
+	DisableCHAddr                []string
+	NewShardingStart             int64
+	CHSelectSettingsStr          string
+	CHSelectSettings             map[string]string
+	BlockedMetricPrefixesS       string
+	BlockedMetricPrefixes        []string
+	BlockedUsersS                string
+	BlockedUsers                 []string
+	AvailableShardsStr           string
+	AvailableShards              []uint32
+	CHMaxShardConnsRatio         int
+	ReplicaThrottleCfgStr        string
+	ReplicaThrottleCfg           *chutil.ReplicaThrottleConfig
+	HardwareMetricResolution     int
+	HardwareSlowMetricResolution int
 	chutil.RateLimitConfig
 }
 
@@ -99,6 +102,12 @@ func (argv *Config) ValidateConfig() error {
 		}
 		argv.ReplicaThrottleCfg = &throttleConfig
 	}
+	if format.AllowedResolution(argv.HardwareMetricResolution) != argv.HardwareMetricResolution {
+		return fmt.Errorf("--hardware-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", argv.HardwareMetricResolution)
+	}
+	if format.AllowedResolution(argv.HardwareSlowMetricResolution) != argv.HardwareSlowMetricResolution {
+		return fmt.Errorf("--hardware-slow-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", argv.HardwareSlowMetricResolution)
+	}
 	return nil
 }
 
@@ -134,6 +143,8 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
 	f.StringVar(&argv.ReplicaThrottleCfgStr, "replica-throttle-config", "", "JSON config for replica throttling testing (feature flag)")
+	f.IntVar(&argv.HardwareMetricResolution, "hardware-metric-resolution", default_.HardwareMetricResolution, "Statshouse hardware metric resolution")
+	f.IntVar(&argv.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", default_.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
 
 	f.BoolVar(&argv.RateLimitDisable, "rate-limit-disable", default_.RateLimitDisable, "disable rate limiting")
 	f.DurationVar(&argv.WindowDuration, "rate-limit-window-duration", default_.WindowDuration, "time window for analyzing ClickHouse requests")
@@ -169,6 +180,8 @@ func DefaultConfig() *Config {
 			CheckCount:         9,
 			RecalcInterval:     1 * time.Second,
 		},
+		HardwareMetricResolution:     5,
+		HardwareSlowMetricResolution: 15,
 	}
 }
 
