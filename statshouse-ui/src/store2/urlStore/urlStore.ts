@@ -118,7 +118,7 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
 
   function updateHistory(state: StatsHouseStore, replace: boolean = false) {
     const search = fixMessageTrouble('?' + getUrl(state));
-    if (prevSearch !== search) {
+    if (prevSearch !== search && appHistory.location.search !== search) {
       prevSearch = search;
       const to = getUrlObject(search);
       if (replace) {
@@ -139,8 +139,9 @@ export const urlStore: StoreSlice<StatsHouseStore, UrlStore> = (setState, getSta
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
       if (isValidPath(prevLocation) && (prevSearch !== prevLocation.search || prevSearch === '')) {
-        prevSearch = prevLocation.search;
-        updateUrlState();
+        updateUrlState().finally(() => {
+          prevSearch = prevLocation.search;
+        });
       }
     }
   });
