@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useStateInput } from '@/hooks';
 import { ErrorMessages } from '@/components/ErrorMessages';
 import cn from 'classnames';
@@ -14,6 +14,7 @@ import { useFavoriteStore } from '@/store2/favoriteStore';
 import { selectApiDashboardList, useApiDashboardList } from '@/api/dashboardsList';
 import { useDebounceValue } from '@/hooks/useDebounceValue';
 import { DashboardListItem } from '@/components2';
+import { pageTitle } from '@/store2';
 
 export type DashboardListViewProps = {};
 
@@ -44,6 +45,10 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
     );
     return res;
   }, [dashboardsFavorite, list, searchDebounce]);
+
+  useEffect(() => {
+    document.title = `Dashboard list — ${pageTitle}`;
+  }, []);
 
   return (
     <div className="container-sm pt-3 pb-3 w-max-720">
