@@ -545,8 +545,8 @@ func (a *Aggregator) countV1Rows(httpClient *http.Client, ts time.Time, shardKey
 	countQuery := fmt.Sprintf(`
 		SELECT count() as cnt
 		FROM %s
-		WHERE time = toDateTime(%d) AND %s`,
-		a.migrationConfigV1.V1TableName, ts.Unix(), shardingCondition)
+		WHERE date = toDate(%d) AND time = toDateTime(%d) AND %s`,
+		a.migrationConfigV1.V1TableName, ts.Unix(), ts.Unix(), shardingCondition)
 
 	resp, err := executeV1Query(httpClient, countQuery, "", a.migrationConfigV1)
 	if err != nil {
