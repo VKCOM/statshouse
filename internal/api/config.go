@@ -17,6 +17,7 @@ import (
 
 type Config struct {
 	ApproxCacheMaxSize           int
+	UsePkPrefixForV3             bool
 	Version3Start                int64
 	Version3Prob                 float64
 	Version3StrcmpOff            bool
@@ -122,6 +123,7 @@ func (argv *Config) Copy() config.Config {
 func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
 	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
+	f.BoolVar(&argv.UsePkPrefixForV3, "use-pk-prefix-for-v3", default_.UsePkPrefixForV3, "enable primary key prefix condition for v3 table selects")
 	f.Int64Var(&argv.Version3Start, "version3-start", default_.Version3Start, "timestamp of schema version 3 start, zero means not set")
 	f.Float64Var(&argv.Version3Prob, "version3-prob", default_.Version3Prob, "the probability of choosing version 3 when version was set to 2 or empty")
 	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", default_.Version3StrcmpOff, "disable string comparision for schema version 3")

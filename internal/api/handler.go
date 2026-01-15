@@ -184,6 +184,7 @@ type (
 	}
 
 	Handler struct {
+		UsePKPrefixForV3      atomic.Bool
 		Version3Start         atomic.Int64
 		Version3Prob          atomic.Float64
 		Version3StrcmpOff     atomic.Bool
@@ -653,6 +654,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		h.Version3Prob.Store(cfg.Version3Prob)
 		h.Version3StrcmpOff.Store(cfg.Version3StrcmpOff)
 		h.Version4Start.Store(cfg.Version4Start)
+		h.UsePKPrefixForV3.Store(cfg.UsePkPrefixForV3)
 		h.Version5Start.Store(cfg.Version5Start)
 		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
 		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
@@ -2020,6 +2022,7 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 		Metric:           metricMeta,
 		Location:         h.location,
 		UTCOffset:        h.utcOffset,
+		UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
 		Version3Start:    h.Version3Start.Load(),
 		Version4Start:    h.Version4Start.Load(),
 		Version5Start:    h.Version5Start.Load(),
@@ -2178,6 +2181,7 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Expr:  req.promQL,
 		Options: promql.Options{
 			Version:          req.version,
+			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
 			Version3Start:    r.Version3Start.Load(),
 			Version4Start:    r.Version4Start.Load(),
 			Version5Start:    r.Version5Start.Load(),
@@ -2316,6 +2320,7 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, meta.MetricID),
 			Options: promql.Options{
 				Version:          req.version,
+				UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
 				Version3Start:    h.Version3Start.Load(),
 				Version4Start:    h.Version4Start.Load(),
 				Version5Start:    h.Version5Start.Load(),
@@ -2556,6 +2561,7 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Version:          req.version,
+		UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
 		Version3Start:    h.Version3Start.Load(),
 		Version4Start:    h.Version4Start.Load(),
 		Version5Start:    h.Version5Start.Load(),
@@ -2695,6 +2701,7 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		Expr:  req.promQL,
 		Options: promql.Options{
 			Version:          req.version,
+			UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
 			Version3Start:    h.Version3Start.Load(),
 			Version4Start:    h.Version4Start.Load(),
 			Version5Start:    h.Version5Start.Load(),

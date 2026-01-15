@@ -71,17 +71,18 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				newShardingStart: h.NewShardingStart.Load(),
 			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
-				FromSec:     shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
-				ToSec:       shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
-				StepSec:     lod.StepSec,
-				Version:     lod.Version,
-				UseV4Tables: lod.UseV4Tables,
-				UseV5Tables: lod.UseV5Tables,
-				Metric:      pq.metric,
-				NewSharding: h.newSharding(metricMeta, lod.FromSec),
-				HasPreKey:   lod.HasPreKey,
-				PreKeyOnly:  lod.PreKeyOnly,
-				Location:    tableReqParams.location,
+				FromSec:          shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
+				ToSec:            shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
+				StepSec:          lod.StepSec,
+				Version:          lod.Version,
+				UsePKPrefixForV3: lod.UsePKPrefixForV3,
+				UseV4Tables:      lod.UseV4Tables,
+				UseV5Tables:      lod.UseV5Tables,
+				Metric:           pq.metric,
+				NewSharding:      h.newSharding(metricMeta, lod.FromSec),
+				HasPreKey:        lod.HasPreKey,
+				PreKeyOnly:       lod.PreKeyOnly,
+				Location:         tableReqParams.location,
 			}, req.avoidCache)
 			if err != nil {
 				return nil, false, err
