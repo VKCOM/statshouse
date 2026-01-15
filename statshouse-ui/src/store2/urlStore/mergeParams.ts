@@ -22,6 +22,7 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     },
     { ...value.plots }
   );
+  const reusePlots = !changePlots && sameKeySet(target.plots, value.plots);
   let changeGroups = false;
   const nextGroups = value.orderGroup.reduce(
     (res, gK) => {
@@ -34,6 +35,7 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     },
     { ...value.groups }
   );
+  const reuseGroups = !changeGroups && sameKeySet(target.groups, value.groups);
   let changeVariables = false;
   const nextVariables = value.orderVariables.reduce(
     (res, gK) => {
@@ -46,6 +48,7 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     },
     { ...value.variables }
   );
+  const reuseVariables = !changeVariables && sameKeySet(target.variables, value.variables);
 
   const nextTimeShifts = value.timeShifts.slice().sort();
 
@@ -53,12 +56,21 @@ export function mergeParams(target: QueryParams, value: QueryParams): QueryParam
     ...value,
     timeShifts: dequal(target.timeShifts, nextTimeShifts) ? target.timeShifts : nextTimeShifts,
     orderPlot: [],
-    plots: changePlots ? nextPlots : target.plots,
+    plots: reusePlots ? target.plots : nextPlots,
     orderGroup: dequal(target.orderGroup, value.orderGroup) ? target.orderGroup : value.orderGroup,
-    groups: changeGroups ? nextGroups : target.groups,
+    groups: reuseGroups ? target.groups : nextGroups,
     orderVariables: dequal(target.orderVariables, value.orderVariables) ? target.orderVariables : value.orderVariables,
-    variables: changeVariables ? nextVariables : target.variables,
+    variables: reuseVariables ? target.variables : nextVariables,
   };
+}
+
+function sameKeySet(a: object, b: object): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+  return bKeys.every((k) => Object.prototype.hasOwnProperty.call(a, k));
 }
 
 function mergePlot(target: PlotParams | undefined = undefined, value: PlotParams): PlotParams {
