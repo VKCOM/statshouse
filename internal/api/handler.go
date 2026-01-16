@@ -1163,13 +1163,16 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 		http.FileServer(h.staticDir).ServeHTTP(w, r) // 404 for non-existing assets
 		return
 	}
-	if r.URL.Path != "/index.html" { // we have this static file, but we process it with template below
+	if r.URL.Path != "/index.html" { // we have index.html static file, but we process it with template below
 		if f, err := h.staticDir.Open(r.URL.Path); err == nil {
+			fstat, err := f.Stat()
 			_ = f.Close()
-			// other static will be cached for some time, as we update it sometimes
-			w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticOtherSeconds))
-			http.FileServer(h.staticDir).ServeHTTP(w, r) // should be never 404
-			return
+			if err == nil && !fstat.IsDir() {
+				// other static will be cached for some time, as we update it sometimes
+				w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticOtherSeconds))
+				http.FileServer(h.staticDir).ServeHTTP(w, r) // should be never 404
+				return
+			}
 		}
 	}
 	// Ignore all FS errors, except fs.ErrNotExist, they must never appear in production, as we use static embedding.
