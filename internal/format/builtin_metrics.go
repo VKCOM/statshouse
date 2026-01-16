@@ -2506,6 +2506,7 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 		ValueComments: convertToValueComments(map[int32]string{
 			1: "golang",
 			2: "python",
+			3: "rust",
 		}),
 	}, {
 		Description: "cause",
