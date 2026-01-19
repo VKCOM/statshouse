@@ -73,7 +73,7 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat(in *jlexer.Lex
 			} else {
 				out.Disable = bool(in.Bool())
 			}
-		case "shard_keys":
+		case "shard_nums":
 			if in.IsNull() {
 				in.Skip()
 			} else {
@@ -129,7 +129,7 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 		out.Bool(bool(in.Disable))
 	}
 	if in.ShardKeys != "" {
-		const prefix string = ",\"shard_keys\":"
+		const prefix string = ",\"shard_nums\":"
 		out.RawString(prefix)
 		out.String(string(in.ShardKeys))
 	}
