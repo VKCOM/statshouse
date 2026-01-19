@@ -13,10 +13,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mailru/easyjson"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/mailru/easyjson"
 )
 
 type GroupWithMetricsList struct {
@@ -113,6 +114,18 @@ func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.groupsByName[name]
+}
+
+func (ms *MetricsStorage) GetGroupByMetricName(metricName string) *format.MetricsGroup {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	for _, g := range ms.groupsByID {
+		if g.Disable || !strings.HasPrefix(metricName, g.Name) {
+			continue
+		}
+		return g
+	}
+	return nil
 }
 
 // TODO some fixes to avoid allocation

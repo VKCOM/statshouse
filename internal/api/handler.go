@@ -1756,12 +1756,18 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 		return h.validateMetricShard(metric)
 	}
 	var shards []uint32
-	if _, nsName := format.SplitNamespace(metric.Name); nsName != "" {
+	if g := h.metricsStorage.GetGroupByMetricName(metric.Name); g != nil && g.ShardKeys != "" {
+		items, err := parseShardKeys(g.ShardKeys)
+		if err != nil {
+			return fmt.Errorf("cannot parse group shard keys: %w", err)
+		}
+		shards = items
+	} else if _, nsName := format.SplitNamespace(metric.Name); nsName != "" {
 		ns := h.metricsStorage.GetNamespaceByName(nsName)
-		if ns != nil && ns.ShardNums != "" {
-			items, err := parseShardNumbers(ns.ShardNums)
+		if ns != nil && ns.ShardKeys != "" {
+			items, err := parseShardKeys(ns.ShardKeys)
 			if err != nil {
-				return fmt.Errorf("cannot parse shard numbers: %w", err)
+				return fmt.Errorf("cannot parse namespace shard keys: %w", err)
 			}
 			shards = items
 		}
@@ -1786,19 +1792,29 @@ func (h *Handler) validateMetricShard(metric *format.MetricMetaValue) error {
 		return nil
 	}
 	ns := h.metricsStorage.GetNamespaceByName(nsName)
-	if ns == nil || ns.ShardNums == "" {
+	if ns == nil || ns.ShardKeys == "" {
 		return nil
 	}
 	if metric.ShardStrategy != format.ShardFixed {
 		return fmt.Errorf("metric shard strategy %s, namespace strategy %s", metric.ShardStrategy, format.ShardFixed)
 	}
-	nsShards, err := parseShardNumbers(ns.ShardNums)
+	nsShards, err := parseShardKeys(ns.ShardKeys)
 	if err != nil {
 		return fmt.Errorf("cannot parse shard numbers: %w", err)
 	}
 
-	if !slices.Contains(nsShards, metric.ShardNum) {
-		return fmt.Errorf("metric shard_num %d not in namespace shards: %s", metric.ShardNum, ns.ShardNums)
+	if g := h.metricsStorage.GetGroupByMetricName(metric.Name); g != nil && g.ShardKeys != "" {
+		gShards, err := parseShardKeys(g.ShardKeys)
+		if err != nil {
+			return fmt.Errorf("cannot parse group shard numbers: %w", err)
+		}
+
+		if !slices.Contains(gShards, metric.ShardNum+1) {
+			return fmt.Errorf("metric shard_num %d not in group shards: %s", metric.ShardNum, g.ShardKeys)
+		}
+	}
+	if !slices.Contains(nsShards, metric.ShardNum+1) {
+		return fmt.Errorf("metric shard_num %d not in namespace shards: %s", metric.ShardNum, ns.ShardKeys)
 	}
 	return nil
 }
