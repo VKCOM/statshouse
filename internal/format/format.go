@@ -195,7 +195,7 @@ type NamespaceMeta struct {
 
 	Weight    float64 `json:"weight"`
 	Disable   bool    `json:"disable"`
-	ShardKeys string  `json:"shard_keys,omitempty"`
+	ShardKeys string  `json:"shard_nums,omitempty"` // 1-based
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -223,7 +223,7 @@ type MetricsGroup struct {
 
 	Weight    float64 `json:"weight,omitempty"`
 	Disable   bool    `json:"disable,omitempty"`
-	ShardKeys string  `json:"shard_keys,omitempty"`
+	ShardKeys string  `json:"shard_keys,omitempty"` // 1-based
 
 	EffectiveWeight int64 `json:"-"`
 }
