@@ -186,7 +186,7 @@ export function NamespacePage() {
     setSelectMetricsNamespace(
       produce((g) => {
         if (g) {
-          g.namespace.shard_nums = value;
+          g.namespace.shard_keys = value;
         }
       })
     );
@@ -286,7 +286,7 @@ export function NamespacePage() {
                     type="text"
                     className="form-control"
                     id="metricsNamespaceShards"
-                    defaultValue={selectMetricsNamespace.namespace.shard_nums}
+                    defaultValue={selectMetricsNamespace.namespace.shard_keys}
                     onChange={onChangeShards}
                   />
                 </div>

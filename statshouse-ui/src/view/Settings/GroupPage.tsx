@@ -181,6 +181,15 @@ export function GroupPage() {
       })
     );
   }, []);
+  const onChangeShards = useCallback((value: string) => {
+    setSelectMetricsGroup(
+      produce((g) => {
+        if (g) {
+          g.group.shard_keys = value;
+        }
+      })
+    );
+  }, []);
 
   return (
     <div className="flex-grow-1 p-2">
@@ -265,6 +274,20 @@ export function GroupPage() {
                   <div className="col-form-label ms-2" style={{ width: 80 }}>
                     [{selectMetricsGroupWeightPercent}%]
                   </div>
+                </div>
+              </div>
+              <div className="mb-3 row">
+                <label htmlFor="metricsGroupShards" className="col-sm-2 col-form-label">
+                  Shards
+                </label>
+                <div className="col-sm-10">
+                  <InputText
+                    type="text"
+                    className="form-control"
+                    id="metricsGroupShards"
+                    defaultValue={selectMetricsGroup.group.shard_keys}
+                    onChange={onChangeShards}
+                  />
                 </div>
               </div>
               <div className="mb-3 row">

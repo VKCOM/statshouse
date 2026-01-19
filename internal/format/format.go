@@ -195,7 +195,7 @@ type NamespaceMeta struct {
 
 	Weight    float64 `json:"weight"`
 	Disable   bool    `json:"disable"`
-	ShardNums string  `json:"shard_nums,omitempty"`
+	ShardKeys string  `json:"shard_keys,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -221,8 +221,9 @@ type MetricsGroup struct {
 	Version     int64  `json:"version"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Weight  float64 `json:"weight,omitempty"`
-	Disable bool    `json:"disable,omitempty"`
+	Weight    float64 `json:"weight,omitempty"`
+	Disable   bool    `json:"disable,omitempty"`
+	ShardKeys string  `json:"shard_keys,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }

@@ -27,6 +27,7 @@ export type GroupInfo = {
   update_time: number;
   weight: number;
   disable: boolean;
+  shard_keys?: string;
 };
 
 export type GroupMetric = string;
@@ -47,12 +48,14 @@ export type ApiGroupPost = {
     weight: number;
     version: number;
     disable?: boolean;
+    shard_keys?: string;
   };
 };
 export type ApiGroupPut = {
   group: {
     name: string;
     weight: number;
+    shard_keys?: string;
   };
 };
 

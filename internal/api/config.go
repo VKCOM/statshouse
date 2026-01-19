@@ -88,7 +88,7 @@ func (argv *Config) ValidateConfig() error {
 	}
 	argv.AvailableShards = nil
 	if argv.AvailableShardsStr != "" {
-		shards, err := parseShardNumbers(argv.AvailableShardsStr)
+		shards, err := parseShardKeys(argv.AvailableShardsStr)
 		if err != nil {
 			return fmt.Errorf("failed to parse available shards: %w", err)
 		}
@@ -255,7 +255,7 @@ func (argv *HandlerOptions) Parse() error {
 	return nil
 }
 
-func parseShardNumbers(shardsStr string) ([]uint32, error) {
+func parseShardKeys(shardsStr string) ([]uint32, error) {
 	var shards []uint32
 	parts := strings.Split(shardsStr, ",")
 	for _, part := range parts {

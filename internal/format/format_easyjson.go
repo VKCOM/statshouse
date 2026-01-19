@@ -73,11 +73,11 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat(in *jlexer.Lex
 			} else {
 				out.Disable = bool(in.Bool())
 			}
-		case "shard_nums":
+		case "shard_keys":
 			if in.IsNull() {
 				in.Skip()
 			} else {
-				out.ShardNums = string(in.String())
+				out.ShardKeys = string(in.String())
 			}
 		default:
 			in.SkipRecursive()
@@ -128,10 +128,10 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 		out.RawString(prefix)
 		out.Bool(bool(in.Disable))
 	}
-	if in.ShardNums != "" {
-		const prefix string = ",\"shard_nums\":"
+	if in.ShardKeys != "" {
+		const prefix string = ",\"shard_keys\":"
 		out.RawString(prefix)
-		out.String(string(in.ShardNums))
+		out.String(string(in.ShardKeys))
 	}
 	out.RawByte('}')
 }
@@ -201,6 +201,12 @@ func easyjson72863a49DecodeGithubComVKCOMStatshouseInternalFormat1(in *jlexer.Le
 			} else {
 				out.Disable = bool(in.Bool())
 			}
+		case "shard_keys":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ShardKeys = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -249,6 +255,11 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat1(out *jwriter.
 		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Disable))
+	}
+	if in.ShardKeys != "" {
+		const prefix string = ",\"shard_keys\":"
+		out.RawString(prefix)
+		out.String(string(in.ShardKeys))
 	}
 	out.RawByte('}')
 }
