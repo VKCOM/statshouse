@@ -302,7 +302,7 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	case Version1:
 		b.writeDateFilterV1(sb, lod)
 	case Version3:
-		if lod.UseV4Tables || lod.UseV5Tables || lod.UsePKPrefixForV3 {
+		if lod.UseV4Tables || lod.UseV5Tables || lod.UseV6Tables || lod.UsePKPrefixForV3 {
 			b.ensurePrimaryKeyPrefix(sb)
 		}
 		if lod.UseV4Tables {

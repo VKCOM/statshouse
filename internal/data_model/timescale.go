@@ -82,6 +82,7 @@ type TimescaleLOD struct {
 	UsePKPrefixForV3 bool // feature option for Version == "3" to use primary key prefix for more efficient selects
 	UseV4Tables      bool // feature option for Version == "3" to use v4 tables
 	UseV5Tables      bool // feature option for Version == "3" to use v5 tables
+	UseV6Tables      bool // feature option for Version == "3" to use v6 tables
 }
 
 type QueryMode int
@@ -101,6 +102,7 @@ type GetTimescaleArgs struct {
 	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Version4Start    int64 // timestamp of schema version 4 start, zero means not set
 	Version5Start    int64 // timestamp of schema version 5 start, zero means not set
+	Version6Start    int64 // timestamp of schema version 6 start, zero means not set
 	Start            int64 // inclusive
 	End              int64 // exclusive
 	Step             int64
@@ -123,6 +125,7 @@ type LOD struct {
 	UsePKPrefixForV3 bool
 	UseV4Tables      bool
 	UseV5Tables      bool
+	UseV6Tables      bool
 	Metric           *format.MetricMetaValue
 	NewSharding      bool
 	HasPreKey        bool
@@ -405,7 +408,20 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		if lod.Version == Version3 {
 			lod.UsePKPrefixForV3 = args.UsePKPrefixForV3
 
-			if args.Version5Start != 0 && lodEnd > args.Version5Start {
+			if args.Version6Start != 0 && lodEnd > args.Version6Start {
+				// v3-v6 interval is always much bigger than step, so we never need to split by both v3 and v6
+				if lodStart <= args.Version6Start {
+					// version 6 starts inside LOD, split
+					_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
+					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
+					resLen += len
+					lod.Len -= len
+					lod.UseV6Tables = true
+				} else {
+					// V6 exclusive LOD
+					lod.UseV6Tables = true
+				}
+			} else if args.Version5Start != 0 && lodEnd > args.Version5Start {
 				// v3-v5 interval is always much bigger than step, so we never need to split by both v3 and v5
 				if lodStart <= args.Version5Start {
 					// version 5 starts inside LOD, split
@@ -547,6 +563,7 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			UsePKPrefixForV3: lod.UsePKPrefixForV3,
 			UseV4Tables:      lod.UseV4Tables,
 			UseV5Tables:      lod.UseV5Tables,
+			UseV6Tables:      lod.UseV6Tables,
 			Metric:           metric,
 			NewSharding:      t.NewShardingStart != 0 && t.NewShardingStart < start,
 			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
@@ -568,7 +585,9 @@ func (t *Timescale) Duration() time.Duration {
 
 func (t *Timescale) appendLOD(lod TimescaleLOD) {
 	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].Step == lod.Step &&
-		(t.LODs[len(t.LODs)-1].UseV4Tables == lod.UseV4Tables || t.LODs[len(t.LODs)-1].UseV5Tables == lod.UseV5Tables) {
+		(t.LODs[len(t.LODs)-1].UseV4Tables == lod.UseV4Tables &&
+			t.LODs[len(t.LODs)-1].UseV5Tables == lod.UseV5Tables &&
+			t.LODs[len(t.LODs)-1].UseV6Tables == lod.UseV6Tables) {
 		t.LODs[len(t.LODs)-1].Len += lod.Len
 	} else {
 		t.LODs = append(t.LODs, lod)
@@ -599,6 +618,9 @@ func (lod LOD) IsFast() bool {
 }
 
 func (lod LOD) Table(newSharding bool) string {
+	if lod.UseV6Tables {
+		return lod.TableV6(newSharding)
+	}
 	if lod.UseV5Tables {
 		return lod.TableV5(newSharding)
 	}
@@ -654,6 +676,25 @@ func (lod LOD) TableV5(newSharding bool) string {
 		return "statshouse_v5_1m_dist"
 	}
 	return "statshouse_v5_1h_dist"
+}
+
+func (lod LOD) TableV6(newSharding bool) string {
+	if newSharding {
+		if lod.StepSec < _1m {
+			return "statshouse_v6_1s"
+		}
+		if lod.StepSec < _1h {
+			return "statshouse_v6_1m"
+		}
+		return "statshouse_v6_1h"
+	}
+	if lod.StepSec < _1m {
+		return "statshouse_v6_1s_dist"
+	}
+	if lod.StepSec < _1h {
+		return "statshouse_v6_1m_dist"
+	}
+	return "statshouse_v6_1h_dist"
 }
 
 func (s *QueryStat) Add(m *format.MetricMetaValue, offset int64) {

@@ -653,6 +653,7 @@ func (l *cache2Loader) loadChunks() {
 		UsePKPrefixForV3: l.lod.UsePKPrefixForV3,
 		UseV4Tables:      l.lod.UseV4Tables,
 		UseV5Tables:      l.lod.UseV5Tables,
+		UseV6Tables:      l.lod.UseV6Tables,
 		Metric:           l.lod.Metric,
 		NewSharding:      l.lod.NewSharding,
 		HasPreKey:        l.lod.HasPreKey,
