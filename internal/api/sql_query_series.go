@@ -73,11 +73,6 @@ func (q *seriesQuery) writeSelectTime(sb *strings.Builder, lod *data_model.LOD, 
 }
 
 func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
-	if q.version == Version1 && q.isStringTop() {
-		sb.WriteString("toFloat64(sumMerge(count)) AS _val0")
-		q.res = append(q.res, proto.ResultColumn{Name: "_val0", Data: &q.count})
-		return nil // count is the only column available
-	}
 	var has [data_model.DigestLast]bool
 	var hasSumSquare bool
 	for i, j := 0, 0; q.what.specifiedAt(i); i++ {
@@ -173,8 +168,6 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 		sb.WriteString(sqlMinHost(lod))
 		sb.WriteString(" AS _minHost")
 		switch q.version {
-		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV1})
 		case Version2:
 			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV2})
 		case Version3:
@@ -186,8 +179,6 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 		sb.WriteString(sqlMaxHost(lod))
 		sb.WriteString(" AS _maxHost")
 		switch q.version {
-		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV1})
 		case Version2:
 			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV2})
 		case Version3:
@@ -217,16 +208,10 @@ func (q *seriesQuery) writeSelectCount(sb *strings.Builder, i int, lod *data_mod
 }
 
 func sqlMinHost(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "0"
-	}
 	return "argMinMergeState(min_host)"
 }
 
 func sqlMaxHost(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "0"
-	}
 	return "argMaxMergeState(max_host)"
 }
 
@@ -236,8 +221,6 @@ func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, 
 		q.writeSelectTagsV3(sb, lod, comma)
 	case Version2:
 		q.writeSelectTagsV2(sb, lod, comma)
-	case Version1:
-		q.writeSelectTagsV1(sb, lod, comma)
 	default:
 		return fmt.Errorf("bad schema version %s", lod.Version)
 	}
@@ -276,20 +259,6 @@ func (q *seriesQuery) writeSelectTagsV2(sb *strings.Builder, lod *data_model.LOD
 	}
 }
 
-func (q *seriesQuery) writeSelectTagsV1(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
-	for _, x := range q.by {
-		switch x {
-		case 0, format.StringTopTagIndex, format.StringTopTagIndexV3, format.ShardTagIndex:
-			// pass
-		default:
-			if x < format.MaxTagsV2 {
-				comma.maybeWrite(sb)
-				q.writeSelectInt(sb, x, lod)
-			}
-		}
-	}
-}
-
 func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 	sb.WriteString(" FROM ")
 	sb.WriteString(q.preKeyTableName(lod))
@@ -299,8 +268,6 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	sb.WriteString(" WHERE ")
 	b.writeTimeClause(sb, lod)
 	switch lod.Version {
-	case Version1:
-		b.writeDateFilterV1(sb, lod)
 	case Version3:
 		if lod.UseV4Tables || lod.UseV5Tables || lod.UseV6Tables || lod.UsePKPrefixForV3 {
 			b.ensurePrimaryKeyPrefix(sb)
@@ -347,14 +314,6 @@ func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_mode
 		// shouldn't happen
 		sb.WriteString("1=1")
 	}
-}
-
-func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
-	sb.WriteString(" AND date>=toDate(")
-	sb.WriteString(fmt.Sprint(lod.FromSec))
-	sb.WriteString(") AND date<=toDate(")
-	sb.WriteString(fmt.Sprint(lod.ToSec))
-	sb.WriteString(")")
 }
 
 func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, lod *data_model.LOD) {
@@ -657,9 +616,6 @@ func (b *queryBuilder) raw64(tagX int) bool {
 }
 
 func metricColumn(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "stats"
-	}
 	return "metric"
 }
 

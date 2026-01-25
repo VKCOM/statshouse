@@ -117,7 +117,6 @@ const (
 	paramYL, paramYH  = "yl", "yh" // Y scale range
 	paramFull         = "full"
 
-	Version1       = "1"
 	Version2       = "2"
 	Version3       = "3" // new tables format with stags
 	dataFormatPNG  = "png"
@@ -179,7 +178,6 @@ type (
 		DefaultMetricGroupBy     []string            `json:"default_metric_group_by"`
 		EventPreset              []string            `json:"event_preset"`
 		DefaultNumSeries         int                 `json:"default_num_series"`
-		DisableV1                bool                `json:"disabled_v1"`
 		AdminDash                int                 `json:"admin_dash"`
 	}
 
@@ -598,7 +596,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *chutil.ClickHouse, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 
 	tmpl, err := template.ParseFS(staticDir, "index.html")
@@ -620,7 +618,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		metadataLoader:  metadataLoader,
 		mappingsStorage: mappingsStorage,
 		ch: map[string]*chutil.ClickHouse{
-			Version1: chV1,
 			Version2: chV2,
 			Version3: chV2,
 		},
@@ -726,7 +723,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 				ChRateLimit(client, versionTag, ch.RateLimitStatistics())
 			}
 		}
-		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 		if n := h.pointFloatsPoolSize.Load(); n != 0 {
 			h.bufferPoolBytesTotal.Value(float64(n))
@@ -888,9 +884,6 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 }
 
 func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto, version string, query ch.Query) error {
-	if version == Version1 && h.ch[version] == nil {
-		return fmt.Errorf("legacy ClickHouse database is disabled")
-	}
 	err := func() error {
 		h.Handler.ConfigMu.RLock()
 		defer h.Handler.ConfigMu.RUnlock()
@@ -1046,13 +1039,7 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 	}
 	if tag.Raw() {
 		base := int32(0)
-		if version == Version1 {
-			base = format.TagValueIDRawDeltaLegacy
-		}
 		return format.CodeTagValue(tagValueID - base)
-	}
-	if tagValueID == format.TagValueIDMappingFloodLegacy && version == Version1 {
-		return format.CodeTagValue(format.TagValueIDMappingFlood)
 	}
 	switch tagValueID {
 	case format.TagValueIDUnspecified, format.TagValueIDMappingFlood:
@@ -1077,9 +1064,6 @@ func (h *Handler) getTagValueID(tagValue string) (int32, error) {
 func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, version string, tagValue string) (int64, error) {
 	id, err := format.ParseCodeTagValue(tagValue)
 	if err == nil {
-		if version == Version1 && tag.Raw() {
-			id += format.TagValueIDRawDeltaLegacy
-		}
 		return id, nil
 	}
 	if tag.IsMetric() {
@@ -1125,9 +1109,6 @@ func formValueParamMetric(r *http.Request) string {
 func (h *requestHandler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (data_model.TagFilters, error) {
 	var m data_model.TagFilters
 	for k, values := range f {
-		if version == Version1 && k == format.EnvTagID {
-			continue // we only support production tables for v1
-		}
 		if k == format.StringTopTagID {
 			for _, v := range values {
 				if f, err := h.GetTagFilter(metricMeta, format.StringTopTagIndexV3, v); err != nil {
@@ -2001,10 +1982,6 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	version := h.version
-	err = validateQuery(metricMeta, version)
-	if err != nil {
-		return nil, false, err
-	}
 
 	tagID, err := parseTagID(req.tagID)
 	if err != nil {
@@ -2065,38 +2042,34 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 
 	valueCount := map[string]float64{}
 	valueIDCount := map[int64]float64{}
-	if version == Version1 && tagID == format.EnvTagID {
-		valueIDCount[format.TagValueIDProductionLegacy] = 100 // we only support production tables for v1
-	} else {
-		for _, lod := range lods {
-			query := pq.buildTagValuesQuery(lod, h.getSelectSettings())
-			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-			newSharding := h.newSharding(pq.metric, lod.FromSec)
-			err = h.doSelect(ctx, chutil.QueryMetaInto{
-				IsFast:         isFast,
-				IsLight:        true,
-				User:           req.ai.user,
-				Metric:         metricMeta,
-				Table:          lod.Table(newSharding),
-				NewSharding:    newSharding,
-				DisableCHAddrs: h.disabledCHAddrs(),
-			}, version, ch.Query{
-				Body:   query.body,
-				Result: query.res,
-				OnResult: func(_ context.Context, b proto.Block) error {
-					for i := 0; i < b.Rows; i++ {
-						tag := query.rowAt(i)
-						if tag.valID != 0 {
-							valueIDCount[int64(tag.valID)] += tag.cnt
-						} else {
-							valueCount[tag.val] += tag.cnt
-						}
+	for _, lod := range lods {
+		query := pq.buildTagValuesQuery(lod, h.getSelectSettings())
+		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
+		newSharding := h.newSharding(pq.metric, lod.FromSec)
+		err = h.doSelect(ctx, chutil.QueryMetaInto{
+			IsFast:         isFast,
+			IsLight:        true,
+			User:           req.ai.user,
+			Metric:         metricMeta,
+			Table:          lod.Table(newSharding),
+			NewSharding:    newSharding,
+			DisableCHAddrs: h.disabledCHAddrs(),
+		}, version, ch.Query{
+			Body:   query.body,
+			Result: query.res,
+			OnResult: func(_ context.Context, b proto.Block) error {
+				for i := 0; i < b.Rows; i++ {
+					tag := query.rowAt(i)
+					if tag.valID != 0 {
+						valueIDCount[int64(tag.valID)] += tag.cnt
+					} else {
+						valueCount[tag.val] += tag.cnt
 					}
-					return nil
-				}})
-			if err != nil {
-				return nil, false, err
-			}
+				}
+				return nil
+			}})
+		if err != nil {
+			return nil, false, err
 		}
 	}
 
@@ -2571,10 +2544,6 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 	if err != nil {
 		return nil, false, err
 	}
-	err = validateQuery(metricMeta, req.version)
-	if err != nil {
-		return nil, false, err
-	}
 	mappedFilterIn, err := h.resolveFilter(metricMeta, req.version, req.filterIn)
 	if err != nil {
 		return nil, false, err
@@ -3018,8 +2987,6 @@ type seriesQuery struct {
 	percentile  chutil.ColTDigest
 	cardinality proto.ColFloat64
 	shardNum    proto.ColUInt32
-	minHostV1   proto.ColUInt8
-	maxHostV1   proto.ColUInt8
 	minHostV2   chutil.ColArgMinInt32Float32
 	maxHostV2   chutil.ColArgMaxInt32Float32
 	minHostV3   chutil.ColArgMinStringFloat32
@@ -3508,7 +3475,7 @@ func healthcheckAccessInfo(h *requestHandler) (accessInfo, bool) {
 
 func (h *requestHandler) init(accessToken, tokenSource, version string) (err error) {
 	switch version {
-	case Version1, Version3:
+	case Version3:
 		h.version = version
 	case Version2, "":
 		if rand.Float64() < h.Handler.Version3Prob.Load() {

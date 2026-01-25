@@ -67,12 +67,6 @@ const (
 	RouteTag      = 14
 	AgentEnvTag   = 15
 
-	// legacy values, used only by API to process data from version1 database
-	TagValueIDProductionLegacy   = 22676293   // stlogs_s_production, actual value matters only for legacy conveyor
-	TagValueNullLegacy           = "null"     // see TagValueIDNull
-	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
-	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
-
 	NamespaceSeparator     = ":"
 	NamespaceSeparatorRune = ':'
 

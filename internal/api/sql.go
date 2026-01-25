@@ -98,9 +98,6 @@ func (b *queryBuilder) singleMetric() *format.MetricMetaValue {
 }
 
 func sqlAggFn(fn string, lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return fn + "Merge"
-	}
 	return fn
 }
 

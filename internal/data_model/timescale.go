@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	Version1 = "1"
 	Version2 = "2"
 	Version3 = "3"
 
@@ -141,16 +140,6 @@ type lodSwitch struct {
 
 var (
 	LODTables = map[string]map[int64]string{
-		Version1: {
-			_1M:  _1hTableSH1,
-			_7d:  _1hTableSH1,
-			_24h: _1hTableSH1,
-			_4h:  _1hTableSH1,
-			_1h:  _1hTableSH1,
-			_15m: _1mTableSH1,
-			_5m:  _1mTableSH1,
-			_1m:  _1mTableSH1,
-		},
 		Version2: {
 			_1M:  _1hTableSH2,
 			_7d:  _1hTableSH2,
@@ -180,15 +169,6 @@ var (
 	}
 
 	lodLevels = map[string][]lodSwitch{
-		Version1: {{
-			relSwitch: 33 * _24h,
-			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    LODTables[Version1],
-		}, {
-			relSwitch: _0s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    LODTables[Version1],
-		}},
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
 		Version2: {{
@@ -219,26 +199,6 @@ var (
 		}},
 	}
 
-	lodLevelsV1StringTop = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_7d, _24h, _4h, _1h},
-		tables: map[int64]string{
-			_7d:  _1hTableStringTopSH1,
-			_24h: _1hTableStringTopSH1,
-			_4h:  _1hTableStringTopSH1,
-			_1h:  _1hTableStringTopSH1,
-		},
-	}}
-
-	lodLevelsV1Unique = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_7d, _24h},
-		tables: map[int64]string{
-			_7d:  _1dTableUniquesSH1,
-			_24h: _1dTableUniquesSH1,
-		},
-	}}
-
 	lodLevelsV2Monthly = []lodSwitch{{
 		relSwitch: _0s,
 		levels:    []int64{_1M},
@@ -246,42 +206,9 @@ var (
 			_1M: _1hTableSH2,
 		},
 	}}
-
-	lodLevelsV1Monthly = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableSH1,
-		},
-	}}
-
-	lodLevelsV1MonthlyUnique = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1dTableUniquesSH1,
-		},
-	}}
-
-	lodLevelsV1MonthlyStringTop = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableStringTopSH1,
-		},
-	}}
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", MaxSlice)
-
-func CacheDropInterval(version string) time.Duration {
-	switch version {
-	case Version1:
-		return 90 * time.Second
-	default:
-		return 0
-	}
-}
 
 func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	if args.End <= args.Start || args.Step < 0 {
@@ -291,8 +218,6 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	var (
 		maxOffset    int
 		maxMetricRes int64 = 1 // max metric resolution
-		hasStringTop bool
-		hasUnique    bool
 	)
 	for k, v := range args.MetricOffset {
 		if maxOffset < int(v) {
@@ -301,36 +226,12 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		if maxMetricRes < int64(k.Resolution) {
 			maxMetricRes = int64(k.Resolution)
 		}
-		if len(k.StringTopDescription) != 0 {
-			hasStringTop = true
-		}
 	}
 	// find appropriate LOD table
 	var levels []lodSwitch // depends on query and version
 	switch {
 	case args.Step == _1M:
-		switch {
-		case args.Version == Version1:
-			switch {
-			case hasUnique:
-				levels = lodLevelsV1MonthlyUnique
-			case hasStringTop:
-				levels = lodLevelsV1MonthlyStringTop
-			default:
-				levels = lodLevelsV1Monthly
-			}
-		default:
-			levels = lodLevelsV2Monthly
-		}
-	case args.Version == Version1:
-		switch {
-		case hasUnique:
-			levels = lodLevelsV1Unique
-		case hasStringTop:
-			levels = lodLevelsV1StringTop
-		default:
-			levels = lodLevels[args.Version]
-		}
+		levels = lodLevelsV2Monthly
 	default:
 		levels = lodLevels[args.Version]
 	}

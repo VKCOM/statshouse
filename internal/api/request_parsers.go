@@ -17,9 +17,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mailru/easyjson"
+
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql"
-	"github.com/mailru/easyjson"
 )
 
 func (r *httpRequestHandler) parseSeriesRequest() (seriesRequest, error) {
@@ -387,7 +388,7 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 		case ParamVersion:
 			s := first(v)
 			switch s {
-			case Version1, Version2, Version3:
+			case Version2, Version3:
 				t.version = s
 			default:
 				return nil, fmt.Errorf("invalid version: %q", s)
