@@ -149,6 +149,9 @@ type MigrationLog struct {
 // goMigrate runs the migration loop in a goroutine.
 // It coordinates with other shards to migrate data from V2 to V3 format.
 func (a *Aggregator) goMigrate(cancelCtx context.Context) {
+	// DEPRECATED
+	return
+
 	if a.replicaKey != 1 {
 		log.Printf("[migration] Skipping migration: replica key is %d, expected 1", a.replicaKey)
 		return // Only one replica should run migration per shard
