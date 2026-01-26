@@ -12,7 +12,6 @@ import { PlotControlTo } from './PlotControlTo';
 import { PlotControlGlobalTimeShifts } from './PlotControlGlobalTimeShifts';
 import { PlotControlAggregation } from './PlotControlAggregation';
 import { PlotControlNumSeries } from './PlotControlNumSeries';
-import { PlotControlVersion } from './PlotControlVersion';
 import { PlotControlMaxHost } from './PlotControlMaxHost';
 import { PlotControlWhats } from './PlotControlWhats';
 import { PlotControlView } from './PlotControlView';
@@ -71,7 +70,6 @@ export function PlotControlFilter({ className }: PlotControlProps) {
                 <PlotControlAggregation />
                 <PlotControlNumSeries />
               </div>
-              <PlotControlVersion />
             </div>
 
             <div className={'d-flex flex-column gap-3'}>
