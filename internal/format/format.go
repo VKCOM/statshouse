@@ -26,7 +26,6 @@ import (
 
 const (
 	MaxTags      = 48
-	MaxTagsV2    = 16 // for backward compatibility we should not query tags from v2 table that are >= MaxTagsV2
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
@@ -53,6 +52,7 @@ const (
 	HistogramBucketsDelimC    = ','
 	HistogramBucketsEndMark   = "$"
 	HistogramBucketsEndMarkC  = '$'
+	TableDistSuffix           = "_dist"
 
 	StringTopTagIndex   = -1 // used as flag during mapping
 	StringTopTagIndexV3 = 47
@@ -453,9 +453,6 @@ func (m *MetricMetaValue) name2TagAgentFastLegacyBytes(name []byte) *MetricMetaT
 	default:
 		return nil
 	}
-	if num >= MaxTagsV2 { // cannot refer to modern tags with legacy name
-		return nil
-	}
 	if num < uint(len(m.Tags)) {
 		return &m.Tags[num]
 	}
@@ -749,16 +746,16 @@ func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 	return res
 }
 
-func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bool {
-	if metric == nil { // TODO - remove this check, make sure metric != nil always
+func (m *MetricMetaValue) Sharded() bool {
+	if m == nil { // TODO - remove this check, make sure metric != nil always
 		return false
 	}
-	if metric.ShardFixedKey > 0 {
-		return newShardingStart != 0 && timestamp >= newShardingStart
+	if m.ShardFixedKey > 0 {
+		return true
 	}
-	switch metric.ShardStrategy {
+	switch m.ShardStrategy {
 	case ShardFixed, ShardByMetricID:
-		return newShardingStart != 0 && timestamp >= newShardingStart
+		return true
 	default:
 		return false
 	}

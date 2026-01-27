@@ -106,9 +106,6 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			id = strconv.Itoa(i)
 		}
 		tab := tabAt(id)
-		if v.UseV2 {
-			tab.version = Version2
-		}
 		tab.numResults = v.NumSeries
 		tab.metricName = v.MetricName
 		tab.customMetricName = v.CustomName
@@ -385,14 +382,6 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 			t.shifts, err = parseTimeShifts(v)
 		case ParamToTime:
 			t.strTo = first(v)
-		case ParamVersion:
-			s := first(v)
-			switch s {
-			case Version2, Version3:
-				t.version = s
-			default:
-				return nil, fmt.Errorf("invalid version: %q", s)
-			}
 		case ParamWidth:
 			t.strWidth = first(v)
 		case ParamWidthAgg:
@@ -488,7 +477,6 @@ func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesReque
 	// parse dependent paramemeters
 	var (
 		finalize = func(t *seriesRequestEx) error {
-			t.version = r.version
 			numResultsMax := maxSeries
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)

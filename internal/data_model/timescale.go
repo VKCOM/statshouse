@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	Version2 = "2"
 	Version3 = "3"
+	Version4 = "4"
+	Version5 = "5"
+	Version6 = "6"
 
 	//   >2h at  1s resolution
 	//  >10h at  5s resolution
@@ -38,17 +40,21 @@ const (
 	_7d  = 7 * _24h
 	_1M  = 31 * _24h
 
-	_1mTableSH1          = "statshouse_value_dist"
-	_1hTableSH1          = "statshouse_value_dist_1h"
-	_1hTableStringTopSH1 = "stats_1h_agg_stop_dist"
-	_1dTableUniquesSH1   = "stats_1d_agg_dist"
-	_1sTableSH2          = "statshouse_value_1s_dist"
-	_1mTableSH2          = "statshouse_value_1m_dist"
-	_1hTableSH2          = "statshouse_value_1h_dist"
+	_1sTableSH3 = "statshouse_v3_1s"
+	_1mTableSH3 = "statshouse_v3_1m"
+	_1hTableSH3 = "statshouse_v3_1h"
 
-	_1sTableSH3 = "statshouse_v3_1s_dist"
-	_1mTableSH3 = "statshouse_v3_1m_dist"
-	_1hTableSH3 = "statshouse_v3_1h_dist"
+	_1sTableSH4 = "statshouse_v4_1s"
+	_1mTableSH4 = "statshouse_v4_1m"
+	_1hTableSH4 = "statshouse_v4_1h"
+
+	_1sTableSH5 = "statshouse_v5_1s"
+	_1mTableSH5 = "statshouse_v5_1m"
+	_1hTableSH5 = "statshouse_v5_1h"
+
+	_1sTableSH6 = "statshouse_v6_1s"
+	_1mTableSH6 = "statshouse_v6_1m"
+	_1hTableSH6 = "statshouse_v6_1h"
 
 	fastQueryTimeInterval = (86400 + 3600) * 2
 )
@@ -79,9 +85,6 @@ type TimescaleLOD struct {
 	Len              int // number of elements LOD occupies in time array
 	Version          string
 	UsePKPrefixForV3 bool // feature option for Version == "3" to use primary key prefix for more efficient selects
-	UseV4Tables      bool // feature option for Version == "3" to use v4 tables
-	UseV5Tables      bool // feature option for Version == "3" to use v5 tables
-	UseV6Tables      bool // feature option for Version == "3" to use v6 tables
 }
 
 type QueryMode int
@@ -98,7 +101,6 @@ type GetTimescaleArgs struct {
 	QueryStat
 	Version          string
 	UsePKPrefixForV3 bool
-	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
 	Version4Start    int64 // timestamp of schema version 4 start, zero means not set
 	Version5Start    int64 // timestamp of schema version 5 start, zero means not set
 	Version6Start    int64 // timestamp of schema version 6 start, zero means not set
@@ -113,7 +115,6 @@ type GetTimescaleArgs struct {
 	Offset           int64
 	Location         *time.Location
 	UTCOffset        int64
-	NewShardingStart int64
 }
 
 type LOD struct {
@@ -122,11 +123,7 @@ type LOD struct {
 	StepSec          int64
 	Version          string
 	UsePKPrefixForV3 bool
-	UseV4Tables      bool
-	UseV5Tables      bool
-	UseV6Tables      bool
 	Metric           *format.MetricMetaValue
-	NewSharding      bool
 	HasPreKey        bool
 	PreKeyOnly       bool
 	Location         *time.Location
@@ -135,24 +132,10 @@ type LOD struct {
 type lodSwitch struct {
 	relSwitch int64 // must be properly aligned
 	levels    []int64
-	tables    map[int64]string
 }
 
 var (
 	LODTables = map[string]map[int64]string{
-		Version2: {
-			_1M:  _1hTableSH2,
-			_7d:  _1hTableSH2,
-			_24h: _1hTableSH2,
-			_4h:  _1hTableSH2,
-			_1h:  _1hTableSH2,
-			_15m: _1mTableSH2,
-			_5m:  _1mTableSH2,
-			_1m:  _1mTableSH2,
-			_15s: _1sTableSH2,
-			_5s:  _1sTableSH2,
-			_1s:  _1sTableSH2,
-		},
 		Version3: {
 			_1M:  _1hTableSH3,
 			_7d:  _1hTableSH3,
@@ -166,46 +149,61 @@ var (
 			_5s:  _1sTableSH3,
 			_1s:  _1sTableSH3,
 		},
+		Version4: {
+			_1M:  _1hTableSH4,
+			_7d:  _1hTableSH4,
+			_24h: _1hTableSH4,
+			_4h:  _1hTableSH4,
+			_1h:  _1hTableSH4,
+			_15m: _1mTableSH4,
+			_5m:  _1mTableSH4,
+			_1m:  _1mTableSH4,
+			_15s: _1sTableSH4,
+			_5s:  _1sTableSH4,
+			_1s:  _1sTableSH4,
+		},
+		Version5: {
+			_1M:  _1hTableSH5,
+			_7d:  _1hTableSH5,
+			_24h: _1hTableSH5,
+			_4h:  _1hTableSH5,
+			_1h:  _1hTableSH5,
+			_15m: _1mTableSH5,
+			_5m:  _1mTableSH5,
+			_1m:  _1mTableSH5,
+			_15s: _1sTableSH5,
+			_5s:  _1sTableSH5,
+			_1s:  _1sTableSH5,
+		},
+		Version6: {
+			_1M:  _1hTableSH6,
+			_7d:  _1hTableSH6,
+			_24h: _1hTableSH6,
+			_4h:  _1hTableSH6,
+			_1h:  _1hTableSH6,
+			_15m: _1mTableSH6,
+			_5m:  _1mTableSH6,
+			_1m:  _1mTableSH6,
+			_15s: _1sTableSH6,
+			_5s:  _1sTableSH6,
+			_1s:  _1sTableSH6,
+		},
 	}
 
 	lodLevels = map[string][]lodSwitch{
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
-		Version2: {{
-			relSwitch: 33*_24h - 2*_1m,
-			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    LODTables[Version2],
-		}, {
-			relSwitch: 52*_1h - 2*_1s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    LODTables[Version2],
-		}, {
-			relSwitch: _0s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
-			tables:    LODTables[Version2],
-		}},
 		Version3: {{
 			relSwitch: 33*_24h - 2*_1m,
 			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    LODTables[Version3],
 		}, {
 			relSwitch: 52*_1h - 2*_1s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    LODTables[Version3],
 		}, {
 			relSwitch: _0s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
-			tables:    LODTables[Version3],
 		}},
 	}
-
-	lodLevelsV2Monthly = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableSH2,
-		},
-	}}
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", MaxSlice)
@@ -227,14 +225,8 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			maxMetricRes = int64(k.Resolution)
 		}
 	}
-	// find appropriate LOD table
-	var levels []lodSwitch // depends on query and version
-	switch {
-	case args.Step == _1M:
-		levels = lodLevelsV2Monthly
-	default:
-		levels = lodLevels[args.Version]
-	}
+	// find appropriate LOD table. depends on query and version
+	var levels = lodLevels[args.Version]
 	// generate LODs
 	var minStep int64
 	pointQuery := args.Mode == PointQuery
@@ -306,65 +298,39 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			// should not happen
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
-		if lod.Version == Version3 {
-			lod.UsePKPrefixForV3 = args.UsePKPrefixForV3
+		lod.UsePKPrefixForV3 = args.UsePKPrefixForV3
 
-			if args.Version6Start != 0 && lodEnd > args.Version6Start {
-				// v3-v6 interval is always much bigger than step, so we never need to split by both v3 and v6
-				if lodStart <= args.Version6Start {
-					// version 6 starts inside LOD, split
-					_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
-					resLen += len
-					lod.Len -= len
-					lod.UseV6Tables = true
-				} else {
-					// V6 exclusive LOD
-					lod.UseV6Tables = true
-				}
-			} else if args.Version5Start != 0 && lodEnd > args.Version5Start {
-				// v3-v5 interval is always much bigger than step, so we never need to split by both v3 and v5
-				if lodStart <= args.Version5Start {
-					// version 5 starts inside LOD, split
-					_, len := endOfLOD(lodStart, lod.Step, args.Version5Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
-					resLen += len
-					lod.Len -= len
-					lod.UseV5Tables = true
-				} else {
-					// V5 exclusive LOD
-					lod.UseV5Tables = true
-				}
-			} else if args.Version4Start != 0 && lodEnd > args.Version4Start {
-				// v3-v4 interval is always much bigger than step, so we never need to split by both v3 and v4
-				if lodStart <= args.Version4Start {
-					// version 4 starts inside LOD, split
-					_, len := endOfLOD(lodStart, lod.Step, args.Version4Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV4Tables is false by default
-					resLen += len
-					lod.Len -= len
-					lod.UseV4Tables = true
-				} else {
-					// V4 exclusive LOD
-					lod.UseV4Tables = true
-				}
-			} else {
-				// fallback to old logic because v4 feature is disabled or v4 interval is outside of LOD
-				version3StartBeforeLODEnd := args.Version3Start < lodEnd
-				switch {
-				case lodStart <= args.Version3Start && version3StartBeforeLODEnd:
-					// version 3 starts inside LOD, split
-					_, len := endOfLOD(lodStart, lod.Step, args.Version3Start, false, args.Location)
-					res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version2})
-					resLen += len
-					lod.Len -= len
-				case args.Version3Start == 0 || !version3StartBeforeLODEnd:
-					// version 3 not available, switch to version 2
-					lod.Version = Version2
-				default:
-					// version 3 remains
-				}
+		switch {
+		case args.Version6Start != 0 && lodEnd > args.Version6Start:
+			// v3-v6 interval is always much bigger than step, so we never need to split by both v3 and v6
+			if lodStart <= args.Version6Start {
+				// version 6 starts inside LOD, split
+				_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
+				resLen += len
+				lod.Len -= len
 			}
+			lod.Version = Version6
+		case args.Version5Start != 0 && lodEnd > args.Version5Start:
+			// v3-v5 interval is always much bigger than step, so we never need to split by both v3 and v5
+			if lodStart <= args.Version5Start {
+				// version 5 starts inside LOD, split
+				_, len := endOfLOD(lodStart, lod.Step, args.Version5Start, false, args.Location)
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
+				resLen += len
+				lod.Len -= len
+			}
+			lod.Version = Version5
+		case args.Version4Start != 0 && lodEnd > args.Version4Start:
+			// v3-v4 interval is always much bigger than step, so we never need to split by both v3 and v4
+			if lodStart <= args.Version4Start {
+				// version 4 starts inside LOD, split
+				_, len := endOfLOD(lodStart, lod.Step, args.Version4Start, false, args.Location)
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV4Tables is false by default
+				resLen += len
+				lod.Len -= len
+			}
+			lod.Version = Version4
 		}
 		if lod.Len != 0 {
 			resLen += lod.Len
@@ -462,11 +428,7 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			StepSec:          lod.Step,
 			Version:          lod.Version,
 			UsePKPrefixForV3: lod.UsePKPrefixForV3,
-			UseV4Tables:      lod.UseV4Tables,
-			UseV5Tables:      lod.UseV5Tables,
-			UseV6Tables:      lod.UseV6Tables,
 			Metric:           metric,
-			NewSharding:      t.NewShardingStart != 0 && t.NewShardingStart < start,
 			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
 			PreKeyOnly:       metric.PreKeyOnly,
 			Location:         t.Location,
@@ -485,10 +447,7 @@ func (t *Timescale) Duration() time.Duration {
 }
 
 func (t *Timescale) appendLOD(lod TimescaleLOD) {
-	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].Step == lod.Step &&
-		(t.LODs[len(t.LODs)-1].UseV4Tables == lod.UseV4Tables &&
-			t.LODs[len(t.LODs)-1].UseV5Tables == lod.UseV5Tables &&
-			t.LODs[len(t.LODs)-1].UseV6Tables == lod.UseV6Tables) {
+	if len(t.LODs) != 0 && t.LODs[len(t.LODs)-1].Version == lod.Version && t.LODs[len(t.LODs)-1].Step == lod.Step {
 		t.LODs[len(t.LODs)-1].Len += lod.Len
 	} else {
 		t.LODs = append(t.LODs, lod)
@@ -518,84 +477,11 @@ func (lod LOD) IsFast() bool {
 	return lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 }
 
-func (lod LOD) Table(newSharding bool) string {
-	if lod.UseV6Tables {
-		return lod.TableV6(newSharding)
+func (lod LOD) Table(sharded bool) (t string) {
+	if sharded {
+		return LODTables[lod.Version][lod.StepSec]
 	}
-	if lod.UseV5Tables {
-		return lod.TableV5(newSharding)
-	}
-	if lod.UseV4Tables {
-		return lod.TableV4(newSharding)
-	}
-	if lod.Version == Version3 && newSharding {
-		switch {
-		case lod.StepSec < _1m:
-			return "statshouse_v3_1s"
-		case lod.StepSec < _1h:
-			return "statshouse_v3_1m"
-		default:
-			return "statshouse_v3_1h"
-		}
-	}
-	return LODTables[lod.Version][lod.StepSec]
-}
-
-func (lod LOD) TableV4(newSharding bool) string {
-	if newSharding {
-		if lod.StepSec < _1m {
-			return "statshouse_v4_1s"
-		}
-		if lod.StepSec < _1h {
-			return "statshouse_v4_1m"
-		}
-		return "statshouse_v4_1h"
-	}
-	if lod.StepSec < _1m {
-		return "statshouse_v4_1s_dist"
-	}
-	if lod.StepSec < _1h {
-		return "statshouse_v4_1m_dist"
-	}
-	return "statshouse_v4_1h_dist"
-}
-
-func (lod LOD) TableV5(newSharding bool) string {
-	if newSharding {
-		if lod.StepSec < _1m {
-			return "statshouse_v5_1s"
-		}
-		if lod.StepSec < _1h {
-			return "statshouse_v5_1m"
-		}
-		return "statshouse_v5_1h"
-	}
-	if lod.StepSec < _1m {
-		return "statshouse_v5_1s_dist"
-	}
-	if lod.StepSec < _1h {
-		return "statshouse_v5_1m_dist"
-	}
-	return "statshouse_v5_1h_dist"
-}
-
-func (lod LOD) TableV6(newSharding bool) string {
-	if newSharding {
-		if lod.StepSec < _1m {
-			return "statshouse_v6_1s"
-		}
-		if lod.StepSec < _1h {
-			return "statshouse_v6_1m"
-		}
-		return "statshouse_v6_1h"
-	}
-	if lod.StepSec < _1m {
-		return "statshouse_v6_1s_dist"
-	}
-	if lod.StepSec < _1h {
-		return "statshouse_v6_1m_dist"
-	}
-	return "statshouse_v6_1h_dist"
+	return LODTables[lod.Version][lod.StepSec] + format.TableDistSuffix
 }
 
 func (s *QueryStat) Add(m *format.MetricMetaValue, offset int64) {

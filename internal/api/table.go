@@ -58,17 +58,14 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				continue
 			}
 			pq := queryBuilder{
-				version:          h.version,
-				user:             tableReqParams.user,
-				metric:           metricMeta,
-				what:             q.qry,
-				by:               metricMeta.GroupBy(req.by),
-				filterIn:         tableReqParams.mappedFilterIn,
-				filterNotIn:      tableReqParams.mappedFilterNotIn,
-				sort:             req.tableSort(),
-				strcmpOff:        h.Version3StrcmpOff.Load(),
-				utcOffset:        h.utcOffset,
-				newShardingStart: h.NewShardingStart.Load(),
+				user:        tableReqParams.user,
+				metric:      metricMeta,
+				what:        q.qry,
+				by:          metricMeta.GroupBy(req.by),
+				filterIn:    tableReqParams.mappedFilterIn,
+				filterNotIn: tableReqParams.mappedFilterNotIn,
+				sort:        req.tableSort(),
+				utcOffset:   h.utcOffset,
 			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
 				FromSec:          shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
@@ -76,11 +73,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				StepSec:          lod.StepSec,
 				Version:          lod.Version,
 				UsePKPrefixForV3: lod.UsePKPrefixForV3,
-				UseV4Tables:      lod.UseV4Tables,
-				UseV5Tables:      lod.UseV5Tables,
-				UseV6Tables:      lod.UseV6Tables,
 				Metric:           pq.metric,
-				NewSharding:      h.newSharding(metricMeta, lod.FromSec),
 				HasPreKey:        lod.HasPreKey,
 				PreKeyOnly:       lod.PreKeyOnly,
 				Location:         tableReqParams.location,
@@ -100,7 +93,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				tags := &rows[i].tsTags
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, req.by, j, tags)
+					wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.by, j, tags)
 					if wasAdded {
 						rowRepr.Tags = append(rowRepr.Tags, RawTag{
 							Index: j,
@@ -111,7 +104,7 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				if tags.stag[format.StringTopTagIndexV3] != "" {
 					rowRepr.SKey = maybeAddQuerySeriesTagValueString(kvs, req.by, tags.stag[format.StringTopTagIndexV3])
 				} else if tags.tag[format.StringTopTagIndexV3] != 0 {
-					v := h.getRichTagValue(metricMeta, req.version, format.StringTopTagID, tags.tag[format.StringTopTagIndexV3])
+					v := h.getRichTagValue(metricMeta, format.StringTopTagID, tags.tag[format.StringTopTagIndexV3])
 					v = emptyToUnspecified(v)
 					kvs[format.LegacyStringTopTagID] = SeriesMetaTag{Value: v}
 					rowRepr.SKey = v
@@ -159,10 +152,6 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 		sort.Sort(queryRows)
 	}
 	return queryRows, hasMore, nil
-}
-
-func (h *Handler) newSharding(metric *format.MetricMetaValue, timestamp int64) bool {
-	return metric.NewSharding(timestamp, h.NewShardingStart.Load())
 }
 
 func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, limit int) (res []tsSelectRow, hasMore bool) {

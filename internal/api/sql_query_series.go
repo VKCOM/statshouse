@@ -167,23 +167,13 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 		comma.maybeWrite(sb)
 		sb.WriteString(sqlMinHost(lod))
 		sb.WriteString(" AS _minHost")
-		switch q.version {
-		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV2})
-		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
-		}
+		q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
 	}
 	if q.minMaxHost[1] {
 		comma.maybeWrite(sb)
 		sb.WriteString(sqlMaxHost(lod))
 		sb.WriteString(" AS _maxHost")
-		switch q.version {
-		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV2})
-		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
-		}
+		q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 	}
 	return nil
 }
@@ -216,14 +206,7 @@ func sqlMaxHost(lod *data_model.LOD) string {
 }
 
 func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
-	switch lod.Version {
-	case Version3:
-		q.writeSelectTagsV3(sb, lod, comma)
-	case Version2:
-		q.writeSelectTagsV2(sb, lod, comma)
-	default:
-		return fmt.Errorf("bad schema version %s", lod.Version)
-	}
+	q.writeSelectTagsV3(sb, lod, comma)
 	return nil
 }
 
@@ -241,24 +224,6 @@ func (q *seriesQuery) writeSelectTagsV3(sb *strings.Builder, lod *data_model.LOD
 	}
 }
 
-func (q *seriesQuery) writeSelectTagsV2(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
-	for _, x := range q.by {
-		switch x {
-		case format.ShardTagIndex:
-			comma.maybeWrite(sb)
-			q.writeSelectShardNum(sb)
-		case format.StringTopTagIndex, format.StringTopTagIndexV3:
-			comma.maybeWrite(sb)
-			q.writeSelectStr(sb, x, lod)
-		default:
-			if x < format.MaxTagsV2 {
-				comma.maybeWrite(sb)
-				q.writeSelectInt(sb, x, lod)
-			}
-		}
-	}
-}
-
 func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 	sb.WriteString(" FROM ")
 	sb.WriteString(q.preKeyTableName(lod))
@@ -269,13 +234,17 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	b.writeTimeClause(sb, lod)
 	switch lod.Version {
 	case Version3:
-		if lod.UseV4Tables || lod.UseV5Tables || lod.UseV6Tables || lod.UsePKPrefixForV3 {
+		if lod.UsePKPrefixForV3 {
 			b.ensurePrimaryKeyPrefix(sb)
 		}
-		if lod.UseV4Tables {
-			sb.WriteString(" AND ")
-			b.writeTimeCoarseClause(sb, lod)
-		}
+	case Version4:
+		b.ensurePrimaryKeyPrefix(sb)
+		sb.WriteString(" AND ")
+		b.writeTimeCoarseClause(sb, lod)
+	case Version5:
+		b.ensurePrimaryKeyPrefix(sb)
+	case Version6:
+		b.ensurePrimaryKeyPrefix(sb)
 	}
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
@@ -352,14 +321,12 @@ func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, fi
 func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) error {
 	predicate, sep := op[0], op[1]
 	in := predicate == operatorIn
-	version3StrcmpOn := b.version3StrcmpOn(lod)
 	for tagX, filter := range f.Tags {
 		if filter.Empty() {
 			continue
 		}
 		sb.WriteString(" AND (")
 		// mapped
-		legacyStringTOP := tagX == format.StringTopTagIndexV3 && lod.Version != "3"
 		var hasMapped bool
 		var hasValue bool
 		var hasEmpty bool
@@ -376,7 +343,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 			if v.HasValue() {
 				hasValue = true
 			}
-			if v.IsMapped() && !legacyStringTOP {
+			if v.IsMapped() {
 				if !hasMapped {
 					if started {
 						sb.WriteString(sep)
@@ -397,7 +364,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 		}
 		if hasMapped {
 			sb.WriteString(")")
-		} else if !legacyStringTOP {
+		} else {
 			if in {
 				// empty positive filter means there are no items satisfaing search criteria
 				sb.WriteString("0!=0")
@@ -408,7 +375,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 			started = true
 		}
 		// not mapped
-		if !raw && (version3StrcmpOn || legacyStringTOP) {
+		if !raw {
 			if filter.Re2 != "" {
 				if started {
 					sb.WriteString(sep)
@@ -419,7 +386,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 					sb.WriteString("NOT ")
 				}
 				sb.WriteString("match(")
-				sb.WriteString(b.colStr(tagX, lod))
+				sb.WriteString(b.colStr(tagX))
 				sb.WriteString(",'")
 				sb.WriteString(escapeReplacer.Replace(filter.Re2))
 				sb.WriteString("')")
@@ -436,7 +403,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 							} else {
 								started = true
 							}
-							sb.WriteString(b.colStr(tagX, lod))
+							sb.WriteString(b.colStr(tagX))
 							sb.WriteString(predicate)
 							sb.WriteString("('")
 							hasValue = true
@@ -465,11 +432,11 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 				sb.WriteString("=0")
 				if !raw {
 					sb.WriteString(" AND ")
-					sb.WriteString(b.colStr(tagX, lod))
+					sb.WriteString(b.colStr(tagX))
 					sb.WriteString("=''")
 				}
 			} else if tagX == format.StringTopTagIndexV3 {
-				sb.WriteString(b.colStr(tagX, lod))
+				sb.WriteString(b.colStr(tagX))
 				sb.WriteString("=''")
 			} else {
 				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
@@ -503,7 +470,7 @@ func (q *seriesQuery) writeSelectShardNum(sb *strings.Builder) {
 }
 
 func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int, lod *data_model.LOD) {
-	colName := q.colStr(tagX, lod)
+	colName := q.colStr(tagX)
 	sb.WriteString(colName)
 	col := &stagCol{tagX: int(tagX)}
 	q.stag = append(q.stag, col)
@@ -569,15 +536,6 @@ func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuil
 }
 
 func (q *queryBuilder) writeByTags(sb *strings.Builder, lod *data_model.LOD) {
-	switch lod.Version {
-	case Version3:
-		q.writeByTagsV3(sb, lod)
-	default:
-		q.writeByTagsV2(sb, lod)
-	}
-}
-
-func (q *queryBuilder) writeByTagsV3(sb *strings.Builder, lod *data_model.LOD) {
 	for _, x := range q.by {
 		sb.WriteString(",")
 		switch x {
@@ -586,25 +544,7 @@ func (q *queryBuilder) writeByTagsV3(sb *strings.Builder, lod *data_model.LOD) {
 		default:
 			sb.WriteString(q.selAlias(x, lod))
 			sb.WriteString(",")
-			sb.WriteString(q.colStr(x, lod))
-		}
-	}
-}
-
-func (q *queryBuilder) writeByTagsV2(sb *strings.Builder, lod *data_model.LOD) {
-	for _, x := range q.by {
-		switch x {
-		case format.ShardTagIndex:
-			sb.WriteString(",")
-			sb.WriteString("_shard_num")
-		case format.StringTopTagIndex, format.StringTopTagIndexV3:
-			sb.WriteString(",")
-			sb.WriteString("skey")
-		default:
-			if x < format.MaxTagsV2 {
-				sb.WriteString(",")
-				sb.WriteString(q.colIntV2(x, lod))
-			}
+			sb.WriteString(q.colStr(x))
 		}
 	}
 }
@@ -617,8 +557,4 @@ func (b *queryBuilder) raw64(tagX int) bool {
 
 func metricColumn(lod *data_model.LOD) string {
 	return "metric"
-}
-
-func (b *queryBuilder) version3StrcmpOn(lod *data_model.LOD) bool {
-	return lod.Version == Version3 && !b.strcmpOff
 }

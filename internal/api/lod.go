@@ -24,18 +24,7 @@ const (
 	_7d  = 7 * _24h
 	_1M  = 31 * _24h
 
-	_1sTableSH2 = "statshouse_value_1s_dist"
-	_1mTableSH2 = "statshouse_value_1m_dist"
-	_1hTableSH2 = "statshouse_value_1h_dist"
 	_1sTableSH3 = "statshouse_v3_1s_dist"
-)
-
-var (
-	preKeyTableNames = map[string]string{
-		_1sTableSH2: "statshouse_value_1s_prekey_dist",
-		_1mTableSH2: "statshouse_value_1m_prekey_dist",
-		_1hTableSH2: "statshouse_value_1h_prekey_dist",
-	}
 )
 
 func mathDiv(a int64, b int64) int64 {
