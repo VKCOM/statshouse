@@ -68,15 +68,14 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				utcOffset:   h.utcOffset,
 			}
 			m, err := loadPoints(ctx, h, &pq, data_model.LOD{
-				FromSec:          shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
-				ToSec:            shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
-				StepSec:          lod.StepSec,
-				Version:          lod.Version,
-				UsePKPrefixForV3: lod.UsePKPrefixForV3,
-				Metric:           pq.metric,
-				HasPreKey:        lod.HasPreKey,
-				PreKeyOnly:       lod.PreKeyOnly,
-				Location:         tableReqParams.location,
+				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
+				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
+				StepSec:    lod.StepSec,
+				Version:    lod.Version,
+				Metric:     pq.metric,
+				HasPreKey:  lod.HasPreKey,
+				PreKeyOnly: lod.PreKeyOnly,
+				Location:   tableReqParams.location,
 			}, req.avoidCache)
 			if err != nil {
 				return nil, false, err

@@ -15,8 +15,6 @@ import (
 
 const (
 	Version3 = "3"
-	Version4 = "4"
-	Version5 = "5"
 	Version6 = "6"
 
 	//   >2h at  1s resolution
@@ -43,14 +41,6 @@ const (
 	_1sTableSH3 = "statshouse_v3_1s"
 	_1mTableSH3 = "statshouse_v3_1m"
 	_1hTableSH3 = "statshouse_v3_1h"
-
-	_1sTableSH4 = "statshouse_v4_1s"
-	_1mTableSH4 = "statshouse_v4_1m"
-	_1hTableSH4 = "statshouse_v4_1h"
-
-	_1sTableSH5 = "statshouse_v5_1s"
-	_1mTableSH5 = "statshouse_v5_1m"
-	_1hTableSH5 = "statshouse_v5_1h"
 
 	_1sTableSH6 = "statshouse_v6_1s"
 	_1mTableSH6 = "statshouse_v6_1m"
@@ -81,10 +71,9 @@ type Timescale struct {
 }
 
 type TimescaleLOD struct {
-	Step             int64
-	Len              int // number of elements LOD occupies in time array
-	Version          string
-	UsePKPrefixForV3 bool // feature option for Version == "3" to use primary key prefix for more efficient selects
+	Step    int64
+	Len     int // number of elements LOD occupies in time array
+	Version string
 }
 
 type QueryMode int
@@ -99,34 +88,30 @@ type QueryStat struct {
 
 type GetTimescaleArgs struct {
 	QueryStat
-	Version          string
-	UsePKPrefixForV3 bool
-	Version4Start    int64 // timestamp of schema version 4 start, zero means not set
-	Version5Start    int64 // timestamp of schema version 5 start, zero means not set
-	Version6Start    int64 // timestamp of schema version 6 start, zero means not set
-	Start            int64 // inclusive
-	End              int64 // exclusive
-	Step             int64
-	TimeNow          int64
-	ScreenWidth      int64
-	Mode             QueryMode
-	Extend           bool
-	Metric           *format.MetricMetaValue
-	Offset           int64
-	Location         *time.Location
-	UTCOffset        int64
+	Version       string
+	Version6Start int64 // timestamp of schema version 6 start, zero means not set
+	Start         int64 // inclusive
+	End           int64 // exclusive
+	Step          int64
+	TimeNow       int64
+	ScreenWidth   int64
+	Mode          QueryMode
+	Extend        bool
+	Metric        *format.MetricMetaValue
+	Offset        int64
+	Location      *time.Location
+	UTCOffset     int64
 }
 
 type LOD struct {
-	FromSec          int64 // inclusive
-	ToSec            int64 // exclusive
-	StepSec          int64
-	Version          string
-	UsePKPrefixForV3 bool
-	Metric           *format.MetricMetaValue
-	HasPreKey        bool
-	PreKeyOnly       bool
-	Location         *time.Location
+	FromSec    int64 // inclusive
+	ToSec      int64 // exclusive
+	StepSec    int64
+	Version    string
+	Metric     *format.MetricMetaValue
+	HasPreKey  bool
+	PreKeyOnly bool
+	Location   *time.Location
 }
 
 type lodSwitch struct {
@@ -148,32 +133,6 @@ var (
 			_15s: _1sTableSH3,
 			_5s:  _1sTableSH3,
 			_1s:  _1sTableSH3,
-		},
-		Version4: {
-			_1M:  _1hTableSH4,
-			_7d:  _1hTableSH4,
-			_24h: _1hTableSH4,
-			_4h:  _1hTableSH4,
-			_1h:  _1hTableSH4,
-			_15m: _1mTableSH4,
-			_5m:  _1mTableSH4,
-			_1m:  _1mTableSH4,
-			_15s: _1sTableSH4,
-			_5s:  _1sTableSH4,
-			_1s:  _1sTableSH4,
-		},
-		Version5: {
-			_1M:  _1hTableSH5,
-			_7d:  _1hTableSH5,
-			_24h: _1hTableSH5,
-			_4h:  _1hTableSH5,
-			_1h:  _1hTableSH5,
-			_15m: _1mTableSH5,
-			_5m:  _1mTableSH5,
-			_1m:  _1mTableSH5,
-			_15s: _1sTableSH5,
-			_5s:  _1sTableSH5,
-			_1s:  _1sTableSH5,
 		},
 		Version6: {
 			_1M:  _1hTableSH6,
@@ -298,39 +257,17 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			// should not happen
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
-		lod.UsePKPrefixForV3 = args.UsePKPrefixForV3
 
-		switch {
-		case args.Version6Start != 0 && lodEnd > args.Version6Start:
+		if args.Version6Start != 0 && lodEnd > args.Version6Start {
 			// v3-v6 interval is always much bigger than step, so we never need to split by both v3 and v6
 			if lodStart <= args.Version6Start {
 				// version 6 starts inside LOD, split
 				_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3}) // NOTE: UseV5Tables is false by default
 				resLen += len
 				lod.Len -= len
 			}
 			lod.Version = Version6
-		case args.Version5Start != 0 && lodEnd > args.Version5Start:
-			// v3-v5 interval is always much bigger than step, so we never need to split by both v3 and v5
-			if lodStart <= args.Version5Start {
-				// version 5 starts inside LOD, split
-				_, len := endOfLOD(lodStart, lod.Step, args.Version5Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV5Tables is false by default
-				resLen += len
-				lod.Len -= len
-			}
-			lod.Version = Version5
-		case args.Version4Start != 0 && lodEnd > args.Version4Start:
-			// v3-v4 interval is always much bigger than step, so we never need to split by both v3 and v4
-			if lodStart <= args.Version4Start {
-				// version 4 starts inside LOD, split
-				_, len := endOfLOD(lodStart, lod.Step, args.Version4Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3, UsePKPrefixForV3: args.UsePKPrefixForV3}) // NOTE: UseV4Tables is false by default
-				resLen += len
-				lod.Len -= len
-			}
-			lod.Version = Version4
 		}
 		if lod.Len != 0 {
 			resLen += lod.Len
@@ -423,15 +360,14 @@ func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD 
 			end = StepForward(end, lod.Step, t.Location)
 		}
 		res = append(res, LOD{
-			FromSec:          start,
-			ToSec:            end,
-			StepSec:          lod.Step,
-			Version:          lod.Version,
-			UsePKPrefixForV3: lod.UsePKPrefixForV3,
-			Metric:           metric,
-			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly:       metric.PreKeyOnly,
-			Location:         t.Location,
+			FromSec:    start,
+			ToSec:      end,
+			StepSec:    lod.Step,
+			Version:    lod.Version,
+			Metric:     metric,
+			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly: metric.PreKeyOnly,
+			Location:   t.Location,
 		})
 		start = end
 	}

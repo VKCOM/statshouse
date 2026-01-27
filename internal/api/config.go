@@ -17,9 +17,6 @@ import (
 
 type Config struct {
 	ApproxCacheMaxSize           int
-	UsePkPrefixForV3             bool
-	Version4Start                int64
-	Version5Start                int64
 	Version6Start                int64
 	UserLimitsStr                string
 	UserLimits                   []chutil.ConnLimits
@@ -120,9 +117,6 @@ func (argv *Config) Copy() config.Config {
 func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
 	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
-	f.BoolVar(&argv.UsePkPrefixForV3, "use-pk-prefix-for-v3", default_.UsePkPrefixForV3, "enable primary key prefix condition for v3 table selects")
-	f.Int64Var(&argv.Version4Start, "version4-start", default_.Version4Start, "timestamp of schema version 4 start, zero means v4 feature is disabled")
-	f.Int64Var(&argv.Version5Start, "version5-start", default_.Version5Start, "timestamp of schema version 5 start, zero means v5 feature is disabled")
 	f.Int64Var(&argv.Version6Start, "version6-start", default_.Version6Start, "timestamp of schema version 6 start, zero means v6 feature is disabled")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", default_.MaxCacheSize, "cache hard memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", default_.MaxCacheSizeSoft, "cache soft memory limit (in bytes)")

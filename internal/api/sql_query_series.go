@@ -19,15 +19,6 @@ var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
-var timeCoarseTrimSeconds = map[string]int64{
-	"statshouse_v4_1s":      60,
-	"statshouse_v4_1m":      60 * 60,
-	"statshouse_v4_1h":      60 * 60 * 24,
-	"statshouse_v4_1s_dist": 60,
-	"statshouse_v4_1m_dist": 60 * 60,
-	"statshouse_v4_1h_dist": 60 * 60 * 24,
-}
-
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
@@ -233,16 +224,6 @@ func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode
 	sb.WriteString(" WHERE ")
 	b.writeTimeClause(sb, lod)
 	switch lod.Version {
-	case Version3:
-		if lod.UsePKPrefixForV3 {
-			b.ensurePrimaryKeyPrefix(sb)
-		}
-	case Version4:
-		b.ensurePrimaryKeyPrefix(sb)
-		sb.WriteString(" AND ")
-		b.writeTimeCoarseClause(sb, lod)
-	case Version5:
-		b.ensurePrimaryKeyPrefix(sb)
 	case Version6:
 		b.ensurePrimaryKeyPrefix(sb)
 	}
@@ -268,21 +249,6 @@ func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD)
 	sb.WriteString(fmt.Sprint(lod.FromSec))
 	sb.WriteString(" AND time<")
 	sb.WriteString(fmt.Sprint(lod.ToSec))
-}
-
-func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_model.LOD) {
-	coarseSize, ok := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
-	if ok {
-		coarseFrom := lod.FromSec / coarseSize * coarseSize
-		coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
-		sb.WriteString("time_coarse>=")
-		sb.WriteString(fmt.Sprint(coarseFrom))
-		sb.WriteString(" AND time_coarse<")
-		sb.WriteString(fmt.Sprint(coarseTo))
-	} else {
-		// shouldn't happen
-		sb.WriteString("1=1")
-	}
 }
 
 func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, lod *data_model.LOD) {

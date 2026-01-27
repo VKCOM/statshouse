@@ -117,9 +117,7 @@ const (
 	paramFull         = "full"
 
 	Version3       = "3" // new tables format with stags
-	Version4       = "4"
-	Version5       = "5"
-	Version6       = "6"
+	Version6       = "6" // new tables format one replica
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
 	dataFormatText = "text"
@@ -183,9 +181,6 @@ type (
 	}
 
 	Handler struct {
-		UsePKPrefixForV3      atomic.Bool
-		Version4Start         atomic.Int64
-		Version5Start         atomic.Int64
 		Version6Start         atomic.Int64
 		hardwareMetricRes     atomic.Int64
 		hardwareSlowMetricRes atomic.Int64
@@ -641,9 +636,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 			maxSize:     cfg.MaxCacheSize,
 			maxSizeSoft: cfg.MaxCacheSizeSoft,
 		})
-		h.Version4Start.Store(cfg.Version4Start)
-		h.UsePKPrefixForV3.Store(cfg.UsePkPrefixForV3)
-		h.Version5Start.Store(cfg.Version5Start)
 		h.Version6Start.Store(cfg.Version6Start)
 		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
 		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
@@ -1989,18 +1981,15 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:          Version3,
-		Start:            from.Unix(),
-		End:              to.Unix(),
-		ScreenWidth:      100, // really dumb
-		TimeNow:          time.Now().Unix(),
-		Metric:           metricMeta,
-		Location:         h.location,
-		UTCOffset:        h.utcOffset,
-		UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
-		Version4Start:    h.Version4Start.Load(),
-		Version5Start:    h.Version5Start.Load(),
-		Version6Start:    h.Version6Start.Load(),
+		Version:       Version3,
+		Start:         from.Unix(),
+		End:           to.Unix(),
+		ScreenWidth:   100, // really dumb
+		TimeNow:       time.Now().Unix(),
+		Metric:        metricMeta,
+		Location:      h.location,
+		UTCOffset:     h.utcOffset,
+		Version6Start: h.Version6Start.Load(),
 	})
 	if err != nil {
 		return nil, false, err
@@ -2150,9 +2139,6 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Expr:  req.promQL,
 		Options: promql.Options{
 			Version:          Version3,
-			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
-			Version4Start:    r.Version4Start.Load(),
-			Version5Start:    r.Version5Start.Load(),
 			Version6Start:    r.Version6Start.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,
@@ -2286,9 +2272,6 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Step:  req.step,
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, meta.MetricID),
 			Options: promql.Options{
-				UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
-				Version4Start:    h.Version4Start.Load(),
-				Version5Start:    h.Version5Start.Load(),
 				Version6Start:    h.Version6Start.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
@@ -2521,18 +2504,15 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		return nil, false, err
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
-		Version4Start:    h.Version4Start.Load(),
-		Version5Start:    h.Version5Start.Load(),
-		Version6Start:    h.Version6Start.Load(),
-		Start:            req.from.Unix(),
-		End:              req.to.Unix(),
-		Step:             req.step,
-		ScreenWidth:      req.screenWidth,
-		TimeNow:          time.Now().Unix(),
-		Metric:           metricMeta,
-		Location:         h.location,
-		UTCOffset:        h.utcOffset,
+		Version6Start: h.Version6Start.Load(),
+		Start:         req.from.Unix(),
+		End:           req.to.Unix(),
+		Step:          req.step,
+		ScreenWidth:   req.screenWidth,
+		TimeNow:       time.Now().Unix(),
+		Metric:        metricMeta,
+		Location:      h.location,
+		UTCOffset:     h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -2659,9 +2639,6 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			UsePKPrefixForV3: h.UsePKPrefixForV3.Load(),
-			Version4Start:    h.Version4Start.Load(),
-			Version5Start:    h.Version5Start.Load(),
 			Version6Start:    h.Version6Start.Load(),
 			Mode:             opt.mode,
 			AvoidCache:       req.avoidCache,
