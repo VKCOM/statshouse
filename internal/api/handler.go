@@ -776,9 +776,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		from = uncertain
 	}
 	var sb strings.Builder
-	sb.WriteString("SELECT toInt64(time) AS time, toInt64(")
-	sb.WriteString("tag1")
-	sb.WriteString(") AS key1 FROM ") // TODO: remove
+	sb.WriteString("SELECT toInt64(time) AS time, toInt64(tag1) AS key1 FROM ")
 	sb.WriteString(_1sTableSH3)
 	sb.WriteString(" WHERE metric=")
 	sb.WriteString(fmt.Sprint(format.BuiltinMetricIDContributorsLog))

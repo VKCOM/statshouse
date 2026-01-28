@@ -26,6 +26,7 @@ import (
 
 const (
 	MaxTags      = 48
+	MaxTagsV2    = 16 // for backward compatibility we should not query tags from v2 table that are >= MaxTagsV2
 	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
@@ -453,6 +454,9 @@ func (m *MetricMetaValue) name2TagAgentFastLegacyBytes(name []byte) *MetricMetaT
 	default:
 		return nil
 	}
+	if num >= MaxTagsV2 { // cannot refer to modern tags with legacy name
+		return nil
+	}
 	if num < uint(len(m.Tags)) {
 		return &m.Tags[num]
 	}
@@ -472,6 +476,7 @@ func (m *MetricMetaValue) Name2TagAgentFastBytes(name []byte) (_ *MetricMetaTag,
 		}
 		panic("name2TagAgent must contain valid tag indices only")
 	}
+	// TODO: make it 0 and remove
 	// we fully deprecated old "skey" tag for agent, we have 0 such events in production
 	// to deprecated function call below, monitor this metric
 	// https://statshouse.mvk.com/view?t=1764534680&f=-604800&s=__src_ingestion_status&qf=2-%2047&n=100&dg=0&dl=0.0.12.12
