@@ -22,7 +22,6 @@ var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
-		version:      lod.Version,
 	}
 	var sb strings.Builder
 	if err := q.writeSelect(&sb, &lod); err != nil {
@@ -210,7 +209,7 @@ func (q *seriesQuery) writeSelectTagsV3(sb *strings.Builder, lod *data_model.LOD
 		default:
 			q.writeSelectInt(sb, x, lod)
 			comma.write(sb)
-			q.writeSelectStr(sb, x, lod)
+			q.writeSelectStr(sb, x)
 		}
 	}
 }
@@ -223,10 +222,7 @@ func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
 	sb.WriteString(" WHERE ")
 	b.writeTimeClause(sb, lod)
-	switch lod.Version {
-	case Version6:
-		b.ensurePrimaryKeyPrefix(sb)
-	}
+	b.ensurePrimaryKeyPrefix(sb)
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
 	b.writeTagFilter(sb, lod, b.filterNotIn, filterOperatorNotIn, mode)
@@ -238,7 +234,7 @@ func (b *queryBuilder) ensurePrimaryKeyPrefix(sb *strings.Builder) {
 	// So when we filter by a range or multiple values for a column like time/time_coarse range
 	// explicitly setting values for preceding PK columns greatly increases performance
 
-	// NOTE2: optimized for v3 and v4 and v5 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
+	// NOTE2: optimized for tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
 	// NOTE3: assumes that metric value and time/time_coarse range are set elsewhere
 	// NOTE4: assumes that if rows with `index_type != 0 OR pre_tag != 0 OR !empty(pre_stag)` ever appear in CH, they won't be needed in api queries
 	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND pre_stag='' ")
@@ -391,24 +387,14 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 				sb.WriteString("NOT ")
 			}
 			sb.WriteString("(")
-			if lod.Version == "3" {
-				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
-					return err
-				}
-				sb.WriteString("=0")
-				if !raw {
-					sb.WriteString(" AND ")
-					sb.WriteString(b.colStr(tagX))
-					sb.WriteString("=''")
-				}
-			} else if tagX == format.StringTopTagIndexV3 {
+			if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
+				return err
+			}
+			sb.WriteString("=0")
+			if !raw {
+				sb.WriteString(" AND ")
 				sb.WriteString(b.colStr(tagX))
 				sb.WriteString("=''")
-			} else {
-				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
-					return err
-				}
-				sb.WriteString("=0")
 			}
 			sb.WriteString(")")
 		}
@@ -435,7 +421,7 @@ func (q *seriesQuery) writeSelectShardNum(sb *strings.Builder) {
 	q.res = append(q.res, proto.ResultColumn{Name: "_shard_num", Data: &q.shardNum})
 }
 
-func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int, lod *data_model.LOD) {
+func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int) {
 	colName := q.colStr(tagX)
 	sb.WriteString(colName)
 	col := &stagCol{tagX: int(tagX)}

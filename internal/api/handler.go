@@ -117,7 +117,6 @@ const (
 	paramFull         = "full"
 
 	Version3       = "3" // new tables format with stags
-	Version6       = "6" // new tables format one replica
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
 	dataFormatText = "text"
@@ -2906,9 +2905,8 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 
 type seriesQuery struct {
 	*queryBuilder
-	body    string
-	version string
-	time    proto.ColInt64
+	body string
+	time proto.ColInt64
 
 	// tags
 	tag  []*tagCol
