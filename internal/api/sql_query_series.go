@@ -155,13 +155,13 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 	}
 	if q.minMaxHost[0] {
 		comma.maybeWrite(sb)
-		sb.WriteString(sqlMinHost(lod))
+		sb.WriteString(sqlMinHost())
 		sb.WriteString(" AS _minHost")
 		q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
 	}
 	if q.minMaxHost[1] {
 		comma.maybeWrite(sb)
-		sb.WriteString(sqlMaxHost(lod))
+		sb.WriteString(sqlMaxHost())
 		sb.WriteString(" AS _maxHost")
 		q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 	}
@@ -187,11 +187,11 @@ func (q *seriesQuery) writeSelectCount(sb *strings.Builder, i int, lod *data_mod
 	sb.WriteString(colName)
 }
 
-func sqlMinHost(lod *data_model.LOD) string {
+func sqlMinHost() string {
 	return "argMinMergeState(min_host)"
 }
 
-func sqlMaxHost(lod *data_model.LOD) string {
+func sqlMaxHost() string {
 	return "argMaxMergeState(max_host)"
 }
 
