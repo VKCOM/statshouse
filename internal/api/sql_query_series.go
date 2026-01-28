@@ -19,19 +19,9 @@ var filterOperatorIn = filterOperator{operatorIn, " OR "}
 var filterOperatorNotIn = filterOperator{operatorNotIn, " AND "}
 var escapeReplacer = strings.NewReplacer(`'`, `\'`, `\`, `\\`)
 
-var timeCoarseTrimSeconds = map[string]int64{
-	"statshouse_v4_1s":      60,
-	"statshouse_v4_1m":      60 * 60,
-	"statshouse_v4_1h":      60 * 60 * 24,
-	"statshouse_v4_1s_dist": 60,
-	"statshouse_v4_1m_dist": 60 * 60,
-	"statshouse_v4_1h_dist": 60 * 60 * 24,
-}
-
 func (b *queryBuilder) buildSeriesQuery(lod data_model.LOD, settings string) (*seriesQuery, error) {
 	q := &seriesQuery{
 		queryBuilder: b,
-		version:      lod.Version,
 	}
 	var sb strings.Builder
 	if err := q.writeSelect(&sb, &lod); err != nil {
@@ -73,11 +63,6 @@ func (q *seriesQuery) writeSelectTime(sb *strings.Builder, lod *data_model.LOD, 
 }
 
 func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
-	if q.version == Version1 && q.isStringTop() {
-		sb.WriteString("toFloat64(sumMerge(count)) AS _val0")
-		q.res = append(q.res, proto.ResultColumn{Name: "_val0", Data: &q.count})
-		return nil // count is the only column available
-	}
 	var has [data_model.DigestLast]bool
 	var hasSumSquare bool
 	for i, j := 0, 0; q.what.specifiedAt(i); i++ {
@@ -170,29 +155,15 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 	}
 	if q.minMaxHost[0] {
 		comma.maybeWrite(sb)
-		sb.WriteString(sqlMinHost(lod))
+		sb.WriteString(sqlMinHost())
 		sb.WriteString(" AS _minHost")
-		switch q.version {
-		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV1})
-		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV2})
-		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
-		}
+		q.res = append(q.res, proto.ResultColumn{Name: "_minHost", Data: &q.minHostV3})
 	}
 	if q.minMaxHost[1] {
 		comma.maybeWrite(sb)
-		sb.WriteString(sqlMaxHost(lod))
+		sb.WriteString(sqlMaxHost())
 		sb.WriteString(" AS _maxHost")
-		switch q.version {
-		case Version1:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV1})
-		case Version2:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV2})
-		case Version3:
-			q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
-		}
+		q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 	}
 	return nil
 }
@@ -216,31 +187,16 @@ func (q *seriesQuery) writeSelectCount(sb *strings.Builder, i int, lod *data_mod
 	sb.WriteString(colName)
 }
 
-func sqlMinHost(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "0"
-	}
+func sqlMinHost() string {
 	return "argMinMergeState(min_host)"
 }
 
-func sqlMaxHost(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "0"
-	}
+func sqlMaxHost() string {
 	return "argMaxMergeState(max_host)"
 }
 
 func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
-	switch lod.Version {
-	case Version3:
-		q.writeSelectTagsV3(sb, lod, comma)
-	case Version2:
-		q.writeSelectTagsV2(sb, lod, comma)
-	case Version1:
-		q.writeSelectTagsV1(sb, lod, comma)
-	default:
-		return fmt.Errorf("bad schema version %s", lod.Version)
-	}
+	q.writeSelectTagsV3(sb, lod, comma)
 	return nil
 }
 
@@ -253,39 +209,7 @@ func (q *seriesQuery) writeSelectTagsV3(sb *strings.Builder, lod *data_model.LOD
 		default:
 			q.writeSelectInt(sb, x, lod)
 			comma.write(sb)
-			q.writeSelectStr(sb, x, lod)
-		}
-	}
-}
-
-func (q *seriesQuery) writeSelectTagsV2(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
-	for _, x := range q.by {
-		switch x {
-		case format.ShardTagIndex:
-			comma.maybeWrite(sb)
-			q.writeSelectShardNum(sb)
-		case format.StringTopTagIndex, format.StringTopTagIndexV3:
-			comma.maybeWrite(sb)
-			q.writeSelectStr(sb, x, lod)
-		default:
-			if x < format.MaxTagsV2 {
-				comma.maybeWrite(sb)
-				q.writeSelectInt(sb, x, lod)
-			}
-		}
-	}
-}
-
-func (q *seriesQuery) writeSelectTagsV1(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) {
-	for _, x := range q.by {
-		switch x {
-		case 0, format.StringTopTagIndex, format.StringTopTagIndexV3, format.ShardTagIndex:
-			// pass
-		default:
-			if x < format.MaxTagsV2 {
-				comma.maybeWrite(sb)
-				q.writeSelectInt(sb, x, lod)
-			}
+			q.writeSelectStr(sb, x)
 		}
 	}
 }
@@ -298,18 +222,7 @@ func (q *seriesQuery) writeFrom(sb *strings.Builder, lod *data_model.LOD) {
 func (b *queryBuilder) writeWhere(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
 	sb.WriteString(" WHERE ")
 	b.writeTimeClause(sb, lod)
-	switch lod.Version {
-	case Version1:
-		b.writeDateFilterV1(sb, lod)
-	case Version3:
-		if lod.UseV4Tables || lod.UseV5Tables || lod.UseV6Tables || lod.UsePKPrefixForV3 {
-			b.ensurePrimaryKeyPrefix(sb)
-		}
-		if lod.UseV4Tables {
-			sb.WriteString(" AND ")
-			b.writeTimeCoarseClause(sb, lod)
-		}
-	}
+	b.ensurePrimaryKeyPrefix(sb)
 	b.writeMetricFilter(sb, b.metricID(), b.filterIn.Metrics, b.filterNotIn.Metrics, lod)
 	b.writeTagFilter(sb, lod, b.filterIn, filterOperatorIn, mode)
 	b.writeTagFilter(sb, lod, b.filterNotIn, filterOperatorNotIn, mode)
@@ -321,10 +234,10 @@ func (b *queryBuilder) ensurePrimaryKeyPrefix(sb *strings.Builder) {
 	// So when we filter by a range or multiple values for a column like time/time_coarse range
 	// explicitly setting values for preceding PK columns greatly increases performance
 
-	// NOTE2: optimized for v3 and v4 and v5 tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
+	// NOTE2: optimized for tables whose PK prefix is (index_type, metric, pre_tag, pre_stag, time/time_coarse)
 	// NOTE3: assumes that metric value and time/time_coarse range are set elsewhere
 	// NOTE4: assumes that if rows with `index_type != 0 OR pre_tag != 0 OR !empty(pre_stag)` ever appear in CH, they won't be needed in api queries
-	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND pre_stag='' ")
+	sb.WriteString(" AND index_type=0 AND pre_tag=0 AND pre_stag=''")
 }
 
 func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD) {
@@ -332,29 +245,6 @@ func (b *queryBuilder) writeTimeClause(sb *strings.Builder, lod *data_model.LOD)
 	sb.WriteString(fmt.Sprint(lod.FromSec))
 	sb.WriteString(" AND time<")
 	sb.WriteString(fmt.Sprint(lod.ToSec))
-}
-
-func (b *queryBuilder) writeTimeCoarseClause(sb *strings.Builder, lod *data_model.LOD) {
-	coarseSize, ok := timeCoarseTrimSeconds[lod.Table(true)] // sharding shouldn't affect coarseSize
-	if ok {
-		coarseFrom := lod.FromSec / coarseSize * coarseSize
-		coarseTo := (lod.ToSec + coarseSize - 1) / coarseSize * coarseSize
-		sb.WriteString("time_coarse>=")
-		sb.WriteString(fmt.Sprint(coarseFrom))
-		sb.WriteString(" AND time_coarse<")
-		sb.WriteString(fmt.Sprint(coarseTo))
-	} else {
-		// shouldn't happen
-		sb.WriteString("1=1")
-	}
-}
-
-func (b *queryBuilder) writeDateFilterV1(sb *strings.Builder, lod *data_model.LOD) {
-	sb.WriteString(" AND date>=toDate(")
-	sb.WriteString(fmt.Sprint(lod.FromSec))
-	sb.WriteString(") AND date<=toDate(")
-	sb.WriteString(fmt.Sprint(lod.ToSec))
-	sb.WriteString(")")
 }
 
 func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, filterIn, filterNotIn []*format.MetricMetaValue, lod *data_model.LOD) {
@@ -393,14 +283,12 @@ func (b *queryBuilder) writeMetricFilter(sb *strings.Builder, metricID int32, fi
 func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, f data_model.TagFilters, op filterOperator, mod queryBuilderMode) error {
 	predicate, sep := op[0], op[1]
 	in := predicate == operatorIn
-	version3StrcmpOn := b.version3StrcmpOn(lod)
 	for tagX, filter := range f.Tags {
 		if filter.Empty() {
 			continue
 		}
 		sb.WriteString(" AND (")
 		// mapped
-		legacyStringTOP := tagX == format.StringTopTagIndexV3 && lod.Version != "3"
 		var hasMapped bool
 		var hasValue bool
 		var hasEmpty bool
@@ -417,7 +305,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 			if v.HasValue() {
 				hasValue = true
 			}
-			if v.IsMapped() && !legacyStringTOP {
+			if v.IsMapped() {
 				if !hasMapped {
 					if started {
 						sb.WriteString(sep)
@@ -438,7 +326,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 		}
 		if hasMapped {
 			sb.WriteString(")")
-		} else if !legacyStringTOP {
+		} else {
 			if in {
 				// empty positive filter means there are no items satisfaing search criteria
 				sb.WriteString("0!=0")
@@ -449,7 +337,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 			started = true
 		}
 		// not mapped
-		if !raw && (version3StrcmpOn || legacyStringTOP) {
+		if !raw {
 			if filter.Re2 != "" {
 				if started {
 					sb.WriteString(sep)
@@ -460,7 +348,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 					sb.WriteString("NOT ")
 				}
 				sb.WriteString("match(")
-				sb.WriteString(b.colStr(tagX, lod))
+				sb.WriteString(b.colStr(tagX))
 				sb.WriteString(",'")
 				sb.WriteString(escapeReplacer.Replace(filter.Re2))
 				sb.WriteString("')")
@@ -477,7 +365,7 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 							} else {
 								started = true
 							}
-							sb.WriteString(b.colStr(tagX, lod))
+							sb.WriteString(b.colStr(tagX))
 							sb.WriteString(predicate)
 							sb.WriteString("('")
 							hasValue = true
@@ -499,24 +387,14 @@ func (b *queryBuilder) writeTagFilter(sb *strings.Builder, lod *data_model.LOD, 
 				sb.WriteString("NOT ")
 			}
 			sb.WriteString("(")
-			if lod.Version == "3" {
-				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
-					return err
-				}
-				sb.WriteString("=0")
-				if !raw {
-					sb.WriteString(" AND ")
-					sb.WriteString(b.colStr(tagX, lod))
-					sb.WriteString("=''")
-				}
-			} else if tagX == format.StringTopTagIndexV3 {
-				sb.WriteString(b.colStr(tagX, lod))
+			if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
+				return err
+			}
+			sb.WriteString("=0")
+			if !raw {
+				sb.WriteString(" AND ")
+				sb.WriteString(b.colStr(tagX))
 				sb.WriteString("=''")
-			} else {
-				if err := b.writeWhereIntExpr(sb, tagX, lod, mod); err != nil {
-					return err
-				}
-				sb.WriteString("=0")
 			}
 			sb.WriteString(")")
 		}
@@ -543,8 +421,8 @@ func (q *seriesQuery) writeSelectShardNum(sb *strings.Builder) {
 	q.res = append(q.res, proto.ResultColumn{Name: "_shard_num", Data: &q.shardNum})
 }
 
-func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int, lod *data_model.LOD) {
-	colName := q.colStr(tagX, lod)
+func (q *seriesQuery) writeSelectStr(sb *strings.Builder, tagX int) {
+	colName := q.colStr(tagX)
 	sb.WriteString(colName)
 	col := &stagCol{tagX: int(tagX)}
 	q.stag = append(q.stag, col)
@@ -610,15 +488,6 @@ func (b *queryBuilder) whereIntExpr(tagX int, lod *data_model.LOD, mod queryBuil
 }
 
 func (q *queryBuilder) writeByTags(sb *strings.Builder, lod *data_model.LOD) {
-	switch lod.Version {
-	case Version3:
-		q.writeByTagsV3(sb, lod)
-	default:
-		q.writeByTagsV2(sb, lod)
-	}
-}
-
-func (q *queryBuilder) writeByTagsV3(sb *strings.Builder, lod *data_model.LOD) {
 	for _, x := range q.by {
 		sb.WriteString(",")
 		switch x {
@@ -627,25 +496,7 @@ func (q *queryBuilder) writeByTagsV3(sb *strings.Builder, lod *data_model.LOD) {
 		default:
 			sb.WriteString(q.selAlias(x, lod))
 			sb.WriteString(",")
-			sb.WriteString(q.colStr(x, lod))
-		}
-	}
-}
-
-func (q *queryBuilder) writeByTagsV2(sb *strings.Builder, lod *data_model.LOD) {
-	for _, x := range q.by {
-		switch x {
-		case format.ShardTagIndex:
-			sb.WriteString(",")
-			sb.WriteString("_shard_num")
-		case format.StringTopTagIndex, format.StringTopTagIndexV3:
-			sb.WriteString(",")
-			sb.WriteString("skey")
-		default:
-			if x < format.MaxTagsV2 {
-				sb.WriteString(",")
-				sb.WriteString(q.colIntV2(x, lod))
-			}
+			sb.WriteString(q.colStr(x))
 		}
 	}
 }
@@ -657,12 +508,5 @@ func (b *queryBuilder) raw64(tagX int) bool {
 }
 
 func metricColumn(lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return "stats"
-	}
 	return "metric"
-}
-
-func (b *queryBuilder) version3StrcmpOn(lod *data_model.LOD) bool {
-	return lod.Version == Version3 && !b.strcmpOff
 }

@@ -16,10 +16,11 @@ import (
 	"strconv"
 
 	"github.com/VKCOM/statshouse-go"
+	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql/parser"
-	"github.com/prometheus/prometheus/model/labels"
 )
 
 type TimeSeries struct {
@@ -327,7 +328,6 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			v = strconv.FormatFloat(float64(statshouse.LexDecode(int32(tg.Value))), 'f', -1, 32)
 		} else {
 			v = ev.GetTagValue(TagValueQuery{
-				Version:    ev.opt.Version,
 				Metric:     tg.Metric,
 				TagID:      tg.ID,
 				TagValueID: tg.Value,

@@ -135,9 +135,6 @@ func (d *Datasource) query(_ context.Context, _ backend.PluginContext, query bac
 		if params.Get(api.ParamWidth) == "" && params.Get(api.ParamWidthAgg) == "" {
 			params.Set(api.ParamWidth, strconv.FormatInt(int64(query.Interval)/int64(time.Second), 10)+"s")
 		}
-		if params.Get(api.ParamVersion) == "" {
-			params.Set(api.ParamVersion, api.Version2)
-		}
 		if params.Get(api.ParamNumResults) == "" {
 			params.Set(api.ParamNumResults, "5")
 		}

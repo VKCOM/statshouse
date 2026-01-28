@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math"
 	"runtime/debug"
-	"strconv"
 	"time"
 
 	"pgregory.net/rand"
@@ -110,16 +109,12 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 	return nil
 }
 
-func (h *rpcRequestHandler) init(accessToken string, version int32) (err error) {
-	var s string
-	if version != 0 {
-		s = strconv.Itoa(int(version))
-	}
-	return h.requestHandler.init(accessToken, sourceJWTNotSet, s)
+func (h *rpcRequestHandler) init(accessToken string) (err error) {
+	return h.requestHandler.init(accessToken, sourceJWTNotSet)
 }
 
 func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouseApi.GetQueryPoint) (tlstatshouseApi.GetQueryPointResponse, error) {
-	if err := h.init(args.AccessToken, args.Query.Version); err != nil {
+	if err := h.init(args.AccessToken); err != nil {
 		return tlstatshouseApi.GetQueryPointResponse{}, err
 	}
 	qry := seriesRequestRPC{
@@ -171,7 +166,7 @@ func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouse
 }
 
 func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
-	if err := h.init(args.AccessToken, args.Query.Version); err != nil {
+	if err := h.init(args.AccessToken); err != nil {
 		return tlstatshouseApi.GetQueryResponse{}, err
 	}
 	qry := seriesRequestRPC{
@@ -270,7 +265,7 @@ type seriesRequestRPC struct {
 }
 
 func (h *rpcRequestHandler) getChunk(ctx context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.GetChunkResponse, error) {
-	if err := h.init(args.AccessToken, 0); err != nil {
+	if err := h.init(args.AccessToken); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
@@ -299,7 +294,7 @@ func (h *rpcRequestHandler) getChunk(ctx context.Context, args tlstatshouseApi.G
 }
 
 func (h *rpcRequestHandler) releaseChunks(ctx context.Context, args tlstatshouseApi.ReleaseChunks) (tlstatshouseApi.ReleaseChunksResponse, error) {
-	if err := h.init(args.AccessToken, 0); err != nil {
+	if err := h.init(args.AccessToken); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
@@ -322,7 +317,7 @@ func (h *rpcRequestHandler) releaseChunks(ctx context.Context, args tlstatshouse
 }
 
 func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi.GetMapping) (tlstatshouseApi.GetMappingResponse, error) {
-	if err := h.init(args.AccessToken, 0); err != nil {
+	if err := h.init(args.AccessToken); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.GetMappingResponse{}, err
 	}
@@ -352,7 +347,6 @@ func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi
 
 func (qry *seriesRequestRPC) toSeriesRequest(h *rpcRequestHandler) (seriesRequest, error) {
 	req := seriesRequest{
-		version:    h.version,
 		numResults: int(qry.topN),
 		metricName: qry.metricName,
 		from:       time.Unix(qry.timeFrom, 0),

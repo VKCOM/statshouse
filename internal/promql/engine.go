@@ -50,11 +50,6 @@ type Query struct {
 }
 
 type Options struct {
-	Version          string
-	UsePKPrefixForV3 bool
-	Version3Start    int64 // timestamp of schema version 3 start, zero means not set
-	Version4Start    int64 // timestamp of schema version 4 start, zero means v4 feature is disabled
-	Version5Start    int64 // timestamp of schema version 5 start, zero means v5 feature is disabled
 	Version6Start    int64 // timestamp of schema version 5 start, zero means v6 feature is disabled
 	Namespace        string
 	AvoidCache       bool
@@ -78,7 +73,6 @@ type Options struct {
 	Play             int
 	Rand             *rand.Rand
 	Vars             map[string]Variable
-	NewShardingStart int64
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
 }
@@ -272,23 +266,17 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	}
 	// init timescale
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
-		QueryStat:        ev.QueryStat,
-		Version:          qry.Options.Version,
-		UsePKPrefixForV3: qry.Options.UsePKPrefixForV3,
-		Version3Start:    qry.Options.Version3Start,
-		Version4Start:    qry.Options.Version4Start,
-		Version5Start:    qry.Options.Version5Start,
-		Version6Start:    qry.Options.Version6Start,
-		Start:            qry.Start,
-		End:              qry.End,
-		Step:             qry.Step,
-		TimeNow:          qry.Options.TimeNow,
-		ScreenWidth:      qry.Options.ScreenWidth,
-		Mode:             qry.Options.Mode,
-		Extend:           qry.Options.Extend,
-		Location:         ng.location,
-		UTCOffset:        ng.utcOffset,
-		NewShardingStart: qry.Options.NewShardingStart,
+		QueryStat:     ev.QueryStat,
+		Version6Start: qry.Options.Version6Start,
+		Start:         qry.Start,
+		End:           qry.End,
+		Step:          qry.Step,
+		TimeNow:       qry.Options.TimeNow,
+		ScreenWidth:   qry.Options.ScreenWidth,
+		Mode:          qry.Options.Mode,
+		Extend:        qry.Options.Extend,
+		Location:      ng.location,
+		UTCOffset:     ng.utcOffset,
 	})
 	if err != nil {
 		return evaluator{}, Error{what: err}
@@ -1180,17 +1168,10 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			if err != nil {
 				return SeriesQuery{}, err
 			}
-			var matchCount int
 			for _, tag := range m {
 				if matcher.Matches(tag.Value) {
 					sel.FilterIn.Append(i, tag)
-					matchCount++
 				}
-			}
-			if matchCount == 0 && ev.opt.Version != data_model.Version3 {
-				// there no data satisfying the filter
-				emptyCount[i]++
-				continue
 			}
 			sel.FilterIn.Tags[i].Re2 = matcher.Value
 		case labels.MatchNotRegexp:
@@ -1297,7 +1278,6 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	res = make(data_model.TagValues, 0, len(ids))
 	for _, id := range ids {
 		s := ev.GetTagValue(TagValueQuery{
-			Version:    ev.opt.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
 			TagValueID: int64(id),

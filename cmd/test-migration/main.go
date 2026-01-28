@@ -19,14 +19,13 @@ func main() {
 		khAddr      = flag.String("kh-addr", "localhost:8123", "ClickHouse address")
 		khUser      = flag.String("kh-user", "", "ClickHouse user")
 		khPassword  = flag.String("kh-password", "", "ClickHouse password")
-		source      = flag.String("source", "v2", "Migration source: v2, v1, or stop")
+		source      = flag.String("source", "v2", "Migration source: v2")
 		timeFlag    = flag.String("time", "", "Time: single timestamp (1754546400) or range (1754539200-1754546400)")
 		shardKey    = flag.Int("shard-key", 1, "Shard key (1-16)")
 		sourceTable = flag.String("source-table", "", "Source table name (defaults based on source type)")
 		v3Table     = flag.String("v3-table", "statshouse_v3_1h", "V3 destination table name")
 		step        = flag.String("step", "1h", "Time step duration (e.g., '1s', '1m', '1h')")
 		totalShards = flag.Int("total-shards", 16, "Total number of shards")
-		sourceHosts = flag.String("source-hosts", "", "Comma-separated list of source hosts (defaults to kh-addr)")
 	)
 	flag.Parse()
 
@@ -41,16 +40,11 @@ func main() {
 		switch *source {
 		case "v2":
 			*sourceTable = "statshouse_value_1h_dist"
-		case "v1":
-			*sourceTable = "statshouse_value_dist_1h"
-		case "stop":
-			*sourceTable = "stats_1h_agg_stop_dist"
 		default:
-			log.Fatalf("Invalid source type: %s. Must be v2, v1, or stop", *source)
+			log.Fatalf("Invalid source type: %s. Must be v2", *source)
 		}
 	}
 
-	hosts := parseHosts(*sourceHosts, *khAddr)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	log.Printf("Migration configuration:")
@@ -61,7 +55,6 @@ func main() {
 	log.Printf("  Step Duration: %s", stepDuration)
 	log.Printf("  Shard Key: %d", *shardKey)
 	log.Printf("  Total Shards: %d", *totalShards)
-	log.Printf("  Source Hosts: %s", strings.Join(hosts, ", "))
 
 	// Parse time window
 	timestamps, err := parseTimeWindow(*timeFlag, stepDuration)
@@ -89,8 +82,6 @@ func main() {
 		switch *source {
 		case "v2":
 			metricColumn = "metric"
-		case "v1", "stop":
-			metricColumn = "stats"
 		}
 		sourceRowCount, err = countRows(httpClient, *khAddr, *khUser, *khPassword, *sourceTable, ts, int32(*shardKey), *totalShards, metricColumn)
 		if err != nil {
@@ -111,24 +102,6 @@ func main() {
 				TotalShards:    *totalShards,
 			}
 			err = aggregator.TestMigrateSingleStep(*khAddr, *khUser, *khPassword, ts, int32(*shardKey), config)
-		case "v1":
-			config := aggregator.NewDefaultMigrationConfigV1(hosts, *khUser, *khPassword)
-			config.V1TableName = *sourceTable
-			config.V3TableName = *v3Table
-			config.StateTableName = "statshouse_migration_state"
-			config.LogsTableName = "statshouse_migration_logs"
-			config.StepDuration = stepDuration
-			config.TotalShards = *totalShards
-			err = aggregator.TestMigrateSingleStepV1(*khAddr, *khUser, *khPassword, ts, int32(*shardKey), config)
-		case "stop":
-			config := aggregator.NewDefaultMigrationConfigStop(hosts, *khUser, *khPassword)
-			config.StopTableName = *sourceTable
-			config.V3TableName = *v3Table
-			config.StateTableName = "statshouse_migration_state"
-			config.LogsTableName = "statshouse_migration_logs"
-			config.StepDuration = stepDuration
-			config.TotalShards = *totalShards
-			err = aggregator.TestMigrateSingleStepStop(*khAddr, *khUser, *khPassword, ts, int32(*shardKey), config)
 		}
 
 		if err != nil {
@@ -233,21 +206,4 @@ func countRows(httpClient *http.Client, khAddr, khUser, khPassword, tableName st
 	}
 
 	return count, nil
-}
-
-func parseHosts(list, fallback string) []string {
-	if list == "" {
-		return []string{fallback}
-	}
-	parts := strings.Split(list, ",")
-	var out []string
-	for _, p := range parts {
-		if trimmed := strings.TrimSpace(p); trimmed != "" {
-			out = append(out, trimmed)
-		}
-	}
-	if len(out) == 0 {
-		return []string{fallback}
-	}
-	return out
 }

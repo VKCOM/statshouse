@@ -40,13 +40,11 @@ func (b *queryBuilder) buildTagValuesQueryEx(lod data_model.LOD, settings string
 func (q *tagValuesQuery) writeSelect(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
 	sb.WriteString("SELECT ")
 	comma := q.newListComma()
-	if q.hasInt(lod) {
+	comma.maybeWrite(sb)
+	q.writeSelectInt(sb, lod)
+	if q.hasStr(mode) {
 		comma.maybeWrite(sb)
-		q.writeSelectInt(sb, lod)
-	}
-	if q.hasStr(lod, mode) {
-		comma.maybeWrite(sb)
-		q.writeSelectStr(sb, lod)
+		q.writeSelectStr(sb)
 	}
 	sb.WriteString(",toFloat64(")
 	sb.WriteString(sqlAggFn("sum", lod))
@@ -67,8 +65,8 @@ func (q *tagValuesQuery) writeSelectInt(sb *strings.Builder, lod *data_model.LOD
 	}
 }
 
-func (q *tagValuesQuery) writeSelectStr(sb *strings.Builder, lod *data_model.LOD) {
-	colStr := q.colStr(int(q.tag.Index), lod)
+func (q *tagValuesQuery) writeSelectStr(sb *strings.Builder) {
+	colStr := q.colStr(int(q.tag.Index))
 	sb.WriteString(colStr)
 	q.res = append(q.res, proto.ResultColumn{Name: colStr, Data: &q.dataStr})
 }
@@ -92,30 +90,14 @@ func (q *tagValuesQuery) writeOrderBy(sb *strings.Builder, lod *data_model.LOD, 
 
 func (q *tagValuesQuery) writeByTags(sb *strings.Builder, lod *data_model.LOD, mode queryBuilderMode) {
 	comma := q.newListComma()
-	if q.hasInt(lod) {
+	comma.maybeWrite(sb)
+	sb.WriteString(q.selAlias(int(q.tag.Index), lod))
+	if q.hasStr(mode) {
 		comma.maybeWrite(sb)
-		sb.WriteString(q.selAlias(int(q.tag.Index), lod))
-	}
-	if q.hasStr(lod, mode) {
-		comma.maybeWrite(sb)
-		sb.WriteString(q.colStr(int(q.tag.Index), lod))
+		sb.WriteString(q.colStr(int(q.tag.Index)))
 	}
 }
 
-func (q *tagValuesQuery) hasInt(lod *data_model.LOD) bool {
-	switch lod.Version {
-	case Version3:
-		return true
-	default:
-		return q.tag.Index != format.StringTopTagIndexV3
-	}
-}
-
-func (q *tagValuesQuery) hasStr(lod *data_model.LOD, mode queryBuilderMode) bool {
-	switch lod.Version {
-	case Version3:
-		return !q.tag.Raw() && !q.tag.Raw64() && mode != buildTagValueIDsQuery
-	default:
-		return q.tag.Index == format.StringTopTagIndexV3
-	}
+func (q *tagValuesQuery) hasStr(mode queryBuilderMode) bool {
+	return !q.tag.Raw() && !q.tag.Raw64() && mode != buildTagValueIDsQuery
 }

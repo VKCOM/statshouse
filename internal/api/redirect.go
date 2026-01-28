@@ -82,14 +82,7 @@ func (h *Handler) handleLegacyRedirect(req legacyRedirectReq) *url.URL {
 	for key, keyValues := range req.keys {
 		for _, value := range strings.Split(keyValues, ",") {
 			if tr := strings.TrimSpace(value); tr != "" {
-				if tr == format.TagValueNullLegacy {
-					// hacky workaround: for compatibility, "" from PHP is stored as "null" in old cluster and 0 in new cluster
-					// here, we are hoping that case of writing literal "null" to new cluster is rare,
-					// and redirect "null" to 0
-					values.Add(ParamQueryFilter, key+queryFilterInSep+format.CodeTagValue(format.TagValueIDUnspecified))
-				} else {
-					values.Add(ParamQueryFilter, key+queryFilterInSep+tr)
-				}
+				values.Add(ParamQueryFilter, key+queryFilterInSep+tr)
 			}
 		}
 	}

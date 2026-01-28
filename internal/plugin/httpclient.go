@@ -131,7 +131,6 @@ type Query struct {
 
 func (q Query) GetURLParams() url.Values {
 	params := url.Values{}
-	params.Add(api.ParamVersion, api.Version2)
 	params.Add(api.ParamNumResults, strconv.FormatInt(q.TopN, 10))
 	params.Add(api.ParamMetric, q.MetricName)
 	params.Add(api.ParamFromTime, strconv.FormatInt(q.TimeFrom, 10))

@@ -11,11 +11,12 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/VKCOM/statshouse/internal/api"
-	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/resource/httpadapter"
 	"github.com/mailru/easyjson"
+
+	"github.com/VKCOM/statshouse/internal/api"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 //go:generate easyjson -no_std_marshalers resource.go
@@ -305,9 +306,6 @@ func (h *ResourceHandler) handleMetricTagValues(w http.ResponseWriter, r *http.R
 			writeAPIErrorJSON(w, err)
 			return
 		}
-		if params.Get(api.ParamVersion) == "" {
-			params.Set(api.ParamVersion, api.Version2)
-		}
 		if params.Get(api.ParamNumResults) == "" {
 			params.Set(api.ParamNumResults, "1000")
 		}
@@ -321,7 +319,6 @@ func (h *ResourceHandler) handleMetricTagValues(w http.ResponseWriter, r *http.R
 			params.Set(api.ParamToTime, r.FormValue(paramsTimeTo))
 		}
 	} else {
-		params.Add(api.ParamVersion, api.Version2)
 		params.Add(api.ParamMetric, r.FormValue(paramsMetricName))
 		params.Add(api.ParamTagID, r.FormValue(paramsTagID))
 		params.Add(api.ParamNumResults, "1000")

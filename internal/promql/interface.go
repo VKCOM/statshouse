@@ -11,11 +11,12 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mailru/easyjson/jlexer"
+	"github.com/mailru/easyjson/jwriter"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/mailru/easyjson/jlexer"
-	"github.com/mailru/easyjson/jwriter"
 )
 
 const (
@@ -335,7 +336,6 @@ func (fn *SelectorWhat) UnmarshalEasyJSON(w *jlexer.Lexer) {
 }
 
 type TagValueQuery struct {
-	Version    string
 	Metric     *format.MetricMetaValue
 	TagIndex   int
 	TagID      string
@@ -343,7 +343,6 @@ type TagValueQuery struct {
 }
 
 type TagValueIDQuery struct {
-	Version  string
 	Tag      format.MetricMetaTag
 	TagValue string
 }

@@ -27,21 +27,18 @@ const (
 )
 
 type queryBuilder struct {
-	cacheKey         string
-	version          string
-	user             string
-	metric           *format.MetricMetaValue
-	what             tsWhat
-	by               []int
-	filterIn         data_model.TagFilters
-	filterNotIn      data_model.TagFilters
-	sort             querySort // for table view requests
-	strcmpOff        bool      // version 3 experimental
-	minMaxHost       [2]bool   // "min" at [0], "max" at [1]
-	point            bool      // point query
-	play             int
-	utcOffset        int64
-	newShardingStart int64
+	cacheKey    string
+	user        string
+	metric      *format.MetricMetaValue
+	what        tsWhat
+	by          []int
+	filterIn    data_model.TagFilters
+	filterNotIn data_model.TagFilters
+	sort        querySort // for table view requests
+	minMaxHost  [2]bool   // "min" at [0], "max" at [1]
+	point       bool      // point query
+	play        int
+	utcOffset   int64
 
 	// specific to queryKindTagValues, queryKindTagValueIDs
 	tag        format.MetricMetaTag
@@ -73,11 +70,7 @@ func (b *queryBuilder) preKeyTableName(lod *data_model.LOD) string {
 			}
 		}
 	}
-	newSharding := b.metric.NewSharding(lod.FromSec, b.newShardingStart)
-	if usePreKey {
-		return preKeyTableNames[lod.Table(newSharding)]
-	}
-	return lod.Table(newSharding)
+	return lod.Table(b.metric.Sharded())
 }
 
 func (b *queryBuilder) preKeyTagX() int {
@@ -98,9 +91,6 @@ func (b *queryBuilder) singleMetric() *format.MetricMetaValue {
 }
 
 func sqlAggFn(fn string, lod *data_model.LOD) string {
-	if lod.Version == Version1 {
-		return fn + "Merge"
-	}
 	return fn
 }
 
@@ -116,10 +106,7 @@ func (b *queryBuilder) selAlias(tagX int, lod *data_model.LOD) string {
 }
 
 func (b *queryBuilder) colInt(tagX int, lod *data_model.LOD) string {
-	if lod.Version == Version3 {
-		return b.colIntV3(tagX, lod)
-	}
-	return b.colIntV2(tagX, lod)
+	return b.colIntV3(tagX, lod)
 }
 
 func (b *queryBuilder) colIntV3(tagX int, lod *data_model.LOD) string {
@@ -136,29 +123,11 @@ func (b *queryBuilder) colIntV3(tagX int, lod *data_model.LOD) string {
 	}
 }
 
-func (b *queryBuilder) colIntV2(tagX int, lod *data_model.LOD) string {
-	var name string
-	switch tagX {
-	case format.ShardTagIndex:
-		name = "_shard_num"
-	default:
-		if lod.HasPreKey && tagX == b.preKeyTagX() {
-			name = "prekey"
-		}
-		name = "key" + format.TagID(int(tagX))
+func (b *queryBuilder) colStr(tagX int) string {
+	if tagX == format.StringTopTagIndex {
+		return "stag" + format.StringTopTagIDV3
 	}
-	return name
-}
-
-func (b *queryBuilder) colStr(tagX int, lod *data_model.LOD) string {
-	if lod.Version == Version3 {
-		if tagX == format.StringTopTagIndex {
-			return "stag" + format.StringTopTagIDV3
-		}
-		return "stag" + format.TagID(int(tagX))
-	} else {
-		return "skey"
-	}
+	return "stag" + format.TagID(int(tagX))
 }
 
 func (b *queryBuilder) raw64Expr(tagX int, lod *data_model.LOD) string {
