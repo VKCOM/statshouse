@@ -50,7 +50,6 @@ type Query struct {
 }
 
 type Options struct {
-	Version          string
 	Version6Start    int64 // timestamp of schema version 5 start, zero means v6 feature is disabled
 	Namespace        string
 	AvoidCache       bool
@@ -268,7 +267,6 @@ func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evalua
 	// init timescale
 	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
 		QueryStat:     ev.QueryStat,
-		Version:       qry.Options.Version,
 		Version6Start: qry.Options.Version6Start,
 		Start:         qry.Start,
 		End:           qry.End,
@@ -1280,7 +1278,6 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	res = make(data_model.TagValues, 0, len(ids))
 	for _, id := range ids {
 		s := ev.GetTagValue(TagValueQuery{
-			Version:    ev.opt.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
 			TagValueID: int64(id),

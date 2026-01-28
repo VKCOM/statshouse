@@ -88,7 +88,6 @@ type QueryStat struct {
 
 type GetTimescaleArgs struct {
 	QueryStat
-	Version       string
 	Version6Start int64 // timestamp of schema version 6 start, zero means not set
 	Start         int64 // inclusive
 	End           int64 // exclusive
@@ -185,7 +184,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		}
 	}
 	// find appropriate LOD table. depends on query and version
-	var levels = lodLevels[args.Version]
+	var levels = lodLevels[Version3]
 	// generate LODs
 	var minStep int64
 	pointQuery := args.Mode == PointQuery
@@ -245,7 +244,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 					break
 				}
 			}
-			lod = TimescaleLOD{Step: step, Len: lodLen, Version: args.Version}
+			lod = TimescaleLOD{Step: step, Len: lodLen, Version: Version3}
 			if step <= minStep || (args.ScreenWidth != 0 && int(args.ScreenWidth) < n) {
 				// use current "step" to the end
 				lodEnd, lodLen = endOfLOD(lodEnd, step, end, false, args.Location)

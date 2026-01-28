@@ -336,7 +336,6 @@ func (fn *SelectorWhat) UnmarshalEasyJSON(w *jlexer.Lexer) {
 }
 
 type TagValueQuery struct {
-	Version    string
 	Metric     *format.MetricMetaValue
 	TagIndex   int
 	TagID      string

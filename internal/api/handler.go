@@ -117,6 +117,7 @@ const (
 	paramFull         = "full"
 
 	Version3       = "3" // new tables format with stags
+	Version6       = "6" // new tables format with 1 partition
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
 	dataFormatText = "text"
@@ -1978,7 +1979,6 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:       Version3,
 		Start:         from.Unix(),
 		End:           to.Unix(),
 		ScreenWidth:   100, // really dumb
@@ -2135,7 +2135,6 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			Version:          Version3,
 			Version6Start:    r.Version6Start.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,

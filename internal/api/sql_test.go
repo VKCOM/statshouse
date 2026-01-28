@@ -20,9 +20,8 @@ const utcOffset = 3600 * 3 // GMT+3
 var metric = &format.MetricMetaValue{MetricID: 1000}
 var location = time.FixedZone("MSK", utcOffset)
 
-func getLod(t *testing.T, version string) data_model.LOD {
+func getLod(t *testing.T) data_model.LOD {
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:     version,
 		Start:       10_000,
 		End:         20_000,
 		ScreenWidth: 100,
@@ -38,7 +37,6 @@ func getLod(t *testing.T, version string) data_model.LOD {
 
 func getLodForV6(t *testing.T, start int64, end int64, time_now int64, utc_offset int64) data_model.LOD {
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version:       Version3,
 		Version6Start: 2,
 		Start:         start,
 		End:           end,
@@ -62,7 +60,7 @@ func TestTagValuesQueryV3(t *testing.T) {
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
-	lod := getLod(t, Version3)
+	lod := getLod(t)
 
 	// execute
 	query := pq.buildTagValuesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
@@ -84,7 +82,7 @@ func TestLoadPointsQueryV3(t *testing.T) {
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
-	lod := getLod(t, Version3)
+	lod := getLod(t)
 
 	// execute
 	query, err := pq.buildSeriesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
@@ -111,7 +109,7 @@ func TestLoadPointsQueryV3WithPrefix(t *testing.T) {
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
-	lod := getLod(t, Version3)
+	lod := getLod(t)
 	// execute
 	query, err := pq.buildSeriesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
 
@@ -142,7 +140,7 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	}
 	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
 	pq.filterNotIn.AppendValue(0, "staging")
-	lod := getLod(t, Version3)
+	lod := getLod(t)
 
 	// execute
 	query, err := pq.buildSeriesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
