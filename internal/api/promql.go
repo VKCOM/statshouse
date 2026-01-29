@@ -74,6 +74,10 @@ func HandleInstantQuery(r *httpRequestHandler) {
 		return
 	}
 	defer dispose()
+	if ts, ok := res.(*promql.TimeSeries); ok {
+		promRespond(w, promResponseData{ResultType: parser.ValueTypeVector, Result: instantVector{ts: ts}})
+		return
+	}
 	promRespond(w, promResponseData{ResultType: res.Type(), Result: res})
 }
 
@@ -351,6 +355,43 @@ type promResponse struct {
 type promResponseData struct {
 	ResultType parser.ValueType `json:"resultType"`
 	Result     interface{}      `json:"result"`
+}
+
+type instantVector struct {
+	ts *promql.TimeSeries
+}
+
+func (iv instantVector) MarshalJSON() ([]byte, error) {
+	type vectorResult struct {
+		M map[string]string `json:"metric,omitempty"`
+		V [2]any            `json:"value,omitempty"`
+	}
+	res := make([]vectorResult, 0, len(iv.ts.Series.Data))
+	for _, s := range iv.ts.Series.Data {
+		for i := len(iv.ts.Time) - 1; i >= 0; i-- {
+			if math.Float64bits((*s.Values)[i]) != promql.NilValueBits {
+				t := iv.ts.Time[i]
+				v := [2]any{t, strconv.FormatFloat((*s.Values)[i], 'f', -1, 64)}
+				var m map[string]string
+				if len(s.Tags.ID2Tag) != 0 {
+					m = make(map[string]string, len(s.Tags.ID2Tag))
+					for _, tag := range s.Tags.ID2Tag {
+						if tag.SValue == "" {
+							continue
+						}
+						if len(tag.Name) != 0 {
+							m[tag.Name] = tag.SValue
+						} else {
+							m[tag.ID] = tag.SValue
+						}
+					}
+				}
+				res = append(res, vectorResult{M: m, V: v})
+				break
+			}
+		}
+	}
+	return json.Marshal(res)
 }
 
 func promRespond(w http.ResponseWriter, data interface{}) {
