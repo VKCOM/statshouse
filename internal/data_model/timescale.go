@@ -262,7 +262,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			if lodStart <= args.Version6Start {
 				// version 6 starts inside LOD, split
 				_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3}) // NOTE: UseV5Tables is false by default
+				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3})
 				resLen += len
 				lod.Len -= len
 			}
