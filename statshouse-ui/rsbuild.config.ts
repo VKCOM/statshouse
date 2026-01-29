@@ -19,6 +19,21 @@ export default defineConfig(async ({ envMode }): Promise<RsbuildConfig> => {
       },
       module: true,
     },
+    performance: {
+      chunkSplit: {
+        strategy: 'split-by-experience',
+      },
+      bundleAnalyze: {},
+    },
+    tools: {
+      rspack: {
+        optimization: {
+          splitChunks: {
+            chunks: 'async',
+          },
+        },
+      },
+    },
     html: {
       scriptLoading: 'module',
       template: './index.ejs',
