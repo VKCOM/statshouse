@@ -41,16 +41,11 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:          r.version,
-			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
-			Version3Start:    r.Version3Start.Load(),
-			Version4Start:    r.Version4Start.Load(),
-			Version5Start:    r.Version5Start.Load(),
-			Version6Start:    r.Version6Start.Load(),
-			Mode:             data_model.InstantQuery,
-			Compat:           true,
-			TimeNow:          time.Now().Unix(),
-			Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
+			Version6Start: r.Version6Start.Load(),
+			Mode:          data_model.InstantQuery,
+			Compat:        true,
+			TimeNow:       time.Now().Unix(),
+			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	w := r.Response()
@@ -86,14 +81,9 @@ func HandleRangeQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version:          r.version,
-			UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
-			Version3Start:    r.Version3Start.Load(),
-			Version4Start:    r.Version4Start.Load(),
-			Version5Start:    r.Version5Start.Load(),
-			Version6Start:    r.Version6Start.Load(),
-			Compat:           true,
-			Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
+			Version6Start: r.Version6Start.Load(),
+			Compat:        true,
+			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	var err error
@@ -158,16 +148,10 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					End:   end,
 					Expr:  expr,
 					Options: promql.Options{
-						Version:          r.version,
-						UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
-						Version3Start:    r.Version3Start.Load(),
-						Version4Start:    r.Version4Start.Load(),
-						Version5Start:    r.Version5Start.Load(),
-						Version6Start:    r.Version6Start.Load(),
-						NewShardingStart: r.NewShardingStart.Load(),
-						Limit:            1000,
-						Mode:             data_model.TagsQuery,
-						Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
+						Version6Start: r.Version6Start.Load(),
+						Limit:         1000,
+						Mode:          data_model.TagsQuery,
+						Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 					},
 				})
 			if err != nil {
@@ -266,17 +250,11 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							End:   end,
 							Expr:  expr,
 							Options: promql.Options{
-								Version:          r.version,
-								UsePKPrefixForV3: r.UsePKPrefixForV3.Load(),
-								Version3Start:    r.Version3Start.Load(),
-								Version4Start:    r.Version4Start.Load(),
-								Version5Start:    r.Version5Start.Load(),
-								Version6Start:    r.Version6Start.Load(),
-								NewShardingStart: r.NewShardingStart.Load(),
-								Limit:            1000,
-								Mode:             data_model.TagsQuery,
-								GroupBy:          []string{tagName},
-								Namespace:        r.Header.Get("X-StatsHouse-Namespace"),
+								Version6Start: r.Version6Start.Load(),
+								Limit:         1000,
+								Mode:          data_model.TagsQuery,
+								GroupBy:       []string{tagName},
+								Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
 							},
 						})
 					if err != nil {
@@ -479,11 +457,11 @@ func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 	} else {
 		tagID = qry.TagID
 	}
-	return h.getRichTagValue(qry.Metric, qry.Version, tagID, qry.TagValueID)
+	return h.getRichTagValue(qry.Metric, tagID, qry.TagValueID)
 }
 
 func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int64, error) {
-	res, err := h.getRichTagValueID(&qry.Tag, qry.Version, qry.TagValue)
+	res, err := h.getRichTagValueID(&qry.Tag, qry.TagValue)
 	if err != nil {
 		var httpErr httpError
 		if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
@@ -538,7 +516,6 @@ func (ev *requestHandler) GetTagFilter(metric *format.MetricMetaValue, tagIndex 
 		}
 	}
 	v, err := ev.GetTagValueID(promql.TagValueIDQuery{
-		Version:  ev.version,
 		Tag:      t,
 		TagValue: tagValue,
 	})
@@ -592,19 +569,14 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		start := qry.Timescale.Time[0]
 		metric := qry.Metric
 		lods = []data_model.LOD{{
-			FromSec:          qry.Timescale.Time[0] - qry.Offset,
-			ToSec:            qry.Timescale.Time[1] - qry.Offset,
-			StepSec:          lod0.Step,
-			Version:          qry.Options.Version,
-			UsePKPrefixForV3: lod0.UsePKPrefixForV3,
-			UseV4Tables:      lod0.UseV4Tables,
-			UseV5Tables:      lod0.UseV5Tables,
-			UseV6Tables:      lod0.UseV6Tables,
-			Metric:           qry.Metric,
-			NewSharding:      h.newSharding(qry.Metric, start),
-			HasPreKey:        metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
-			PreKeyOnly:       metric.PreKeyOnly,
-			Location:         h.location,
+			FromSec:    qry.Timescale.Time[0] - qry.Offset,
+			ToSec:      qry.Timescale.Time[1] - qry.Offset,
+			StepSec:    lod0.Step,
+			Version:    Version3,
+			Metric:     qry.Metric,
+			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
+			PreKeyOnly: metric.PreKeyOnly,
+			Location:   h.location,
 		}}
 	} else {
 		lods = qry.Timescale.GetLODs(qry.Metric, qry.Offset)
@@ -631,19 +603,16 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 		var tx int // time index
 		for _, lod := range lods {
 			pq := queryBuilder{
-				version:          h.version,
-				user:             h.accessInfo.user,
-				metric:           qry.Metric,
-				what:             what.qry,
-				by:               qry.GroupBy,
-				filterIn:         qry.FilterIn,
-				filterNotIn:      qry.FilterNotIn,
-				strcmpOff:        h.Version3StrcmpOff.Load(),
-				minMaxHost:       qry.MinMaxHost,
-				utcOffset:        h.utcOffset,
-				point:            qry.Options.Mode == data_model.PointQuery,
-				play:             qry.Options.Play,
-				newShardingStart: h.NewShardingStart.Load(),
+				user:        h.accessInfo.user,
+				metric:      qry.Metric,
+				what:        what.qry,
+				by:          qry.GroupBy,
+				filterIn:    qry.FilterIn,
+				filterNotIn: qry.FilterNotIn,
+				minMaxHost:  qry.MinMaxHost,
+				utcOffset:   h.utcOffset,
+				point:       qry.Options.Mode == data_model.PointQuery,
+				play:        qry.Options.Play,
 			}
 			switch qry.Options.Mode {
 			case data_model.PointQuery:
@@ -782,7 +751,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 								Name:   qry.Metric.Tags[x].Name,
 								Value:  v.tag[x],
 							}
-							if qry.Options.Version == Version3 && x < len(v.tag) && v.stag[x] != "" {
+							if v.stag[x] != "" {
 								st.SetSValue(v.stag[x])
 							}
 							res.AddTagAt(i+tag.x, st)
@@ -811,29 +780,26 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 func (h *requestHandler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int64, error) {
 	var (
 		pq = &queryBuilder{
-			version:          h.version,
-			metric:           qry.Metric,
-			tag:              qry.Tag,
-			numResults:       math.MaxInt - 1,
-			strcmpOff:        h.Version3StrcmpOff.Load(),
-			utcOffset:        h.utcOffset,
-			newShardingStart: h.NewShardingStart.Load(),
+			metric:     qry.Metric,
+			tag:        qry.Tag,
+			numResults: math.MaxInt - 1,
+			utcOffset:  h.utcOffset,
 		}
 		tags = make(map[int64]bool)
 	)
 	for _, lod := range qry.Timescale.GetLODs(qry.Metric, qry.Offset) {
 		query := pq.buildTagValueIDsQuery(lod, h.getSelectSettings())
 		isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
-		newSharding := h.newSharding(pq.metric, lod.FromSec)
+		sharded := pq.metric.Sharded()
 		err := h.doSelect(ctx, chutil.QueryMetaInto{
 			IsFast:         isFast,
 			IsLight:        true,
 			User:           h.accessInfo.user,
 			Metric:         qry.Metric,
-			Table:          lod.Table(newSharding),
-			NewSharding:    newSharding,
+			Table:          lod.Table(sharded),
+			Sharded:        sharded,
 			DisableCHAddrs: h.disabledCHAddrs(),
-		}, Version2, ch.Query{
+		}, ch.Query{
 			Body:   query.body,
 			Result: query.res,
 			OnResult: func(_ context.Context, b proto.Block) error {

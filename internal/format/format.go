@@ -53,6 +53,7 @@ const (
 	HistogramBucketsDelimC    = ','
 	HistogramBucketsEndMark   = "$"
 	HistogramBucketsEndMarkC  = '$'
+	TableDistSuffix           = "_dist"
 
 	StringTopTagIndex   = -1 // used as flag during mapping
 	StringTopTagIndexV3 = 47
@@ -66,12 +67,6 @@ const (
 	AggReplicaTag = 13
 	RouteTag      = 14
 	AgentEnvTag   = 15
-
-	// legacy values, used only by API to process data from version1 database
-	TagValueIDProductionLegacy   = 22676293   // stlogs_s_production, actual value matters only for legacy conveyor
-	TagValueNullLegacy           = "null"     // see TagValueIDNull
-	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
-	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
 
 	NamespaceSeparator     = ":"
 	NamespaceSeparatorRune = ':'
@@ -481,6 +476,7 @@ func (m *MetricMetaValue) Name2TagAgentFastBytes(name []byte) (_ *MetricMetaTag,
 		}
 		panic("name2TagAgent must contain valid tag indices only")
 	}
+	// TODO: make it 0 and remove
 	// we fully deprecated old "skey" tag for agent, we have 0 such events in production
 	// to deprecated function call below, monitor this metric
 	// https://statshouse.mvk.com/view?t=1764534680&f=-604800&s=__src_ingestion_status&qf=2-%2047&n=100&dg=0&dl=0.0.12.12
@@ -755,16 +751,16 @@ func (m *MetricMetaValue) GroupBy(groupBy []string) (res []int) {
 	return res
 }
 
-func (metric *MetricMetaValue) NewSharding(timestamp, newShardingStart int64) bool {
-	if metric == nil { // TODO - remove this check, make sure metric != nil always
+func (m *MetricMetaValue) Sharded() bool {
+	if m == nil { // TODO - remove this check, make sure metric != nil always
 		return false
 	}
-	if metric.ShardFixedKey > 0 {
-		return newShardingStart != 0 && timestamp >= newShardingStart
+	if m.ShardFixedKey > 0 {
+		return true
 	}
-	switch metric.ShardStrategy {
+	switch m.ShardStrategy {
 	case ShardFixed, ShardByMetricID:
-		return newShardingStart != 0 && timestamp >= newShardingStart
+		return true
 	default:
 		return false
 	}

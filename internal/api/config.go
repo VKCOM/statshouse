@@ -17,12 +17,6 @@ import (
 
 type Config struct {
 	ApproxCacheMaxSize           int
-	UsePkPrefixForV3             bool
-	Version3Start                int64
-	Version3Prob                 float64
-	Version3StrcmpOff            bool
-	Version4Start                int64
-	Version5Start                int64
 	Version6Start                int64
 	UserLimitsStr                string
 	UserLimits                   []chutil.ConnLimits
@@ -33,7 +27,6 @@ type Config struct {
 	CacheBlacklist               []string
 	CacheWhitelist               []string
 	DisableCHAddr                []string
-	NewShardingStart             int64
 	CHSelectSettingsStr          string
 	CHSelectSettings             map[string]string
 	BlockedMetricPrefixesS       string
@@ -124,12 +117,6 @@ func (argv *Config) Copy() config.Config {
 func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
 	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
-	f.BoolVar(&argv.UsePkPrefixForV3, "use-pk-prefix-for-v3", default_.UsePkPrefixForV3, "enable primary key prefix condition for v3 table selects")
-	f.Int64Var(&argv.Version3Start, "version3-start", default_.Version3Start, "timestamp of schema version 3 start, zero means not set")
-	f.Float64Var(&argv.Version3Prob, "version3-prob", default_.Version3Prob, "the probability of choosing version 3 when version was set to 2 or empty")
-	f.BoolVar(&argv.Version3StrcmpOff, "version3-strcmp-off", default_.Version3StrcmpOff, "disable string comparision for schema version 3")
-	f.Int64Var(&argv.Version4Start, "version4-start", default_.Version4Start, "timestamp of schema version 4 start, zero means v4 feature is disabled")
-	f.Int64Var(&argv.Version5Start, "version5-start", default_.Version5Start, "timestamp of schema version 5 start, zero means v5 feature is disabled")
 	f.Int64Var(&argv.Version6Start, "version6-start", default_.Version6Start, "timestamp of schema version 6 start, zero means v6 feature is disabled")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", default_.MaxCacheSize, "cache hard memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", default_.MaxCacheSizeSoft, "cache soft memory limit (in bytes)")
@@ -140,7 +127,6 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	config.StringSliceVar(f, &argv.CacheWhitelist, "cache-whitelist", "", "user(s) with cache enabled")
 	f.StringVar(&argv.UserLimitsStr, "user-limits", default_.UserLimitsStr, "array of ConnLimits encoded to json")
 	config.StringSliceVar(f, &argv.DisableCHAddr, "disable-clickhouse-addrs", "", "disable clickhouse addresses")
-	f.Int64Var(&argv.NewShardingStart, "new-sharding-start", default_.NewShardingStart, "timestamp of new sharding start, zero means not set")
 	f.StringVar(&argv.CHSelectSettingsStr, "ch-select-settings", default_.CHSelectSettingsStr, "comma-separated ClickHouse SELECT settings (e.g., max_bytes_to_read=1000000000,max_execution_time=30)")
 	f.StringVar(&argv.BlockedMetricPrefixesS, "blocked-metric-prefixes", default_.BlockedMetricPrefixesS, "comma-separated list of metric prefixes that are blocked")
 	f.StringVar(&argv.BlockedUsersS, "blocked-users", default_.BlockedUsersS, "comma-separated list of users that are blocked")

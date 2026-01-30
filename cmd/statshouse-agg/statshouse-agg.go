@@ -26,7 +26,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/aggregator"
-	"github.com/VKCOM/statshouse/internal/config"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -240,9 +239,6 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.aggAddr, "agg-addr", "", "aggregator listen address:port, or comma-separated list of address:ports for all shard-replicas")
 	flag.StringVar(&argv.Cluster, "cluster", aggregator.DefaultConfigAggregator().Cluster, "clickhouse cluster name to autodetect configuration, local shard and replica")
 	flag.StringVar(&argv.customHostName, "hostname", "", "override auto detected hostname")
-	config.StringSliceVar(flag.CommandLine, &argv.KHV1Addrs, "kh-v1", "", "comma separated list of ClickHouse v1 HTTP addresses")
-	flag.StringVar(&argv.KHV1User, "kh-v1-user", "", "ClickHouse v1 user")
-	flag.StringVar(&argv.KHV1Password, "kh-v1-password", "", "ClickHouse-v1 password")
 	flag.IntVar(&argv.RecentInserters, "recent-inserters", aggregator.DefaultConfigAggregator().RecentInserters, "How many parallel inserts to make for recent data")
 	flag.IntVar(&argv.HistoricInserters, "historic-inserters", aggregator.DefaultConfigAggregator().HistoricInserters, "How many parallel inserts to make for historic data")
 	flag.IntVar(&argv.InsertHistoricWhen, "insert-historic-when", aggregator.DefaultConfigAggregator().InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")

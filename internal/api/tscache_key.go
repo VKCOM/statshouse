@@ -9,18 +9,14 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 )
 
+// getOrBuildCacheKey: divide cache to different versions
 func (b *queryBuilder) getOrBuildCacheKey() string {
 	if b.cacheKey != "" {
 		return b.cacheKey
 	}
 	var sb strings.Builder
 	sb.WriteString(`{"v":`)
-	switch b.version {
-	case Version1:
-		sb.WriteString(Version1)
-	default:
-		sb.WriteString(Version3)
-	}
+	sb.WriteString(Version3)
 	sb.WriteString(`,"m":`)
 	sb.WriteString(fmt.Sprint(b.metricID()))
 	sb.WriteString(`,"pk":"`)

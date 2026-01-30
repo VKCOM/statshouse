@@ -62,7 +62,7 @@ type QueryMetaInto struct {
 
 	User           string
 	Metric         *format.MetricMetaValue
-	NewSharding    bool
+	Sharded        bool
 	Table          string
 	DisableCHAddrs []string
 }
@@ -401,7 +401,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	shard := -1
-	if meta.NewSharding {
+	if meta.Sharded {
 		shardCnt := ch.opt.ShardByMetricShards
 		shardMax := len(pool.servers) / 3
 		if shardCnt == 0 {

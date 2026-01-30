@@ -131,13 +131,6 @@ func encodeFromRows(row *RowMarker) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(jsonBytes), nil
 }
 
-func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
-	if _, ok := format.BuiltinMetrics[metricMeta.MetricID]; ok && version == Version1 {
-		return httpErr(http.StatusBadRequest, fmt.Errorf("can't use builtin metric %q with version %q", metricMeta.Name, version))
-	}
-	return nil
-}
-
 func parseQueryFilter(filter []string) (map[string][]string, map[string][]string, error) {
 	filterIn := map[string][]string{}
 	filterNotIn := map[string][]string{}

@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql"
-	"github.com/gorilla/mux"
 )
 
 type httpRouter struct {
@@ -33,7 +34,6 @@ type requestHandler struct {
 	trace        []string
 	traceMu      sync.Mutex
 	debug        bool
-	version      string
 	query        promql.Query
 }
 
