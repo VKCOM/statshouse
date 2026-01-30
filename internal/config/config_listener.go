@@ -38,24 +38,19 @@ func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 	var f flag.FlagSet
+	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
 	c := l.config.Copy()
 	c.Bind(&f, l.config)
 	s := strings.Split(cfg, "\n")
-	for i := 0; i < len(s); {
+	for i := 0; i < len(s); i++ {
 		t := strings.TrimSpace(s[i])
 		if len(t) == 0 || strings.HasPrefix(t, "#") {
-			s = append(s[0:i], s[i+1:]...)
-		} else {
-			s[i] = t
-			i++
+			continue
 		}
+		_ = f.Parse([]string{t})
 	}
-	err := f.Parse(s)
-	if err != nil {
-		return err
-	}
-	err = c.ValidateConfig()
+	err := c.ValidateConfig()
 	if err != nil {
 		return err
 	}
