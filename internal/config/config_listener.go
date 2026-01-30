@@ -38,6 +38,7 @@ func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 	var f flag.FlagSet
+	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
 	c := l.config.Copy()
 	c.Bind(&f, l.config)
