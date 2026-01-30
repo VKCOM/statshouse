@@ -43,7 +43,7 @@ func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	c := l.config.Copy()
 	c.Bind(&f, l.config)
 	s := strings.Split(cfg, "\n")
-	for i := 0; i < len(s); {
+	for i := 0; i < len(s); i++ {
 		t := strings.TrimSpace(s[i])
 		if len(t) == 0 || strings.HasPrefix(t, "#") {
 			continue
