@@ -45,17 +45,11 @@ func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	for i := 0; i < len(s); {
 		t := strings.TrimSpace(s[i])
 		if len(t) == 0 || strings.HasPrefix(t, "#") {
-			s = append(s[0:i], s[i+1:]...)
-		} else {
-			s[i] = t
-			i++
+			continue
 		}
+		_ = f.Parse([]string{t})
 	}
-	err := f.Parse(s)
-	if err != nil {
-		return err
-	}
-	err = c.ValidateConfig()
+	err := c.ValidateConfig()
 	if err != nil {
 		return err
 	}
