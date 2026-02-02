@@ -35,6 +35,7 @@ const (
 	maxRetryAttempts = 10
 	retryDelay       = 5 * time.Second
 
+	migrationSourceV3   = "v3"
 	migrationSourceV2   = ""
 	migrationSourceV1   = "v1"
 	migrationSourceStop = "v1_stop"
