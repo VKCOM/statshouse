@@ -1110,6 +1110,11 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Frame-Options", "deny")
 	}
 
+	if strings.HasPrefix(r.URL.Path, "/openapi/") {
+		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticOtherSeconds))
+		http.FileServer(h.staticDir).ServeHTTP(w, r)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/assets/") {
 		// everything under /assets/ can be cached indefinitely (filenames contain content hashes)
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheAgeStaticAssetsSeconds))
