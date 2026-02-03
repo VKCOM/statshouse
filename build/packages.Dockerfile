@@ -13,7 +13,7 @@ COPY statshouse-ui/ ./statshouse-ui/
 COPY grafana-plugin-ui/ ./grafana-plugin-ui/
 RUN make build-sh-ui build-grafana-ui
 
-FROM golang:1.23-bullseye AS build-go-bullseye
+FROM golang:1.24-bullseye AS build-go-bullseye
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -39,7 +39,7 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
     make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
-FROM golang:1.23-bookworm AS build-go-bookworm
+FROM golang:1.24-bookworm AS build-go-bookworm
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -65,7 +65,7 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
     make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
-FROM golang:1.23-buster AS build-go-buster
+FROM golang:1.24-buster AS build-go-buster
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -91,7 +91,7 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
     make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
-FROM golang:1.23-focal AS build-go-focal
+FROM golang:1.24-focal AS build-go-focal
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -117,7 +117,7 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
     --mount=type=bind,src=cmd/,target=/src/cmd,readonly \
     make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
 
-FROM golang:1.23-jammy AS build-go-jammy 
+FROM golang:1.24-jammy AS build-go-jammy
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
