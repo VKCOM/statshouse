@@ -18,6 +18,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
@@ -44,6 +45,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
@@ -70,6 +72,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
@@ -96,6 +99,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
@@ -122,6 +126,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY Makefile ./
+COPY statshouse-ui/ ./statshouse-ui/
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT
