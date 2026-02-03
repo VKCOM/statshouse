@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -91,6 +92,7 @@ func buildHeartbeatArgTags(argMap map[string]string, popularKeys map[string]int)
 		remain = append(remain, fmt.Sprintf("%s=%s", k, v))
 	}
 	if len(remain) > 0 {
+		sort.Strings(remain)
 		s := strings.Join(remain, " ")
 		if truncatedLen := len(s) - format.MaxStringLen; truncatedLen > 0 {
 			tags[20] = strconv.Itoa(truncatedLen)
