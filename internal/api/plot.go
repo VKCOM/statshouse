@@ -564,7 +564,7 @@ func WhatToWhatDesc(what string) string {
 	case format.ParamQueryFnUniqueNorm:
 		return "unique/sec"
 	case format.ParamQueryFnMaxCountHost:
-		return "max(count)@host"
+		return "max (count/sec)"
 	case format.ParamQueryFnDerivativeCount:
 		return "count (derivative)"
 	case format.ParamQueryFnDerivativeSum:
