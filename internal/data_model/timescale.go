@@ -162,6 +162,11 @@ var (
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
 		}},
 	}
+
+	lodLevelsV3Monthly = []lodSwitch{{
+		relSwitch: _0s,
+		levels:    []int64{_1M},
+	}}
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", MaxSlice)
@@ -185,6 +190,9 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	}
 	// find appropriate LOD table. depends on query and version
 	var levels = lodLevels[Version3]
+	if args.Step == _1M {
+		levels = lodLevelsV3Monthly
+	}
 	// generate LODs
 	var minStep int64
 	pointQuery := args.Mode == PointQuery
