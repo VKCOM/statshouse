@@ -22,7 +22,7 @@ ExecStart=/usr/bin/statshouse-api \
           --listen-rpc-addr localhost:13347
 ExecReload=/bin/kill -HUP $MAINPID
 PIDFile=/run/statshouse-api/statshouse-api.pid
-Restart=always
+Restart=on-failure
 
 DynamicUser=true
 RuntimeDirectory=statshouse-api
