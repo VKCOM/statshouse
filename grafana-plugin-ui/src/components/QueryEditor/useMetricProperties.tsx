@@ -25,7 +25,7 @@ const labelMap: { [value: string]: string } = {
   sum_norm: 'sum/sec',
   cu_sum: 'sum (cumul)',
   unique_norm: 'unique/sec',
-  max_count_host: 'max(count)@host',
+  max_count_host: 'max (count/sec)',
   max_host: 'max(value)@host',
   dv_count: 'count (derivative)',
   dv_sum: 'sum (derivative)',

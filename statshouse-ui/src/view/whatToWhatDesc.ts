@@ -34,7 +34,7 @@ export function whatToWhatDesc(what: QueryWhat | string): string {
     case QUERY_WHAT.uniqueSec:
       return 'unique/sec';
     case QUERY_WHAT.maxCountHost:
-      return 'max(count)@host';
+      return 'max (count/sec)';
     case QUERY_WHAT.maxHost:
       return 'max(value)@host';
     case QUERY_WHAT.dvCount:
