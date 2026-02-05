@@ -44,7 +44,7 @@ import (
 const (
 	shutdownTimeout = 30 * time.Second
 	exitTimeout     = 45 * time.Second
-	upgradeTimeout  = 60 * time.Second
+	upgradeTimeout  = 2 * time.Minute
 
 	httpReadHeaderTimeout = 10 * time.Second
 	httpReadTimeout       = 30 * time.Second
