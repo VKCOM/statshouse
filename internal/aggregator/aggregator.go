@@ -125,7 +125,8 @@ type (
 		migrationMu    sync.RWMutex
 
 		// migration configuration
-		migrationConfig *MigrationConfig
+		migrationConfig   *MigrationConfig
+		migrationConfigV3 *MigrationConfigV3
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -253,6 +254,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		mappingsCache:               mappingsCache,
 		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
+		migrationConfigV3:           NewDefaultMigrationConfigV3(),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -374,6 +376,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
 	go a.goMigrate(a.cancelInsertsCtx)
+	go a.goMigrateV3(a.cancelInsertsCtx)
 	go a.goInternalLog()
 
 	go func() { // before sh2.Run because agent will also connect to local aggregator
