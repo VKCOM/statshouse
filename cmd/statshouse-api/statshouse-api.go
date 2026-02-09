@@ -472,7 +472,6 @@ func run() int {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	s.Shutdown(ctx)
-
 	return 0
 }
 
