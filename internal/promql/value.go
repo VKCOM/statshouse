@@ -735,7 +735,7 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 // Serializes into JSON of Prometheus format. Slow but only 20 lines long.
 func (ts *TimeSeries) MarshalJSON() ([]byte, error) {
 	type series struct {
-		M map[string]string `json:"metric,omitempty"`
+		M map[string]string `json:"metric"`
 		V [][2]any          `json:"values,omitempty"`
 	}
 	res := make([]series, 0, len(ts.Series.Data))
@@ -749,18 +749,15 @@ func (ts *TimeSeries) MarshalJSON() ([]byte, error) {
 		if len(v) == 0 {
 			continue
 		}
-		var m map[string]string
-		if len(s.Tags.ID2Tag) != 0 {
-			m = make(map[string]string, len(s.Tags.ID2Tag))
-			for _, tag := range s.Tags.ID2Tag {
-				if !tag.stringified || tag.SValue == "" {
-					continue
-				}
-				if len(tag.Name) != 0 {
-					m[tag.Name] = tag.SValue
-				} else {
-					m[tag.ID] = tag.SValue
-				}
+		m := make(map[string]string)
+		for _, tag := range s.Tags.ID2Tag {
+			if !tag.stringified || tag.SValue == "" {
+				continue
+			}
+			if len(tag.Name) != 0 {
+				m[tag.Name] = tag.SValue
+			} else {
+				m[tag.ID] = tag.SValue
 			}
 		}
 		res = append(res, series{M: m, V: v})
