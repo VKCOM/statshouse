@@ -341,7 +341,7 @@ type instantVector struct {
 
 func (iv instantVector) MarshalJSON() ([]byte, error) {
 	type vectorResult struct {
-		M map[string]string `json:"metric,omitempty"`
+		M map[string]string `json:"metric"`
 		V [2]any            `json:"value,omitempty"`
 	}
 	res := make([]vectorResult, 0, len(iv.ts.Series.Data))
@@ -350,18 +350,15 @@ func (iv instantVector) MarshalJSON() ([]byte, error) {
 			if math.Float64bits((*s.Values)[i]) != promql.NilValueBits {
 				t := iv.ts.Time[i]
 				v := [2]any{t, strconv.FormatFloat((*s.Values)[i], 'f', -1, 64)}
-				var m map[string]string
-				if len(s.Tags.ID2Tag) != 0 {
-					m = make(map[string]string, len(s.Tags.ID2Tag))
-					for _, tag := range s.Tags.ID2Tag {
-						if tag.SValue == "" {
-							continue
-						}
-						if len(tag.Name) != 0 {
-							m[tag.Name] = tag.SValue
-						} else {
-							m[tag.ID] = tag.SValue
-						}
+				m := make(map[string]string)
+				for _, tag := range s.Tags.ID2Tag {
+					if tag.SValue == "" {
+						continue
+					}
+					if len(tag.Name) != 0 {
+						m[tag.Name] = tag.SValue
+					} else {
+						m[tag.ID] = tag.SValue
 					}
 				}
 				res = append(res, vectorResult{M: m, V: v})
