@@ -13,7 +13,7 @@ COPY statshouse-ui/ ./statshouse-ui/
 COPY grafana-plugin-ui/ ./grafana-plugin-ui/
 RUN make build-sh-ui build-grafana-ui
 
-FROM golang:1.24-bullseye AS build-go-bullseye
+FROM golang:1.24-bullseye-local AS build-go-bullseye
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x

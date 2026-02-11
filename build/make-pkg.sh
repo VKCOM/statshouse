@@ -39,6 +39,9 @@ fi
 if [[ $TAG == "debian-buster" ]]; then
   docker build --file build/golang-debian/golang-1.24-buster.Dockerfile --tag golang:1.24-buster build/golang-debian
 fi
+if [[ $TAG == "debian-bullseye" ]]; then
+  docker build --file build/golang-debian/golang-1.24-bullseye.Dockerfile --tag golang:1.24-bullseye-local build/golang-debian
+fi
 
 docker build --file build/packages.Dockerfile \
     --build-arg BUILD_TIME \

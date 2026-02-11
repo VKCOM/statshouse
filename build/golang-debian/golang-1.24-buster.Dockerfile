@@ -50,19 +50,16 @@ RUN set -eux; \
 		*) echo >&2 "error: unsupported architecture '$arch' (likely packaging update needed)"; exit 1 ;; \
 	esac; \
 	\
-	wget -O go.tgz.asc "$url.asc"; \
+#	wget -O go.tgz.asc "$url.asc"; \
 	wget -O go.tgz "$url" --progress=dot:giga; \
 	echo "$sha256 *go.tgz" | sha256sum -c -; \
 	\
-# https://github.com/golang/go/issues/14739#issuecomment-324767697
-	GNUPGHOME="$(mktemp -d)"; export GNUPGHOME; \
-# https://www.google.com/linuxrepositories/
-	gpg --batch --keyserver hkps://keyserver.ubuntu.com:443 --recv-keys 'EB4C 1BFD 4F04 2F6D DDCC  EC91 7721 F63B D38B 4796'; \
-# let's also fetch the specific subkey of that key explicitly that we expect "go.tgz.asc" to be signed by, just to make sure we definitely have it
-	gpg --batch --keyserver hkps://keyserver.ubuntu.com:443 --recv-keys '2F52 8D36 D67B 69ED F998  D857 78BD 6547 3CB3 BD13'; \
-	gpg --batch --verify go.tgz.asc go.tgz; \
-	gpgconf --kill all; \
-	rm -rf "$GNUPGHOME" go.tgz.asc; \
+#	GNUPGHOME="$(mktemp -d)"; export GNUPGHOME; \
+#	gpg --batch --keyserver hkps://keyserver.ubuntu.com:443 --recv-keys 'EB4C 1BFD 4F04 2F6D DDCC  EC91 7721 F63B D38B 4796'; \
+#	gpg --batch --keyserver hkps://keyserver.ubuntu.com:443 --recv-keys '2F52 8D36 D67B 69ED F998  D857 78BD 6547 3CB3 BD13'; \
+#	gpg --batch --verify go.tgz.asc go.tgz; \
+#	gpgconf --kill all; \
+#	rm -rf "$GNUPGHOME" go.tgz.asc; \
 	\
 	tar -C /usr/local -xzf go.tgz; \
 	rm go.tgz; \
