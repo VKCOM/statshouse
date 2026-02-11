@@ -30,6 +30,7 @@ BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)"
 GOCACHE=$PWD/build/go-cache
 mkdir -p "$GOCACHE"
 
+echo $TAG
 if [[ $TAG == "ubuntu-focal" ]]; then
   docker build --file build/golang-ubuntu/golang-1.24-focal.Dockerfile --tag golang:1.24-focal build/golang-ubuntu
 fi
@@ -38,6 +39,9 @@ if [[ $TAG == "ubuntu-jammy" ]]; then
 fi
 if [[ $TAG == "debian-buster" ]]; then
   docker build --file build/golang-debian/golang-1.24-buster.Dockerfile --tag golang:1.24-buster build/golang-debian
+fi
+if [[ $TAG == "debian-bullseye" ]]; then
+  docker build --file build/golang-debian/golang-1.24-bullseye.Dockerfile --tag golang:1.24-bullseye-local build/golang-debian
 fi
 
 docker build --file build/packages.Dockerfile \
