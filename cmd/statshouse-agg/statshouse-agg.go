@@ -31,6 +31,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/trustedsubnets"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
@@ -51,6 +52,8 @@ var argv struct {
 	configAgent     agent.Config
 	listenAddr      string
 	pprofListenAddr string
+
+	trustedSubnetGroupsFlag trustedsubnets.Flag
 
 	aggregator.ConfigAggregator
 }
@@ -151,7 +154,7 @@ func mainAggregator() int {
 	// we ignore error because cache can be damaged
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.RemoteInitial.MappingCacheSize, argv.RemoteInitial.MappingCacheTTL)
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()), argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
@@ -263,6 +266,7 @@ func parseCommandLine() error {
 	flag.StringVar(&argv.KHPasswordFile, "kh-password-file", "", "file with clickhouse password")
 	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address")
 	flag.IntVar(&argv.MappingsFileCount, "mappings-file-count", 16, "count of files for sharding metadata mappings")
+	argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)
 	build.FlagParseShowVersionHelp()
 
 	if len(argv.aggAddr) == 0 {

@@ -151,7 +151,7 @@ func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.H
 
 // aggregator is also run in this method
 func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache, mappingsStorage *metajournal.MappingsStorage,
-	cacheDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
+	cacheDir string, listenAddr string, aesPwd string, trustedSubnetGroups [][]string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	var shardKey int32 = 1
 	var replicaKey int32 = 1
@@ -212,7 +212,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 			rpc.ClientWithLogf(log.Printf),
 			rpc.ClientWithCryptoKey(aesPwd),
-			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+			rpc.ClientWithTrustedSubnetGroups(trustedSubnetGroups)),
 		Network: config.MetadataNet,
 		Address: config.MetadataAddr,
 		ActorID: config.MetadataActorID,
@@ -292,7 +292,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		rpc.ServerWithMaxWorkers(-1),
 		rpc.ServerWithSyncHandler(a.handleClient),
 		rpc.ServerWithDisableContextTimeout(true),
-		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithTrustedSubnetGroups(trustedSubnetGroups),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(0), // explicit infinite timeout
 		rpc.ServerWithResponseBufSize(1024),
@@ -328,7 +328,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult3Locked() // agent will use this config instead of getting via RPC, because our RPC is not started yet
-	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, agentConfig, hostName,
+	sh2, err := agent.MakeAgent("tcp4", cacheDir, aesPwd, trustedSubnetGroups, agentConfig, hostName,
 		format.TagValueIDComponentAggregator,
 		a.metricStorage, mappingsCache,
 		a.journalFast.VersionHash, a.journalCompact.VersionHash,

@@ -22,6 +22,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/pcache"
+	"github.com/VKCOM/statshouse/internal/trustedsubnets"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
@@ -30,18 +31,19 @@ import (
 const defaultPathToPwd = `/etc/engine/pass`
 
 var argv struct {
-	logFile            string
-	userLogin          string // логин для setuid
-	userGroup          string // логин для setguid
-	maxOpenFiles       uint64
-	pprofListenAddr    string
-	pprofHTTP          bool
-	aesPwdFile         string
-	cacheDir           string
-	aggAddr            string
-	ingressExtAddr     string
-	ingressExtAddrIPv6 string
-	ingressPwdDir      string
+	logFile                 string
+	userLogin               string // логин для setuid
+	userGroup               string // логин для setguid
+	maxOpenFiles            uint64
+	pprofListenAddr         string
+	pprofHTTP               bool
+	aesPwdFile              string
+	cacheDir                string
+	aggAddr                 string
+	ingressExtAddr          string
+	ingressExtAddrIPv6      string
+	ingressPwdDir           string
+	trustedSubnetGroupsFlag trustedsubnets.Flag
 	ConfigIngressProxy
 }
 
@@ -116,7 +118,7 @@ func mainIngressProxy() int {
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
-		exit <- RunIngressProxy(ctx, argv.ConfigIngressProxy, aesPwd, mappingsCache)
+		exit <- RunIngressProxy(ctx, argv.ConfigIngressProxy, aesPwd, mappingsCache, argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()))
 	}()
 	signalC := make(chan os.Signal, 1)
 	signal.Notify(signalC, syscall.SIGINT, syscall.SIGUSR1)
@@ -179,6 +181,7 @@ func parseCommandLine() error {
 	flag.BoolVar(&argv.Debug, "debug", false, "enable debug logging")
 	flag.IntVar(&argv.LegacyAddrLimit, "max-address-count", 48, "Maximum number of addresses allowed for legacy ingress clients.")
 	argv.ConfigAgent.Bind(flag.CommandLine, agent.DefaultConfig())
+	argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)
 	build.FlagParseShowVersionHelp()
 
 	if argv.customHostName == "" {
