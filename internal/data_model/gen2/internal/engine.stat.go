@@ -91,10 +91,9 @@ func (item *EngineStat) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext
 	return r, w, err
 }
 
-func (item *EngineStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineStat) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret Stat
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -106,6 +105,14 @@ func (item *EngineStat) ReadResultWriteResultTL2(tctx *basictl.TL2WriteContext, 
 }
 
 func (item *EngineStat) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.stat")
+}
+
+func (item *EngineStat) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.stat")
+}
+
+func (item *EngineStat) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.stat")
 }
 
@@ -161,7 +168,7 @@ func (item *EngineStat) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineStat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.stat"))
 }
 
 func (item *EngineStat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

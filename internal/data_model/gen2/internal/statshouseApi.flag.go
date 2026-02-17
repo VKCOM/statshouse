@@ -81,10 +81,10 @@ func (item *StatshouseApiFlag) WriteBoxed(w []byte) []byte {
 }
 
 func (item *StatshouseApiFlag) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
-	if item.index == 0 && optimizeEmpty {
-		return sizes, 0
-	}
 	if item.index == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
 		return sizes, 1
 	}
 	bodySize := 1 + basictl.TL2CalculateSize(item.index)
@@ -92,10 +92,10 @@ func (item *StatshouseApiFlag) CalculateLayout(sizes []int, optimizeEmpty bool) 
 }
 
 func (item *StatshouseApiFlag) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
-	if item.index == 0 && optimizeEmpty {
-		return w, sizes, 0
-	}
 	if item.index == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
 		w = append(w, 0)
 		return w, sizes, 1
 	}

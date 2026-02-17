@@ -224,7 +224,7 @@ func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.JSONWr
 }
 
 func (item *MetadataHistoryShortResponseEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.historyShortResponseEvent"))
 }
 
 func (item *MetadataHistoryShortResponseEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

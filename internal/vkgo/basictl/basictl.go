@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	tinyStringLen    = 253
-	bigStringMarker  = 254
-	hugeStringMarker = 255
-	bigStringLen     = (1 << 24) - 1
-	hugeStringLen    = (1 << 56) - 1
+	tinyStringLen      = 253
+	mediumStringMarker = 254
+	hugeStringMarker   = 255
+	maxMediumStringLen = (1 << 24) - 1
+	maxHugeStringLen   = (1 << 56) - 1
 )
 
 type JSONWriteContext struct {
@@ -144,7 +144,7 @@ func StringRead(r []byte, dst *string) ([]byte, error) {
 		l = int(b0)
 		r = r[1:]
 		p = l + 1
-	case b0 == bigStringMarker:
+	case b0 == mediumStringMarker:
 		if len(r) < 4 {
 			return r, io.ErrUnexpectedEOF
 		}
@@ -152,20 +152,20 @@ func StringRead(r []byte, dst *string) ([]byte, error) {
 		r = r[4:]
 		p = l // +4
 		if l <= tinyStringLen {
-			return r, fmt.Errorf("non-canonical (big) string format for length: %d", l)
+			return r, fmt.Errorf("non-canonical (medium) string format for length: %d", l)
 		}
 	default: // hugeStringMarker
 		if len(r) < 8 {
 			return r, io.ErrUnexpectedEOF
 		}
-		l64 := (int64(r[7]) << 48) + (int64(r[6]) << 40) + (int64(r[5]) << 32) + (int64(r[4]) << 24) + (int64(r[3]) << 16) + (int64(r[2]) << 8) + (int64(r[1]) << 0)
+		l64 := (uint64(r[7]) << 48) + (uint64(r[6]) << 40) + (uint64(r[5]) << 32) + (uint64(r[4]) << 24) + (uint64(r[3]) << 16) + (uint64(r[2]) << 8) + (uint64(r[1]) << 0)
+		r = r[8:]
 		if l64 > math.MaxInt {
 			return r, fmt.Errorf("string length cannot be represented on 32-bit platform: %d", l64)
 		}
 		l = int(l64)
-		r = r[8:]
 		p = l // +8
-		if l <= bigStringLen {
+		if l <= maxMediumStringLen {
 			return r, fmt.Errorf("non-canonical (huge) string format for length: %d", l)
 		}
 	}
@@ -201,7 +201,7 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 		l = int(b0)
 		r = r[1:]
 		p = l + 1
-	case b0 == bigStringMarker:
+	case b0 == mediumStringMarker:
 		if len(r) < 4 {
 			return r, io.ErrUnexpectedEOF
 		}
@@ -209,20 +209,20 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 		r = r[4:]
 		p = l // +4
 		if l <= tinyStringLen {
-			return r, fmt.Errorf("non-canonical (big) string format for length: %d", l)
+			return r, fmt.Errorf("non-canonical (medium) string format for length: %d", l)
 		}
 	default: // hugeStringMarker
 		if len(r) < 8 {
 			return r, io.ErrUnexpectedEOF
 		}
-		l64 := (int64(r[7]) << 48) + (int64(r[6]) << 40) + (int64(r[5]) << 32) + (int64(r[4]) << 24) + (int64(r[3]) << 16) + (int64(r[2]) << 8) + (int64(r[1]) << 0)
+		l64 := (uint64(r[7]) << 48) + (uint64(r[6]) << 40) + (uint64(r[5]) << 32) + (uint64(r[4]) << 24) + (uint64(r[3]) << 16) + (uint64(r[2]) << 8) + (uint64(r[1]) << 0)
+		r = r[8:]
 		if l64 > math.MaxInt {
-			return r, fmt.Errorf("string length cannot be represented on 32-bit platform: %d", l64)
+			return r, fmt.Errorf("string length cannot be represented as int: %d", l64)
 		}
 		l = int(l64)
-		r = r[8:]
 		p = l // +8
-		if l <= bigStringLen {
+		if l <= maxMediumStringLen {
 			return r, fmt.Errorf("non-canonical (huge) string format for length: %d", l)
 		}
 	}
@@ -288,12 +288,12 @@ func StringWrite(w []byte, v string) []byte {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))
 		p = l + 1
-	case l <= bigStringLen:
-		w = append(w, bigStringMarker, byte(l), byte(l>>8), byte(l>>16))
+	case l <= maxMediumStringLen:
+		w = append(w, mediumStringMarker, byte(l), byte(l>>8), byte(l>>16))
 		p = l // +4
 	default:
-		if l > hugeStringLen { // for correctness only, we do not expect strings so huge
-			l = hugeStringLen
+		if l > maxHugeStringLen { // for correctness only, we do not expect strings so huge
+			l = maxHugeStringLen
 			v = v[:l]
 		}
 		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))
@@ -320,12 +320,12 @@ func StringWriteBytes(w []byte, v []byte) []byte {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))
 		p = l + 1
-	case l <= bigStringLen:
-		w = append(w, bigStringMarker, byte(l), byte(l>>8), byte(l>>16))
+	case l <= maxMediumStringLen:
+		w = append(w, mediumStringMarker, byte(l), byte(l>>8), byte(l>>16))
 		p = l // +4
 	default:
-		if l > hugeStringLen { // for correctness only, we do not expect strings so huge
-			l = hugeStringLen
+		if l > maxHugeStringLen { // for correctness only, we do not expect strings so huge
+			l = maxHugeStringLen
 			v = v[:l]
 		}
 		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))

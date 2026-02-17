@@ -402,7 +402,7 @@ func (item *StatshouseTopElement) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseTopElement) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.topElement"))
 }
 
 func (item *StatshouseTopElement) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -632,7 +632,7 @@ func (item *StatshouseTopElementBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseTopElementBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.topElement"))
 }
 
 func (item *StatshouseTopElementBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

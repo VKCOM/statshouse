@@ -99,10 +99,9 @@ func (item *EngineUnregisterDynamicLib) ReadResultWriteResultJSON(tctx *basictl.
 	return r, w, err
 }
 
-func (item *EngineUnregisterDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineUnregisterDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -114,6 +113,14 @@ func (item *EngineUnregisterDynamicLib) ReadResultWriteResultTL2(tctx *basictl.T
 }
 
 func (item *EngineUnregisterDynamicLib) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
+}
+
+func (item *EngineUnregisterDynamicLib) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
+}
+
+func (item *EngineUnregisterDynamicLib) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib")
 }
 
@@ -195,7 +202,7 @@ func (item *EngineUnregisterDynamicLib) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineUnregisterDynamicLib) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.unregisterDynamicLib"))
 }
 
 func (item *EngineUnregisterDynamicLib) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

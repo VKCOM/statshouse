@@ -224,7 +224,7 @@ func (item *StatshouseSendSourceBucket3Response) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseSendSourceBucket3Response) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3Response"))
 }
 
 func (item *StatshouseSendSourceBucket3Response) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -442,7 +442,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) UnmarshalJSON(b []byte) er
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.sendSourceBucket3Response"))
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

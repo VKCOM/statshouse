@@ -345,7 +345,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(tctx *basictl.JSONWriteCon
 }
 
 func (item *StatshouseCommonProxyHeader) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader"))
 }
 
 func (item *StatshouseCommonProxyHeader) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -684,7 +684,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWri
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader"))
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

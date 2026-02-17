@@ -200,8 +200,11 @@ func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 }
 
 func BuiltinVectorStringCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]string) ([]int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
 	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
@@ -220,8 +223,12 @@ func BuiltinVectorStringCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]
 }
 
 func BuiltinVectorStringInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]string) ([]byte, []int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return w, sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
 	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
@@ -357,8 +364,11 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 }
 
 func BuiltinVectorStringBytesCalculateLayout(sizes []int, optimizeEmpty bool, vec *[][]byte) ([]int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
 	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
@@ -377,8 +387,12 @@ func BuiltinVectorStringBytesCalculateLayout(sizes []int, optimizeEmpty bool, ve
 }
 
 func BuiltinVectorStringBytesInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[][]byte) ([]byte, []int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return w, sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
 	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
@@ -563,7 +577,7 @@ func (item *String) UnmarshalJSON(b []byte) error {
 }
 
 func (item *String) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("string"))
 }
 
 func (item *String) InternalReadTL2(r []byte) (_ []byte, err error) {
@@ -662,7 +676,7 @@ func (item *StringBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("string"))
 }
 
 func (item *StringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {

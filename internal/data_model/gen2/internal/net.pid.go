@@ -187,7 +187,7 @@ func (item *NetPid) UnmarshalJSON(b []byte) error {
 }
 
 func (item *NetPid) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("net.pid"))
 }
 
 func (item *NetPid) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

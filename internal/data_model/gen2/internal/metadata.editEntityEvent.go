@@ -183,7 +183,7 @@ func (item *MetadataEditEntityEvent) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataEditEntityEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.editEntityEvent"))
 }
 
 func (item *MetadataEditEntityEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

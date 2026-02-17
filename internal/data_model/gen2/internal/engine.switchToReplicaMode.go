@@ -91,10 +91,9 @@ func (item *EngineSwitchToReplicaMode) ReadResultWriteResultJSON(tctx *basictl.J
 	return r, w, err
 }
 
-func (item *EngineSwitchToReplicaMode) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineSwitchToReplicaMode) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineSwitchMasterReplicaModeResult
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -106,6 +105,14 @@ func (item *EngineSwitchToReplicaMode) ReadResultWriteResultTL2(tctx *basictl.TL
 }
 
 func (item *EngineSwitchToReplicaMode) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToReplicaMode")
+}
+
+func (item *EngineSwitchToReplicaMode) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToReplicaMode")
+}
+
+func (item *EngineSwitchToReplicaMode) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToReplicaMode")
 }
 
@@ -161,7 +168,7 @@ func (item *EngineSwitchToReplicaMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineSwitchToReplicaMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.switchToReplicaMode"))
 }
 
 func (item *EngineSwitchToReplicaMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

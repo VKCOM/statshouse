@@ -167,7 +167,7 @@ func (item *MetadataGetNewMappingsResponse) WriteJSONOpt(tctx *basictl.JSONWrite
 }
 
 func (item *MetadataGetNewMappingsResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getNewMappingsResponse"))
 }
 
 func (item *MetadataGetNewMappingsResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

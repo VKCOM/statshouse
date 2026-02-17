@@ -239,7 +239,7 @@ func (item *EngineReindexStatus) WriteBoxed(w []byte) []byte {
 }
 
 func (item *EngineReindexStatus) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.ReindexStatus"))
 }
 
 func (item *EngineReindexStatus) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
@@ -641,7 +641,7 @@ func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusDone) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusDone"))
 }
 
 func (item *EngineReindexStatusDone) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -776,7 +776,7 @@ func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusDoneOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusDoneOld"))
 }
 
 func (item *EngineReindexStatusDoneOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -937,7 +937,7 @@ func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusFailed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusFailed"))
 }
 
 func (item *EngineReindexStatusFailed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1038,7 +1038,7 @@ func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusNever) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusNever"))
 }
 
 func (item *EngineReindexStatusNever) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1199,7 +1199,7 @@ func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusRunning) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusRunning"))
 }
 
 func (item *EngineReindexStatusRunning) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1360,7 +1360,7 @@ func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusRunningOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusRunningOld"))
 }
 
 func (item *EngineReindexStatusRunningOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1521,7 +1521,7 @@ func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineReindexStatusSignaled) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusSignaled"))
 }
 
 func (item *EngineReindexStatusSignaled) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

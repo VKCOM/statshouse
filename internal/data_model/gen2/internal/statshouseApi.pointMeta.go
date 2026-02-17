@@ -52,8 +52,11 @@ func BuiltinVectorStatshouseApiPointMetaWrite(w []byte, vec []StatshouseApiPoint
 }
 
 func BuiltinVectorStatshouseApiPointMetaCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]StatshouseApiPointMeta) ([]int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
 	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
@@ -73,8 +76,12 @@ func BuiltinVectorStatshouseApiPointMetaCalculateLayout(sizes []int, optimizeEmp
 }
 
 func BuiltinVectorStatshouseApiPointMetaInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]StatshouseApiPointMeta) ([]byte, []int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return w, sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
 	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
@@ -201,7 +208,7 @@ func (item *StatshouseApiPointMeta) Reset() {
 	item.TimeShift = 0
 	item.From = 0
 	item.To = 0
-	BuiltinVectorDictionaryFieldStringReset(item.Tags)
+	BuiltinDictDictionaryFieldStringReset(item.Tags)
 	item.What.Reset()
 	item.tl2mask0 = 0
 }
@@ -212,7 +219,7 @@ func (item *StatshouseApiPointMeta) FillRandom(rg *basictl.RandGenerator) {
 	item.TimeShift = basictl.RandomLong(rg)
 	item.From = basictl.RandomLong(rg)
 	item.To = basictl.RandomLong(rg)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Tags)
+	BuiltinDictDictionaryFieldStringFillRandom(rg, &item.Tags)
 	if item.FieldsMask&(1<<1) != 0 {
 		item.tl2mask0 |= 1
 		item.What.FillRandom(rg)
@@ -235,7 +242,7 @@ func (item *StatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.To); err != nil {
 		return w, err
 	}
-	if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Tags); err != nil {
+	if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.Tags); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
@@ -258,7 +265,7 @@ func (item *StatshouseApiPointMeta) Write(w []byte) []byte {
 	w = basictl.LongWrite(w, item.TimeShift)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.To)
-	w = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringWrite(w, item.Tags)
 	if item.FieldsMask&(1<<1) != 0 {
 		w = item.What.WriteBoxed(w)
 	}
@@ -343,7 +350,7 @@ func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContex
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -378,7 +385,7 @@ func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContex
 		item.To = 0
 	}
 	if !propTagsPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.Tags)
+		BuiltinDictDictionaryFieldStringReset(item.Tags)
 	}
 	if !propWhatPresented {
 		item.What.Reset()
@@ -434,7 +441,7 @@ func (item *StatshouseApiPointMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext,
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
@@ -482,7 +489,7 @@ func (item *StatshouseApiPointMeta) CalculateLayout(sizes []int, optimizeEmpty b
 		currentSize += 8
 		lastUsedByte = currentSize
 	}
-	if sizes, sz = BuiltinVectorDictionaryFieldStringCalculateLayout(sizes, true, &item.Tags); sz != 0 {
+	if sizes, sz = BuiltinDictDictionaryFieldStringCalculateLayout(sizes, true, &item.Tags); sz != 0 {
 		currentSize += sz
 		lastUsedByte = currentSize
 	}
@@ -540,7 +547,7 @@ func (item *StatshouseApiPointMeta) InternalWriteTL2(w []byte, sizes []int, opti
 		w = basictl.LongWrite(w, item.To)
 		currentBlock |= 16
 	}
-	if w, sizes, sz = BuiltinVectorDictionaryFieldStringInternalWriteTL2(w, sizes, true, &item.Tags); sz != 0 {
+	if w, sizes, sz = BuiltinDictDictionaryFieldStringInternalWriteTL2(w, sizes, true, &item.Tags); sz != 0 {
 		currentBlock |= 32
 	}
 	if item.tl2mask0&1 != 0 {
@@ -633,11 +640,11 @@ func (item *StatshouseApiPointMeta) InternalReadTL2(r []byte) (_ []byte, err err
 		item.To = 0
 	}
 	if block&32 != 0 {
-		if currentR, err = BuiltinVectorDictionaryFieldStringInternalReadTL2(currentR, &item.Tags); err != nil {
+		if currentR, err = BuiltinDictDictionaryFieldStringInternalReadTL2(currentR, &item.Tags); err != nil {
 			return currentR, err
 		}
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Tags)
+		BuiltinDictDictionaryFieldStringReset(item.Tags)
 	}
 	if block&64 != 0 {
 		item.tl2mask0 |= 1

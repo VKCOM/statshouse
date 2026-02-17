@@ -237,7 +237,7 @@ func (item *StatshousePromTarget) Reset() {
 	item.FieldsMask = 0
 	item.JobName = ""
 	item.Url = ""
-	BuiltinVectorDictionaryFieldStringReset(item.Labels)
+	BuiltinDictDictionaryFieldStringReset(item.Labels)
 	item.ScrapeInterval = 0
 	item.ScrapeTimeout = 0
 	item.BodySizeLimit = 0
@@ -252,7 +252,7 @@ func (item *StatshousePromTarget) FillRandom(rg *basictl.RandGenerator, nat_fiel
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.JobName = basictl.RandomString(rg)
 	item.Url = basictl.RandomString(rg)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Labels)
+	BuiltinDictDictionaryFieldStringFillRandom(rg, &item.Labels)
 	item.ScrapeInterval = basictl.RandomLong(rg)
 	item.ScrapeTimeout = basictl.RandomLong(rg)
 	item.BodySizeLimit = basictl.RandomLong(rg)
@@ -277,7 +277,7 @@ func (item *StatshousePromTarget) Read(w []byte, nat_fields_mask_arg uint32) (_ 
 	if w, err = basictl.StringRead(w, &item.Url); err != nil {
 		return w, err
 	}
-	if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Labels); err != nil {
+	if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.Labels); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.ScrapeInterval); err != nil {
@@ -319,7 +319,7 @@ func (item *StatshousePromTarget) Write(w []byte, nat_fields_mask_arg uint32) []
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.JobName)
 	w = basictl.StringWrite(w, item.Url)
-	w = BuiltinVectorDictionaryFieldStringWrite(w, item.Labels)
+	w = BuiltinDictDictionaryFieldStringWrite(w, item.Labels)
 	w = basictl.LongWrite(w, item.ScrapeInterval)
 	w = basictl.LongWrite(w, item.ScrapeTimeout)
 	w = basictl.LongWrite(w, item.BodySizeLimit)
@@ -404,7 +404,7 @@ func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 				if propLabelsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Labels); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Labels); err != nil {
 					return err
 				}
 				propLabelsPresented = true
@@ -511,7 +511,7 @@ func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 		item.Url = ""
 	}
 	if !propLabelsPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.Labels)
+		BuiltinDictDictionaryFieldStringReset(item.Labels)
 	}
 	if !propScrapeIntervalPresented {
 		item.ScrapeInterval = 0
@@ -593,7 +593,7 @@ func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Labels)
+	w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.Labels)
 	if (len(item.Labels) != 0) == false {
 		w = w[:backupIndexLabels]
 	}
@@ -663,7 +663,7 @@ func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 }
 
 func (item *StatshousePromTarget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.promTarget"))
 }
 
 func (item *StatshousePromTarget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -745,7 +745,7 @@ func (item *StatshousePromTargetBytes) FillRandom(rg *basictl.RandGenerator, nat
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
 	item.JobName = basictl.RandomStringBytes(rg)
 	item.Url = basictl.RandomStringBytes(rg)
-	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, &item.Labels)
+	BuiltinDictDictionaryFieldStringBytesFillRandom(rg, &item.Labels)
 	item.ScrapeInterval = basictl.RandomLong(rg)
 	item.ScrapeTimeout = basictl.RandomLong(rg)
 	item.BodySizeLimit = basictl.RandomLong(rg)
@@ -770,7 +770,7 @@ func (item *StatshousePromTargetBytes) Read(w []byte, nat_fields_mask_arg uint32
 	if w, err = basictl.StringReadBytes(w, &item.Url); err != nil {
 		return w, err
 	}
-	if w, err = BuiltinVectorDictionaryFieldStringBytesRead(w, &item.Labels); err != nil {
+	if w, err = BuiltinDictDictionaryFieldStringBytesRead(w, &item.Labels); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.ScrapeInterval); err != nil {
@@ -812,7 +812,7 @@ func (item *StatshousePromTargetBytes) Write(w []byte, nat_fields_mask_arg uint3
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.JobName)
 	w = basictl.StringWriteBytes(w, item.Url)
-	w = BuiltinVectorDictionaryFieldStringBytesWrite(w, item.Labels)
+	w = BuiltinDictDictionaryFieldStringBytesWrite(w, item.Labels)
 	w = basictl.LongWrite(w, item.ScrapeInterval)
 	w = basictl.LongWrite(w, item.ScrapeTimeout)
 	w = basictl.LongWrite(w, item.BodySizeLimit)
@@ -897,7 +897,7 @@ func (item *StatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				if propLabelsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
-				if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Labels); err != nil {
+				if err := BuiltinDictDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Labels); err != nil {
 					return err
 				}
 				propLabelsPresented = true
@@ -1086,7 +1086,7 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Labels)
+	w = BuiltinDictDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Labels)
 	if (len(item.Labels) != 0) == false {
 		w = w[:backupIndexLabels]
 	}
@@ -1156,7 +1156,7 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 }
 
 func (item *StatshousePromTargetBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.promTarget"))
 }
 
 func (item *StatshousePromTargetBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

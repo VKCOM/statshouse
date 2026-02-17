@@ -580,7 +580,7 @@ func (item *MetadataEvent) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.event"))
 }
 
 func (item *MetadataEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -988,7 +988,7 @@ func (item *MetadataEventBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataEventBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.event"))
 }
 
 func (item *MetadataEventBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

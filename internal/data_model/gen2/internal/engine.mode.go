@@ -198,7 +198,7 @@ func (item *EngineReadWriteMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w 
 }
 
 func (item *EngineReadWriteMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.mode"))
 }
 
 func (item *EngineReadWriteMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

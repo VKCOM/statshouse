@@ -107,7 +107,7 @@ func (item *EngineAlreadyInMasterMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineAlreadyInMasterMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.alreadyInMasterMode"))
 }
 
 func (item *EngineAlreadyInMasterMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -208,7 +208,7 @@ func (item *EngineAlreadyInReplicaMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineAlreadyInReplicaMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.alreadyInReplicaMode"))
 }
 
 func (item *EngineAlreadyInReplicaMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -343,7 +343,7 @@ func (item *EngineFailedToSwitchMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineFailedToSwitchMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.failedToSwitchMode"))
 }
 
 func (item *EngineFailedToSwitchMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -527,7 +527,7 @@ func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) []byte {
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.SwitchMasterReplicaModeResult"))
 }
 
 func (item *EngineSwitchMasterReplicaModeResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
@@ -810,7 +810,7 @@ func (item *EngineSwitchedToMasterMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineSwitchedToMasterMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.switchedToMasterMode"))
 }
 
 func (item *EngineSwitchedToMasterMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -947,7 +947,7 @@ func (item *EngineSwitchedToMasterModeForcefully) UnmarshalJSON(b []byte) error 
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.switchedToMasterModeForcefully"))
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -1048,7 +1048,7 @@ func (item *EngineSwitchedToReplicaMode) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineSwitchedToReplicaMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.switchedToReplicaMode"))
 }
 
 func (item *EngineSwitchedToReplicaMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

@@ -141,7 +141,7 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(tctx *basictl.JSONWriteC
 }
 
 func (item *MetadataGetJournalResponsenew) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew"))
 }
 
 func (item *MetadataGetJournalResponsenew) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -276,7 +276,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(tctx *basictl.JSONW
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew"))
 }
 
 func (item *MetadataGetJournalResponsenewBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

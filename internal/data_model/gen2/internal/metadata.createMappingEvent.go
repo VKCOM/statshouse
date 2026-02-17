@@ -298,7 +298,7 @@ func (item *MetadataCreateMappingEvent) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataCreateMappingEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.createMappingEvent"))
 }
 
 func (item *MetadataCreateMappingEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
