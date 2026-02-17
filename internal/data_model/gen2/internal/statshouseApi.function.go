@@ -52,8 +52,11 @@ func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFuncti
 }
 
 func BuiltinVectorStatshouseApiFunctionCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFunction) ([]int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
 	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
@@ -73,8 +76,12 @@ func BuiltinVectorStatshouseApiFunctionCalculateLayout(sizes []int, optimizeEmpt
 }
 
 func BuiltinVectorStatshouseApiFunctionInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]StatshouseApiFunction) ([]byte, []int, int) {
-	if len(*vec) == 0 && optimizeEmpty {
-		return w, sizes, 0
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
 	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
@@ -609,10 +616,10 @@ func (item *StatshouseApiFunction) WriteBoxed(w []byte) []byte {
 }
 
 func (item *StatshouseApiFunction) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
-	if item.index == 0 && optimizeEmpty {
-		return sizes, 0
-	}
 	if item.index == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
 		return sizes, 1
 	}
 	bodySize := 1 + basictl.TL2CalculateSize(item.index)
@@ -620,10 +627,10 @@ func (item *StatshouseApiFunction) CalculateLayout(sizes []int, optimizeEmpty bo
 }
 
 func (item *StatshouseApiFunction) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
-	if item.index == 0 && optimizeEmpty {
-		return w, sizes, 0
-	}
 	if item.index == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
 		w = append(w, 0)
 		return w, sizes, 1
 	}

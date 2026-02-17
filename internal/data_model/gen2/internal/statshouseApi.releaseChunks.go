@@ -228,10 +228,9 @@ func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSON(tctx *basictl.
 	return r, w, err
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiReleaseChunksResponse
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -253,6 +252,24 @@ func (item *StatshouseApiReleaseChunks) ReadResultTL2WriteResult(tctx *basictl.T
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseApiReleaseChunks) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiReleaseChunksResponse
+	if r, err = item.ReadResultTL2(r, tctx, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(jctx, w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiReleaseChunksResponse
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.WriteResultTL2(w, tctx, ret)
 	return r, w, err
 }
 

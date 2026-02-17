@@ -20,17 +20,17 @@ func (DictionaryEngineMetafilesStatBoxed) TLTag() uint32  { return 0x1f4c618f }
 
 func (item *DictionaryEngineMetafilesStatBoxed) Reset() {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
+	BuiltinDictDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) FillRandom(rg *basictl.RandGenerator) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, ptr)
+	BuiltinDictDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
+	return BuiltinDictDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -39,7 +39,7 @@ func (item *DictionaryEngineMetafilesStatBoxed) WriteGeneral(w []byte) (_ []byte
 
 func (item *DictionaryEngineMetafilesStatBoxed) Write(w []byte) []byte {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, *ptr)
+	return BuiltinDictDictionaryFieldEngineMetafilesStatBoxedWrite(w, *ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -68,7 +68,7 @@ func (item *DictionaryEngineMetafilesStatBoxed) ReadJSON(legacyTypeNames bool, i
 
 func (item *DictionaryEngineMetafilesStatBoxed) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := BuiltinDictDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
@@ -86,7 +86,7 @@ func (item *DictionaryEngineMetafilesStatBoxed) WriteJSON(w []byte) []byte {
 
 func (item *DictionaryEngineMetafilesStatBoxed) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, *ptr)
+	w = BuiltinDictDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *DictionaryEngineMetafilesStatBoxed) MarshalJSON() ([]byte, error) {
@@ -101,7 +101,7 @@ func (item *DictionaryEngineMetafilesStatBoxed) UnmarshalJSON(b []byte) error {
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("dictionary"))
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) InternalReadTL2(r []byte) (_ []byte, err error) {
@@ -119,17 +119,17 @@ func (DictionaryString) TLTag() uint32  { return 0x1f4c618f }
 
 func (item *DictionaryString) Reset() {
 	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringReset(*ptr)
+	BuiltinDictDictionaryFieldStringReset(*ptr)
 }
 
 func (item *DictionaryString) FillRandom(rg *basictl.RandGenerator) {
 	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+	BuiltinDictDictionaryFieldStringFillRandom(rg, ptr)
 }
 
 func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
+	return BuiltinDictDictionaryFieldStringRead(w, ptr)
 }
 
 func (item *DictionaryString) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -138,7 +138,7 @@ func (item *DictionaryString) WriteGeneral(w []byte) (_ []byte, err error) {
 
 func (item *DictionaryString) Write(w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
+	return BuiltinDictDictionaryFieldStringWrite(w, *ptr)
 }
 
 func (item *DictionaryString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -167,7 +167,7 @@ func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 
 func (item *DictionaryString) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
@@ -185,7 +185,7 @@ func (item *DictionaryString) WriteJSON(w []byte) []byte {
 
 func (item *DictionaryString) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
+	w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *DictionaryString) MarshalJSON() ([]byte, error) {
@@ -207,9 +207,9 @@ func (item *DictionaryString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) [
 	ptr := (*map[string]string)(item)
 	var sz int
 	var currentSize int
-	sizes, sz = BuiltinVectorDictionaryFieldStringCalculateLayout(sizes, false, ptr)
+	sizes, sz = BuiltinDictDictionaryFieldStringCalculateLayout(sizes, false, ptr)
 	currentSize += sz
-	w, sizes, _ = BuiltinVectorDictionaryFieldStringInternalWriteTL2(w, sizes, false, ptr)
+	w, sizes, _ = BuiltinDictDictionaryFieldStringInternalWriteTL2(w, sizes, false, ptr)
 
 	Unused(ptr)
 	Unused(currentSize)
@@ -222,7 +222,7 @@ func (item *DictionaryString) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) [
 
 func (item *DictionaryString) InternalReadTL2(r []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if r, err = BuiltinVectorDictionaryFieldStringInternalReadTL2(r, ptr); err != nil {
+	if r, err = BuiltinDictDictionaryFieldStringInternalReadTL2(r, ptr); err != nil {
 		return r, err
 	}
 	return r, nil
@@ -244,12 +244,12 @@ func (item *DictionaryStringBytes) Reset() {
 
 func (item *DictionaryStringBytes) FillRandom(rg *basictl.RandGenerator) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, ptr)
+	BuiltinDictDictionaryFieldStringBytesFillRandom(rg, ptr)
 }
 
 func (item *DictionaryStringBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return BuiltinVectorDictionaryFieldStringBytesRead(w, ptr)
+	return BuiltinDictDictionaryFieldStringBytesRead(w, ptr)
 }
 
 func (item *DictionaryStringBytes) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -258,7 +258,7 @@ func (item *DictionaryStringBytes) WriteGeneral(w []byte) (_ []byte, err error) 
 
 func (item *DictionaryStringBytes) Write(w []byte) []byte {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return BuiltinVectorDictionaryFieldStringBytesWrite(w, *ptr)
+	return BuiltinDictDictionaryFieldStringBytesWrite(w, *ptr)
 }
 
 func (item *DictionaryStringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -287,7 +287,7 @@ func (item *DictionaryStringBytes) ReadJSON(legacyTypeNames bool, in *basictl.Js
 
 func (item *DictionaryStringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := BuiltinDictDictionaryFieldStringBytesReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
@@ -305,7 +305,7 @@ func (item *DictionaryStringBytes) WriteJSON(w []byte) []byte {
 
 func (item *DictionaryStringBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, *ptr)
+	w = BuiltinDictDictionaryFieldStringBytesWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *DictionaryStringBytes) MarshalJSON() ([]byte, error) {
@@ -327,9 +327,9 @@ func (item *DictionaryStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteConte
 	ptr := (*[]DictionaryFieldStringBytes)(item)
 	var sz int
 	var currentSize int
-	sizes, sz = BuiltinVectorDictionaryFieldStringBytesCalculateLayout(sizes, false, ptr)
+	sizes, sz = BuiltinDictDictionaryFieldStringBytesCalculateLayout(sizes, false, ptr)
 	currentSize += sz
-	w, sizes, _ = BuiltinVectorDictionaryFieldStringBytesInternalWriteTL2(w, sizes, false, ptr)
+	w, sizes, _ = BuiltinDictDictionaryFieldStringBytesInternalWriteTL2(w, sizes, false, ptr)
 
 	Unused(ptr)
 	Unused(currentSize)
@@ -342,7 +342,7 @@ func (item *DictionaryStringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteConte
 
 func (item *DictionaryStringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if r, err = BuiltinVectorDictionaryFieldStringBytesInternalReadTL2(r, ptr); err != nil {
+	if r, err = BuiltinDictDictionaryFieldStringBytesInternalReadTL2(r, ptr); err != nil {
 		return r, err
 	}
 	return r, nil

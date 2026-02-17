@@ -101,7 +101,7 @@ func (item *MetadataResetFloodResponse) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataResetFloodResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.resetFloodResponse"))
 }
 
 func (item *MetadataResetFloodResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

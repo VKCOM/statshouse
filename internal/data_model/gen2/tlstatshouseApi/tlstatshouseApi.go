@@ -17,30 +17,30 @@ import (
 )
 
 type (
-	Filter                        = internal.StatshouseApiFilter
-	Flag                          = internal.StatshouseApiFlag
-	Function                      = internal.StatshouseApiFunction
-	GetChunk                      = internal.StatshouseApiGetChunk
-	GetChunkResponse              = internal.StatshouseApiGetChunkResponse
-	GetMapping                    = internal.StatshouseApiGetMapping
-	GetMappingResponse            = internal.StatshouseApiGetMappingResponse
-	GetQuery                      = internal.StatshouseApiGetQuery
-	GetQueryPoint                 = internal.StatshouseApiGetQueryPoint
-	GetQueryPointResponse         = internal.StatshouseApiGetQueryPointResponse
-	GetQueryResponse              = internal.StatshouseApiGetQueryResponse
-	PointMeta                     = internal.StatshouseApiPointMeta
-	Query                         = internal.StatshouseApiQuery
-	QueryPoint                    = internal.StatshouseApiQueryPoint
-	ReleaseChunks                 = internal.StatshouseApiReleaseChunks
-	ReleaseChunksResponse         = internal.StatshouseApiReleaseChunksResponse
-	Series                        = internal.StatshouseApiSeries
-	SeriesMeta                    = internal.StatshouseApiSeriesMeta
-	TagValue                      = internal.StatshouseApiTagValue
-	VectorStatshouseApiFilter     = internal.VectorStatshouseApiFilter
-	VectorStatshouseApiFunction   = internal.VectorStatshouseApiFunction
-	VectorStatshouseApiPointMeta  = internal.VectorStatshouseApiPointMeta
-	VectorStatshouseApiSeriesMeta = internal.VectorStatshouseApiSeriesMeta
-	VectorStatshouseApiTagValue   = internal.VectorStatshouseApiTagValue
+	Filter                = internal.StatshouseApiFilter
+	Flag                  = internal.StatshouseApiFlag
+	Function              = internal.StatshouseApiFunction
+	GetChunk              = internal.StatshouseApiGetChunk
+	GetChunkResponse      = internal.StatshouseApiGetChunkResponse
+	GetMapping            = internal.StatshouseApiGetMapping
+	GetMappingResponse    = internal.StatshouseApiGetMappingResponse
+	GetQuery              = internal.StatshouseApiGetQuery
+	GetQueryPoint         = internal.StatshouseApiGetQueryPoint
+	GetQueryPointResponse = internal.StatshouseApiGetQueryPointResponse
+	GetQueryResponse      = internal.StatshouseApiGetQueryResponse
+	PointMeta             = internal.StatshouseApiPointMeta
+	Query                 = internal.StatshouseApiQuery
+	QueryPoint            = internal.StatshouseApiQueryPoint
+	ReleaseChunks         = internal.StatshouseApiReleaseChunks
+	ReleaseChunksResponse = internal.StatshouseApiReleaseChunksResponse
+	Series                = internal.StatshouseApiSeries
+	SeriesMeta            = internal.StatshouseApiSeriesMeta
+	TagValue              = internal.StatshouseApiTagValue
+	VectorFilter          = internal.VectorStatshouseApiFilter
+	VectorFunction        = internal.VectorStatshouseApiFunction
+	VectorPointMeta       = internal.VectorStatshouseApiPointMeta
+	VectorSeriesMeta      = internal.VectorStatshouseApiSeriesMeta
+	VectorTagValue        = internal.VectorStatshouseApiTagValue
 )
 
 func FlagAuto() Flag                   { return internal.StatshouseApiFlagAuto() }

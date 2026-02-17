@@ -53,18 +53,18 @@ func (item *EngineGetExpectedMetafilesStats) ReadResult(w []byte, ret *map[strin
 	if w, err = basictl.NatReadExactTag(w, 0x1f4c618f); err != nil {
 		return w, err
 	}
-	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ret)
+	return BuiltinDictDictionaryFieldEngineMetafilesStatBoxedRead(w, ret)
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteResult(w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0x1f4c618f)
-	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, ret)
+	w = BuiltinDictDictionaryFieldEngineMetafilesStatBoxedWrite(w, ret)
 	return w, nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *map[string]EngineMetafilesStat) error {
 	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ret); err != nil {
+	if err := BuiltinDictDictionaryFieldEngineMetafilesStatBoxedReadJSONGeneral(tctx, in, ret); err != nil {
 		return err
 	}
 	return nil
@@ -76,13 +76,13 @@ func (item *EngineGetExpectedMetafilesStats) WriteResultJSON(w []byte, ret map[s
 }
 
 func (item *EngineGetExpectedMetafilesStats) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	w = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, ret)
+	w = BuiltinDictDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(tctx, w, ret)
 	return w, nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret map[string]EngineMetafilesStat
-	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, &ret)
+	BuiltinDictDictionaryFieldEngineMetafilesStatBoxedFillRandom(rg, &ret)
 	return item.WriteResult(w, ret)
 }
 
@@ -95,10 +95,9 @@ func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(tctx *bas
 	return r, w, err
 }
 
-func (item *EngineGetExpectedMetafilesStats) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineGetExpectedMetafilesStats) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret map[string]EngineMetafilesStat
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -110,6 +109,14 @@ func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultTL2(tctx *basi
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getExpectedMetafilesStats")
+}
+
+func (item *EngineGetExpectedMetafilesStats) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getExpectedMetafilesStats")
+}
+
+func (item *EngineGetExpectedMetafilesStats) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.getExpectedMetafilesStats")
 }
 
@@ -165,7 +172,7 @@ func (item *EngineGetExpectedMetafilesStats) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.getExpectedMetafilesStats"))
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

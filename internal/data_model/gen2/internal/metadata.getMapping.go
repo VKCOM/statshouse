@@ -126,10 +126,9 @@ func (item *MetadataGetMapping) ReadResultWriteResultJSON(tctx *basictl.JSONWrit
 	return r, w, err
 }
 
-func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetMappingResponse
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -141,6 +140,14 @@ func (item *MetadataGetMapping) ReadResultWriteResultTL2(tctx *basictl.TL2WriteC
 }
 
 func (item *MetadataGetMapping) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.getMapping")
+}
+
+func (item *MetadataGetMapping) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("metadata.getMapping")
+}
+
+func (item *MetadataGetMapping) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.getMapping")
 }
 
@@ -283,7 +290,7 @@ func (item *MetadataGetMapping) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataGetMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getMapping"))
 }
 
 func (item *MetadataGetMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

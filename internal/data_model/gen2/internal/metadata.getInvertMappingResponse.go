@@ -105,7 +105,7 @@ func (item *MetadataGetInvertMappingResponse) WriteBoxed(w []byte, nat_field_mas
 }
 
 func (item *MetadataGetInvertMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.GetInvertMappingResponse"))
 }
 
 func (item *MetadataGetInvertMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
@@ -296,7 +296,7 @@ func (item *MetadataGetInvertMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWr
 }
 
 func (item *MetadataGetInvertMappingResponse0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getInvertMappingResponse"))
 }
 
 func (item *MetadataGetInvertMappingResponse0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -382,7 +382,7 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONOpt(tctx *bas
 }
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getInvertMappingResponseKeyNotExists"))
 }
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

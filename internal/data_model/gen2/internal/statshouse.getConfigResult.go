@@ -223,7 +223,7 @@ func (item *StatshouseGetConfigResult) WriteJSONOpt(tctx *basictl.JSONWriteConte
 }
 
 func (item *StatshouseGetConfigResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult"))
 }
 
 func (item *StatshouseGetConfigResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -440,7 +440,7 @@ func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(tctx *basictl.JSONWrite
 }
 
 func (item *StatshouseGetConfigResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult"))
 }
 
 func (item *StatshouseGetConfigResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

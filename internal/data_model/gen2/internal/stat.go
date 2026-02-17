@@ -20,17 +20,17 @@ func (Stat) TLTag() uint32  { return 0x9d56e6b2 }
 
 func (item *Stat) Reset() {
 	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringReset(*ptr)
+	BuiltinDictDictionaryFieldStringReset(*ptr)
 }
 
 func (item *Stat) FillRandom(rg *basictl.RandGenerator) {
 	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+	BuiltinDictDictionaryFieldStringFillRandom(rg, ptr)
 }
 
 func (item *Stat) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
+	return BuiltinDictDictionaryFieldStringRead(w, ptr)
 }
 
 func (item *Stat) WriteGeneral(w []byte) (_ []byte, err error) {
@@ -39,7 +39,7 @@ func (item *Stat) WriteGeneral(w []byte) (_ []byte, err error) {
 
 func (item *Stat) Write(w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
+	return BuiltinDictDictionaryFieldStringWrite(w, *ptr)
 }
 
 func (item *Stat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -68,7 +68,7 @@ func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 
 func (item *Stat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
 		return err
 	}
 	return nil
@@ -86,7 +86,7 @@ func (item *Stat) WriteJSON(w []byte) []byte {
 
 func (item *Stat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
 	ptr := (*map[string]string)(item)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
+	w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
 	return w
 }
 func (item *Stat) MarshalJSON() ([]byte, error) {
@@ -101,7 +101,7 @@ func (item *Stat) UnmarshalJSON(b []byte) error {
 }
 
 func (item *Stat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("stat"))
 }
 
 func (item *Stat) InternalReadTL2(r []byte) (_ []byte, err error) {

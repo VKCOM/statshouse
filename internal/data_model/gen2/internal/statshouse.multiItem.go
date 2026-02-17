@@ -558,7 +558,7 @@ func (item *StatshouseMultiItem) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMultiItem) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.multiItem"))
 }
 
 func (item *StatshouseMultiItem) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -946,7 +946,7 @@ func (item *StatshouseMultiItemBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMultiItemBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.multiItem"))
 }
 
 func (item *StatshouseMultiItemBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

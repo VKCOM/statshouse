@@ -38,7 +38,7 @@ func (item *EngineHttpQuery) SetArgs(v map[string]string) {
 	item.FieldsMask |= 1 << 1
 }
 func (item *EngineHttpQuery) ClearArgs() {
-	BuiltinVectorDictionaryFieldStringReset(item.Args)
+	BuiltinDictDictionaryFieldStringReset(item.Args)
 	item.FieldsMask &^= 1 << 1
 }
 func (item *EngineHttpQuery) IsSetArgs() bool { return item.FieldsMask&(1<<1) != 0 }
@@ -48,7 +48,7 @@ func (item *EngineHttpQuery) SetHeaders(v map[string]string) {
 	item.FieldsMask |= 1 << 2
 }
 func (item *EngineHttpQuery) ClearHeaders() {
-	BuiltinVectorDictionaryFieldStringReset(item.Headers)
+	BuiltinDictDictionaryFieldStringReset(item.Headers)
 	item.FieldsMask &^= 1 << 2
 }
 func (item *EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) != 0 }
@@ -56,8 +56,8 @@ func (item *EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2)
 func (item *EngineHttpQuery) Reset() {
 	item.FieldsMask = 0
 	item.Uri = ""
-	BuiltinVectorDictionaryFieldStringReset(item.Args)
-	BuiltinVectorDictionaryFieldStringReset(item.Headers)
+	BuiltinDictDictionaryFieldStringReset(item.Args)
+	BuiltinDictDictionaryFieldStringReset(item.Headers)
 }
 
 func (item *EngineHttpQuery) FillRandom(rg *basictl.RandGenerator) {
@@ -68,14 +68,14 @@ func (item *EngineHttpQuery) FillRandom(rg *basictl.RandGenerator) {
 		item.Uri = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Args)
+		BuiltinDictDictionaryFieldStringFillRandom(rg, &item.Args)
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Args)
+		BuiltinDictDictionaryFieldStringReset(item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Headers)
+		BuiltinDictDictionaryFieldStringFillRandom(rg, &item.Headers)
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Headers)
+		BuiltinDictDictionaryFieldStringReset(item.Headers)
 	}
 }
 
@@ -91,18 +91,18 @@ func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
 		item.Uri = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Args); err != nil {
+		if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.Args); err != nil {
 			return w, err
 		}
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Args)
+		BuiltinDictDictionaryFieldStringReset(item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Headers); err != nil {
+		if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.Headers); err != nil {
 			return w, err
 		}
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Headers)
+		BuiltinDictDictionaryFieldStringReset(item.Headers)
 	}
 	return w, nil
 }
@@ -117,10 +117,10 @@ func (item *EngineHttpQuery) Write(w []byte) []byte {
 		w = basictl.StringWrite(w, item.Uri)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Args)
+		w = BuiltinDictDictionaryFieldStringWrite(w, item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		w = BuiltinVectorDictionaryFieldStringWrite(w, item.Headers)
+		w = BuiltinDictDictionaryFieldStringWrite(w, item.Headers)
 	}
 	return w
 }
@@ -185,7 +185,7 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 				if propArgsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "args")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Args); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Args); err != nil {
 					return err
 				}
 				propArgsPresented = true
@@ -193,7 +193,7 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 				if propHeadersPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "headers")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Headers); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Headers); err != nil {
 					return err
 				}
 				propHeadersPresented = true
@@ -214,10 +214,10 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 		item.Uri = ""
 	}
 	if !propArgsPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.Args)
+		BuiltinDictDictionaryFieldStringReset(item.Args)
 	}
 	if !propHeadersPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.Headers)
+		BuiltinDictDictionaryFieldStringReset(item.Headers)
 	}
 	if propUriPresented {
 		item.FieldsMask |= 1 << 0
@@ -257,12 +257,12 @@ func (item *EngineHttpQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []by
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"args":`...)
-		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Args)
+		w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"headers":`...)
-		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Headers)
+		w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.Headers)
 	}
 	return append(w, '}')
 }
@@ -279,7 +279,7 @@ func (item *EngineHttpQuery) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineHttpQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.httpQuery"))
 }
 
 func (item *EngineHttpQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

@@ -246,7 +246,7 @@ func (item *StatshouseMetric) IsSetHistogram() bool { return item.FieldsMask&(1<
 func (item *StatshouseMetric) Reset() {
 	item.FieldsMask = 0
 	item.Name = ""
-	BuiltinVectorDictionaryFieldStringReset(item.Tags)
+	BuiltinDictDictionaryFieldStringReset(item.Tags)
 	item.Counter = 0
 	item.Ts = 0
 	item.Value = item.Value[:0]
@@ -257,7 +257,7 @@ func (item *StatshouseMetric) Reset() {
 func (item *StatshouseMetric) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
 	item.Name = basictl.RandomString(rg)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.Tags)
+	BuiltinDictDictionaryFieldStringFillRandom(rg, &item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
 		item.Counter = basictl.RandomDouble(rg)
 	} else {
@@ -292,7 +292,7 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Name); err != nil {
 		return w, err
 	}
-	if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Tags); err != nil {
+	if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.Tags); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
@@ -340,7 +340,7 @@ func (item *StatshouseMetric) WriteGeneral(w []byte) (_ []byte, err error) {
 func (item *StatshouseMetric) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.Name)
-	w = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringWrite(w, item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.Counter)
 	}
@@ -423,7 +423,7 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -484,7 +484,7 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 		item.Name = ""
 	}
 	if !propTagsPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.Tags)
+		BuiltinDictDictionaryFieldStringReset(item.Tags)
 	}
 	if !propCounterPresented {
 		item.Counter = 0
@@ -547,7 +547,7 @@ func (item *StatshouseMetric) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []b
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
@@ -591,7 +591,7 @@ func (item *StatshouseMetric) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMetric) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.metric"))
 }
 
 func (item *StatshouseMetric) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -676,7 +676,7 @@ func (item *StatshouseMetricBytes) Reset() {
 func (item *StatshouseMetricBytes) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
 	item.Name = basictl.RandomStringBytes(rg)
-	BuiltinVectorDictionaryFieldStringBytesFillRandom(rg, &item.Tags)
+	BuiltinDictDictionaryFieldStringBytesFillRandom(rg, &item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
 		item.Counter = basictl.RandomDouble(rg)
 	} else {
@@ -711,7 +711,7 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringReadBytes(w, &item.Name); err != nil {
 		return w, err
 	}
-	if w, err = BuiltinVectorDictionaryFieldStringBytesRead(w, &item.Tags); err != nil {
+	if w, err = BuiltinDictDictionaryFieldStringBytesRead(w, &item.Tags); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
@@ -759,7 +759,7 @@ func (item *StatshouseMetricBytes) WriteGeneral(w []byte) (_ []byte, err error) 
 func (item *StatshouseMetricBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.Name)
-	w = BuiltinVectorDictionaryFieldStringBytesWrite(w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringBytesWrite(w, item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.Counter)
 	}
@@ -842,7 +842,7 @@ func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext
 				if propTagsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "tags")
 				}
-				if err := BuiltinVectorDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Tags); err != nil {
+				if err := BuiltinDictDictionaryFieldStringBytesReadJSONGeneral(tctx, in, &item.Tags); err != nil {
 					return err
 				}
 				propTagsPresented = true
@@ -966,7 +966,7 @@ func (item *StatshouseMetricBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Tags)
+	w = BuiltinDictDictionaryFieldStringBytesWriteJSONOpt(tctx, w, item.Tags)
 	if (len(item.Tags) != 0) == false {
 		w = w[:backupIndexTags]
 	}
@@ -1010,7 +1010,7 @@ func (item *StatshouseMetricBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMetricBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.metric"))
 }
 
 func (item *StatshouseMetricBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

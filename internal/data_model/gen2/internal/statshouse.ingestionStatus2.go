@@ -270,7 +270,7 @@ func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseIngestionStatus2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.ingestionStatus2"))
 }
 
 func (item *StatshouseIngestionStatus2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

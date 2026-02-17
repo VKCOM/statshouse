@@ -184,7 +184,7 @@ func (item *TupleDouble2) UnmarshalJSON(b []byte) error {
 }
 
 func (item *TupleDouble2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("tuple"))
 }
 
 func (item *TupleDouble2) InternalReadTL2(r []byte) (_ []byte, err error) {

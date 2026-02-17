@@ -95,10 +95,9 @@ func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(tctx *basictl.JSO
 	return r, w, err
 }
 
-func (item *EngineGetBinlogPrefixes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineGetBinlogPrefixes) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []EngineBinlogPrefix
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -110,6 +109,14 @@ func (item *EngineGetBinlogPrefixes) ReadResultWriteResultTL2(tctx *basictl.TL2W
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getBinlogPrefixes")
+}
+
+func (item *EngineGetBinlogPrefixes) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("engine.getBinlogPrefixes")
+}
+
+func (item *EngineGetBinlogPrefixes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.getBinlogPrefixes")
 }
 
@@ -165,7 +172,7 @@ func (item *EngineGetBinlogPrefixes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineGetBinlogPrefixes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.getBinlogPrefixes"))
 }
 
 func (item *EngineGetBinlogPrefixes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

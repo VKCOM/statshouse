@@ -127,7 +127,7 @@ func (item *EngineQueryResult) WriteBoxed(w []byte) []byte {
 }
 
 func (item *EngineQueryResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.QueryResult"))
 }
 
 func (item *EngineQueryResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
@@ -387,7 +387,7 @@ func (item *EngineQueryResult0) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineQueryResult0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.queryResult"))
 }
 
 func (item *EngineQueryResult0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -488,7 +488,7 @@ func (item *EngineQueryResultAio) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineQueryResultAio) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.queryResultAio"))
 }
 
 func (item *EngineQueryResultAio) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -649,7 +649,7 @@ func (item *EngineQueryResultError) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineQueryResultError) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.queryResultError"))
 }
 
 func (item *EngineQueryResultError) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

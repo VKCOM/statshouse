@@ -48,15 +48,15 @@ func TL2ParseSize(r []byte) ([]byte, int, error) {
 	b0 := r[0]
 
 	switch {
-	case b0 < bigStringMarker:
+	case b0 < mediumStringMarker:
 		l := int(b0)
 		r = r[1:]
 		return r, l, nil
-	case b0 == bigStringMarker:
+	case b0 == mediumStringMarker:
 		if len(r) < 3 {
 			return r, 0, io.ErrUnexpectedEOF
 		}
-		l := bigStringMarker + int(binary.LittleEndian.Uint16(r[1:]))
+		l := mediumStringMarker + int(binary.LittleEndian.Uint16(r[1:]))
 		r = r[3:]
 		return r, l, nil
 	default: // hugeStringMarker
@@ -65,7 +65,7 @@ func TL2ParseSize(r []byte) ([]byte, int, error) {
 		}
 		l64 := binary.LittleEndian.Uint64(r[1:])
 		if l64 > math.MaxInt {
-			return r, 0, fmt.Errorf("string length cannot be represented on 32-bit platform: %d", l64)
+			return r, 0, fmt.Errorf("string length cannot be represented as an int: %d", l64)
 		}
 		// we allow non-canonical length to speed up some rare implementations
 		r = r[9:]
@@ -75,29 +75,40 @@ func TL2ParseSize(r []byte) ([]byte, int, error) {
 
 func TL2WriteSize(w []byte, l int) []byte {
 	switch {
-	case l < bigStringMarker:
+	case l < mediumStringMarker:
 		w = append(w, byte(l))
-	case l < bigStringMarker+(1<<16):
-		w = append(w, bigStringMarker)
-		w = binary.LittleEndian.AppendUint16(w, uint16(l-bigStringMarker))
+	case l < mediumStringMarker+(1<<16):
+		w = append(w, mediumStringMarker)
+		w = binary.LittleEndian.AppendUint16(w, uint16(l-mediumStringMarker))
 	default:
+		if int(uint64(l)) != l { // >64-bit platform
+			panic("TL2 string len does not fit huge format")
+		}
 		w = append(w, hugeStringMarker)
 		w = binary.LittleEndian.AppendUint64(w, uint64(l))
 	}
 	return w
 }
 
+func TL2ReadSize(r []byte, l *int) (_ []byte, err error) {
+	r, *l, err = TL2ParseSize(r)
+	return r, err
+}
+
 // w have at least 9 bytes length
 func TL2PutSize(w []byte, l int) int {
 	switch {
-	case l < bigStringMarker:
+	case l < mediumStringMarker:
 		w[0] = byte(l)
 		return 1
-	case l < bigStringMarker+(1<<16):
-		w[0] = bigStringMarker
-		binary.LittleEndian.PutUint16(w[1:], uint16(l-bigStringMarker))
+	case l < mediumStringMarker+(1<<16):
+		w[0] = mediumStringMarker
+		binary.LittleEndian.PutUint16(w[1:], uint16(l-mediumStringMarker))
 		return 3
 	default:
+		if int(uint64(l)) != l { // >64-bit platform
+			panic("TL2 string len does not fit huge format")
+		}
 		w[0] = hugeStringMarker
 		binary.LittleEndian.PutUint64(w[1:], uint64(l))
 		return 9
@@ -106,11 +117,14 @@ func TL2PutSize(w []byte, l int) int {
 
 func TL2CalculateSize(l int) int {
 	switch {
-	case l < bigStringMarker:
+	case l < mediumStringMarker:
 		return 1
-	case l < bigStringMarker+(1<<16):
+	case l < mediumStringMarker+(1<<16):
 		return 3
 	default:
+		if int(uint64(l)) != l { // >64-bit platform
+			panic("TL2 string len does not fit huge format")
+		}
 		return 9
 	}
 }
@@ -228,7 +242,7 @@ func SkipFixedSizedValue(r []byte, l int) (_ []byte, err error) {
 	return r, err
 }
 
-func VectorBoolContentWriteTL2(w []byte, vec []bool) []byte {
+func VectorBitContentWriteTL2(w []byte, vec []bool) []byte {
 	blockOffset := 0
 	for ; blockOffset+8 <= len(vec); blockOffset += 8 {
 		var block byte
@@ -251,7 +265,7 @@ func VectorBoolContentWriteTL2(w []byte, vec []bool) []byte {
 	return w
 }
 
-func VectorBoolContentReadTL2(w []byte, vec []bool) (_ []byte, err error) {
+func VectorBitContentReadTL2(w []byte, vec []bool) (_ []byte, err error) {
 	blockOffset := 0
 	for ; blockOffset+8 <= len(vec); blockOffset += 8 {
 		var block byte

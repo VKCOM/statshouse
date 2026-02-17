@@ -203,7 +203,7 @@ func (item *StatshouseGetTargetsResult) WriteJSONOpt(tctx *basictl.JSONWriteCont
 }
 
 func (item *StatshouseGetTargetsResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult"))
 }
 
 func (item *StatshouseGetTargetsResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -400,7 +400,7 @@ func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(tctx *basictl.JSONWrit
 }
 
 func (item *StatshouseGetTargetsResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult"))
 }
 
 func (item *StatshouseGetTargetsResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

@@ -137,7 +137,7 @@ func (item *StatshousePutTagMappingBootstrapResult) UnmarshalJSON(b []byte) erro
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.putTagMappingBootstrapResult"))
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

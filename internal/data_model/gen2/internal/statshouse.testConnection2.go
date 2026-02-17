@@ -130,10 +130,9 @@ func (item *StatshouseTestConnection2) ReadResultWriteResultJSON(tctx *basictl.J
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseTestConnection2) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -145,6 +144,14 @@ func (item *StatshouseTestConnection2) ReadResultWriteResultTL2(tctx *basictl.TL
 }
 
 func (item *StatshouseTestConnection2) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
+}
+
+func (item *StatshouseTestConnection2) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
+}
+
+func (item *StatshouseTestConnection2) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
@@ -304,7 +311,7 @@ func (item *StatshouseTestConnection2) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseTestConnection2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.testConnection2"))
 }
 
 func (item *StatshouseTestConnection2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -428,10 +435,9 @@ func (item *StatshouseTestConnection2Bytes) ReadResultWriteResultJSON(tctx *basi
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -443,6 +449,14 @@ func (item *StatshouseTestConnection2Bytes) ReadResultWriteResultTL2(tctx *basic
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadResultTL2WriteResult(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
+}
+
+func (item *StatshouseTestConnection2Bytes) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
+}
+
+func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
@@ -602,7 +616,7 @@ func (item *StatshouseTestConnection2Bytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseTestConnection2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.testConnection2"))
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

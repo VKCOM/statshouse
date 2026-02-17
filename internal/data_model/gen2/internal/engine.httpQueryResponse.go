@@ -59,7 +59,7 @@ func (item *EngineHttpQueryResponse) SetAdditionalHeaders(v map[string]string) {
 	item.FieldsMask |= 1 << 3
 }
 func (item *EngineHttpQueryResponse) ClearAdditionalHeaders() {
-	BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+	BuiltinDictDictionaryFieldStringReset(item.AdditionalHeaders)
 	item.FieldsMask &^= 1 << 3
 }
 func (item *EngineHttpQueryResponse) IsSetAdditionalHeaders() bool {
@@ -71,7 +71,7 @@ func (item *EngineHttpQueryResponse) Reset() {
 	item.ReturnCode = 0
 	item.Data = ""
 	item.ContentType = ""
-	BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+	BuiltinDictDictionaryFieldStringReset(item.AdditionalHeaders)
 }
 
 func (item *EngineHttpQueryResponse) FillRandom(rg *basictl.RandGenerator) {
@@ -92,9 +92,9 @@ func (item *EngineHttpQueryResponse) FillRandom(rg *basictl.RandGenerator) {
 		item.ContentType = ""
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		BuiltinVectorDictionaryFieldStringFillRandom(rg, &item.AdditionalHeaders)
+		BuiltinDictDictionaryFieldStringFillRandom(rg, &item.AdditionalHeaders)
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+		BuiltinDictDictionaryFieldStringReset(item.AdditionalHeaders)
 	}
 }
 
@@ -124,11 +124,11 @@ func (item *EngineHttpQueryResponse) Read(w []byte) (_ []byte, err error) {
 		item.ContentType = ""
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.AdditionalHeaders); err != nil {
+		if w, err = BuiltinDictDictionaryFieldStringRead(w, &item.AdditionalHeaders); err != nil {
 			return w, err
 		}
 	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+		BuiltinDictDictionaryFieldStringReset(item.AdditionalHeaders)
 	}
 	return w, nil
 }
@@ -149,7 +149,7 @@ func (item *EngineHttpQueryResponse) Write(w []byte) []byte {
 		w = basictl.StringWrite(w, item.ContentType)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		w = BuiltinVectorDictionaryFieldStringWrite(w, item.AdditionalHeaders)
+		w = BuiltinDictDictionaryFieldStringWrite(w, item.AdditionalHeaders)
 	}
 	return w
 }
@@ -231,7 +231,7 @@ func (item *EngineHttpQueryResponse) ReadJSONGeneral(tctx *basictl.JSONReadConte
 				if propAdditionalHeadersPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "additional_headers")
 				}
-				if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, &item.AdditionalHeaders); err != nil {
+				if err := BuiltinDictDictionaryFieldStringReadJSONGeneral(tctx, in, &item.AdditionalHeaders); err != nil {
 					return err
 				}
 				propAdditionalHeadersPresented = true
@@ -258,7 +258,7 @@ func (item *EngineHttpQueryResponse) ReadJSONGeneral(tctx *basictl.JSONReadConte
 		item.ContentType = ""
 	}
 	if !propAdditionalHeadersPresented {
-		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+		BuiltinDictDictionaryFieldStringReset(item.AdditionalHeaders)
 	}
 	if propReturnCodePresented {
 		item.FieldsMask |= 1 << 0
@@ -311,7 +311,7 @@ func (item *EngineHttpQueryResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"additional_headers":`...)
-		w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, item.AdditionalHeaders)
+		w = BuiltinDictDictionaryFieldStringWriteJSONOpt(tctx, w, item.AdditionalHeaders)
 	}
 	return append(w, '}')
 }
@@ -328,7 +328,7 @@ func (item *EngineHttpQueryResponse) UnmarshalJSON(b []byte) error {
 }
 
 func (item *EngineHttpQueryResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("engine.httpQueryResponse"))
 }
 
 func (item *EngineHttpQueryResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

@@ -148,7 +148,7 @@ func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint
 }
 
 func (item *MetadataGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.GetMappingResponse"))
 }
 
 func (item *MetadataGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
@@ -387,7 +387,7 @@ func (item *MetadataGetMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWriteCon
 }
 
 func (item *MetadataGetMappingResponse0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponse"))
 }
 
 func (item *MetadataGetMappingResponse0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -502,7 +502,7 @@ func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(tctx *basictl.JSONWr
 }
 
 func (item *MetadataGetMappingResponseCreated) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseCreated"))
 }
 
 func (item *MetadataGetMappingResponseCreated) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -588,7 +588,7 @@ func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(tctx *basict
 }
 
 func (item *MetadataGetMappingResponseFloodLimitError) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseFloodLimitError"))
 }
 
 func (item *MetadataGetMappingResponseFloodLimitError) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -674,7 +674,7 @@ func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(tctx *basictl.J
 }
 
 func (item *MetadataGetMappingResponseKeyNotExists) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseKeyNotExists"))
 }
 
 func (item *MetadataGetMappingResponseKeyNotExists) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

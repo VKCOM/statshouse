@@ -187,7 +187,7 @@ func (item *MetadataPutMappingEvent) UnmarshalJSON(b []byte) error {
 }
 
 func (item *MetadataPutMappingEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("metadata.putMappingEvent"))
 }
 
 func (item *MetadataPutMappingEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

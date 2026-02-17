@@ -327,7 +327,7 @@ func (item *StatshouseMapping) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.mapping"))
 }
 
 func (item *StatshouseMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -482,7 +482,7 @@ func (item *StatshouseMappingBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *StatshouseMappingBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(ErrorTL2SerializersNotGenerated("statshouse.mapping"))
 }
 
 func (item *StatshouseMappingBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

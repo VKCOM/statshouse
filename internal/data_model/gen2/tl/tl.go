@@ -12,26 +12,24 @@ import (
 )
 
 type (
-	BoolStat                         = internal.BoolStat
-	DictionaryFieldString            = internal.DictionaryFieldString
-	DictionaryFieldStringBytes       = internal.DictionaryFieldStringBytes
-	DictionaryString                 = internal.DictionaryString
-	DictionaryStringBytes            = internal.DictionaryStringBytes
-	Int                              = internal.Int
-	Stat                             = internal.Stat
-	String                           = internal.String
-	StringBytes                      = internal.StringBytes
-	True                             = internal.True
-	TupleDouble2                     = internal.TupleDouble2
-	VectorDictionaryFieldString      = internal.VectorDictionaryFieldString
-	VectorDictionaryFieldStringBytes = internal.VectorDictionaryFieldStringBytes
-	VectorDouble                     = internal.VectorDouble
-	VectorInt                        = internal.VectorInt
-	VectorLong                       = internal.VectorLong
-	VectorString                     = internal.VectorString
-	VectorStringBytes                = internal.VectorStringBytes
-	VectorTupleDouble2               = internal.VectorTupleDouble2
-	VectorVectorDouble               = internal.VectorVectorDouble
+	BoolStat                   = internal.BoolStat
+	DictionaryFieldString      = internal.DictionaryFieldString
+	DictionaryFieldStringBytes = internal.DictionaryFieldStringBytes
+	DictionaryString           = internal.DictionaryString
+	DictionaryStringBytes      = internal.DictionaryStringBytes
+	Int                        = internal.Int
+	Stat                       = internal.Stat
+	String                     = internal.String
+	StringBytes                = internal.StringBytes
+	True                       = internal.True
+	TupleDouble2               = internal.TupleDouble2
+	VectorDouble               = internal.VectorDouble
+	VectorInt                  = internal.VectorInt
+	VectorLong                 = internal.VectorLong
+	VectorString               = internal.VectorString
+	VectorStringBytes          = internal.VectorStringBytes
+	VectorTupleDouble2         = internal.VectorTupleDouble2
+	VectorVectorDouble         = internal.VectorVectorDouble
 )
 
 func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
