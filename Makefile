@@ -140,8 +140,8 @@ gen-yaml: ./internal/promql/parser/parse.y
 
 .PHONY: lint test check
 lint:
-	go run honnef.co/go/tools/cmd/staticcheck@latest -version
-	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+	go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 -version
+	go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...
 
 test:
 	CGO_LDFLAGS="-w" go test -race ./...
