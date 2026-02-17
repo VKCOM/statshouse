@@ -153,7 +153,7 @@ func stagingLevel(statsHouseEnv string) int {
 }
 
 // All shard aggregators must be on the same network
-func MakeAgent(network string, cacheDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
+func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGroups [][]string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface,
 	mappingsCache *pcache.MappingsCache,
 	journalFastHV func() (int64, string), journalCompactHV func() (int64, string),
 	logF func(format string, args ...interface{}),
@@ -162,7 +162,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, config Config, ho
 		return rpc.NewClient(
 			rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 			rpc.ClientWithCryptoKey(aesPwd),
-			rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+			rpc.ClientWithTrustedSubnetGroups(trustedSubnetGroups),
 			rpc.ClientWithLogf(logF))
 	}
 	rnd := rand.New()

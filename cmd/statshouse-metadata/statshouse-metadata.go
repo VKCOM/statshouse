@@ -27,6 +27,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metadata"
+	"github.com/VKCOM/statshouse/internal/trustedsubnets"
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
@@ -55,6 +56,8 @@ var argv struct {
 	stepSec      uint32
 	budgetBonus  int64
 	globalBudget int64
+
+	trustedSubnetGroupsFlag trustedsubnets.Flag
 
 	version    bool
 	help       bool
@@ -98,6 +101,7 @@ func parseArgs() {
 	pflag.Uint32Var(&argv.stepSec, "step-sec", metadata.StepSec, "every step-sec metric will receive budget-bonus mappings to budget")
 	pflag.Int64Var(&argv.budgetBonus, "budget-bonus", metadata.BudgetBonus, "every step-sec seconds metric will receive budget-bonus mappings to budget")
 	pflag.Int64Var(&argv.budgetBonus, "global-budget", metadata.GlobalBudget, "create mapping budget. After spent this budget meta will use step system")
+	pflag.Var(&argv.trustedSubnetGroupsFlag, "trusted-subnet-groups", "trusted subnet groups; format: group1,group1b;group2 (CIDR list, groups split by ';')")
 
 	pflag.Parse()
 }
@@ -336,7 +340,7 @@ func run() error {
 		rpc.ServerWithLogf(log.Printf),
 		// meta is accessible via RPC proxy, so needs some timeout for long poll contexts clean up
 		rpc.ServerWithDefaultResponseTimeout(5*time.Minute),
-		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups())),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
 		metrics.ServerWithMetrics,
 	)
