@@ -21,6 +21,7 @@ jobs:
       - uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false  # Go is already installed by setup-go
+          version: "v0.6.1"
 
   test:
     runs-on: ubuntu-latest
