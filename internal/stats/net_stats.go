@@ -198,7 +198,16 @@ func (c *NetStats) writeNetDev(nowUnix int64) error {
 	if err != nil {
 		return err
 	}
-	delete(dev, "lo")
+	if virtual, err := os.ReadDir("/sys/devices/virtual/net"); err != nil {
+		delete(dev, "lo")
+	} else {
+		// "lo" should be in that list
+		for _, entry := range virtual {
+			if name := entry.Name(); name != "" {
+				delete(dev, name)
+			}
+		}
+	}
 	new_ := dev.Total()
 	statTotal := calcNetDev(c.oldNetDevTotal, &new_)
 	if statTotal != nil {
