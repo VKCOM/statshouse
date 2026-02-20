@@ -165,6 +165,9 @@ func respondJSON(h *httpRequestHandler, resp interface{}, cache time.Duration, c
 	} else {
 		r.Data = resp
 	}
+	if h.announcement != "" {
+		w.Header().Set("X-Statshouse-Announcment", h.announcement)
+	}
 	start := time.Now()
 	var jw jwriter.Writer
 	r.MarshalEasyJSON(&jw)
