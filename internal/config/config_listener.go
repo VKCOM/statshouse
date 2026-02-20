@@ -19,29 +19,30 @@ type Config interface {
 type ConfigListener struct {
 	mx           sync.RWMutex
 	configMetric string
-	config       Config
+	initial      Config
 	changeCB     []func(config Config)
 }
 
-func NewConfigListener[a Config](configMetric string, config a) *ConfigListener {
+func NewConfigListener(configMetric string, config Config) *ConfigListener {
 	return &ConfigListener{
 		configMetric: configMetric,
-		config:       config,
+		initial:      config.Copy(), // in case user overwrites his config in callback
 	}
 }
 
 func (l *ConfigListener) ValidateConfig(cfg string) error {
-	return l.parseConfig(cfg, true)
+	_, err := l.parseConfig(cfg)
+	return err
 }
 
-func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
+func (l *ConfigListener) parseConfig(cfg string) (Config, error) {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 	var f flag.FlagSet
 	f.Usage = func() {} // don't print usage on unknown flags
 	f.Init("", flag.ContinueOnError)
-	c := l.config.Copy()
-	c.Bind(&f, l.config)
+	c := l.initial.Copy()
+	c.Bind(&f, c)
 	s := strings.Split(cfg, "\n")
 	for i := 0; i < len(s); i++ {
 		t := strings.TrimSpace(s[i])
@@ -52,15 +53,9 @@ func (l *ConfigListener) parseConfig(cfg string, dryRun bool) error {
 	}
 	err := c.ValidateConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if !dryRun {
-		l.config = c
-		for _, f := range l.changeCB {
-			f(c)
-		}
-	}
-	return nil
+	return c, nil
 }
 
 func (l *ConfigListener) AddChangeCB(f func(config Config)) {
@@ -77,9 +72,13 @@ func (l *ConfigListener) ApplyEventCB(newEntries []tlmetadata.Event) {
 			if err != nil {
 				return
 			}
-			err = l.parseConfig(metric.Description, false)
+			cfg, err := l.parseConfig(metric.Description)
 			if err != nil {
 				log.Println("failed to parse remote config:", err.Error())
+			}
+			// do not call callback under mutex
+			for _, f := range l.changeCB {
+				f(cfg)
 			}
 			return
 		}

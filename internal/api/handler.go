@@ -192,6 +192,7 @@ type (
 		blockedMetricPrefixes []string
 		blockedUsers          []string
 		availableShards       []uint32
+		announcement          string
 
 		HandlerOptions
 		showInvisible         bool
@@ -648,6 +649,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		h.blockedMetricPrefixes = cfg.BlockedMetricPrefixes
 		h.blockedUsers = cfg.BlockedUsers
 		h.availableShards = cfg.AvailableShards
+		h.announcement = cfg.Announcement
 		h.ConfigMu.Unlock()
 	}
 	applyCfg(cfg)
