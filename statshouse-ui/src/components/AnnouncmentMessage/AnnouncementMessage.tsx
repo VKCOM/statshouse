@@ -5,11 +5,16 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { useAnnouncementStore } from '@/store2/announcementStore';
+import { MarkdownRender } from '@/components/Markdown';
 
 export function AnnouncementMessage() {
   const announcementMessage = useAnnouncementStore((s) => s.message);
   if (!announcementMessage) {
     return null;
   }
-  return <div className="alert alert-warning my-1 mx-4">{announcementMessage}</div>;
+  return (
+    <div className="alert alert-warning my-1 mx-4">
+      <MarkdownRender>{announcementMessage}</MarkdownRender>
+    </div>
+  );
 }
