@@ -10,6 +10,7 @@ import { LeftMenu } from '@/components2';
 import { useTvModeStore } from '@/store2/tvModeStore';
 import { useStatsHouse } from '@/store2';
 import { BuildVersion } from '@/components/BuildVersion';
+import { AnnouncementMessage } from '@/components/AnnouncmentMessage';
 
 export function Core() {
   const isPlot = useStatsHouse(({ params: { tabNum } }) => +tabNum >= 0);
@@ -21,6 +22,7 @@ export function Core() {
       <div className={css.right}>
         <div className={css.top}></div>
         <div className={css.bottom}>
+          <AnnouncementMessage />
           <Outlet />
         </div>
         <div hidden={isEmbed}>

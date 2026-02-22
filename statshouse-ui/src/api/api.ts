@@ -6,6 +6,7 @@
 
 import { hasOwn, toFlatPairs, toString } from '../common/helpers';
 import { API_FETCH_OPT_METHODS, ApiFetchOptMethods } from './enum';
+import { setAnnouncementMessage } from '@/store2/announcementStore';
 
 export type ApiFetchParam = Record<string, unknown | unknown[]>;
 
@@ -94,6 +95,9 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
       body,
     });
     result.status = resp.status;
+
+    setAnnouncementMessage(resp.headers.get('X-Statshouse-Announcment') ?? '');
+
     if (resp.headers.get('Content-Type') !== 'application/json') {
       const text = await resp.text();
       result.error = new ExtendedError(`${resp.status}: ${text.substring(0, 255)}`, resp.status);
