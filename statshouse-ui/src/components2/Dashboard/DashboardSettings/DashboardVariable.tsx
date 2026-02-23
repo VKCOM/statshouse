@@ -1,4 +1,4 @@
-// Copyright 2025 V Kontakte LLC
+// Copyright 2026 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,18 +10,19 @@ import { produce } from 'immer';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
-import { ReactComponent as SVGSearch } from 'bootstrap-icons/icons/search.svg';
 
 import { VariableCard } from './VariableCard';
 import { Button } from '@/components/UI';
-import { useStatsHouseShallow } from '@/store2';
-import { getNewVariable, VariableKey, VariableParams } from '@/url2';
+import { useStatsHouse, useStatsHouseShallow } from '@/store2';
+import { getNewVariable, PlotKey, VariableKey, VariableParams } from '@/url2';
 import { ProduceUpdate } from '@/store2/helpers';
 import { getNextVariableKey, getNextVariableName } from '@/store2/urlStore/updateParamsPlotStruct';
+import { DashboardVariableFindButton } from '@/components2/Dashboard/DashboardSettings/DashboardVariableFindButton';
+import { VariableMetricPair } from '@/store2/urlStore/getAutoSearchVariable';
 
 export type DashboardVariableProps = {};
 export function DashboardVariable() {
-  const { variables, orderVariables, setParams, autoSearchVariable } = useStatsHouseShallow(
+  const { variables, orderVariables, setParams } = useStatsHouseShallow(
     ({ params: { variables, orderVariables }, setParams, autoSearchVariable }) => ({
       variables,
       orderVariables,
@@ -30,8 +31,6 @@ export function DashboardVariable() {
     })
   );
   const [localVariable, setLocalVariable] = useState({ variables, orderVariables });
-
-  const [autoLoader, setAutoLoader] = useState(false);
 
   useEffect(() => {
     setLocalVariable(
@@ -79,6 +78,32 @@ export function DashboardVariable() {
       })
     );
   }, []);
+  const addFindVariable = useCallback((value: VariableMetricPair) => {
+    const metricNameMapKey = Object.entries(useStatsHouse.getState().params.plots).reduce(
+      (res, [plotKey, plot]) => {
+        if (plot) {
+          res[plot.metricName] ??= [];
+          res[plot.metricName].push(plotKey);
+        }
+        return res;
+      },
+      {} as Record<string, PlotKey[]>
+    );
+    setLocalVariable(
+      produce((v) => {
+        const variable = getNewVariable();
+        variable.id = getNextVariableKey(v);
+        variable.name = value.name ?? getNextVariableName(v, variable.id);
+        value.links.forEach(({ metricName, tagKey }) => {
+          metricNameMapKey[metricName]?.forEach((plotKey) => {
+            variable.link.push([plotKey, tagKey]);
+          });
+        });
+        v.variables[variable.id] = variable;
+        v.orderVariables.push(variable.id);
+      })
+    );
+  }, []);
 
   const apply = useCallback(() => {
     setParams((p) => {
@@ -107,13 +132,6 @@ export function DashboardVariable() {
     setLocalVariable({ variables, orderVariables });
   }, [orderVariables, variables]);
 
-  const autoSearch = useCallback(async () => {
-    setAutoLoader(true);
-    const next = await autoSearchVariable();
-    setLocalVariable(next);
-    setAutoLoader(false);
-  }, [autoSearchVariable]);
-
   return (
     <div className="card border-0">
       <div className="card-body p-2">
@@ -128,37 +146,17 @@ export function DashboardVariable() {
             />
           ))}
         </div>
-        <div className="mt-1 text-end">
-          <Button
-            type="button"
-            disabled={autoLoader}
-            onClick={autoSearch}
-            className="btn btn-outline-primary text-nowrap"
-            style={{ width: 120 }}
-          >
-            {autoLoader ? (
-              <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-            ) : (
-              <>
-                <SVGSearch />
-                &nbsp;Auto&nbsp;filter
-              </>
-            )}
-          </Button>
-          <Button type="button" onClick={addVariable} className="btn btn-outline-primary ms-2 text-nowrap">
+        <div className="mt-1 d-flex gap-2 justify-content-end ">
+          <DashboardVariableFindButton variables={localVariable.variables} onAddVariable={addFindVariable} />
+          <Button type="button" onClick={addVariable} className="btn btn-outline-primary  text-nowrap">
             <SVGPlusLg />
             &nbsp;Add&nbsp;variable
           </Button>
-          <Button
-            type="button"
-            disabled={noChange}
-            className="btn btn-outline-success ms-2 text-nowrap"
-            onClick={apply}
-          >
+          <Button type="button" disabled={noChange} className="btn btn-outline-success  text-nowrap" onClick={apply}>
             <SVGCheckLg />
             &nbsp;Apply
           </Button>
-          <Button type="button" disabled={noChange} className="btn btn-outline-danger ms-2 text-nowrap" onClick={reset}>
+          <Button type="button" disabled={noChange} className="btn btn-outline-danger  text-nowrap" onClick={reset}>
             <SVGArrowCounterclockwise /> Reset
           </Button>
         </div>

@@ -95,8 +95,8 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
       body,
     });
     result.status = resp.status;
-
-    setAnnouncementMessage(resp.headers.get('X-Statshouse-Announcment') ?? '');
+    // two spaces as gfm '  \n'
+    setAnnouncementMessage(resp.headers.get('X-Statshouse-Announcment')?.replaceAll('  ', '  \n') ?? '');
 
     if (resp.headers.get('Content-Type') !== 'application/json') {
       const text = await resp.text();
