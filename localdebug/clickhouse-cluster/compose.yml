@@ -29,6 +29,9 @@ services:
       - type: bind
         source: ./scripts/migration.sql
         target: /docker-entrypoint-initdb.d/migration.sql
+      - type: bind
+        source: ./scripts/internal-log.sql
+        target: /docker-entrypoint-initdb.d/internal-log.sql
     expose:
       - 8123
       - 9000
