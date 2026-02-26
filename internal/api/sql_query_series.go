@@ -161,7 +161,7 @@ func (q *seriesQuery) writeSelectValues(sb *strings.Builder, lod *data_model.LOD
 	}
 	if q.minMaxHost[1] {
 		comma.maybeWrite(sb)
-		sb.WriteString(sqlMaxHost())
+		sb.WriteString(sqlMaxHost(has))
 		sb.WriteString(" AS _maxHost")
 		q.res = append(q.res, proto.ResultColumn{Name: "_maxHost", Data: &q.maxHostV3})
 	}
@@ -191,8 +191,12 @@ func sqlMinHost() string {
 	return "argMinMergeState(min_host)"
 }
 
-func sqlMaxHost() string {
-	return "argMaxMergeState(max_host)"
+func sqlMaxHost(has [10]bool) string {
+	colName := "max_host"
+	if has[data_model.DigestCount] {
+		colName = "max_count_host"
+	}
+	return fmt.Sprintf("argMaxMergeState(%s)", colName)
 }
 
 func (q *seriesQuery) writeSelectTags(sb *strings.Builder, lod *data_model.LOD, comma *listItemSeparator) error {
