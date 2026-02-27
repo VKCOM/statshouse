@@ -6,6 +6,6 @@
 
 import { type PlotParams, promQLMetric } from '@/url2';
 
-export function isPromQL(plot?: PlotParams): boolean {
+export function isPromQL(plot?: Partial<Pick<PlotParams, 'metricName' | 'promQL'>>): boolean {
   return plot?.metricName === promQLMetric || !!plot?.promQL;
 }

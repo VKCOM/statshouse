@@ -30,22 +30,15 @@ func (c *config) Copy() Config {
 const remoteConfig = "remote_config"
 
 func TestConfigListener_ApplyEventCB(t *testing.T) {
-	cfg := ConfigListener{
-		configMetric: remoteConfig,
-		config:       &config{"default"},
-	}
-	t.Run("check default value", func(t *testing.T) {
-		cfg.ApplyEventCB([]tlmetadata.Event{{
-			Name:      remoteConfig,
-			Data:      "",
-			EventType: format.MetricEvent,
-		}})
-		require.Equal(t, config{"default"}, *cfg.config.(*config))
+	lastCfg := &config{"default"}
+	cfg := NewConfigListener(remoteConfig, lastCfg)
+	cfg.AddChangeCB(func(c Config) {
+		lastCfg = c.(*config)
 	})
-	t.Run("check non default value", func(t *testing.T) {
+	applyEvent := func(description string) {
 		m := format.MetricMetaValue{
 			Name:        remoteConfig,
-			Description: "--s=test1",
+			Description: description,
 		}
 		data, err := m.MarshalBinary()
 		require.NoError(t, err)
@@ -54,7 +47,22 @@ func TestConfigListener_ApplyEventCB(t *testing.T) {
 			Data:      string(data),
 			EventType: format.MetricEvent,
 		}})
-		require.Equal(t, config{"test1"}, *cfg.config.(*config))
-	})
+	}
 
+	t.Run("check default value", func(t *testing.T) {
+		applyEvent("")
+		require.Equal(t, config{"default"}, *lastCfg)
+	})
+	t.Run("check non default value", func(t *testing.T) {
+		applyEvent("--s=test1")
+		require.Equal(t, config{"test1"}, *lastCfg)
+	})
+	t.Run("check empty value", func(t *testing.T) {
+		applyEvent("--s=")
+		require.Equal(t, config{""}, *lastCfg)
+	})
+	t.Run("check back to defult value", func(t *testing.T) {
+		applyEvent("")
+		require.Equal(t, config{"default"}, *lastCfg)
+	})
 }

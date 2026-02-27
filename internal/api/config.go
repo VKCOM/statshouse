@@ -40,6 +40,7 @@ type Config struct {
 	ReplicaThrottleCfg           *chutil.ReplicaThrottleConfig
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
+	Announcement                 string // if !empty, show to user in UI
 	chutil.RateLimitConfig
 }
 
@@ -146,6 +147,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.DurationVar(&argv.MaxSleepDuration, "rate-limit-max-sleep-duration", default_.MaxSleepDuration, "maximum sleep duration limit")
 	f.DurationVar(&argv.MinSleepDuration, "rate-limit-min-sleep-duration", default_.MinSleepDuration, "minimum sleep duration when entering sleep")
 	f.Uint64Var(&argv.CheckCount, "rate-limit-check-count", default_.CheckCount, "successful checks needed to exit check stage")
+	f.StringVar(&argv.Announcement, "announcement", default_.Announcement, "announcement text to show user in UI")
 	f.DurationVar(&argv.RecalcInterval, "recalc-interval-sleep-duration", default_.RecalcInterval, "rate limit state recalculation interval")
 }
 
