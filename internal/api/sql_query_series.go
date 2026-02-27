@@ -191,10 +191,10 @@ func sqlMinHost() string {
 	return "argMinMergeState(min_host)"
 }
 
-func sqlMaxHost(has [10]bool) string {
-	colName := "max_host"
-	if has[data_model.DigestCount] {
-		colName = "max_count_host"
+func sqlMaxHost(has [data_model.DigestLast]bool) string {
+	colName := "max_count_host"
+	if has[data_model.DigestMax] {
+		colName = "max_host"
 	}
 	return fmt.Sprintf("argMaxMergeState(%s)", colName)
 }
