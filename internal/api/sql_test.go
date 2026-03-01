@@ -154,6 +154,36 @@ func TestLoadPointsQueryV3_maxHost(t *testing.T) {
 	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(min(min)) AS _val0,toFloat64(max(max)) AS _val1,toFloat64(sum(sum)) AS _val2,toFloat64(sum(count)) AS _val3,toFloat64(sum(sumsquare)) AS _val4,toFloat64(sum(1)) AS _val5,argMinMergeState(min_host) AS _minHost,argMaxMergeState(max_host) AS _maxHost FROM statshouse_v3_1m WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND pre_stag='' AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
 }
 
+func TestLoadPointsQueryV3_maxCountHost(t *testing.T) {
+	// prepare
+	pq := queryBuilder{
+		metric: metric,
+		user:   "test-user",
+		what: tsWhat{
+			data_model.DigestSelector{What: data_model.DigestAvg},
+			data_model.DigestSelector{What: data_model.DigestSum},
+			data_model.DigestSelector{What: data_model.DigestStdDev},
+			data_model.DigestSelector{What: data_model.DigestCardinality},
+		},
+		minMaxHost: [2]bool{true, true},
+		utcOffset:  utcOffset,
+	}
+	pq.filterIn.Append(1, data_model.NewTagValue("one", 1), data_model.NewTagValue("two", 2))
+	pq.filterNotIn.AppendValue(0, "staging")
+	lod := getLod(t)
+
+	// execute
+	query, err := pq.buildSeriesQuery(lod, " SETTINGS optimize_aggregation_in_order=1")
+
+	// checks
+	assert.NoError(t, err)
+	assert.Equal(t, 4, query.what.len())
+	assert.True(t, query.minMaxHost[0])
+	assert.True(t, query.minMaxHost[1])
+	assert.Empty(t, query.by)
+	assert.Equal(t, `SELECT toInt64(toStartOfInterval(time+10800,INTERVAL 60 second))-10800 AS _time,toFloat64(sum(sum)) AS _val0,toFloat64(sum(count)) AS _val1,toFloat64(sum(sumsquare)) AS _val2,toFloat64(sum(1)) AS _val3,argMinMergeState(min_host) AS _minHost,argMaxMergeState(max_count_host) AS _maxHost FROM statshouse_v3_1m WHERE time>=9957 AND time<20037 AND index_type=0 AND pre_tag=0 AND pre_stag='' AND metric=1000 AND (tag1 IN (1,2) OR stag1 IN ('one','two')) AND (0=0 AND stag0 NOT IN ('staging')) GROUP BY _time LIMIT 10000000 SETTINGS optimize_aggregation_in_order=1`, query.body)
+}
+
 func TestLoadPointsQueryV6_1h(t *testing.T) {
 	// prepare
 	pq := queryBuilder{
