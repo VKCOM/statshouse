@@ -22,7 +22,7 @@ func (l *MetricsStorage) SaveDashboard(ctx context.Context, loader MetadataLoade
 	if !format.ValidDashboardName(value.Name) {
 		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name %w: %q", errorInvalidUserRequest, value.Name)
 	}
-	event, err := EventFromDashboardMeta(value, metadata)
+	event, err := EventFromDashboardMeta(value, metadata, remove)
 	if err != nil {
 		return format.DashboardMeta{}, err
 	}
@@ -38,6 +38,11 @@ func (l *MetricsStorage) SaveDashboard(ctx context.Context, loader MetadataLoade
 }
 
 func (l *MetricsStorage) SaveMetricsGroup(ctx context.Context, loader MetadataLoader, value format.MetricsGroup, create bool, metadata string) (format.MetricsGroup, error) {
+	if !create {
+		if l.GetGroup(value.ID) == nil {
+			return format.MetricsGroup{}, fmt.Errorf("group %d not found", value.ID)
+		}
+	}
 	builtin := value.ID < 0
 	if err := value.RestoreCachedInfo(builtin); err != nil {
 		return format.MetricsGroup{}, err
@@ -52,6 +57,14 @@ func (l *MetricsStorage) SaveMetricsGroup(ctx context.Context, loader MetadataLo
 		if !format.ValidGroupName(value.Name) {
 			return format.MetricsGroup{}, fmt.Errorf("invalid group name %w: %q", errorInvalidUserRequest, value.Name)
 		}
+	}
+	nsName, _ := format.SplitNamespace(value.Name)
+	if nsName != "" {
+		ns := l.GetNamespaceByName(nsName)
+		if ns == nil {
+			return format.MetricsGroup{}, fmt.Errorf("group is in namespace %s, which is not found", nsName)
+		}
+		value.NamespaceID = ns.ID
 	}
 	event, err := EventFromGroupMeta(value, metadata)
 	if err != nil {
@@ -84,6 +97,15 @@ func (l *MetricsStorage) SaveNamespace(ctx context.Context, loader MetadataLoade
 		if !format.ValidMetricName(mem.S(value.Name)) {
 			return format.NamespaceMeta{}, fmt.Errorf("invalid namespace name %w: %q", errorInvalidUserRequest, value.Name)
 		}
+		if !create {
+			existing := l.GetNamespace(value.ID)
+			if existing == nil {
+				return format.NamespaceMeta{}, fmt.Errorf("namespace %d not found", value.ID)
+			}
+			if existing.Name != value.Name {
+				return format.NamespaceMeta{}, fmt.Errorf("namespace %d impossible to rename", value.ID)
+			}
+		}
 	}
 	event, err := EventFromNamespaceMeta(value, metadata)
 	if err != nil {
@@ -101,8 +123,18 @@ func (l *MetricsStorage) SaveNamespace(ctx context.Context, loader MetadataLoade
 }
 
 func (l *MetricsStorage) SaveMetric(ctx context.Context, loader MetadataLoader, value format.MetricMetaValue, metadata string) (format.MetricMetaValue, error) {
+	if _, ok := format.BuiltinMetrics[value.MetricID]; ok {
+		return format.MetricMetaValue{}, fmt.Errorf("builtin metric cannot be edited")
+	}
 	create := value.MetricID == 0
-
+	nsName, _ := format.SplitNamespace(value.Name)
+	if nsName != "" {
+		ns := l.GetNamespaceByName(nsName)
+		if ns == nil {
+			return format.MetricMetaValue{}, fmt.Errorf("metric is in namespace %s, which is not found", nsName)
+		}
+		value.NamespaceID = ns.ID
+	}
 	event, err := EventFromMetricMeta(value, metadata)
 	if err != nil {
 		return format.MetricMetaValue{}, err

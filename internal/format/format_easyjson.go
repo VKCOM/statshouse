@@ -93,44 +93,80 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 	out.RawByte('{')
 	first := true
 	_ = first
-	{
+	if in.ID != 0 {
 		const prefix string = ",\"namespace_id\":"
+		first = false
 		out.RawString(prefix[1:])
 		out.Int32(int32(in.ID))
 	}
-	{
+	if in.Name != "" {
 		const prefix string = ",\"name\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.String(string(in.Name))
 	}
-	{
+	if in.Version != 0 {
 		const prefix string = ",\"version\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Int64(int64(in.Version))
 	}
-	{
+	if in.UpdateTime != 0 {
 		const prefix string = ",\"update_time\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Uint32(uint32(in.UpdateTime))
 	}
-	{
+	if in.DeleteTime != 0 {
 		const prefix string = ",\"delete_time\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Uint32(uint32(in.DeleteTime))
 	}
-	{
+	if in.Weight != 0 {
 		const prefix string = ",\"weight\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Float64(float64(in.Weight))
 	}
-	{
+	if in.Disable {
 		const prefix string = ",\"disable\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Bool(bool(in.Disable))
 	}
 	if in.ShardKeys != "" {
 		const prefix string = ",\"shard_nums\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.String(string(in.ShardKeys))
 	}
 	out.RawByte('}')
@@ -221,44 +257,80 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat1(out *jwriter.
 	out.RawByte('{')
 	first := true
 	_ = first
-	{
+	if in.ID != 0 {
 		const prefix string = ",\"group_id\":"
+		first = false
 		out.RawString(prefix[1:])
 		out.Int32(int32(in.ID))
 	}
-	{
+	if in.NamespaceID != 0 {
 		const prefix string = ",\"namespace_id\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Int32(int32(in.NamespaceID))
 	}
-	{
+	if in.Name != "" {
 		const prefix string = ",\"name\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.String(string(in.Name))
 	}
-	{
+	if in.Version != 0 {
 		const prefix string = ",\"version\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Int64(int64(in.Version))
 	}
-	{
+	if in.UpdateTime != 0 {
 		const prefix string = ",\"update_time\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Uint32(uint32(in.UpdateTime))
 	}
 	if in.Weight != 0 {
 		const prefix string = ",\"weight\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Float64(float64(in.Weight))
 	}
 	if in.Disable {
 		const prefix string = ",\"disable\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Bool(bool(in.Disable))
 	}
 	if in.ShardKeys != "" {
 		const prefix string = ",\"shard_keys\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.String(string(in.ShardKeys))
 	}
 	out.RawByte('}')

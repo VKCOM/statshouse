@@ -1580,6 +1580,12 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		dash.JSONData = map[string]interface{}{}
 	}
 	dash.JSONData[descriptionFieldName] = dash.Description
+	if delete && dash.DeletedTime == 0 {
+		dash.DeletedTime = uint32(time.Now().Unix())
+	}
+	if !delete && dash.DeletedTime != 0 {
+		dash.DeletedTime = 0
+	}
 	dashboard, err := h.metricsStorage.SaveDashboard(ctx, h.metadataLoader, format.DashboardMeta{
 		DashboardID: dash.DashboardID,
 		Name:        dash.Name,
@@ -1650,11 +1656,6 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("namespace %s not found", namespace.Name))
 	}
-	if !create {
-		if h.metricsStorage.GetNamespace(namespace.ID) == nil {
-			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
-		}
-	}
 	var err error
 	namespace, err = h.metricsStorage.SaveNamespace(ctx, h.metadataLoader, namespace, create, ai.toMetadata())
 
@@ -1675,11 +1676,6 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group format.MetricsGroup, create bool) (*MetricsGroupInfo, error) {
 	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("group %s not found", group.Name))
-	}
-	if !create {
-		if h.metricsStorage.GetGroup(group.ID) == nil {
-			return &MetricsGroupInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", group.ID))
-		}
 	}
 	var err error
 	group, err = h.metricsStorage.SaveMetricsGroup(ctx, h.metadataLoader, group, create, ai.toMetadata())
@@ -1805,10 +1801,6 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{}, fmt.Errorf("failed to create metric: %w", err)
 		}
 	} else {
-		if _, ok := format.BuiltinMetrics[metric.MetricID]; ok {
-			return format.MetricMetaValue{},
-				httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
-		}
 		old := h.metricsStorage.GetMetaMetric(metric.MetricID)
 		if old == nil {
 			return format.MetricMetaValue{},

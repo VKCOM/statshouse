@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/sqlite"
@@ -41,7 +40,7 @@ func checkCreateEntity(c sqlite.Conn, name string, typ int32) error {
 	return nil
 }
 
-func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity, deleteEntity bool) error {
+func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity bool) error {
 	if !createEntity {
 		oldName, err := loadNamespaceName(c, id, oldVersion)
 		if err != nil {
@@ -55,11 +54,11 @@ func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJ
 	return nil
 }
 
-func resolveEntity(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity, deleteEntity bool, typ int32) (namespaceID int64, _ error) {
+func resolveEntity(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity bool, typ int32) (namespaceID int64, _ error) {
 	var err error
 	switch typ {
 	case format.NamespaceEvent:
-		err = checkNamespace(c, name, id, oldVersion, newJson, createEntity, deleteEntity)
+		err = checkNamespace(c, name, id, oldVersion, newJson, createEntity)
 	}
 	if err != nil {
 		return 0, err

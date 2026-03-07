@@ -316,6 +316,9 @@ func putJournalEvent(t *testing.T, rpcClient *tlmetadata.Client, name, json stri
 			EventType: typ,
 		},
 	}
+	if delete {
+		req.Event.Unused = 1
+	}
 	req.SetCreate(version == 0)
 	req.SetDelete(delete)
 	err := rpcClient.EditEntitynew(context.Background(), req, nil, &resp)

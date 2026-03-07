@@ -35,19 +35,23 @@ func MetricMetaFromEvent(e tlmetadata.Event) (*format.MetricMetaValue, error) {
 }
 
 func EventFromMetricMeta(value format.MetricMetaValue, metadata string) (tlmetadata.Event, error) {
-	metricBytes, err := easyjson.Marshal(value)
-	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("faield to serialize metric %s: %w", value.Name, err)
-	}
 	event := tlmetadata.Event{
 		Id:        int64(value.MetricID),
 		Name:      value.Name,
 		EventType: format.MetricEvent,
 		Version:   value.Version,
-		Data:      string(metricBytes),
 	}
-	// todo add namespace after meta release
+	value.MetricID = 0
+	value.Name = ""
+	value.Version = 0
+	value.UpdateTime = 0
+	metricBytes, err := easyjson.Marshal(value)
+	if err != nil {
+		return tlmetadata.Event{}, fmt.Errorf("failed to serialize metric %s: %w", value.Name, err)
+	}
+	event.Data = string(metricBytes)
 	event.SetMetadata(metadata)
+	event.SetNamespaceId(int64(value.NamespaceID))
 	return event, nil
 }
 
@@ -65,11 +69,16 @@ func DashboardMetaFromEvent(e tlmetadata.Event) (*format.DashboardMeta, error) {
 	value.Name = e.Name
 	value.Version = e.Version
 	value.UpdateTime = e.UpdateTime
+	value.DeleteTime = e.Unused
 	value.JSONData = m
+	e2 := e
+	e2.Data = ""
+	fmt.Printf("loading EventFromDashboardMeta %d: %v\n", e.Id, e2)
+
 	return value, nil
 }
 
-func EventFromDashboardMeta(value format.DashboardMeta, metadata string) (tlmetadata.Event, error) {
+func EventFromDashboardMeta(value format.DashboardMeta, metadata string, remove bool) (tlmetadata.Event, error) {
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("faield to serialize dashboard %s: %w", value.Name, err)
@@ -79,8 +88,12 @@ func EventFromDashboardMeta(value format.DashboardMeta, metadata string) (tlmeta
 		Name:      value.Name,
 		EventType: format.DashboardEvent,
 		Version:   value.Version,
+		Unused:    value.DeleteTime,
 		Data:      string(metricBytes),
 	}
+	e2 := e
+	e2.Data = ""
+	fmt.Printf("saving EventFromDashboardMeta %d, remove=%v: %v\n", e.Id, remove, e2)
 	e.SetMetadata(metadata)
 	return e, nil
 }
@@ -104,19 +117,23 @@ func GroupMetaFromEvent(e tlmetadata.Event) (*format.MetricsGroup, error) {
 }
 
 func EventFromGroupMeta(value format.MetricsGroup, metadata string) (tlmetadata.Event, error) {
-	groupBytes, err := easyjson.Marshal(value)
-	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("faield to serialize getoup %s: %w", value.Name, err)
-	}
 	event := tlmetadata.Event{
 		Id:        int64(value.ID),
 		Name:      value.Name,
 		EventType: format.MetricsGroupEvent,
 		Version:   value.Version,
-		Data:      string(groupBytes),
 	}
-	// todo add namespace after meta release
+	value.ID = 0
+	value.Name = ""
+	value.Version = 0
+	value.UpdateTime = 0
+	groupBytes, err := easyjson.Marshal(value)
+	if err != nil {
+		return tlmetadata.Event{}, fmt.Errorf("faield to serialize getoup %s: %w", value.Name, err)
+	}
+	event.Data = string(groupBytes)
 	event.SetMetadata(metadata)
+	event.SetNamespaceId(int64(value.NamespaceID)) // TODO - remove after all clients ignore namespace in events
 	return event, nil
 }
 
@@ -138,18 +155,23 @@ func NamespaceMetaFromEvent(e tlmetadata.Event) (*format.NamespaceMeta, error) {
 }
 
 func EventFromNamespaceMeta(value format.NamespaceMeta, metadata string) (tlmetadata.Event, error) {
-	groupBytes, err := easyjson.Marshal(value)
-	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("faield to serialize namespace %s: %w", value.Name, err)
-	}
 	event := tlmetadata.Event{
 		Id:        int64(value.ID),
 		Name:      value.Name,
 		EventType: format.NamespaceEvent,
 		Version:   value.Version,
-		Data:      string(groupBytes),
 	}
-	// todo add namespace after meta release
+	value.ID = 0
+	value.Name = ""
+	value.Version = 0
+	value.UpdateTime = 0
+	value.DeleteTime = 0
+	groupBytes, err := easyjson.Marshal(value)
+	if err != nil {
+		return tlmetadata.Event{}, fmt.Errorf("faield to serialize namespace %s: %w", value.Name, err)
+	}
+	event.Data = string(groupBytes)
 	event.SetMetadata(metadata)
+	// namespace does not belong to another namespace, so do not set
 	return event, nil
 }
