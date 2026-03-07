@@ -31,7 +31,7 @@ type MetricsStorage struct {
 
 	groupsByID    map[int32]*format.MetricsGroup
 	groupsByName  map[string]*format.MetricsGroup
-	groupsOrdered []*format.MetricsGroup // not disabled, reversed so longer suffix first
+	groupsOrdered []*format.MetricsGroup // not disabled, not built in, reversed so longer suffix first
 
 	namespaceByID   map[int32]*format.NamespaceMeta
 	namespaceByName map[string]*format.NamespaceMeta
@@ -223,6 +223,16 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	return namespaces
 }
 
+// Here is the problem with the journal, groups and namespaces.
+// journal is not binlog, it does not maintain order of events, when metric is edited, it is removed
+// from its previous position in the journal and moved to the back.
+// this works because metrics are independent.
+// but groups and metrics are not independent, so when group is edited and moved to the last position,
+// everyone who reads journal from the beginning will first receive metrics references group he does not know about,
+// and then at the end will receive group.
+// in the same way, when namespace is edited, there could be moments where merics references namespace
+// which is not yet known. So groups and namespaces are not strict.
+
 func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	ms.metricUpdMu.Lock()
@@ -273,10 +283,10 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			}
 			ms.mu.Lock()
 			valueOld, idExists := ms.groupsByID[value.ID]
-			ms.groupsByID[value.ID] = value
 			if idExists && valueOld.Name != value.Name {
 				delete(ms.groupsByName, valueOld.Name)
 			}
+			ms.groupsByID[value.ID] = value
 			ms.groupsByName[value.Name] = value
 			// cases when change of group might change group for metrics
 			// 1. added new
@@ -316,11 +326,13 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				continue
 			}
 			ms.mu.Lock()
-			if oldNamespace, idExists := ms.namespaceByID[value.ID]; idExists && oldNamespace.Name != value.Name {
-				delete(ms.namespaceByName, oldNamespace.Name)
+			valueOld, idExists := ms.namespaceByID[value.ID]
+			if idExists && valueOld.Name != value.Name {
+				delete(ms.namespaceByName, valueOld.Name)
 			}
 			ms.namespaceByID[value.ID] = value
 			ms.namespaceByName[value.Name] = value
+			//we are not ready to namespace renaming, must be disabled.
 			ms.mu.Unlock()
 		}
 	}
@@ -331,7 +343,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 
 		var groupsOrdered []*format.MetricsGroup
 		for _, g := range ms.groupsByID {
-			if !g.Disable {
+			if g.ID > 0 && !g.Disable {
 				groupsOrdered = append(groupsOrdered, g)
 			}
 		}

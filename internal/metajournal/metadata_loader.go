@@ -19,10 +19,7 @@ import (
 type MetadataLoader interface {
 	// current journal, getting + editing
 	LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
-	SaveMetric(ctx context.Context, value format.MetricMetaValue, metadata string) (format.MetricMetaValue, error)
-	SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool, metadata string) (format.DashboardMeta, error)
-	SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create bool, metadata string) (format.MetricsGroup, error)
-	SaveNamespace(ctx context.Context, value format.NamespaceMeta, create bool, metadata string) (format.NamespaceMeta, error)
+	SaveEntity(ctx context.Context, event tlmetadata.Event, create bool, del bool) (ret tlmetadata.Event, err error)
 
 	// historic list plus old versions of entities
 	GetShortHistory(ctx context.Context, id int64) (ret tlmetadata.HistoryShortResponse, err error)
@@ -34,8 +31,4 @@ type MetadataLoader interface {
 	PutTagMapping(ctx context.Context, tag string, id int32) error
 	GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error)
 	ResetFlood(ctx context.Context, metricName string, value int32) (before int32, after int32, _ error)
-	// prometheus settings, probably will be removed at some point
-	SaveScrapeConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error)
-	SaveScrapeStaticConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error)
-	SaveKnownTagsConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error)
 }
