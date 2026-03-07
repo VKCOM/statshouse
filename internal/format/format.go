@@ -301,15 +301,6 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (m *MetricMetaValue) WithGroupID(groupID int32) *MetricMetaValue {
-	if m.GroupID == groupID {
-		return m
-	}
-	c := *m
-	c.GroupID = groupID
-	return &c
-}
-
 // this method is faster than string hash, plus saves a lot of memory in maps
 func (m *MetricMetaValue) name2TagFast(name string) *MetricMetaTag {
 	var num uint
@@ -823,10 +814,6 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 		m.EffectiveWeight = MaxEffectiveNamespaceWeight
 	}
 	return err
-}
-
-func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
-	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
 // '@' is reserved by api access.Do not use it here

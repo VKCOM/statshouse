@@ -209,7 +209,7 @@ type (
 		pointFloatsPoolSize   atomic.Int64
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
-		metadataLoader        *metajournal.MetricMetaLoader
+		metadataLoader        metajournal.MetadataLoader
 		mappingsStorage       *metajournal.MappingsStorage
 		jwtHelper             *vkuth.JWTHelper
 		plotRenderSem         *semaphore.Weighted
@@ -1323,10 +1323,7 @@ func HandlePostResetFlood(r *httpRequestHandler) {
 		}
 		limit = int32(i)
 	}
-	del, before, after, err := r.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r.Request), limit)
-	if err == nil && !del {
-		err = fmt.Errorf("metric flood counter was empty (no flood)")
-	}
+	before, after, err := r.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r.Request), limit)
 	respondJSON(r, &struct {
 		Before int32 `json:"before"`
 		After  int32 `json:"after"`
@@ -1606,11 +1603,12 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 }
 
 func (h *Handler) handleGetGroup(_ accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
-	group, ok := h.metricsStorage.GetGroupWithMetricsList(id)
-	if !ok {
+	group := h.metricsStorage.GetGroup(id)
+	if group == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", id))
 	}
-	return &MetricsGroupInfo{Group: *group.Group, Metrics: group.Metrics}, defaultCacheTTL, nil
+	metricsNames := h.metricsStorage.GetGroupMetricsNames(id)
+	return &MetricsGroupInfo{Group: *group, Metrics: metricsNames}, defaultCacheTTL, nil
 }
 
 func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGroupListResp, time.Duration, error) {
@@ -1658,16 +1656,7 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 		}
 	}
 	var err error
-	if namespace.ID >= 0 {
-		namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create, ai.toMetadata())
-	} else {
-		n := h.metricsStorage.GetNamespace(namespace.ID)
-		if n == nil {
-			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
-		}
-		create := n == format.BuiltInNamespaceDefault[namespace.ID]
-		namespace, err = h.metadataLoader.SaveBuiltinNamespace(ctx, namespace, create)
-	}
+	namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create, ai.toMetadata())
 
 	if err != nil {
 		s := "edit"
@@ -1692,15 +1681,8 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 			return &MetricsGroupInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", group.ID))
 		}
 	}
-	if !h.metricsStorage.CanAddOrChangeGroup(group.Name, group.ID) {
-		return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("group name %s is not posible", group.Name))
-	}
 	var err error
-	if group.ID >= 0 {
-		group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create, ai.toMetadata())
-	} else {
-		group, err = h.metadataLoader.SaveBuiltInGroup(ctx, group)
-	}
+	group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create, ai.toMetadata())
 	if err != nil {
 		s := "edit"
 		if create {
@@ -1716,8 +1698,8 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	if err != nil {
 		return &MetricsGroupInfo{}, err
 	}
-	info, _ := h.metricsStorage.GetGroupWithMetricsList(group.ID)
-	return &MetricsGroupInfo{Group: group, Metrics: info.Metrics}, nil
+	metricsNames := h.metricsStorage.GetGroupMetricsNames(group.ID)
+	return &MetricsGroupInfo{Group: group, Metrics: metricsNames}, nil
 }
 
 func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {

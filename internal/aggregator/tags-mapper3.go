@@ -35,7 +35,7 @@ type tagsMapper3 struct {
 	agg           *Aggregator
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
-	loader        *metajournal.MetricMetaLoader
+	loader        metajournal.MetadataLoader
 
 	mu          sync.Mutex
 	unknownTags map[string]unknownTag // collect statistics here
@@ -44,7 +44,7 @@ type tagsMapper3 struct {
 	config configTagsMapper3
 }
 
-func NewTagsMapper3(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper3 {
+func NewTagsMapper3(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader metajournal.MetadataLoader) *tagsMapper3 {
 	ms := &tagsMapper3{
 		agg:           agg,
 		sh2:           sh2,

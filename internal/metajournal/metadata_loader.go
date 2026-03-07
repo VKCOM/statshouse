@@ -1,0 +1,41 @@
+// Copyright 2025 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package metajournal
+
+import (
+	"context"
+	"time"
+
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/format"
+)
+
+type MetadataLoader interface {
+	// current journal, getting + editing
+	LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
+	SaveMetric(ctx context.Context, value format.MetricMetaValue, metadata string) (format.MetricMetaValue, error)
+	SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool, metadata string) (format.DashboardMeta, error)
+	SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create bool, metadata string) (format.MetricsGroup, error)
+	SaveNamespace(ctx context.Context, value format.NamespaceMeta, create bool, metadata string) (format.NamespaceMeta, error)
+
+	// historic list plus old versions of entities
+	GetShortHistory(ctx context.Context, id int64) (ret tlmetadata.HistoryShortResponse, err error)
+	GetMetric(ctx context.Context, id int64, version int64) (ret format.MetricMetaValue, err error)
+	GetDashboard(ctx context.Context, id int64, version int64) (ret format.DashboardMeta, err error)
+
+	// mappings
+	GetNewMappings(ctx context.Context, lastVersion int32, returnIfEmpty bool) (m []tlstatshouse.Mapping, curV, lastV int32, err error)
+	PutTagMapping(ctx context.Context, tag string, id int32) error
+	GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error)
+	ResetFlood(ctx context.Context, metricName string, value int32) (before int32, after int32, _ error)
+	// prometheus settings, probably will be removed at some point
+	SaveScrapeConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error)
+	SaveScrapeStaticConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error)
+	SaveKnownTagsConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error)
+}

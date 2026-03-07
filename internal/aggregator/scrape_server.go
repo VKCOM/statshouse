@@ -72,7 +72,7 @@ func newScrapeServer() *scrapeServer {
 	return res
 }
 
-func (s *scrapeServer) run(meta *metajournal.MetricsStorage, journal *metajournal.MetricMetaLoader, sh2 *agent.Agent) {
+func (s *scrapeServer) run(meta *metajournal.MetricsStorage, journal metajournal.MetadataLoader, sh2 *agent.Agent) {
 	if s.running {
 		return
 	}

@@ -12,14 +12,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/btree"
-	"github.com/mailru/easyjson"
 	"github.com/zeebo/xxh3"
 	"pgregory.net/rand"
 
@@ -83,24 +81,6 @@ type JournalFast struct {
 	BuiltinJournalUpdateError data_model.ItemValue
 
 	storage *data_model.ChunkedStorage2
-}
-
-func MetricMetaFromEvent(e tlmetadata.Event) (*format.MetricMetaValue, error) {
-	value := &format.MetricMetaValue{}
-	err := easyjson.Unmarshal([]byte(e.Data), value) // TODO - use unsafe?
-	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal metric %d %s: %v", e.Id, e.Name, err)
-	}
-	value.NamespaceID = int32(e.NamespaceId)
-	value.Version = e.Version
-	value.Name = e.Name
-	if e.Id < math.MinInt32 || e.Id > math.MaxInt32 {
-		return nil, fmt.Errorf("metric ID %d assigned by metaengine does not fit into int32 for metric %q", e.Id, e.Name)
-	}
-	value.MetricID = int32(e.Id)
-	value.UpdateTime = e.UpdateTime
-	_ = value.RestoreCachedInfo() // TODO: older agents can get errors here, so we decided to ignore
-	return value, nil
 }
 
 func journalOrderLess(a, b journalOrder) bool {
