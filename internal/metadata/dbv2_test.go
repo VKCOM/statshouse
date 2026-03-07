@@ -254,24 +254,24 @@ func Test_RenameGroup(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_SaveGroup_With_Bad_Name(t *testing.T) {
-	path := t.TempDir()
-	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
-	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
-	require.Error(t, err)
-}
-
-func Test_SaveGroup_With_Bad_Name1(t *testing.T) {
-	path := t.TempDir()
-	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
-	require.NoError(t, err)
-	_, err = db.SaveEntity(context.Background(), "abc_d", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
-	require.Error(t, err)
-
-}
+//now any non-empty group name works
+//func Test_SaveGroup_With_Bad_Name(t *testing.T) {
+//	path := t.TempDir()
+//	db, _ := initD1b(t, path, "db", true, nil)
+//	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
+//	require.NoError(t, err)
+//	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
+//	require.Error(t, err)
+//}
+//func Test_SaveGroup_With_Bad_Name1(t *testing.T) {
+//	path := t.TempDir()
+//	db, _ := initD1b(t, path, "db", true, nil)
+//	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
+//	require.NoError(t, err)
+//	_, err = db.SaveEntity(context.Background(), "abc_d", 0, 0, "{}", true, false, format.MetricsGroupEvent, "")
+//	require.Error(t, err)
+//
+//}
 
 func unpackGetMappingUnion(u tlmetadata.GetMappingResponse, err error) (int32, error) {
 	if err != nil {
