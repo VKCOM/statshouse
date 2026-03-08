@@ -312,13 +312,15 @@ type (
 
 	//easyjson:json
 	MetricInfo struct {
-		Metric format.MetricMetaValue `json:"metric"`
+		Metric      format.MetricMetaValue `json:"metric"`
+		LastVersion int64                  `json:"last_version"`
 	}
 
 	//easyjson:json
 	DashboardInfo struct {
-		Dashboard DashboardMetaInfo `json:"dashboard"`
-		Delete    bool              `json:"delete_mark"`
+		Dashboard   DashboardMetaInfo `json:"dashboard"`
+		LastVersion int64             `json:"last_version"`
+		Delete      bool              `json:"delete_mark"`
 	}
 
 	//easyjson:json
@@ -947,16 +949,16 @@ func (h *requestHandler) getMetricMeta(metricName string) (*format.MetricMetaVal
 	return h.metricWithResolution(v), nil
 }
 
-func (h *Handler) getMetricNameByID(metricID int32) string {
+func (h *Handler) getMetricVersionNameByID(metricID int32) (string, int64) {
 	meta := format.BuiltinMetrics[metricID]
 	if meta != nil {
-		return meta.Name
+		return meta.Name, meta.Version
 	}
 	meta = h.metricsStorage.GetMetaMetric(metricID)
 	if meta != nil {
-		return meta.Name
+		return meta.Name, meta.Version
 	}
-	return ""
+	return "", 0
 }
 
 // For stats
@@ -1246,7 +1248,7 @@ func HandlePostMetric(r *httpRequestHandler) {
 		return
 	}
 	err = r.waitVersionUpdate(r.Context(), m.Version)
-	respondJSON(r, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err)
+	respondJSON(r, &MetricInfo{Metric: m, LastVersion: m.Version}, defaultCacheTTL, 0, err)
 }
 
 func handlePostEntity[T easyjson.Unmarshaler](r *httpRequestHandler, entity T, handleCallback func(ctx context.Context, ai accessInfo, entity T, create bool) (resp interface{}, versionToWait int64, err error)) {
@@ -1484,8 +1486,9 @@ func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr stri
 		if err != nil {
 			return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", metricIDStr))
 		}
+		var lastVersion int64
+		metricName, lastVersion = h.getMetricVersionNameByID(int32(metricID))
 		if versionStr == "" {
-			metricName = h.getMetricNameByID(int32(metricID))
 			if metricName == "" {
 				return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("can't find metric %d", metricID))
 			}
@@ -1499,7 +1502,8 @@ func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr stri
 				return nil, 0, err
 			}
 			return &MetricInfo{
-				Metric: m,
+				Metric:      m,
+				LastVersion: lastVersion,
 			}, defaultCacheTTL, nil
 		}
 	}
@@ -1508,21 +1512,25 @@ func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr stri
 		return nil, 0, err
 	}
 	return &MetricInfo{
-		Metric: *v,
+		Metric:      *v,
+		LastVersion: v.Version,
 	}, defaultCacheTTL, nil
 }
 
 func (h *Handler) handleGetDashboard(ctx context.Context, ai accessInfo, id int32, version int64) (*DashboardInfo, time.Duration, error) {
 	if id < 0 {
 		if dash, ok := format.BuiltinDashboardByID[id]; ok {
-			return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+			return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash), LastVersion: dash.Version}, defaultCacheTTL, nil
 		} else {
 			return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
 		}
 	}
-	var dash *format.DashboardMeta
+	var lastVersion int64
+	dash := h.metricsStorage.GetDashboardMeta(id)
+	if dash != nil {
+		lastVersion = dash.Version
+	}
 	if version == 0 {
-		dash = h.metricsStorage.GetDashboardMeta(id)
 		if dash == nil {
 			return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
 		}
@@ -1533,7 +1541,7 @@ func (h *Handler) handleGetDashboard(ctx context.Context, ai accessInfo, id int3
 		}
 		dash = &dashI
 	}
-	return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+	return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash), LastVersion: lastVersion}, defaultCacheTTL, nil
 }
 
 func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*GetDashboardListResp, time.Duration, error) {
@@ -1592,7 +1600,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		}
 		return &DashboardInfo{}, err
 	}
-	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
+	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard), LastVersion: dashboard.Version}, nil
 }
 
 func (h *Handler) handleGetGroup(_ accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
