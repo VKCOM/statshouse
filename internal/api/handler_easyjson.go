@@ -965,6 +965,12 @@ func easyjson888c126aDecodeGithubComVKCOMStatshouseInternalApi7(in *jlexer.Lexer
 			} else {
 				(out.Metric).UnmarshalEasyJSON(in)
 			}
+		case "last_version":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.LastVersion = int64(in.Int64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -983,6 +989,11 @@ func easyjson888c126aEncodeGithubComVKCOMStatshouseInternalApi7(out *jwriter.Wri
 		const prefix string = ",\"metric\":"
 		out.RawString(prefix[1:])
 		(in.Metric).MarshalEasyJSON(out)
+	}
+	{
+		const prefix string = ",\"last_version\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.LastVersion))
 	}
 	out.RawByte('}')
 }
@@ -2233,6 +2244,12 @@ func easyjson888c126aDecodeGithubComVKCOMStatshouseInternalApi21(in *jlexer.Lexe
 		switch key {
 		case "dashboard":
 			easyjson888c126aDecodeGithubComVKCOMStatshouseInternalApi22(in, &out.Dashboard)
+		case "last_version":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.LastVersion = int64(in.Int64())
+			}
 		case "delete_mark":
 			if in.IsNull() {
 				in.Skip()
@@ -2257,6 +2274,11 @@ func easyjson888c126aEncodeGithubComVKCOMStatshouseInternalApi21(out *jwriter.Wr
 		const prefix string = ",\"dashboard\":"
 		out.RawString(prefix[1:])
 		easyjson888c126aEncodeGithubComVKCOMStatshouseInternalApi22(out, in.Dashboard)
+	}
+	{
+		const prefix string = ",\"last_version\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.LastVersion))
 	}
 	{
 		const prefix string = ",\"delete_mark\":"
