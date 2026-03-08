@@ -948,17 +948,18 @@ func (h *requestHandler) getMetricMeta(metricName string) (*format.MetricMetaVal
 	}
 	return h.metricWithResolution(v), nil
 }
-
-func (h *Handler) getMetricVersionNameByID(metricID int32) (string, int64) {
-	meta := format.BuiltinMetrics[metricID]
-	if meta != nil {
-		return meta.Name, meta.Version
+func (h *requestHandler) getMetricMetaByID(metricID int32) (*format.MetricMetaValue, error) {
+	if m, ok := format.BuiltinMetrics[metricID]; ok {
+		return h.metricWithResolution(m), nil
 	}
-	meta = h.metricsStorage.GetMetaMetric(metricID)
-	if meta != nil {
-		return meta.Name, meta.Version
+	v := h.metricsStorage.GetMetaMetric(metricID)
+	if v == nil {
+		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %d not found", metricID))
 	}
-	return "", 0
+	if !h.accessInfo.CanViewMetric(*v) { // We are OK with sharing this bit of information with clients
+		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %d forbidden", metricID))
+	}
+	return h.metricWithResolution(v), nil
 }
 
 // For stats
@@ -1481,39 +1482,40 @@ func HandleGetHealthcheck(r *httpRequestHandler) {
 }
 
 func (h *httpRequestHandler) handleGetMetric(metricName string, metricIDStr string, versionStr string) (*MetricInfo, time.Duration, error) {
+	var metric *format.MetricMetaValue
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
 			return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", metricIDStr))
 		}
-		var lastVersion int64
-		metricName, lastVersion = h.getMetricVersionNameByID(int32(metricID))
-		if versionStr == "" {
-			if metricName == "" {
-				return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("can't find metric %d", metricID))
-			}
-		} else {
-			version, err := strconv.ParseInt(versionStr, 10, 64)
-			if err != nil {
-				return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", versionStr))
-			}
-			m, err := h.metadataLoader.GetMetric(h.Context(), metricID, version)
-			if err != nil {
-				return nil, 0, err
-			}
-			return &MetricInfo{
-				Metric:      m,
-				LastVersion: lastVersion,
-			}, defaultCacheTTL, nil
+		metric, err = h.getMetricMetaByID(int32(metricID))
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		var err error
+		metric, err = h.getMetricMeta(metricName)
+		if err != nil {
+			return nil, 0, err
 		}
 	}
-	v, err := h.getMetricMeta(metricName)
-	if err != nil {
-		return nil, 0, err
+	if versionStr != "" {
+		version, err := strconv.ParseInt(versionStr, 10, 64)
+		if err != nil {
+			return nil, 0, httpErr(http.StatusBadRequest, fmt.Errorf("can't parse %s", versionStr))
+		}
+		m, err := h.metadataLoader.GetMetric(h.Context(), int64(metric.MetricID), version)
+		if err != nil {
+			return nil, 0, err
+		}
+		return &MetricInfo{
+			Metric:      m,
+			LastVersion: metric.Version,
+		}, defaultCacheTTL, nil
 	}
 	return &MetricInfo{
-		Metric:      *v,
-		LastVersion: v.Version,
+		Metric:      *metric,
+		LastVersion: metric.Version,
 	}, defaultCacheTTL, nil
 }
 
