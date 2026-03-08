@@ -189,7 +189,7 @@ export function LeftMenu({ className }: LeftMenuProps) {
           </span>
         </li>
       </LeftMenuItem>
-      {user.admin && (
+      {(user.admin || user.developer) && (
         <LeftMenuItem icon={SVGGear} to="settings/group" title="Group" active={isSettings}>
           <li className={css.splitter}></li>
           <li className={css.subItem}>

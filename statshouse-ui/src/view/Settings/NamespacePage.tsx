@@ -62,7 +62,7 @@ export function NamespacePage() {
     (event: React.FormEvent) => {
       if (selectMetricsNamespace) {
         setSaveLoader(true);
-        if (selectMetricsNamespace.namespace.namespace_id != null && selectMetricsNamespace.namespace.version != null) {
+        if (selectMetricsNamespace.namespace.namespace_id != null) {
           namespaceSave({
             namespace: {
               namespace_id: -1,
@@ -106,7 +106,7 @@ export function NamespacePage() {
         return;
       }
       setSaveLoader(true);
-      if (selectMetricsNamespace.namespace.namespace_id != null && selectMetricsNamespace.namespace.version != null) {
+      if (selectMetricsNamespace.namespace.namespace_id != null) {
         namespaceSave({
           namespace: {
             namespace_id: -1,
@@ -252,7 +252,7 @@ export function NamespacePage() {
                     className="form-control"
                     id="metricsNamespaceName"
                     disabled={selectMetricsNamespace.namespace.namespace_id != null}
-                    defaultValue={selectMetricsNamespace.namespace.name}
+                    value={selectMetricsNamespace.namespace.name}
                     onChange={onChangeName}
                   />
                 </div>

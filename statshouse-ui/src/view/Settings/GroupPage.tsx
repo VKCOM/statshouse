@@ -15,8 +15,7 @@ import { ErrorMessages } from '@/components/ErrorMessages';
 import { InputText } from '@/components/UI';
 
 type SelectGroup = {
-  group: Pick<GroupInfo, 'name' | 'weight' | 'namespace_id'> &
-    Partial<Omit<GroupInfo, 'name' | 'weight' | 'namespace_id'>>;
+  group: Pick<GroupInfo, 'name' | 'weight'> & Partial<Omit<GroupInfo, 'name' | 'weight'>>;
   metrics: GroupMetric[] | null;
 };
 
@@ -51,14 +50,14 @@ export function GroupPage() {
   }, [listMetricsGroup, selectId, selectWeight]);
 
   const onAddNewMetricsGroup = useCallback(() => {
-    setSelectMetricsGroup({ group: { name: '', weight: 1, namespace_id: 0 }, metrics: [] });
+    setSelectMetricsGroup({ group: { name: '', weight: 1 }, metrics: [] });
   }, []);
 
   const onSaveMetricsGroup = useCallback(
     (event: React.FormEvent) => {
       if (selectMetricsGroup) {
         setSaveLoader(true);
-        if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
+        if (selectMetricsGroup.group.group_id != null) {
           groupSave({
             group: {
               group_id: -1,
@@ -104,7 +103,7 @@ export function GroupPage() {
         return;
       }
       setSaveLoader(true);
-      if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
+      if (selectMetricsGroup.group.group_id != null) {
         groupSave({
           group: {
             group_id: -1,
