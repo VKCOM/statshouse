@@ -717,7 +717,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
         <div id="shard2TimestampHelpBlock" className="form-text"></div>
       </div>
 
-      <div>
+      <div className="sticky-bottom bg-body py-1">
         {/*<button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>*/}
         {/*  Save*/}
         {/*</button>*/}
@@ -799,7 +799,7 @@ function AliasField(props: {
               type="text"
               className="form-control"
               value={value.name}
-              placeholder={tagNumber === -1 ? 'tag _s' : `tag ${tagNumber}`}
+              placeholder={tagNumber === -1 ? '_s' : `${tagNumber}`}
               disabled={tagNumber === 0 || disabled}
               onChange={(e) => onChange({ name: e.target.value })}
             />
