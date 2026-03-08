@@ -149,7 +149,7 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 		}
 		out.Float64(float64(in.Weight))
 	}
-	if in.Disable {
+	{
 		const prefix string = ",\"disable\":"
 		if first {
 			first = false
@@ -161,12 +161,7 @@ func easyjson72863a49EncodeGithubComVKCOMStatshouseInternalFormat(out *jwriter.W
 	}
 	if in.ShardKeys != "" {
 		const prefix string = ",\"shard_nums\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		out.String(string(in.ShardKeys))
 	}
 	out.RawByte('}')
