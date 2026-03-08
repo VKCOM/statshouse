@@ -799,7 +799,7 @@ function AliasField(props: {
               type="text"
               className="form-control"
               value={value.name}
-              placeholder={tagNumber === -1 ? 'tag _s' : `tag ${tagNumber}`}
+              placeholder={tagNumber === -1 ? '_s' : `${tagNumber}`}
               disabled={tagNumber === 0 || disabled}
               onChange={(e) => onChange({ name: e.target.value })}
             />
