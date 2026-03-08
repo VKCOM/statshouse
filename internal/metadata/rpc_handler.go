@@ -474,7 +474,9 @@ func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
 	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
 	if err != nil || len(mappings) != mappingCacheSize {
 		h.mappingHead, h.mappingTail = 0, 0
-		h.log("[err] failed to bootstrap mapping cache: %v", err)
+		if err != nil { // there could be < mappingCacheSize total mappings during testing or initial production, so do not trash logs
+			h.log("[err] failed to bootstrap mapping cache: %v", err)
+		}
 		return
 	}
 	copy(h.mappingCache[:], mappings)

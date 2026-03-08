@@ -36,7 +36,7 @@ export function MetricEditMenu({}: MetricEditMenuProps) {
     <StickyTop className="mb-3">
       <div className="d-flex">
         <div className="my-auto">
-          <h6 className="overflow-force-wrap font-monospace fw-bold me-3 my-auto" title={`ID: ${metric?.id || '?'}`}>
+          <h6 className="overflow-force-wrap font-monospace fw-bold me-3 my-auto" title={`ID: ${metric?.metric_id || '?'}`}>
             {metricName}:
             <NavLink
               to={{
