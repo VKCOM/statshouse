@@ -24,7 +24,7 @@ const DashboardListView = React.lazy(() => import('./view/DashboardListView'));
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
 export function App() {
-  const isAdmin = useStatsHouse((s) => s.user.admin);
+  const isAdmin = useStatsHouse((s) => s.user.admin || s.user.developer);
   return (
     <QueryClientProvider client={queryClient}>
       {process.env.NODE_ENV !== 'production' && <ReactQueryDevtools client={queryClient} />}

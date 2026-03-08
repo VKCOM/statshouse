@@ -20,13 +20,12 @@ export type Group = {
   metrics: GroupMetric[] | null;
 };
 export type GroupInfo = {
-  group_id: number;
-  namespace_id: number;
+  group_id?: number;
   name: string;
-  version: number;
-  update_time: number;
+  version?: number;
+  update_time?: number;
   weight: number;
-  disable: boolean;
+  disable?: boolean;
   shard_keys?: string;
 };
 
@@ -42,11 +41,10 @@ export type GetGroupListResp = {
 
 export type ApiGroupPost = {
   group: {
-    group_id: number;
-    namespace_id: number;
+    group_id?: number;
     name: string;
     weight: number;
-    version: number;
+    version?: number;
     disable?: boolean;
     shard_keys?: string;
   };
