@@ -22,7 +22,7 @@ func (l *MetricsStorage) SaveDashboard(ctx context.Context, loader MetadataLoade
 	if !format.ValidDashboardName(value.Name) {
 		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name %w: %q", errorInvalidUserRequest, value.Name)
 	}
-	event, err := EventFromDashboardMeta(value, metadata, remove)
+	event, err := EventFromDashboardMeta(value, metadata)
 	if err != nil {
 		return format.DashboardMeta{}, err
 	}

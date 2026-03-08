@@ -71,14 +71,10 @@ func DashboardMetaFromEvent(e tlmetadata.Event) (*format.DashboardMeta, error) {
 	value.UpdateTime = e.UpdateTime
 	value.DeleteTime = e.Unused
 	value.JSONData = m
-	e2 := e
-	e2.Data = ""
-	fmt.Printf("loading EventFromDashboardMeta %d: %v\n", e.Id, e2)
-
 	return value, nil
 }
 
-func EventFromDashboardMeta(value format.DashboardMeta, metadata string, remove bool) (tlmetadata.Event, error) {
+func EventFromDashboardMeta(value format.DashboardMeta, metadata string) (tlmetadata.Event, error) {
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("faield to serialize dashboard %s: %w", value.Name, err)
@@ -91,9 +87,6 @@ func EventFromDashboardMeta(value format.DashboardMeta, metadata string, remove 
 		Unused:    value.DeleteTime,
 		Data:      string(metricBytes),
 	}
-	e2 := e
-	e2.Data = ""
-	fmt.Printf("saving EventFromDashboardMeta %d, remove=%v: %v\n", e.Id, remove, e2)
 	e.SetMetadata(metadata)
 	return e, nil
 }
