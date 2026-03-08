@@ -642,8 +642,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		h.Version6Start.Store(cfg.Version6Start)
 		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
 		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
-		chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
+		_ = chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
 		h.ConfigMu.Lock()
+		defer h.ConfigMu.Unlock()
 		h.DisableCHAddr = cfg.DisableCHAddr
 		h.CacheBlacklist = cfg.CacheBlacklist
 		h.CacheWhitelist = cfg.CacheWhitelist
@@ -652,7 +653,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		h.blockedUsers = cfg.BlockedUsers
 		h.availableShards = cfg.AvailableShards
 		h.announcement = cfg.Announcement
-		h.ConfigMu.Unlock()
 	}
 	applyCfg(cfg)
 	cl.AddChangeCB(applyCfg)
@@ -1729,7 +1729,7 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 			return fmt.Errorf("cannot parse group shard keys: %w", err)
 		}
 		shards = items
-	} else if _, nsName := format.SplitNamespace(metric.Name); nsName != "" {
+	} else if nsName, _ := format.SplitNamespace(metric.Name); nsName != "" {
 		ns := h.metricsStorage.GetNamespaceByName(nsName)
 		if ns != nil && ns.ShardKeys != "" {
 			items, err := parseShardKeys(ns.ShardKeys)
@@ -1754,7 +1754,7 @@ func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
 }
 
 func (h *Handler) validateMetricShard(metric *format.MetricMetaValue) error {
-	_, nsName := format.SplitNamespace(metric.Name)
+	nsName, _ := format.SplitNamespace(metric.Name)
 	if nsName == "" {
 		return nil
 	}

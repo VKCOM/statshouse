@@ -1312,12 +1312,12 @@ func NamespaceName(namespace string, name string) string {
 	return namespace + NamespaceSeparator + name
 }
 
-func SplitNamespace(metricName string) (string, string) {
+func SplitNamespace(metricName string) (ns string, name string) {
 	ix := strings.Index(metricName, NamespaceSeparator)
 	if ix == -1 {
-		return metricName, ""
+		return "", metricName
 	}
-	return metricName[ix+1:], metricName[:ix]
+	return metricName[:ix], metricName[ix+1:]
 }
 
 func EventTypeToName(typ int32) string {

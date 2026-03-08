@@ -13,10 +13,10 @@ func resolveNamespace(c sqlite.Conn, name string, typ int32) (namespaceIDResolve
 	if typ != format.MetricEvent && typ != format.MetricsGroupEvent {
 		return 0, nil
 	}
-	if !strings.Contains(name, format.NamespaceSeparator) {
+	namespaceName, _ := format.SplitNamespace(name)
+	if namespaceName == "" {
 		return 0, nil
 	}
-	_, namespaceName := format.SplitNamespace(name)
 	r := c.Query("select_namespace", "SELECT id FROM metrics_v5 WHERE type = $type AND name = $namespaceName",
 		sqlite.Int64("$type", int64(format.NamespaceEvent)),
 		sqlite.TextString("$namespaceName", namespaceName))
