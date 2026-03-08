@@ -717,7 +717,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean; isHis
         <div id="shard2TimestampHelpBlock" className="form-text"></div>
       </div>
 
-      <div>
+      <div className="sticky-bottom bg-body py-1">
         {/*<button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>*/}
         {/*  Save*/}
         {/*</button>*/}

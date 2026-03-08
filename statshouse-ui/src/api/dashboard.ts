@@ -21,6 +21,7 @@ import { dashboardMigrateSaveToOld, fixV4forDash } from '@/store2/urlStore/dashb
 import { toNumber } from '@/common/helpers';
 import { API_HISTORY } from './history';
 import { setFullDashSave } from '@/common/migrate/migrate3to4';
+import { produce } from 'immer';
 
 const ApiDashboardEndpoint = '/api/dashboard';
 
@@ -51,6 +52,7 @@ export type ApiDashboardPut = DashboardInfo;
 
 export type DashboardInfo = {
   dashboard: DashboardMetaInfo;
+  last_version?: number;
   delete_mark?: boolean;
 };
 
@@ -78,6 +80,18 @@ export async function apiDashboardSaveFetch(params: ApiDashboardPost, keyRequest
   });
 }
 
+function updateCurrentVersion<T extends ApiDashboard | undefined = ApiDashboard | undefined>(
+  data: T,
+  version?: number
+): T {
+  return (
+    data &&
+    produce(data, (res) => {
+      res.data.dashboard.current_version = version ?? res.data.last_version ?? res.data.dashboard.version;
+    })
+  );
+}
+
 export function getDashboardOptions<T = ApiDashboard>(
   dashboardId: string,
   dashboardVersion?: string
@@ -98,8 +112,13 @@ export function getDashboardOptions<T = ApiDashboard>(
       if (!response) {
         throw new ExtendedError('empty response');
       }
+      let modifyResponse = updateCurrentVersion(response);
 
-      if (dashboardVersion != null) {
+      if (
+        dashboardVersion != null &&
+        modifyResponse.data.dashboard.version === modifyResponse.data.dashboard.current_version &&
+        modifyResponse.data.last_version == null
+      ) {
         const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
 
         const cacheKey = [ApiDashboardEndpoint, baseParams];
@@ -109,15 +128,15 @@ export function getDashboardOptions<T = ApiDashboard>(
           const { response: resCurrent } = await apiDashboardFetch(baseParams, signal);
 
           if (resCurrent) {
-            response.data.dashboard.current_version = resCurrent.data.dashboard.version;
+            modifyResponse = updateCurrentVersion(modifyResponse, resCurrent.data.dashboard.version);
             queryClient.setQueryData(cacheKey, resCurrent);
           }
         } else {
-          response.data.dashboard.current_version = cacheData.data.dashboard.version;
+          modifyResponse = updateCurrentVersion(modifyResponse, cacheData.data.dashboard.version);
         }
       }
 
-      return response;
+      return modifyResponse;
     },
     placeholderData: (previousData) => previousData,
   };
@@ -209,7 +228,7 @@ export function getDashboardSaveOptions(
         const baseParams = { [GET_PARAMS.dashboardID]: dashboardId };
 
         queryClient.invalidateQueries({ queryKey: [ApiDashboardEndpoint] });
-        queryClient.setQueryData([ApiDashboardEndpoint, baseParams], data);
+        queryClient.setQueryData([ApiDashboardEndpoint, baseParams], updateCurrentVersion(data));
         queryClient.invalidateQueries({ queryKey: [API_HISTORY, dashboardId], type: 'all' });
       }
     },
@@ -224,10 +243,10 @@ export async function apiDashboardSave(
   const options = getDashboardSaveOptions(queryClient, remove, copy);
   const result: ApiFetchResponse<ApiDashboard> = { ok: false, status: 0 };
   try {
-    result.response = await options.mutationFn?.(params);
+    result.response = await options.mutationFn?.(params, { client: queryClient, meta: undefined });
     if (result.response) {
       result.ok = true;
-      options.onSuccess?.(result.response, params, undefined);
+      options.onSuccess?.(result.response, params, undefined, { client: queryClient, meta: undefined });
     } else {
       result.error = new ExtendedError('empty response');
       result.status = ExtendedError.ERROR_STATUS_UNKNOWN;

@@ -13,6 +13,9 @@ import cn from 'classnames';
 import { useHistoricalMetricVersion } from '@/hooks/useHistoricalMetricVersion';
 import { GET_PARAMS } from '@/api/enum';
 import { useMemo } from 'react';
+import { Tooltip } from '@/components/UI';
+import { debug } from '@/common/debug';
+import { ReactComponent as SVGLink45deg } from 'bootstrap-icons/icons/link-45deg.svg';
 
 export type MetricEditMenuProps = {};
 
@@ -36,8 +39,28 @@ export function MetricEditMenu({}: MetricEditMenuProps) {
     <StickyTop className="mb-3">
       <div className="d-flex">
         <div className="my-auto">
-          <h6 className="overflow-force-wrap font-monospace fw-bold me-3 my-auto" title={`ID: ${metric?.metric_id || '?'}`}>
-            {metricName}:
+          <h6 className="overflow-force-wrap font-monospace fw-bold me-3 my-auto d-flex">
+            <Tooltip
+              title={
+                <button
+                  className="btn btn-sm d-flex gap-1 align-items-center small text-secondary no-underline"
+                  onClick={() => {
+                    if (metric?.metric_id) {
+                      window.navigator.clipboard.writeText(metric.metric_id.toString()).then(() => {
+                        debug.log('clipboard ok', metric.metric_id.toString());
+                      });
+                    }
+                  }}
+                >
+                  <span className="text-nowrap">ID: {metric?.metric_id?.toString() || '?'}</span>
+                  {!!metric?.metric_id && <SVGLink45deg />}
+                </button>
+              }
+              hover
+            >
+              {metricName}
+            </Tooltip>
+            :
             <NavLink
               to={{
                 pathname: '',
