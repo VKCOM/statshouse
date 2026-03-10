@@ -22,6 +22,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
@@ -64,12 +65,12 @@ const (
 )
 
 var (
-	ErrNoHandler                = &Error{Code: TlErrorNoHandler, Description: "rpc: no handler"} // Never wrap this error
-	errLongpollQueryIDCollision = &Error{Code: TlErrorInternal, Description: "rpc: client invariant violation, longpoll queryID repeated"}
-	errTooLarge                 = &Error{Code: TLErrorResultToLarge, Description: fmt.Sprintf("rpc: packet size (metadata+extra+response) exceeds %v bytes", maxPacketLen)}
-	errGracefulShutdown         = &Error{Code: TlErrorGracefulShutdown, Description: "rpc: server is shutting down"}
+	ErrNoHandler                = &Error{Code: tlerrorcodes.NoHandler, Description: "rpc: no handler"} // Never wrap this error
+	errLongpollQueryIDCollision = &Error{Code: tlerrorcodes.Internal, Description: "rpc: client invariant violation, longpoll queryID repeated"}
+	errTooLarge                 = &Error{Code: tlerrorcodes.ResultToLarge, Description: fmt.Sprintf("rpc: packet size (metadata+extra+response) exceeds %v bytes", maxPacketLen)}
+	errGracefulShutdown         = &Error{Code: tlerrorcodes.GracefulShutdown, Description: "rpc: server is shutting down"}
 	errAlreadyCanceled          = fmt.Errorf("longpoll already have been canceled") // not sent, only written to log
-	ErrLongpollNoEmptyResponse  = &Error{Code: TlErrorTimeout, Description: "empty longpoll response not implemented by server"}
+	ErrLongpollNoEmptyResponse  = &Error{Code: tlerrorcodes.Timeout, Description: "empty longpoll response not implemented by server"}
 
 	statCPUInfo = srvfunc.MakeCPUInfo() // TODO - remove global
 )
@@ -250,6 +251,10 @@ type Server struct {
 	lastReadErrorLog       time.Time
 	lastPushToClosedLog    time.Time
 	lastOtherLog           time.Time // TODO - may be split this into different error classes
+}
+
+func (s *Server) GetCryptoKeys() []string {
+	return append([]string{}, s.opts.cryptoKeys...)
 }
 
 // some users want to delay registering handler after server is created
@@ -961,7 +966,7 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			buf = buf[:runtime.Stack(buf, false)]
 			debugName := hctx.commonConn.DebugName()
 			s.opts.Logf("rpc: %s panic in handler: %v\n%s", debugName, r, buf)
-			err = &Error{Code: TlErrorInternal, Description: fmt.Sprintf("rpc: %s panic in handler: %v", debugName, r)}
+			err = &Error{Code: tlerrorcodes.Internal, Description: fmt.Sprintf("rpc: %s panic in handler: %v", debugName, r)}
 		}
 	}()
 	return s.callHandlerNoRecover(ctx, hctx)
@@ -993,7 +998,7 @@ func (s *Server) callHandlerNoRecover(ctx context.Context, hctx *HandlerContext)
 			dt := time.Since(deadline)
 			if dt >= 0 {
 				return &Error{
-					Code:        TlErrorTimeout,
+					Code:        tlerrorcodes.Timeout,
 					Description: fmt.Sprintf("RPC query timeout (%v after deadline)", dt),
 				}
 			}
@@ -1094,6 +1099,8 @@ func (s *Server) rpsCalcLoop(wg *semaphore.Weighted) {
 			s.udpStatsPerSecond.MessageReleased.Store((udpStats.MessageReleased.Load() - prevUdpStats.MessageReleased.Load()) / rpsCalcSeconds)
 			s.udpStatsPerSecond.DatagramRead.Store((udpStats.DatagramRead.Load() - prevUdpStats.DatagramRead.Load()) / rpsCalcSeconds)
 			s.udpStatsPerSecond.DatagramWritten.Store((udpStats.DatagramWritten.Load() - prevUdpStats.DatagramWritten.Load()) / rpsCalcSeconds)
+			s.udpStatsPerSecond.DatagramSizeRead.Store((udpStats.DatagramSizeRead.Load() - prevUdpStats.DatagramSizeRead.Load()) / rpsCalcSeconds)
+			s.udpStatsPerSecond.DatagramSizeWritten.Store((udpStats.DatagramSizeWritten.Load() - prevUdpStats.DatagramSizeWritten.Load()) / rpsCalcSeconds)
 			s.udpStatsPerSecond.UnreliableMessagesReceived.Store((udpStats.UnreliableMessagesReceived.Load() - prevUdpStats.UnreliableMessagesReceived.Load()) / rpsCalcSeconds)
 			s.udpStatsPerSecond.ObsoletePidReceived.Store((udpStats.ObsoletePidReceived.Load() - prevUdpStats.ObsoletePidReceived.Load()) / rpsCalcSeconds)
 			s.udpStatsPerSecond.ObsoleteHashReceived.Store((udpStats.ObsoleteHashReceived.Load() - prevUdpStats.ObsoleteHashReceived.Load()) / rpsCalcSeconds)

@@ -13,6 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
+// if the query header specifies exactlyOnce.commitRequest, then the engine will respond with this type
 type ExactlyOnceAckResponse struct {
 	PersistentQueryUuid ExactlyOnceUuid
 }
@@ -29,32 +30,50 @@ func (item *ExactlyOnceAckResponse) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *ExactlyOnceAckResponse) Read(w []byte) (_ []byte, err error) {
-	return item.PersistentQueryUuid.Read(w)
+	return item.ReadTL1(w)
+}
+func (item *ExactlyOnceAckResponse) ReadTL1(w []byte) (_ []byte, err error) {
+	return item.PersistentQueryUuid.ReadTL1(w)
 }
 
 func (item *ExactlyOnceAckResponse) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *ExactlyOnceAckResponse) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *ExactlyOnceAckResponse) Write(w []byte) []byte {
-	w = item.PersistentQueryUuid.Write(w)
+	return item.WriteTL1(w)
+}
+func (item *ExactlyOnceAckResponse) WriteTL1(w []byte) []byte {
+	w = item.PersistentQueryUuid.WriteTL1(w)
 	return w
 }
 
 func (item *ExactlyOnceAckResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *ExactlyOnceAckResponse) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x17641550); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *ExactlyOnceAckResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *ExactlyOnceAckResponse) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *ExactlyOnceAckResponse) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *ExactlyOnceAckResponse) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x17641550)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item ExactlyOnceAckResponse) String() string {

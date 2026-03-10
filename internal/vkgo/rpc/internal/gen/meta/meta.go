@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/internal"
 )
 
-func SchemaGenerator() string { return "v1.2.27" }
+func SchemaGenerator() string { return "v1.3.24" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -31,6 +31,11 @@ type Object interface {
 	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
 	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
+	ReadTL1(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
+	ReadTL1Boxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
+	WriteTL1General(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteTL1BoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
+
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
@@ -43,12 +48,13 @@ type Object interface {
 type Function interface {
 	Object
 
-	FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error)
+	FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error)
 
 	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
-	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+	ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResultTL1(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+
 }
 
 func GetAllTLItems() []TLItem {
@@ -69,75 +75,21 @@ func GetTLName(tag uint32, notFoundName string) string {
 	return notFoundName
 }
 
-func CreateFunction(tag uint32) Function {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createFunction != nil {
-		return item.createFunction()
-	}
-	return nil
-}
-
-func CreateObject(tag uint32) Object {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createObject != nil {
-		return item.createObject()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateFunctionFromName(name string) Function {
-	if item := FactoryItemByTLName(name); item != nil && item.createFunction != nil {
-		return item.createFunction()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateObjectFromName(name string) Object {
-	if item := FactoryItemByTLName(name); item != nil && item.createObject != nil {
-		return item.createObject()
-	}
-	return nil
-}
-
-func CreateFunctionBytes(tag uint32) Function {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createFunctionBytes != nil {
-		return item.createFunctionBytes()
-	}
-	return nil
-}
-
-func CreateObjectBytes(tag uint32) Object {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createObjectBytes != nil {
-		return item.createObjectBytes()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateFunctionFromNameBytes(name string) Function {
-	if item := FactoryItemByTLName(name); item != nil && item.createFunctionBytes != nil {
-		return item.createFunctionBytes()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateObjectFromNameBytes(name string) Object {
-	if item := FactoryItemByTLName(name); item != nil && item.createObjectBytes != nil {
-		return item.createObjectBytes()
-	}
-	return nil
-}
-
 type TLItem struct {
 	tag         uint32
 	annotations uint32
 	tlName      string
-	isTL2       bool
+
+	hasTL1 bool
+	hasTL2 bool
 
 	resultTypeContainsUnionTypes    bool
 	argumentsTypesContainUnionTypes bool
 
+	// either createObject != nil or createFunction != nil for object/function respectively
+	// also, createFunctionLong can be != nil if there is long adapter (legacy to be removed soon)
+	// also, createObjectBytes, createFunctionBytes, createFunctionLongBytes
+	// can be != nil independently, if factory_bytes is imported
 	createFunction          func() Function
 	createFunctionLong      func() Function
 	createObject            func() Object
@@ -146,12 +98,45 @@ type TLItem struct {
 	createObjectBytes       func() Object
 }
 
-func (item TLItem) TLTag() uint32            { return item.tag }
-func (item TLItem) TLName() string           { return item.tlName }
-func (item TLItem) IsTL2() bool              { return item.isTL2 }
-func (item TLItem) CreateObject() Object     { return item.createObject() }
+func (item TLItem) TLTag() uint32  { return item.tag }
+func (item TLItem) TLName() string { return item.tlName }
+
+// true for TL1-originated types
+func (item TLItem) HasTL1() bool { return item.hasTL1 }
+
+// true for TL2-originated types and for TL1-originated types if in TL2 generation whitelist
+func (item TLItem) HasTL2() bool { return item.hasTL2 }
+func (item TLItem) CreateObject() Object {
+	if item.createFunction != nil {
+		return item.createFunction()
+	}
+	return item.createObject()
+}
+
+// used in TL generator tests only, do not use in product code
+func (item TLItem) CreateObjectBytes() Object {
+	if item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	if item.createFunction != nil {
+		return item.createFunction()
+	}
+	if item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return item.createObject()
+}
+
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+// used in TL generator tests only, do not use in product code
+func (item TLItem) CreateFunctionBytes() Function {
+	if item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return item.createFunction()
+}
 
 func (item TLItem) HasUnionTypesInResult() bool    { return item.resultTypeContainsUnionTypes }
 func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesContainUnionTypes }
@@ -159,6 +144,15 @@ func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesC
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
+
+// we simplify interface by commenting this method no one yet needs.
+// hopefully it will be removed together with long adapters code
+// func (item TLItem) CreateFunctionLongBytes() Function {
+//     if item.createFunctionLongBytes != nil {
+//         return item.createFunctionLongBytes()
+//     }
+//     return item.createFunctionLong()
+// }
 
 // Annotations
 func (item TLItem) AnnotationAny() bool       { return item.annotations&0x1 != 0 }
@@ -168,17 +162,23 @@ func (item TLItem) AnnotationRead() bool      { return item.annotations&0x8 != 0
 func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x10 != 0 }
 func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 0 }
 
-// TLItem serves as a single type for all enum values
-func (item *TLItem) Reset()                                {}
-func (item *TLItem) FillRandom(rg *basictl.RandGenerator)  {}
-func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
-func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
-func (item *TLItem) Write(w []byte) []byte                 { return w }
-func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)    { return basictl.NatReadExactTag(w, item.tag) }
+// TLItem serves as a single type for all TL1 enum values
+func (item *TLItem) Reset()                               {}
+func (item *TLItem) FillRandom(rg *basictl.RandGenerator) {}
+func (item *TLItem) Read(w []byte) ([]byte, error)        { return w, nil }
+func (item *TLItem) ReadTL1(w []byte) ([]byte, error)     { return w, nil }
+func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)   { return basictl.NatReadExactTag(w, item.tag) }
+func (item *TLItem) ReadTL1Boxed(w []byte) ([]byte, error) {
+	return basictl.NatReadExactTag(w, item.tag)
+}
+func (item *TLItem) WriteGeneral(w []byte) ([]byte, error)    { return w, nil }
+func (item *TLItem) WriteTL1General(w []byte) ([]byte, error) { return w, nil }
 func (item *TLItem) WriteBoxedGeneral(w []byte) ([]byte, error) {
 	return basictl.NatWrite(w, item.tag), nil
 }
-func (item *TLItem) WriteBoxed(w []byte) []byte { return basictl.NatWrite(w, item.tag) }
+func (item *TLItem) WriteTL1BoxedGeneral(w []byte) ([]byte, error) {
+	return basictl.NatWrite(w, item.tag), nil
+}
 func (item TLItem) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -225,80 +225,51 @@ var itemsByTag = map[uint32]*TLItem{}
 
 var itemsByName = map[string]*TLItem{}
 
-func SetGlobalFactoryCreateForFunction(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForFunction(name string, createFunction func() Function, createFunctionLong func() Function) {
+	item := itemsByName[name]
+	if item == nil || item.createFunction == nil { // only replace !nil createFunction
+		panic(fmt.Sprintf("factory cannot find function %s to set", name))
 	}
-	item.createObject = createObject
 	item.createFunction = createFunction
 	item.createFunctionLong = createFunctionLong
 }
 
-func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForObject(name string, createObject func() Object) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find object %s to set", name))
 	}
 	item.createObject = createObject
 }
 
-func SetGlobalFactoryCreateForObjectTL2(itemName string, createObject func() Object) {
-	item := itemsByName[itemName]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
-	}
-	item.createObject = createObject
-}
-
-func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForEnumElement(name string) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find enum %s to set", name))
 	}
 	item.createObject = func() Object { return item }
 }
 
-func SetGlobalFactoryCreateForFunctionBytes(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForFunctionBytes(name string, createFunctionBytes func() Function, createFunctionLongBytes func() Function) {
+	item := itemsByName[name]
+	if item == nil || item.createFunction == nil { // only replace !nil createFunction
+		panic(fmt.Sprintf("factory cannot find function %s to set", name))
 	}
-	item.createObjectBytes = createObject
-	item.createFunctionBytes = createFunction
-	item.createFunctionLongBytes = createFunctionLong
+	item.createFunctionBytes = createFunctionBytes
+	item.createFunctionLongBytes = createFunctionLongBytes
 }
 
-func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Object) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForObjectBytes(name string, createObjectBytes func() Object) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find object %s to set", name))
 	}
-	item.createObjectBytes = createObject
-}
-
-func SetGlobalFactoryCreateForObjectBytesTL2(itemName string, createObject func() Object) {
-	item := itemsByName[itemName]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
-	}
-	item.createObjectBytes = createObject
-}
-
-func SetGlobalFactoryCreateForEnumElementBytes(itemTag uint32) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
-	}
-	item.createObjectBytes = func() Object { return item }
-}
-
-func pleaseImportFactoryBytesObject() Object {
-	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
-}
-
-func pleaseImportFactoryBytesFunction() Function {
-	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+	item.createObjectBytes = createObjectBytes
 }
 
 func pleaseImportFactoryObject() Object {
@@ -309,79 +280,67 @@ func pleaseImportFactoryFunction() Function {
 	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory' instead of 'gen/meta'.")
 }
 
-func fillObject(n1 string, n2 string, item *TLItem) {
-	itemsByTag[item.tag] = item
-	itemsByName[item.tlName] = item
-	itemsByName[n1] = item
-	itemsByName[n2] = item
-	item.createObject = pleaseImportFactoryObject
-	item.createObjectBytes = pleaseImportFactoryBytesObject
-	// code below is as fast, but allocates some extra strings which are already in binary const segment due to JSON code
-	// itemsByName[fmt.Sprintf("%s#%08x", item.tlName, item.tag)] = item
-	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
-}
-
-func fillObjectTL2(item *TLItem) {
+func fillObject(item *TLItem) {
 	itemsByName[item.tlName] = item
 	if item.tag != 0 {
 		itemsByTag[item.tag] = item
 	}
 	item.createObject = pleaseImportFactoryObject
-	item.createObjectBytes = pleaseImportFactoryBytesObject
 }
 
-func fillFunction(n1 string, n2 string, item *TLItem) {
-	fillObject(n1, n2, item)
+func fillFunction(item *TLItem) {
+	itemsByName[item.tlName] = item
+	if item.tag != 0 {
+		itemsByTag[item.tag] = item
+	}
 	item.createFunction = pleaseImportFactoryFunction
-	item.createFunctionBytes = pleaseImportFactoryBytesFunction
 }
 
 func init() {
-	// TL
-	fillObject("allocSlotEvent#2abb2c70", "#2abb2c70", &TLItem{tag: 0x2abb2c70, annotations: 0x0, tlName: "allocSlotEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.asyncSleep#60e50d3d", "#60e50d3d", &TLItem{tag: 0x60e50d3d, annotations: 0x3, tlName: "engine.asyncSleep", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.filteredStat#594870d6", "#594870d6", &TLItem{tag: 0x594870d6, annotations: 0x1, tlName: "engine.filteredStat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.pid#559d6e36", "#559d6e36", &TLItem{tag: 0x559d6e36, annotations: 0x1, tlName: "engine.pid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.setVerbosity#9d980926", "#9d980926", &TLItem{tag: 0x9d980926, annotations: 0x3, tlName: "engine.setVerbosity", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.sleep#3d3bcd48", "#3d3bcd48", &TLItem{tag: 0x3d3bcd48, annotations: 0x3, tlName: "engine.sleep", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.stat#efb3c36b", "#efb3c36b", &TLItem{tag: 0xefb3c36b, annotations: 0x1, tlName: "engine.stat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("engine.version#1a2e06fa", "#1a2e06fa", &TLItem{tag: 0x1a2e06fa, annotations: 0x1, tlName: "engine.version", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("exactlyOnce.ackResponse#17641550", "#17641550", &TLItem{tag: 0x17641550, annotations: 0x0, tlName: "exactlyOnce.ackResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("exactlyOnce.commitRequest#6836b983", "#6836b983", &TLItem{tag: 0x6836b983, annotations: 0x0, tlName: "exactlyOnce.commitRequest", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("exactlyOnce.prepareRequest#c8d71b66", "#c8d71b66", &TLItem{tag: 0xc8d71b66, annotations: 0x0, tlName: "exactlyOnce.prepareRequest", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("exactlyOnce.slotResponse#95f25c81", "#95f25c81", &TLItem{tag: 0x95f25c81, annotations: 0x0, tlName: "exactlyOnce.slotResponse", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("exactlyOnce.uuid#c97c16b2", "#c97c16b2", &TLItem{tag: 0xc97c16b2, annotations: 0x0, tlName: "exactlyOnce.uuid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillFunction("go.pprof#ea2876a6", "#ea2876a6", &TLItem{tag: 0xea2876a6, annotations: 0x10, tlName: "go.pprof", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("net.pid#46409ccf", "#46409ccf", &TLItem{tag: 0x46409ccf, annotations: 0x0, tlName: "net.pid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.encHeader#251a7bfd", "#251a7bfd", &TLItem{tag: 0x251a7bfd, annotations: 0x0, tlName: "netUdpPacket.encHeader", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.obsoleteGeneration#b340010b", "#b340010b", &TLItem{tag: 0xb340010b, annotations: 0x0, tlName: "netUdpPacket.obsoleteGeneration", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.obsoleteHash#1adb0f4e", "#1adb0f4e", &TLItem{tag: 0x1adb0f4e, annotations: 0x0, tlName: "netUdpPacket.obsoleteHash", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.obsoletePid#6f4ac134", "#6f4ac134", &TLItem{tag: 0x6f4ac134, annotations: 0x0, tlName: "netUdpPacket.obsoletePid", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.resendRange#5efaad4a", "#5efaad4a", &TLItem{tag: 0x5efaad4a, annotations: 0x0, tlName: "netUdpPacket.resendRange", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.resendRequest#643736d9", "#643736d9", &TLItem{tag: 0x643736d9, annotations: 0x0, tlName: "netUdpPacket.resendRequest", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.unencHeader#00a8e945", "#00a8e945", &TLItem{tag: 0x00a8e945, annotations: 0x0, tlName: "netUdpPacket.unencHeader", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("netUdpPacket.wait#6e321c96", "#6e321c96", &TLItem{tag: 0x6e321c96, annotations: 0x0, tlName: "netUdpPacket.wait", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("releaseSlotEvent#7f045ccc", "#7f045ccc", &TLItem{tag: 0x7f045ccc, annotations: 0x0, tlName: "releaseSlotEvent", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("reqError#b527877d", "#b527877d", &TLItem{tag: 0xb527877d, annotations: 0x0, tlName: "reqError", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("reqResultHeader#8cc84ce1", "#8cc84ce1", &TLItem{tag: 0x8cc84ce1, annotations: 0x0, tlName: "reqResultHeader", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcCancelReq#193f1b22", "#193f1b22", &TLItem{tag: 0x193f1b22, annotations: 0x0, tlName: "rpcCancelReq", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcClientWantsFin#0b73429e", "#0b73429e", &TLItem{tag: 0x0b73429e, annotations: 0x0, tlName: "rpcClientWantsFin", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcDestActor#7568aabd", "#7568aabd", &TLItem{tag: 0x7568aabd, annotations: 0x0, tlName: "rpcDestActor", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcDestActorFlags#f0a5acf7", "#f0a5acf7", &TLItem{tag: 0xf0a5acf7, annotations: 0x0, tlName: "rpcDestActorFlags", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcDestFlags#e352035e", "#e352035e", &TLItem{tag: 0xe352035e, annotations: 0x0, tlName: "rpcDestFlags", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcInvokeReqExtra#f3ef81a9", "#f3ef81a9", &TLItem{tag: 0xf3ef81a9, annotations: 0x0, tlName: "rpcInvokeReqExtra", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcInvokeReqHeader#2374df3d", "#2374df3d", &TLItem{tag: 0x2374df3d, annotations: 0x0, tlName: "rpcInvokeReqHeader", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcPing#5730a2df", "#5730a2df", &TLItem{tag: 0x5730a2df, annotations: 0x0, tlName: "rpcPing", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcPong#8430eaa7", "#8430eaa7", &TLItem{tag: 0x8430eaa7, annotations: 0x0, tlName: "rpcPong", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcReqResultError#7ae432f5", "#7ae432f5", &TLItem{tag: 0x7ae432f5, annotations: 0x0, tlName: "rpcReqResultError", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcReqResultErrorWrapped#7ae432f6", "#7ae432f6", &TLItem{tag: 0x7ae432f6, annotations: 0x0, tlName: "rpcReqResultErrorWrapped", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcReqResultExtra#c5011709", "#c5011709", &TLItem{tag: 0xc5011709, annotations: 0x0, tlName: "rpcReqResultExtra", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcReqResultHeader#63aeda4e", "#63aeda4e", &TLItem{tag: 0x63aeda4e, annotations: 0x0, tlName: "rpcReqResultHeader", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcServerWantsFin#a8ddbc46", "#a8ddbc46", &TLItem{tag: 0xa8ddbc46, annotations: 0x0, tlName: "rpcServerWantsFin", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("rpcTL2Marker#29324c54", "#29324c54", &TLItem{tag: 0x29324c54, annotations: 0x0, tlName: "rpcTL2Marker", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("stat#9d56e6b2", "#9d56e6b2", &TLItem{tag: 0x9d56e6b2, annotations: 0x0, tlName: "stat", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("string#b5286e24", "#b5286e24", &TLItem{tag: 0xb5286e24, annotations: 0x0, tlName: "string", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("tracing.traceContext#c463a95c", "#c463a95c", &TLItem{tag: 0xc463a95c, annotations: 0x0, tlName: "tracing.traceContext", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("tracing.traceID#2f4ac855", "#2f4ac855", &TLItem{tag: 0x2f4ac855, annotations: 0x0, tlName: "tracing.traceID", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
-	fillObject("true#3fedd339", "#3fedd339", &TLItem{tag: 0x3fedd339, annotations: 0x0, tlName: "true", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject(&TLItem{tlName: "allocSlotEvent", tag: 0x2abb2c70, hasTL1: true})
+	fillFunction(&TLItem{tlName: "engine.asyncSleep", tag: 0x60e50d3d, hasTL1: true, annotations: 0x3})
+	fillFunction(&TLItem{tlName: "engine.filteredStat", tag: 0x594870d6, hasTL1: true, annotations: 0x1})
+	fillFunction(&TLItem{tlName: "engine.pid", tag: 0x559d6e36, hasTL1: true, annotations: 0x1})
+	fillFunction(&TLItem{tlName: "engine.setVerbosity", tag: 0x9d980926, hasTL1: true, annotations: 0x3})
+	fillFunction(&TLItem{tlName: "engine.sleep", tag: 0x3d3bcd48, hasTL1: true, annotations: 0x3})
+	fillFunction(&TLItem{tlName: "engine.stat", tag: 0xefb3c36b, hasTL1: true, annotations: 0x1})
+	fillFunction(&TLItem{tlName: "engine.version", tag: 0x1a2e06fa, hasTL1: true, annotations: 0x1})
+	fillObject(&TLItem{tlName: "exactlyOnce.ackResponse", tag: 0x17641550, hasTL1: true})
+	fillObject(&TLItem{tlName: "exactlyOnce.commitRequest", tag: 0x6836b983, hasTL1: true})
+	fillObject(&TLItem{tlName: "exactlyOnce.prepareRequest", tag: 0xc8d71b66, hasTL1: true})
+	fillObject(&TLItem{tlName: "exactlyOnce.slotResponse", tag: 0x95f25c81, hasTL1: true})
+	fillObject(&TLItem{tlName: "exactlyOnce.uuid", tag: 0xc97c16b2, hasTL1: true})
+	fillFunction(&TLItem{tlName: "go.pprof", tag: 0xea2876a6, hasTL1: true, annotations: 0x10})
+	fillObject(&TLItem{tlName: "net.pid", tag: 0x46409ccf, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.encHeader", tag: 0x251a7bfd, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.obsoleteGeneration", tag: 0xb340010b, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.obsoleteHash", tag: 0x1adb0f4e, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.obsoletePid", tag: 0x6f4ac134, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.resendRange", tag: 0x5efaad4a, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.resendRequest", tag: 0x643736d9, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.unencHeader", tag: 0x00a8e945, hasTL1: true})
+	fillObject(&TLItem{tlName: "netUdpPacket.wait", tag: 0x6e321c96, hasTL1: true})
+	fillObject(&TLItem{tlName: "releaseSlotEvent", tag: 0x7f045ccc, hasTL1: true})
+	fillObject(&TLItem{tlName: "reqError", tag: 0xb527877d, hasTL1: true})
+	fillObject(&TLItem{tlName: "reqResultHeader", tag: 0x8cc84ce1, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcCancelReq", tag: 0x193f1b22, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcClientWantsFin", tag: 0x0b73429e, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcDestActor", tag: 0x7568aabd, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcDestActorFlags", tag: 0xf0a5acf7, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcDestFlags", tag: 0xe352035e, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcInvokeReqExtra", tag: 0xf3ef81a9, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcInvokeReqHeader", tag: 0x2374df3d, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcPing", tag: 0x5730a2df, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcPong", tag: 0x8430eaa7, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcReqResultError", tag: 0x7ae432f5, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcReqResultErrorWrapped", tag: 0x7ae432f6, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcReqResultExtra", tag: 0xc5011709, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcReqResultHeader", tag: 0x63aeda4e, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcServerWantsFin", tag: 0xa8ddbc46, hasTL1: true})
+	fillObject(&TLItem{tlName: "rpcTL2Marker", tag: 0x30324c54, hasTL1: true})
+	fillObject(&TLItem{tlName: "stat", tag: 0x9d56e6b2, hasTL1: true})
+	fillObject(&TLItem{tlName: "string", tag: 0xb5286e24, hasTL1: true})
+	fillObject(&TLItem{tlName: "tracing.traceContext", tag: 0xc463a95c, hasTL1: true})
+	fillObject(&TLItem{tlName: "tracing.traceID", tag: 0x2f4ac855, hasTL1: true})
+	fillObject(&TLItem{tlName: "true", tag: 0x3fedd339, hasTL1: true})
 }

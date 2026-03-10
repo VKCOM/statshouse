@@ -127,7 +127,7 @@ rpcInvokeReqHeader#2374df3d query_id:long = RpcInvokeReqHeader;
 // We wrap body of TL2 request with this marker.
 // Any response is parsed in the context of request, so we decided to not wrap response.
 // We will remove all wrapping later as part of rpcInvokeReq2 transition.
-rpcTL2Marker#29324c54 = RpcTL2Marker;
+rpcTL2Marker#30324c54 = RpcTL2Marker;
 
 // Experimental. Top-level packet magic. Client sends on request cancel, so server can free context associated with request.
 // No response from server is sent. Required for correctly cancelling long poll requests.
@@ -189,18 +189,18 @@ netUdpPacket.resendRequest#643736d9
   = netUdpPacket.ResendRequest;
 
 netUdpPacket.obsoleteGeneration#b340010b
-  pid:net.Pid
+  pid:%net.Pid
   generation:#
   = netUdpPacket.ObsoleteGeneration;
 
 netUdpPacket.obsoleteHash#1adb0f4e
-  hash:#
-  pid:net.Pid
+  hash:long
+  pid:%net.Pid
   = netUdpPacket.ObsoleteHash;
 
 netUdpPacket.obsoletePid#6f4ac134
-  obsolete_pid:net.Pid
-  actual_pid:net.Pid
+  obsolete_pid:%net.Pid
+  actual_pid:%net.Pid
   generation:#
   = netUdpPacket.ObsoletePid;
 

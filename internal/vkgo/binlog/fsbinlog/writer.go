@@ -240,7 +240,7 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	}
 	newHeader.Position = newHeader.LevRotateFrom.CurLogPos
 	newHeader.Timestamp = uint64(newHeader.LevRotateFrom.Timestamp)
-	newHeader.FileName = chooseFilenameForChunk(bw.fs, newHeader.Position, bw.PrefixPath)
+	newHeader.FileName = chooseFilenameForChunk(bw.curFileHeader.FileName, bw.fs, newHeader.Position, bw.PrefixPath)
 
 	if bw.logger != nil {
 		bw.logger.Debugf("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)

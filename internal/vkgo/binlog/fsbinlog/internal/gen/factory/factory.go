@@ -13,26 +13,39 @@ import (
 )
 
 func CreateFunction(tag uint32) meta.Function {
-	return meta.CreateFunction(tag)
+	item := meta.FactoryItemByTLTag(tag)
+	if item == nil || !item.IsFunction() {
+		return nil
+	}
+	return item.CreateFunction()
 }
 
 func CreateObject(tag uint32) meta.Object {
-	return meta.CreateObject(tag)
+	item := meta.FactoryItemByTLTag(tag)
+	if item == nil {
+		return nil
+	}
+	return item.CreateObject()
 }
 
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
 func CreateFunctionFromName(name string) meta.Function {
-	return meta.CreateFunctionFromName(name)
+	item := meta.FactoryItemByTLName(name)
+	if item == nil || !item.IsFunction() {
+		return nil
+	}
+	return item.CreateFunction()
 }
 
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
 func CreateObjectFromName(name string) meta.Object {
-	return meta.CreateObjectFromName(name)
+	item := meta.FactoryItemByTLName(name)
+	if item == nil {
+		return nil
+	}
+	return item.CreateObject()
 }
 
 func init() {
-	// TL
-	meta.SetGlobalFactoryCreateForObject(0x044c644b, func() meta.Object { var ret internal.FsbinlogLevStart; return &ret })
-	meta.SetGlobalFactoryCreateForObject(0xb75009a0, func() meta.Object { var ret internal.FsbinlogLevUpgradeToGms; return &ret })
-	meta.SetGlobalFactoryCreateForObject(0x6b49d850, func() meta.Object { var ret internal.FsbinlogSnapshotMeta; return &ret })
+	meta.SetGlobalFactoryCreateForObject("fsbinlog.levStart", func() meta.Object { return new(internal.FsbinlogLevStart) })
+	meta.SetGlobalFactoryCreateForObject("fsbinlog.levUpgradeToGms", func() meta.Object { return new(internal.FsbinlogLevUpgradeToGms) })
+	meta.SetGlobalFactoryCreateForObject("fsbinlog.snapshotMeta", func() meta.Object { return new(internal.FsbinlogSnapshotMeta) })
 }

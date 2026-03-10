@@ -32,6 +32,9 @@ func (item *ExactlyOnceUuid) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *ExactlyOnceUuid) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *ExactlyOnceUuid) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.Lo); err != nil {
 		return w, err
 	}
@@ -39,29 +42,44 @@ func (item *ExactlyOnceUuid) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *ExactlyOnceUuid) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *ExactlyOnceUuid) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *ExactlyOnceUuid) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *ExactlyOnceUuid) WriteTL1(w []byte) []byte {
 	w = basictl.LongWrite(w, item.Lo)
 	w = basictl.LongWrite(w, item.Hi)
 	return w
 }
 
 func (item *ExactlyOnceUuid) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *ExactlyOnceUuid) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xc97c16b2); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *ExactlyOnceUuid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *ExactlyOnceUuid) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *ExactlyOnceUuid) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *ExactlyOnceUuid) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc97c16b2)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item ExactlyOnceUuid) String() string {

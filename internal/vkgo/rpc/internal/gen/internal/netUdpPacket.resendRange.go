@@ -22,7 +22,7 @@ func BuiltinVectorNetUdpPacketResendRangeFillRandom(rg *basictl.RandGenerator, v
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorNetUdpPacketResendRangeRead(w []byte, vec *[]NetUdpPacketResendRange) (_ []byte, err error) {
+func BuiltinVectorNetUdpPacketResendRangeReadTL1(w []byte, vec *[]NetUdpPacketResendRange) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -36,17 +36,17 @@ func BuiltinVectorNetUdpPacketResendRangeRead(w []byte, vec *[]NetUdpPacketResen
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
+		if w, err = (*vec)[i].ReadTL1(w); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorNetUdpPacketResendRangeWrite(w []byte, vec []NetUdpPacketResendRange) []byte {
+func BuiltinVectorNetUdpPacketResendRangeWriteTL1(w []byte, vec []NetUdpPacketResendRange) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.Write(w)
+		w = elem.WriteTL1(w)
 	}
 	return w
 }
@@ -111,6 +111,9 @@ func (item *NetUdpPacketResendRange) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *NetUdpPacketResendRange) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *NetUdpPacketResendRange) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.PacketNumFrom); err != nil {
 		return w, err
 	}
@@ -118,29 +121,44 @@ func (item *NetUdpPacketResendRange) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *NetUdpPacketResendRange) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *NetUdpPacketResendRange) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *NetUdpPacketResendRange) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *NetUdpPacketResendRange) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.PacketNumFrom)
 	w = basictl.NatWrite(w, item.PacketNumTo)
 	return w
 }
 
 func (item *NetUdpPacketResendRange) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *NetUdpPacketResendRange) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x5efaad4a); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *NetUdpPacketResendRange) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *NetUdpPacketResendRange) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *NetUdpPacketResendRange) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *NetUdpPacketResendRange) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x5efaad4a)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item NetUdpPacketResendRange) String() string {

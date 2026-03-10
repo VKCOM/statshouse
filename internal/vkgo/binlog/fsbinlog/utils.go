@@ -23,19 +23,82 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
 
-func chooseFilenameForChunk(fs gofs.FS, pos int64, prefixPath string) string {
-	posStr := fmt.Sprintf(`%05d`, pos)
-	posSize := len(posStr) - 4
-	prefix := fmt.Sprintf(`%s.%02d`, prefixPath, posSize)
+const expSuffixBase = int64(10000)
 
-	for l := 4; l < len(posStr); l++ {
-		filename := prefix + posStr[:l] + `.bin`
-		if _, err := fs.Stat(filename); os.IsNotExist(err) {
-			return filename
-		}
+func ComputeExpSuffix(pos int64) uint32 {
+	exp := uint32(0)
+	power := expSuffixBase
+	for pos >= power {
+		power *= 10
+		exp++
+	}
+	return exp
+}
+
+func generateNextBinlogFilename(prefixPath, prevFileName string, pos int64) (string, error) {
+	// format of binlog name: prefixPath.[ex][mantissa].bin
+	// Ex. data1/persiq_channels_superapp_000.064354146612.bin
+
+	parts := strings.Split(prevFileName, ".") // parts[0] - prefix, part[1] - position (ex + mantissa), parts[2] - 'bin'
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid previous file name: %s. Can't split by '.' on 3 parts", prevFileName)
+	}
+	if parts[0] != prefixPath {
+		return "", fmt.Errorf("prev prefixPath(%s) must be equal to new prefixPath(%s)", parts[0], prefixPath)
+	}
+	const binlogExtension = "bin"
+	if parts[2] != binlogExtension {
+		return "", fmt.Errorf("invalid previous file name: %s. Extension not equal: 'bin'", prevFileName)
 	}
 
-	panic(`[WTF] Unreachable code in chooseFilenameForChunk`)
+	const expSuffixLen = 2
+	const baseMantissaSuffixLen = 4
+	if len(parts[1]) < expSuffixLen+baseMantissaSuffixLen {
+		return "", fmt.Errorf("invalid previous file name: %s. position is too small: %s (len: %d)", prevFileName, parts[1], len(parts[1]))
+	}
+
+	prevExp := parts[1][:expSuffixLen]
+	prevMantissa := parts[1][expSuffixLen:]
+
+	newMantissa := fmt.Sprintf("%04d", pos)
+	newExp := fmt.Sprintf("%02d", ComputeExpSuffix(pos))
+
+	wrongNewPosErr := fmt.Errorf("wrong binlog position! Position less then start binlog file. prevFileName: %s, position: %d", prevFileName, pos)
+	if prevExp != newExp {
+		if newExp < prevExp {
+			return "", wrongNewPosErr
+		}
+		return fmt.Sprintf("%s.%s%s.%s", prefixPath, newExp, newMantissa[:baseMantissaSuffixLen], binlogExtension), nil
+	}
+
+	// must find common prefix and generate next greater mantissa
+	limit := min(len(prevMantissa), len(newMantissa))
+	diffI := 0
+	for diffI < limit && prevMantissa[diffI] == newMantissa[diffI] {
+		diffI++
+	}
+
+	mantissa := ""
+	if diffI == 0 {
+		mantissa = newMantissa[:baseMantissaSuffixLen]
+		if mantissa <= prevMantissa {
+			return "", wrongNewPosErr
+		}
+	} else {
+		mantissa = newMantissa[:max(diffI+1, baseMantissaSuffixLen)]
+	}
+	return fmt.Sprintf("%s.%s%s.%s", prefixPath, newExp, mantissa, binlogExtension), nil
+}
+
+func chooseFilenameForChunk(prevFileName string, fs gofs.FS, pos int64, prefixPath string) string {
+	if newFileName, err := generateNextBinlogFilename(prefixPath, prevFileName, pos); err != nil {
+		panic(err)
+	} else {
+		if _, err := fs.Stat(newFileName); os.IsExist(err) {
+			panic(fmt.Errorf("chunk with such filename(%s) is already created :(", newFileName))
+		}
+		return newFileName
+	}
 }
 
 type FileHeader struct {

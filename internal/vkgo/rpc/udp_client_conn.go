@@ -130,7 +130,7 @@ func (pc *udpClientConn) handle(message *[]byte, canSave bool) {
 	//}
 }
 
-func (pc *udpClientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, extra *ResponseExtra, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool) {
+func (pc *udpClientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, parseExtra bool, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
@@ -145,10 +145,15 @@ func (pc *udpClientConn) finishCall(queryID int64, reuseBody *[]byte, body []byt
 	// was sent
 	delete(pc.calls, queryID)
 
+	if parseExtra {
+		// (err passed to this function is nil in this case)
+		// we have to parse under lock, because we must deliver result under lock below,
+		// and we must know if request was TL2. We process requests sequentially anyway.
+		body, err = parseResponseExtra(cctx.bodyFormatTL2, &cctx.Extra, body)
+	}
 	recordLatency = cctx.actorID == requestLatencyDebugActorId
 	cctx.reuseBody = reuseBody
 	cctx.Body = body
-	cctx.Extra = *extra
 	if cctx.result != nil {
 		cctx.result <- callResult{resp: cctx, err: err} // must deliver under lock
 	} else {
@@ -174,8 +179,7 @@ func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte
 			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
 		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
-		var extra ResponseExtra
-		bodyOwned, finishedCallback, recordLatency = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, &extra, err)
+		bodyOwned, finishedCallback, recordLatency = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, false, err)
 		return bodyOwned, finishedCallback, recordLatency, nil
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
@@ -183,10 +187,7 @@ func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte
 		if respBody, err = header.Read(respBody); err != nil {
 			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
-		var extra ResponseExtra
-		respBody, err = parseResponseExtra(&extra, respBody)
-
-		bodyOwned, finishedCallback, recordLatency = pc.finishCall(header.QueryId, respReuseData, respBody, &extra, err)
+		bodyOwned, finishedCallback, recordLatency = pc.finishCall(header.QueryId, respReuseData, respBody, true, nil)
 		return bodyOwned, finishedCallback, recordLatency, nil
 	default:
 		pc.client.client.opts.Logf("rpc: unknown packet type 0x%x", responseType)

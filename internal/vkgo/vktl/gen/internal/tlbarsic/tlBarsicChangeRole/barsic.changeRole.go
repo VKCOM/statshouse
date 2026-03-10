@@ -16,6 +16,7 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// from Barsic to engine, must echo back
 type BarsicChangeRole struct {
 	FieldsMask uint32
 	// Master (TrueType) // Conditional: item.FieldsMask.0
@@ -23,6 +24,7 @@ type BarsicChangeRole struct {
 	Offset      int64
 	EpochNumber int64
 	ViewNumber  int64
+	// TODO - remove when all engines are compiled with unconditional epoch_number or on July 2025.
 	// EpochNumberLegacyFlag (TrueType) // Conditional: item.FieldsMask.30
 }
 
@@ -71,6 +73,9 @@ func (item *BarsicChangeRole) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicChangeRole) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -87,10 +92,16 @@ func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicChangeRole) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicChangeRole) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicChangeRole) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicChangeRole) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.LongWrite(w, item.EpochNumber)
@@ -99,27 +110,42 @@ func (item *BarsicChangeRole) Write(w []byte) []byte {
 }
 
 func (item *BarsicChangeRole) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicChangeRole) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xecb3db89); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicChangeRole) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicChangeRole) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicChangeRole) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicChangeRole) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xecb3db89)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicChangeRole) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicChangeRole) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicChangeRole) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicChangeRole) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -141,29 +167,44 @@ func (item *BarsicChangeRole) writeResultJSON(tctx *basictl.JSONWriteContext, w 
 	return w, nil
 }
 
-func (item *BarsicChangeRole) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicChangeRole) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicChangeRole) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicChangeRole) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicChangeRole) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicChangeRole) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicChangeRole) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.changeRole")
+}
+
+func (item *BarsicChangeRole) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.changeRole")
+}
+
+func (item *BarsicChangeRole) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.changeRole")
+}
+
+func (item *BarsicChangeRole) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.changeRole")
 }
 
 func (item BarsicChangeRole) String() string {
@@ -370,7 +411,7 @@ func (item *BarsicChangeRole) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicChangeRole) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.changeRole"))
 }
 
 func (item *BarsicChangeRole) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

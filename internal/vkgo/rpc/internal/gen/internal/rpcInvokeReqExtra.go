@@ -21,23 +21,36 @@ type RpcInvokeReqExtra struct {
 	// ReturnRequestSizes (TrueType) // Conditional: item.Flags.3
 	// ReturnFailedSubqueries (TrueType) // Conditional: item.Flags.4
 	// ReturnQueryStats (TrueType) // Conditional: item.Flags.6
+	// Currently for proxy only. Client goes to proxy, it clears this bit and sends query to engine. Client does not wait for answer.
 	// NoResult (TrueType) // Conditional: item.Flags.7
+	// The engine should execute the query only if it is ready master, otherwise it should respond with TL_ERROR_NOT_MASTER error
 	// MustBeMaster (TrueType) // Conditional: item.Flags.8
 	RequesterId int64 // Conditional: item.Flags.9
 	// ReturnShardsBinlogPos (TrueType) // Conditional: item.Flags.14
-	WaitShardsBinlogPos         map[string]int64 // Conditional: item.Flags.15
-	WaitBinlogPos               int64            // Conditional: item.Flags.16
-	StringForwardKeys           []string         // Conditional: item.Flags.18
-	IntForwardKeys              []int64          // Conditional: item.Flags.19
-	StringForward               string           // Conditional: item.Flags.20
-	IntForward                  int64            // Conditional: item.Flags.21
-	CustomTimeoutMs             int32            // Conditional: item.Flags.23
-	SupportedCompressionVersion int32            // Conditional: item.Flags.25
-	RandomDelay                 float64          // Conditional: item.Flags.26
+	// Bits 17, 22, 24 was used in before, but their support was dropped
+	WaitShardsBinlogPos map[string]int64 // Conditional: item.Flags.15
+	// Perform query only after position in binlog is at least this
+	WaitBinlogPos int64 // Conditional: item.Flags.16
+	// For cluster that are split by string (like pmemcached in some modes) - first specified string is used to choose target, then it is deleted from vector
+	StringForwardKeys []string // Conditional: item.Flags.18
+	// First long is used to choose target. Then it is deleted from vector
+	IntForwardKeys []int64 // Conditional: item.Flags.19
+	// Same as string_forward_keys, but it is not deleted
+	StringForward string // Conditional: item.Flags.20
+	// Same as int_forward_keys, but it is not deleted
+	IntForward int64 // Conditional: item.Flags.21
+	// Custom timeout for query
+	CustomTimeoutMs int32 // Conditional: item.Flags.23
+	// note, that client support compression, to possibly compress answers
+	SupportedCompressionVersion int32 // Conditional: item.Flags.25
+	// starting query would be delayed by random number, not grater than given
+	RandomDelay float64 // Conditional: item.Flags.26
+	// Barsic related parameter: return view number in response
 	// ReturnViewNumber (TrueType) // Conditional: item.Flags.27
-	PersistentQuery  ExactlyOncePersistentRequest // Conditional: item.Flags.28
-	TraceContext     TracingTraceContext          // Conditional: item.Flags.29
-	ExecutionContext string                       // Conditional: item.Flags.30
+	PersistentQuery ExactlyOncePersistentRequest // Conditional: item.Flags.28
+	TraceContext    TracingTraceContext          // Conditional: item.Flags.29
+	// contains serialized execution context.
+	ExecutionContext string // Conditional: item.Flags.30
 }
 
 func (RpcInvokeReqExtra) TLName() string { return "rpcInvokeReqExtra" }
@@ -139,7 +152,7 @@ func (item *RpcInvokeReqExtra) SetWaitShardsBinlogPos(v map[string]int64) {
 	item.Flags |= 1 << 15
 }
 func (item *RpcInvokeReqExtra) ClearWaitShardsBinlogPos() {
-	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+	BuiltinDictStringLongReset(item.WaitShardsBinlogPos)
 	item.Flags &^= 1 << 15
 }
 func (item *RpcInvokeReqExtra) IsSetWaitShardsBinlogPos() bool { return item.Flags&(1<<15) != 0 }
@@ -268,7 +281,7 @@ func (item *RpcInvokeReqExtra) IsSetExecutionContext() bool { return item.Flags&
 func (item *RpcInvokeReqExtra) Reset() {
 	item.Flags = 0
 	item.RequesterId = 0
-	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+	BuiltinDictStringLongReset(item.WaitShardsBinlogPos)
 	item.WaitBinlogPos = 0
 	item.StringForwardKeys = item.StringForwardKeys[:0]
 	item.IntForwardKeys = item.IntForwardKeys[:0]
@@ -290,9 +303,9 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 		item.RequesterId = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		BuiltinVectorDictionaryFieldLongFillRandom(rg, &item.WaitShardsBinlogPos)
+		BuiltinDictStringLongFillRandom(rg, &item.WaitShardsBinlogPos)
 	} else {
-		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+		BuiltinDictStringLongReset(item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		item.WaitBinlogPos = basictl.RandomLong(rg)
@@ -352,6 +365,9 @@ func (item *RpcInvokeReqExtra) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *RpcInvokeReqExtra) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err
 	}
@@ -363,11 +379,11 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 		item.RequesterId = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.WaitShardsBinlogPos); err != nil {
+		if w, err = BuiltinDictStringLongReadTL1(w, &item.WaitShardsBinlogPos); err != nil {
 			return w, err
 		}
 	} else {
-		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+		BuiltinDictStringLongReset(item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		if w, err = basictl.LongRead(w, &item.WaitBinlogPos); err != nil {
@@ -377,14 +393,14 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 		item.WaitBinlogPos = 0
 	}
 	if item.Flags&(1<<18) != 0 {
-		if w, err = BuiltinVectorStringRead(w, &item.StringForwardKeys); err != nil {
+		if w, err = BuiltinVectorStringReadTL1(w, &item.StringForwardKeys); err != nil {
 			return w, err
 		}
 	} else {
 		item.StringForwardKeys = item.StringForwardKeys[:0]
 	}
 	if item.Flags&(1<<19) != 0 {
-		if w, err = BuiltinVectorLongRead(w, &item.IntForwardKeys); err != nil {
+		if w, err = BuiltinVectorLongReadTL1(w, &item.IntForwardKeys); err != nil {
 			return w, err
 		}
 	} else {
@@ -426,14 +442,14 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 		item.RandomDelay = 0
 	}
 	if item.Flags&(1<<28) != 0 {
-		if w, err = item.PersistentQuery.ReadBoxed(w); err != nil {
+		if w, err = item.PersistentQuery.ReadTL1Boxed(w); err != nil {
 			return w, err
 		}
 	} else {
 		item.PersistentQuery.Reset()
 	}
 	if item.Flags&(1<<29) != 0 {
-		if w, err = item.TraceContext.Read(w); err != nil {
+		if w, err = item.TraceContext.ReadTL1(w); err != nil {
 			return w, err
 		}
 	} else {
@@ -450,25 +466,31 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *RpcInvokeReqExtra) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *RpcInvokeReqExtra) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *RpcInvokeReqExtra) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<9) != 0 {
 		w = basictl.LongWrite(w, item.RequesterId)
 	}
 	if item.Flags&(1<<15) != 0 {
-		w = BuiltinVectorDictionaryFieldLongWrite(w, item.WaitShardsBinlogPos)
+		w = BuiltinDictStringLongWriteTL1(w, item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		w = basictl.LongWrite(w, item.WaitBinlogPos)
 	}
 	if item.Flags&(1<<18) != 0 {
-		w = BuiltinVectorStringWrite(w, item.StringForwardKeys)
+		w = BuiltinVectorStringWriteTL1(w, item.StringForwardKeys)
 	}
 	if item.Flags&(1<<19) != 0 {
-		w = BuiltinVectorLongWrite(w, item.IntForwardKeys)
+		w = BuiltinVectorLongWriteTL1(w, item.IntForwardKeys)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.StringWrite(w, item.StringForward)
@@ -486,10 +508,10 @@ func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
 		w = basictl.DoubleWrite(w, item.RandomDelay)
 	}
 	if item.Flags&(1<<28) != 0 {
-		w = item.PersistentQuery.WriteBoxed(w)
+		w = item.PersistentQuery.WriteTL1Boxed(w)
 	}
 	if item.Flags&(1<<29) != 0 {
-		w = item.TraceContext.Write(w)
+		w = item.TraceContext.WriteTL1(w)
 	}
 	if item.Flags&(1<<30) != 0 {
 		w = basictl.StringWrite(w, item.ExecutionContext)
@@ -498,19 +520,28 @@ func (item *RpcInvokeReqExtra) Write(w []byte) []byte {
 }
 
 func (item *RpcInvokeReqExtra) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *RpcInvokeReqExtra) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xf3ef81a9); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *RpcInvokeReqExtra) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *RpcInvokeReqExtra) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *RpcInvokeReqExtra) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *RpcInvokeReqExtra) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf3ef81a9)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item RpcInvokeReqExtra) String() string {
@@ -659,7 +690,7 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 				if propWaitShardsBinlogPosPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqExtra", "wait_shards_binlog_pos")
 				}
-				if err := BuiltinVectorDictionaryFieldLongReadJSONGeneral(tctx, in, &item.WaitShardsBinlogPos); err != nil {
+				if err := BuiltinDictStringLongReadJSONGeneral(tctx, in, &item.WaitShardsBinlogPos); err != nil {
 					return err
 				}
 				propWaitShardsBinlogPosPresented = true
@@ -776,7 +807,7 @@ func (item *RpcInvokeReqExtra) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 		item.RequesterId = 0
 	}
 	if !propWaitShardsBinlogPosPresented {
-		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+		BuiltinDictStringLongReset(item.WaitShardsBinlogPos)
 	}
 	if !propWaitBinlogPosPresented {
 		item.WaitBinlogPos = 0
@@ -1005,7 +1036,7 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"wait_shards_binlog_pos":`...)
-		w = BuiltinVectorDictionaryFieldLongWriteJSONOpt(tctx, w, item.WaitShardsBinlogPos)
+		w = BuiltinDictStringLongWriteJSONOpt(tctx, w, item.WaitShardsBinlogPos)
 	}
 	if item.Flags&(1<<16) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -35,40 +35,58 @@ func (item *NetUdpPacketObsoletePid) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *NetUdpPacketObsoletePid) Read(w []byte) (_ []byte, err error) {
-	if w, err = item.ObsoletePid.ReadBoxed(w); err != nil {
+	return item.ReadTL1(w)
+}
+func (item *NetUdpPacketObsoletePid) ReadTL1(w []byte) (_ []byte, err error) {
+	if w, err = item.ObsoletePid.ReadTL1(w); err != nil {
 		return w, err
 	}
-	if w, err = item.ActualPid.ReadBoxed(w); err != nil {
+	if w, err = item.ActualPid.ReadTL1(w); err != nil {
 		return w, err
 	}
 	return basictl.NatRead(w, &item.Generation)
 }
 
 func (item *NetUdpPacketObsoletePid) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *NetUdpPacketObsoletePid) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *NetUdpPacketObsoletePid) Write(w []byte) []byte {
-	w = item.ObsoletePid.WriteBoxed(w)
-	w = item.ActualPid.WriteBoxed(w)
+	return item.WriteTL1(w)
+}
+func (item *NetUdpPacketObsoletePid) WriteTL1(w []byte) []byte {
+	w = item.ObsoletePid.WriteTL1(w)
+	w = item.ActualPid.WriteTL1(w)
 	w = basictl.NatWrite(w, item.Generation)
 	return w
 }
 
 func (item *NetUdpPacketObsoletePid) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *NetUdpPacketObsoletePid) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x6f4ac134); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *NetUdpPacketObsoletePid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *NetUdpPacketObsoletePid) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *NetUdpPacketObsoletePid) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *NetUdpPacketObsoletePid) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x6f4ac134)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item NetUdpPacketObsoletePid) String() string {

@@ -26,6 +26,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vktl/tlpprof" // TODO - modernize pprof package, it is very old
 )
@@ -54,6 +55,8 @@ func (s *Server) CollectStats(localAddr net.Addr) map[string]string {
 	udpMessageReleased := s.udpStatsPerSecond.MessageReleased.Load()
 	udpDatagramRead := s.udpStatsPerSecond.DatagramRead.Load()
 	udpDatagramWritten := s.udpStatsPerSecond.DatagramWritten.Load()
+	udpDatagramSizeRead := s.udpStatsPerSecond.DatagramSizeRead.Load()
+	udpDatagramSizeWritten := s.udpStatsPerSecond.DatagramSizeWritten.Load()
 	udpUnreliableMessagesReceived := s.udpStatsPerSecond.UnreliableMessagesReceived.Load()
 	udpObsoletePidReceived := s.udpStatsPerSecond.ObsoletePidReceived.Load()
 	udpObsoleteHashReceived := s.udpStatsPerSecond.ObsoleteHashReceived.Load()
@@ -138,6 +141,10 @@ func (s *Server) CollectStats(localAddr net.Addr) map[string]string {
 	m["udp_message_released_per_second"] = strconv.FormatInt(udpMessageReleased, 10)
 	m["udp_datagram_read_per_second"] = strconv.FormatInt(udpDatagramRead, 10)
 	m["udp_datagram_written_per_second"] = strconv.FormatInt(udpDatagramWritten, 10)
+	m["udp_datagram_size_read_per_second"] = strconv.FormatInt(udpDatagramSizeRead, 10)
+	m["udp_datagram_size_written_per_second"] = strconv.FormatInt(udpDatagramSizeWritten, 10)
+	m["udp_rx_rate"] = strconv.FormatInt(udpDatagramSizeRead, 10)
+	m["udp_tx_rate"] = strconv.FormatInt(udpDatagramSizeWritten, 10)
 	m["udp_unreliable_messages_received_per_second"] = strconv.FormatInt(udpUnreliableMessagesReceived, 10)
 	m["udp_obsolete_pid_received_per_second"] = strconv.FormatInt(udpObsoletePidReceived, 10)
 	m["udp_obsolete_hash_received_per_second"] = strconv.FormatInt(udpObsoleteHashReceived, 10)
@@ -272,7 +279,7 @@ func handleEngineSleep(ctx context.Context, hctx *HandlerContext, timeMs int32) 
 		dt := time.Since(deadline)
 		if dt >= 0 {
 			return &Error{
-				Code:        TlErrorTimeout,
+				Code:        tlerrorcodes.Timeout,
 				Description: fmt.Sprintf("RPC query timeout (%v after deadline)", dt),
 			}
 		}

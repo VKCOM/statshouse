@@ -54,8 +54,8 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
-	"gitlab.mvk.com/go/vkgo/pkg/kittenhouseclient"
-	"gitlab.mvk.com/go/vkgo/pkg/vkd/logz"
+	"gitlab.corp.mail.ru/vkgo/vkgo/pkg/kittenhouseclient"
+	"gitlab.corp.mail.ru/vkgo/vkgo/pkg/vkd/logz"
 )
 
 const (
@@ -189,8 +189,8 @@ package main
 import (
 	"os"
 
-	"gitlab.mvk.com/go/vkgo/pkg/vkd"
-	"gitlab.mvk.com/go/vkgo/projects/<your_service_name>/internal/app/logger"
+	"gitlab.corp.mail.ru/vkgo/vkgo/pkg/vkd"
+	"gitlab.corp.mail.ru/vkgo/vkgo/projects/<your_service_name>/internal/app/logger"
 )
 
 func main() {
@@ -217,7 +217,7 @@ func main() {
 ```go
 
 import (
-    "gitlab.mvk.com/go/vkgo/projects/<your_service_name>/internal/app/logger"
+    "gitlab.corp.mail.ru/vkgo/vkgo/projects/<your_service_name>/internal/app/logger"
 )
 
 func noMain() {

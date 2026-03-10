@@ -109,7 +109,7 @@ func (sc *serverConnTCP) SendEmptyResponse(lh LongpollHandle) {
 	if sc.server.opts.DebugRPC {
 		sc.server.opts.Logf("rpc_debug: %s WriteEmptyResponse queryID=%d err: %v", sc.debugName, lh.QueryID, err)
 	}
-	sc.SendLongpollResponse(hctx, err)
+	sc.SendResponse(hctx, err)
 }
 
 func (sc *serverConnTCP) SetWriteBuiltin() {
@@ -231,16 +231,16 @@ func (sc *serverConnTCP) releaseHandlerCtx(hctx *HandlerContext) {
 	sc.server.releaseHandlerCtx(hctx)
 }
 
-func (sc *serverConnTCP) SendLongpollResponse(hctx *HandlerContext, err error) {
+func (sc *serverConnTCP) SendResponse(hctx *HandlerContext, err error) {
 	if hctx.longpollStarted || hctx.noResult {
 		if hctx.noResult && err != nil {
 			sc.server.rareLog(&sc.server.lastOtherLog, "rpc: failed to handle no_result query: #%v tag: #%08x method: %q error: %v", hctx.queryID, hctx.reqTag, hctx.requestFunctionName, err)
 		}
 		if sc.server.opts.DebugRPC {
 			if hctx.longpollStarted {
-				sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (longpollStarted) queryID=%d", sc.debugName, hctx.queryID)
+				sc.server.opts.Logf("rpc_debug: %s SendResponse (longpollStarted) queryID=%d", sc.debugName, hctx.queryID)
 			} else {
-				sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (noResult) queryID=%d", sc.debugName, hctx.queryID)
+				sc.server.opts.Logf("rpc_debug: %s SendResponse (noResult) queryID=%d", sc.debugName, hctx.queryID)
 			}
 		}
 		sc.releaseHandlerCtx(hctx)
@@ -263,7 +263,7 @@ func (sc *serverConnTCP) SendLongpollResponse(hctx *HandlerContext, err error) {
 	if sc.connectionStatus >= serverStatusStopped {
 		sc.mu.Unlock()
 		if sc.server.opts.DebugRPC {
-			sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (closed) queryID=%d", sc.debugName, hctx.queryID)
+			sc.server.opts.Logf("rpc_debug: %s SendResponse (closed) queryID=%d", sc.debugName, hctx.queryID)
 		}
 		sc.releaseHandlerCtx(hctx)
 		return
@@ -276,6 +276,6 @@ func (sc *serverConnTCP) SendLongpollResponse(hctx *HandlerContext, err error) {
 		sc.writeQCond.Signal()
 	}
 	if sc.server.opts.DebugRPC {
-		sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (push) queryID=%d", sc.debugName, queryID)
+		sc.server.opts.Logf("rpc_debug: %s SendResponse (push) queryID=%d", sc.debugName, queryID)
 	}
 }

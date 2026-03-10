@@ -19,6 +19,13 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// snapshot_meta denotes some internal barsic position with data offset <= payload_offset.
+// It is used to establish connection to barsic.
+// control_meta denotes some internal barsic position with data offset >= payload_offset.
+// We need it to check validity of snapshot in case we had hostory split (truncation of commited binlog).
+// Barsic internal position unambiguously defines branch of history,
+// however if split occured somewhere between snapshot_meta and payload_offset,
+// we could not determine on which branch of history such snapshot resides
 type BarsicSnapshotHeader struct {
 	FieldsMask       uint32
 	ClusterId        string
@@ -90,6 +97,9 @@ func (item *BarsicSnapshotHeader) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotHeader) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -102,7 +112,7 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.SnapshotMeta); err != nil {
 		return w, err
 	}
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyRead(w, &item.Dependencies); err != nil {
+	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadTL1(w, &item.Dependencies); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.PayloadOffset); err != nil {
@@ -122,7 +132,7 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 		item.ControlMeta = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileRead(w, &item.ExternalFiles); err != nil {
+		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadTL1(w, &item.ExternalFiles); err != nil {
 			return w, err
 		}
 	} else {
@@ -132,15 +142,21 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicSnapshotHeader) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotHeader) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotHeader) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotHeader) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
 	w = basictl.StringWrite(w, item.SnapshotMeta)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWrite(w, item.Dependencies)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteTL1(w, item.Dependencies)
 	w = basictl.LongWrite(w, item.PayloadOffset)
 	w = basictl.StringWrite(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
@@ -148,25 +164,34 @@ func (item *BarsicSnapshotHeader) Write(w []byte) []byte {
 		w = basictl.StringWrite(w, item.ControlMeta)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWrite(w, item.ExternalFiles)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteTL1(w, item.ExternalFiles)
 	}
 	return w
 }
 
 func (item *BarsicSnapshotHeader) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotHeader) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1d0d1b74); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotHeader) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotHeader) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotHeader) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1d0d1b74)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotHeader) String() string {
@@ -420,13 +445,20 @@ func (item *BarsicSnapshotHeader) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotHeader) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotHeader"))
 }
 
 func (item *BarsicSnapshotHeader) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotHeader")
 }
 
+// snapshot_meta denotes some internal barsic position with data offset <= payload_offset.
+// It is used to establish connection to barsic.
+// control_meta denotes some internal barsic position with data offset >= payload_offset.
+// We need it to check validity of snapshot in case we had hostory split (truncation of commited binlog).
+// Barsic internal position unambiguously defines branch of history,
+// however if split occured somewhere between snapshot_meta and payload_offset,
+// we could not determine on which branch of history such snapshot resides
 type BarsicSnapshotHeaderBytes struct {
 	FieldsMask       uint32
 	ClusterId        []byte
@@ -498,6 +530,9 @@ func (item *BarsicSnapshotHeaderBytes) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotHeaderBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -510,7 +545,7 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringReadBytes(w, &item.SnapshotMeta); err != nil {
 		return w, err
 	}
-	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesRead(w, &item.Dependencies); err != nil {
+	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadTL1(w, &item.Dependencies); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.PayloadOffset); err != nil {
@@ -530,7 +565,7 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 		item.ControlMeta = item.ControlMeta[:0]
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesRead(w, &item.ExternalFiles); err != nil {
+		if w, err = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadTL1(w, &item.ExternalFiles); err != nil {
 			return w, err
 		}
 	} else {
@@ -540,15 +575,21 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotHeaderBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotHeaderBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotHeaderBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
 	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWrite(w, item.Dependencies)
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteTL1(w, item.Dependencies)
 	w = basictl.LongWrite(w, item.PayloadOffset)
 	w = basictl.StringWriteBytes(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
@@ -556,25 +597,34 @@ func (item *BarsicSnapshotHeaderBytes) Write(w []byte) []byte {
 		w = basictl.StringWriteBytes(w, item.ControlMeta)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWrite(w, item.ExternalFiles)
+		w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteTL1(w, item.ExternalFiles)
 	}
 	return w
 }
 
 func (item *BarsicSnapshotHeaderBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotHeaderBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1d0d1b74); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotHeaderBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotHeaderBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1d0d1b74)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotHeaderBytes) String() string {
@@ -828,7 +878,7 @@ func (item *BarsicSnapshotHeaderBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotHeader"))
 }
 
 func (item *BarsicSnapshotHeaderBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

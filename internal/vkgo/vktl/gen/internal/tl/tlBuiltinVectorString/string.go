@@ -24,7 +24,7 @@ func BuiltinVectorStringFillRandom(rg *basictl.RandGenerator, vec *[]string) {
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
+func BuiltinVectorStringReadTL1(w []byte, vec *[]string) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -45,7 +45,7 @@ func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
+func BuiltinVectorStringWriteTL1(w []byte, vec []string) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.StringWrite(w, elem)
@@ -53,37 +53,55 @@ func BuiltinVectorStringWrite(w []byte, vec []string) []byte {
 	return w
 }
 
-func BuiltinVectorStringCalculateLayout(sizes []int, vec *[]string) []int {
-	currentSize := 0
+func BuiltinVectorStringCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]string) ([]int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
-	if len(*vec) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*vec))
-	}
-	for i := 0; i < len(*vec); i++ {
-		elem := (*vec)[i]
 
-		currentSize += len(elem)
-		currentSize += basictl.TL2CalculateSize(len(elem))
+	currentSize := 0
+	var sz int
+
+	currentSize += basictl.TL2CalculateSize(len(*vec))
+	for i := 0; i < len(*vec); i++ {
+		currentSize += basictl.TL2CalculateSize(len((*vec)[i])) + len((*vec)[i])
 	}
 	sizes[sizePosition] = currentSize
-	return sizes
+	currentSize += basictl.TL2CalculateSize(currentSize)
+	internal.Unused(sz)
+	return sizes, currentSize
 }
 
-func BuiltinVectorStringInternalWriteTL2(w []byte, sizes []int, vec *[]string) ([]byte, []int) {
+func BuiltinVectorStringInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]string) ([]byte, []int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
+	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
-
 	w = basictl.TL2WriteSize(w, currentSize)
-	if len(*vec) != 0 {
-		w = basictl.TL2WriteSize(w, len(*vec))
+	if currentSize == 0 {
+		return w, sizes, 1
 	}
+	oldLen := len(w)
+	w = basictl.TL2WriteSize(w, len(*vec))
 
+	var sz int
 	for i := 0; i < len(*vec); i++ {
-		elem := (*vec)[i]
-		w = basictl.StringWriteTL2(w, elem)
+		w = basictl.StringWriteTL2(w, (*vec)[i])
 	}
-	return w, sizes
+	internal.Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
 }
 
 func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err error) {
@@ -102,6 +120,9 @@ func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err 
 	if currentSize != 0 {
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
+		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
 		}
 	}
 
@@ -167,7 +188,7 @@ func BuiltinVectorStringBytesFillRandom(rg *basictl.RandGenerator, vec *[][]byte
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesReadTL1(w []byte, vec *[][]byte) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -188,7 +209,7 @@ func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error)
 	return w, nil
 }
 
-func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
+func BuiltinVectorStringBytesWriteTL1(w []byte, vec [][]byte) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.StringWriteBytes(w, elem)
@@ -196,37 +217,55 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) []byte {
 	return w
 }
 
-func BuiltinVectorStringBytesCalculateLayout(sizes []int, vec *[][]byte) []int {
-	currentSize := 0
+func BuiltinVectorStringBytesCalculateLayout(sizes []int, optimizeEmpty bool, vec *[][]byte) ([]int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
-	if len(*vec) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*vec))
-	}
-	for i := 0; i < len(*vec); i++ {
-		elem := (*vec)[i]
 
-		currentSize += len(elem)
-		currentSize += basictl.TL2CalculateSize(len(elem))
+	currentSize := 0
+	var sz int
+
+	currentSize += basictl.TL2CalculateSize(len(*vec))
+	for i := 0; i < len(*vec); i++ {
+		currentSize += basictl.TL2CalculateSize(len((*vec)[i])) + len((*vec)[i])
 	}
 	sizes[sizePosition] = currentSize
-	return sizes
+	currentSize += basictl.TL2CalculateSize(currentSize)
+	internal.Unused(sz)
+	return sizes, currentSize
 }
 
-func BuiltinVectorStringBytesInternalWriteTL2(w []byte, sizes []int, vec *[][]byte) ([]byte, []int) {
+func BuiltinVectorStringBytesInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[][]byte) ([]byte, []int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
+	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
-
 	w = basictl.TL2WriteSize(w, currentSize)
-	if len(*vec) != 0 {
-		w = basictl.TL2WriteSize(w, len(*vec))
+	if currentSize == 0 {
+		return w, sizes, 1
 	}
+	oldLen := len(w)
+	w = basictl.TL2WriteSize(w, len(*vec))
 
+	var sz int
 	for i := 0; i < len(*vec); i++ {
-		elem := (*vec)[i]
-		w = basictl.StringWriteTL2Bytes(w, elem)
+		w = basictl.StringWriteTL2Bytes(w, (*vec)[i])
 	}
-	return w, sizes
+	internal.Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
 }
 
 func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte, err error) {
@@ -245,6 +284,9 @@ func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte,
 	if currentSize != 0 {
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
+		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
 		}
 	}
 

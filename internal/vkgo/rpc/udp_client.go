@@ -62,6 +62,12 @@ func newUdpClient(client *ClientImpl) *udpClient {
 		c.deallocateMessage,
 		client.opts.PacketTimeout/10,
 		client.opts.DebugUdp,
+		client.opts.PrintKeysGenerationInfo,
+		false,
+		nil,
+		nil,
+		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -133,14 +139,16 @@ func (c *udpClient) Do(ctx context.Context, network string, address string, req 
 	req.startTime = time.Now()
 	response := c.client.getResponse(req)
 
+	var err error
 	hook := response.hook
 	if hook != nil {
-		err := hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
+		ctx, err = hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
 		if err != nil {
 			return response, err
 		}
 	}
-	err := c.do(ctx, network, address, req, response)
+
+	err = c.do(ctx, network, address, req, response)
 	if hook != nil {
 		hook.AfterSend(response, err)
 	}

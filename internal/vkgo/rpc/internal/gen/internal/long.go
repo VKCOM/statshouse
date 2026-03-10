@@ -22,7 +22,7 @@ func BuiltinVectorLongFillRandom(rg *basictl.RandGenerator, vec *[]int64) {
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
+func BuiltinVectorLongReadTL1(w []byte, vec *[]int64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -43,7 +43,7 @@ func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
+func BuiltinVectorLongWriteTL1(w []byte, vec []int64) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.LongWrite(w, elem)

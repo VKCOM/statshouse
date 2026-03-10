@@ -17,13 +17,16 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// first message from Barsic to engine, but see below
 type BarsicStart struct {
-	FieldsMask        uint32
-	ClusterId         string
-	ShardId           string
+	FieldsMask uint32
+	ClusterId  string
+	ShardId    string
+	// legacy, contains copy of encryptionSecrets[0]
 	EncryptionSecret  string
 	EncryptionSecrets []string // Conditional: item.FieldsMask.1
-	Snapshots         []string
+	// abs path to snapshots. This set should contain all dependencies
+	Snapshots []string
 }
 
 func (BarsicStart) TLName() string { return "barsic.start" }
@@ -62,6 +65,9 @@ func (item *BarsicStart) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicStart) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -75,53 +81,74 @@ func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringRead(w, &item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringReadTL1(w, &item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	} else {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	return tlBuiltinVectorString.BuiltinVectorStringRead(w, &item.Snapshots)
+	return tlBuiltinVectorString.BuiltinVectorStringReadTL1(w, &item.Snapshots)
 }
 
 func (item *BarsicStart) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicStart) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicStart) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicStart) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
 	w = basictl.StringWrite(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
-		w = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.EncryptionSecrets)
+		w = tlBuiltinVectorString.BuiltinVectorStringWriteTL1(w, item.EncryptionSecrets)
 	}
-	w = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.Snapshots)
+	w = tlBuiltinVectorString.BuiltinVectorStringWriteTL1(w, item.Snapshots)
 	return w
 }
 
 func (item *BarsicStart) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicStart) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x85ca2340); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicStart) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicStart) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicStart) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicStart) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x85ca2340)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicStart) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicStart) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicStart) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicStart) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -143,29 +170,44 @@ func (item *BarsicStart) writeResultJSON(tctx *basictl.JSONWriteContext, w []byt
 	return w, nil
 }
 
-func (item *BarsicStart) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicStart) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicStart) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStart) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicStart) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicStart) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicStart) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStart) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStart) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStart) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
 }
 
 func (item BarsicStart) String() string {
@@ -342,20 +384,23 @@ func (item *BarsicStart) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicStart) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.start"))
 }
 
 func (item *BarsicStart) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.start")
 }
 
+// first message from Barsic to engine, but see below
 type BarsicStartBytes struct {
-	FieldsMask        uint32
-	ClusterId         []byte
-	ShardId           []byte
+	FieldsMask uint32
+	ClusterId  []byte
+	ShardId    []byte
+	// legacy, contains copy of encryptionSecrets[0]
 	EncryptionSecret  []byte
 	EncryptionSecrets [][]byte // Conditional: item.FieldsMask.1
-	Snapshots         [][]byte
+	// abs path to snapshots. This set should contain all dependencies
+	Snapshots [][]byte
 }
 
 func (BarsicStartBytes) TLName() string { return "barsic.start" }
@@ -394,6 +439,9 @@ func (item *BarsicStartBytes) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicStartBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -407,53 +455,74 @@ func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesRead(w, &item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesReadTL1(w, &item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	} else {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	return tlBuiltinVectorString.BuiltinVectorStringBytesRead(w, &item.Snapshots)
+	return tlBuiltinVectorString.BuiltinVectorStringBytesReadTL1(w, &item.Snapshots)
 }
 
 func (item *BarsicStartBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicStartBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicStartBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicStartBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
 	w = basictl.StringWriteBytes(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
-		w = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.EncryptionSecrets)
+		w = tlBuiltinVectorString.BuiltinVectorStringBytesWriteTL1(w, item.EncryptionSecrets)
 	}
-	w = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.Snapshots)
+	w = tlBuiltinVectorString.BuiltinVectorStringBytesWriteTL1(w, item.Snapshots)
 	return w
 }
 
 func (item *BarsicStartBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicStartBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x85ca2340); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicStartBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicStartBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicStartBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicStartBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x85ca2340)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicStartBytes) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicStartBytes) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicStartBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicStartBytes) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -475,29 +544,44 @@ func (item *BarsicStartBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w 
 	return w, nil
 }
 
-func (item *BarsicStartBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicStartBytes) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicStartBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStartBytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicStartBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicStartBytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicStartBytes) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStartBytes) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStartBytes) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
+}
+
+func (item *BarsicStartBytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.start")
 }
 
 func (item BarsicStartBytes) String() string {
@@ -674,7 +758,7 @@ func (item *BarsicStartBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicStartBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.start"))
 }
 
 func (item *BarsicStartBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

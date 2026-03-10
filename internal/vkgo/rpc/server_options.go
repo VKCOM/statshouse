@@ -15,38 +15,44 @@ import (
 )
 
 type ServerOptions struct {
-	Logf                   LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	SyncHandler            HandlerFunc
-	Handler                HandlerFunc
-	StatsHandler           StatsHandlerFunc
-	RecoverPanics          bool
-	VerbosityHandler       VerbosityHandlerFunc
-	Version                string
-	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
-	SocketHijackHandler    func(conn *HijackConnection)
-	AcceptErrHandler       ErrHandlerFunc
-	ConnErrHandler         ErrHandlerFunc
-	RequestHook            RequestHookFunc
-	ResponseHook           ResponseHookFunc
-	TrustedSubnetGroupsSt  string // for stats
-	TrustedSubnetGroups    [][]*net.IPNet
-	ForceEncryption        bool
-	cryptoKeys             []string
-	MaxConns               int           // defaults to DefaultMaxConns
-	MaxWorkers             int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
-	RequestMemoryLimit     int           // defaults to DefaultRequestMemoryLimit
-	ResponseMemoryLimit    int           // defaults to DefaultResponseMemoryLimit
-	ConnReadBufSize        int           // defaults to DefaultServerConnReadBufSize
-	ConnWriteBufSize       int           // defaults to DefaultServerConnWriteBufSize
-	RequestBufSize         int           // defaults to DefaultServerRequestBufSize
-	ResponseBufSize        int           // defaults to DefaultServerResponseBufSize
-	ResponseMemEstimate    int           // defaults to DefaultResponseMemEstimate; must be greater than ResponseBufSize
-	DefaultResponseTimeout time.Duration // defaults to no timeout (0)
-	MinimumLongpollTimeout time.Duration
-	DisableContextTimeout  bool
-	DisableTCPReuseAddr    bool
-	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
-	DebugUdpRPC            int  // 0 - nothing; 1 - prints key udp events; 2 - prints all udp activities (<0 equals to 0; >2 equals to 2)
+	Logf                       LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
+	SyncHandler                HandlerFunc
+	Handler                    HandlerFunc
+	StatsHandler               StatsHandlerFunc
+	RecoverPanics              bool
+	VerbosityHandler           VerbosityHandlerFunc
+	Version                    string
+	TransportHijackHandler     func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
+	SocketHijackHandler        func(conn *HijackConnection)
+	AcceptErrHandler           ErrHandlerFunc
+	ConnErrHandler             ErrHandlerFunc
+	RequestHook                RequestHookFunc
+	ResponseHook               ResponseHookFunc
+	TrustedSubnetGroupsSt      string // for stats
+	TrustedSubnetGroups        [][]*net.IPNet
+	ForceEncryption            bool
+	cryptoKeys                 []string
+	MaxConns                   int           // defaults to DefaultMaxConns
+	MaxWorkers                 int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
+	RequestMemoryLimit         int           // defaults to DefaultRequestMemoryLimit
+	ResponseMemoryLimit        int           // defaults to DefaultResponseMemoryLimit
+	ConnReadBufSize            int           // defaults to DefaultServerConnReadBufSize
+	ConnWriteBufSize           int           // defaults to DefaultServerConnWriteBufSize
+	RequestBufSize             int           // defaults to DefaultServerRequestBufSize
+	ResponseBufSize            int           // defaults to DefaultServerResponseBufSize
+	ResponseMemEstimate        int           // defaults to DefaultResponseMemEstimate; must be greater than ResponseBufSize
+	DefaultResponseTimeout     time.Duration // defaults to no timeout (0)
+	MinimumLongpollTimeout     time.Duration
+	DisableContextTimeout      bool
+	DisableTCPReuseAddr        bool
+	DebugRPC                   bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
+	DebugUdpRPC                int  // 0 - nothing; 1 - prints key udp events; 2 - prints all udp activities (<0 equals to 0; >2 equals to 2)
+	PrintKeysGenerationInfo    bool
+	DebugUDPLatency            bool
+	socketWriteLatencyMetric   func(millis float64)
+	socketReadLatencyMetric    func(millis float64)
+	writeScheduleLatencyMetric func(millis float64)
+	readScheduleLatencyMetric  func(millis float64)
 }
 
 func (opts *ServerOptions) AddCryptoKey(key string) {
@@ -76,6 +82,42 @@ func ServerWithDebugRPC(debugRpc bool) ServerOptionsFunc {
 func ServerWithDebugUdpRPC(debugUdpRpc int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.DebugUdpRPC = debugUdpRpc
+	}
+}
+
+func ServerWithPrintKeysGenerationInfo(printKeysGenerationInfo bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.PrintKeysGenerationInfo = printKeysGenerationInfo
+	}
+}
+
+func ServerWithDebugUDPLatency(debugUDPLatency bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.DebugUDPLatency = debugUDPLatency
+	}
+}
+
+func ServerWithUDPSocketWriteLatencyMetric(socketWriteLatencyMetric func(millis float64)) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.socketWriteLatencyMetric = socketWriteLatencyMetric
+	}
+}
+
+func ServerWithUDPSocketReadLatencyMetric(socketReadLatencyMetric func(millis float64)) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.socketReadLatencyMetric = socketReadLatencyMetric
+	}
+}
+
+func ServerWithUDPWriteScheduleLatencyMetric(writeScheduleLatencyMetric func(millis float64)) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.writeScheduleLatencyMetric = writeScheduleLatencyMetric
+	}
+}
+
+func ServerWithUDPReadScheduleLatencyMetric(readScheduleLatencyMetric func(millis float64)) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.readScheduleLatencyMetric = readScheduleLatencyMetric
 	}
 }
 

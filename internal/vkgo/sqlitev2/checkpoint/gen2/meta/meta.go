@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/sqlitev2/checkpoint/gen2/internal"
 )
 
-func SchemaGenerator() string { return "v1.2.27" }
+func SchemaGenerator() string { return "v1.3.24" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
@@ -30,6 +30,11 @@ type Object interface {
 	WriteGeneral(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
 	WriteBoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
 
+	ReadTL1(w []byte) ([]byte, error)              // reads type's bare TL representation by consuming bytes from the start of w and returns remaining bytes, plus error
+	ReadTL1Boxed(w []byte) ([]byte, error)         // same as Read, but reads/checks TLTag first (this method is general version of Write, use it only when you are working with interface)
+	WriteTL1General(w []byte) ([]byte, error)      // same as Write, but has common signature (with error) for all objects, so can be called through interface
+	WriteTL1BoxedGeneral(w []byte) ([]byte, error) // same as WriteBoxed, but has common signature (with error) for all objects, so can be called through interface
+
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
@@ -44,8 +49,9 @@ type Function interface {
 
 	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
-	ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+	ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResultTL1(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+
 }
 
 func GetAllTLItems() []TLItem {
@@ -66,75 +72,21 @@ func GetTLName(tag uint32, notFoundName string) string {
 	return notFoundName
 }
 
-func CreateFunction(tag uint32) Function {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createFunction != nil {
-		return item.createFunction()
-	}
-	return nil
-}
-
-func CreateObject(tag uint32) Object {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createObject != nil {
-		return item.createObject()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateFunctionFromName(name string) Function {
-	if item := FactoryItemByTLName(name); item != nil && item.createFunction != nil {
-		return item.createFunction()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateObjectFromName(name string) Object {
-	if item := FactoryItemByTLName(name); item != nil && item.createObject != nil {
-		return item.createObject()
-	}
-	return nil
-}
-
-func CreateFunctionBytes(tag uint32) Function {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createFunctionBytes != nil {
-		return item.createFunctionBytes()
-	}
-	return nil
-}
-
-func CreateObjectBytes(tag uint32) Object {
-	if item := FactoryItemByTLTag(tag); item != nil && item.createObjectBytes != nil {
-		return item.createObjectBytes()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateFunctionFromNameBytes(name string) Function {
-	if item := FactoryItemByTLName(name); item != nil && item.createFunctionBytes != nil {
-		return item.createFunctionBytes()
-	}
-	return nil
-}
-
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
-func CreateObjectFromNameBytes(name string) Object {
-	if item := FactoryItemByTLName(name); item != nil && item.createObjectBytes != nil {
-		return item.createObjectBytes()
-	}
-	return nil
-}
-
 type TLItem struct {
 	tag         uint32
 	annotations uint32
 	tlName      string
-	isTL2       bool
+
+	hasTL1 bool
+	hasTL2 bool
 
 	resultTypeContainsUnionTypes    bool
 	argumentsTypesContainUnionTypes bool
 
+	// either createObject != nil or createFunction != nil for object/function respectively
+	// also, createFunctionLong can be != nil if there is long adapter (legacy to be removed soon)
+	// also, createObjectBytes, createFunctionBytes, createFunctionLongBytes
+	// can be != nil independently, if factory_bytes is imported
 	createFunction          func() Function
 	createFunctionLong      func() Function
 	createObject            func() Object
@@ -143,12 +95,45 @@ type TLItem struct {
 	createObjectBytes       func() Object
 }
 
-func (item TLItem) TLTag() uint32            { return item.tag }
-func (item TLItem) TLName() string           { return item.tlName }
-func (item TLItem) IsTL2() bool              { return item.isTL2 }
-func (item TLItem) CreateObject() Object     { return item.createObject() }
+func (item TLItem) TLTag() uint32  { return item.tag }
+func (item TLItem) TLName() string { return item.tlName }
+
+// true for TL1-originated types
+func (item TLItem) HasTL1() bool { return item.hasTL1 }
+
+// true for TL2-originated types and for TL1-originated types if in TL2 generation whitelist
+func (item TLItem) HasTL2() bool { return item.hasTL2 }
+func (item TLItem) CreateObject() Object {
+	if item.createFunction != nil {
+		return item.createFunction()
+	}
+	return item.createObject()
+}
+
+// used in TL generator tests only, do not use in product code
+func (item TLItem) CreateObjectBytes() Object {
+	if item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	if item.createFunction != nil {
+		return item.createFunction()
+	}
+	if item.createObjectBytes != nil {
+		return item.createObjectBytes()
+	}
+	return item.createObject()
+}
+
 func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+// used in TL generator tests only, do not use in product code
+func (item TLItem) CreateFunctionBytes() Function {
+	if item.createFunctionBytes != nil {
+		return item.createFunctionBytes()
+	}
+	return item.createFunction()
+}
 
 func (item TLItem) HasUnionTypesInResult() bool    { return item.resultTypeContainsUnionTypes }
 func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesContainUnionTypes }
@@ -156,6 +141,15 @@ func (item TLItem) HasUnionTypesInArguments() bool { return item.argumentsTypesC
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
+
+// we simplify interface by commenting this method no one yet needs.
+// hopefully it will be removed together with long adapters code
+// func (item TLItem) CreateFunctionLongBytes() Function {
+//     if item.createFunctionLongBytes != nil {
+//         return item.createFunctionLongBytes()
+//     }
+//     return item.createFunctionLong()
+// }
 
 // Annotations
 func (item TLItem) AnnotationAny() bool       { return item.annotations&0x1 != 0 }
@@ -165,16 +159,22 @@ func (item TLItem) AnnotationRead() bool      { return item.annotations&0x8 != 0
 func (item TLItem) AnnotationReadwrite() bool { return item.annotations&0x10 != 0 }
 func (item TLItem) AnnotationWrite() bool     { return item.annotations&0x20 != 0 }
 
-// TLItem serves as a single type for all enum values
-func (item *TLItem) Reset()                                {}
-func (item *TLItem) Read(w []byte) ([]byte, error)         { return w, nil }
-func (item *TLItem) WriteGeneral(w []byte) ([]byte, error) { return w, nil }
-func (item *TLItem) Write(w []byte) []byte                 { return w }
-func (item *TLItem) ReadBoxed(w []byte) ([]byte, error)    { return basictl.NatReadExactTag(w, item.tag) }
+// TLItem serves as a single type for all TL1 enum values
+func (item *TLItem) Reset()                             {}
+func (item *TLItem) Read(w []byte) ([]byte, error)      { return w, nil }
+func (item *TLItem) ReadTL1(w []byte) ([]byte, error)   { return w, nil }
+func (item *TLItem) ReadBoxed(w []byte) ([]byte, error) { return basictl.NatReadExactTag(w, item.tag) }
+func (item *TLItem) ReadTL1Boxed(w []byte) ([]byte, error) {
+	return basictl.NatReadExactTag(w, item.tag)
+}
+func (item *TLItem) WriteGeneral(w []byte) ([]byte, error)    { return w, nil }
+func (item *TLItem) WriteTL1General(w []byte) ([]byte, error) { return w, nil }
 func (item *TLItem) WriteBoxedGeneral(w []byte) ([]byte, error) {
 	return basictl.NatWrite(w, item.tag), nil
 }
-func (item *TLItem) WriteBoxed(w []byte) []byte { return basictl.NatWrite(w, item.tag) }
+func (item *TLItem) WriteTL1BoxedGeneral(w []byte) ([]byte, error) {
+	return basictl.NatWrite(w, item.tag), nil
+}
 func (item TLItem) String() string {
 	return string(item.WriteJSON(nil))
 }
@@ -221,80 +221,51 @@ var itemsByTag = map[uint32]*TLItem{}
 
 var itemsByName = map[string]*TLItem{}
 
-func SetGlobalFactoryCreateForFunction(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForFunction(name string, createFunction func() Function, createFunctionLong func() Function) {
+	item := itemsByName[name]
+	if item == nil || item.createFunction == nil { // only replace !nil createFunction
+		panic(fmt.Sprintf("factory cannot find function %s to set", name))
 	}
-	item.createObject = createObject
 	item.createFunction = createFunction
 	item.createFunctionLong = createFunctionLong
 }
 
-func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForObject(name string, createObject func() Object) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find object %s to set", name))
 	}
 	item.createObject = createObject
 }
 
-func SetGlobalFactoryCreateForObjectTL2(itemName string, createObject func() Object) {
-	item := itemsByName[itemName]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
-	}
-	item.createObject = createObject
-}
-
-func SetGlobalFactoryCreateForEnumElement(itemTag uint32) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForEnumElement(name string) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find enum %s to set", name))
 	}
 	item.createObject = func() Object { return item }
 }
 
-func SetGlobalFactoryCreateForFunctionBytes(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForFunctionBytes(name string, createFunctionBytes func() Function, createFunctionLongBytes func() Function) {
+	item := itemsByName[name]
+	if item == nil || item.createFunction == nil { // only replace !nil createFunction
+		panic(fmt.Sprintf("factory cannot find function %s to set", name))
 	}
-	item.createObjectBytes = createObject
-	item.createFunctionBytes = createFunction
-	item.createFunctionLongBytes = createFunctionLong
+	item.createFunctionBytes = createFunctionBytes
+	item.createFunctionLongBytes = createFunctionLongBytes
 }
 
-func SetGlobalFactoryCreateForObjectBytes(itemTag uint32, createObject func() Object) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item tag #%08x to set", itemTag))
+// Do not call directly, called by factory init code
+func SetGlobalFactoryCreateForObjectBytes(name string, createObjectBytes func() Object) {
+	item := itemsByName[name]
+	if item == nil || item.createObject == nil { // only replace !nil createObject
+		panic(fmt.Sprintf("factory cannot find object %s to set", name))
 	}
-	item.createObjectBytes = createObject
-}
-
-func SetGlobalFactoryCreateForObjectBytesTL2(itemName string, createObject func() Object) {
-	item := itemsByName[itemName]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find item name %q to set", itemName))
-	}
-	item.createObjectBytes = createObject
-}
-
-func SetGlobalFactoryCreateForEnumElementBytes(itemTag uint32) {
-	item := itemsByTag[itemTag]
-	if item == nil {
-		panic(fmt.Sprintf("factory cannot find enum tag #%08x to set", itemTag))
-	}
-	item.createObjectBytes = func() Object { return item }
-}
-
-func pleaseImportFactoryBytesObject() Object {
-	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
-}
-
-func pleaseImportFactoryBytesFunction() Function {
-	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory_bytes' instead of 'gen/meta'.")
+	item.createObjectBytes = createObjectBytes
 }
 
 func pleaseImportFactoryObject() Object {
@@ -305,34 +276,22 @@ func pleaseImportFactoryFunction() Function {
 	panic("factory functions are not linked to reduce code bloat, please import 'gen/factory' instead of 'gen/meta'.")
 }
 
-func fillObject(n1 string, n2 string, item *TLItem) {
-	itemsByTag[item.tag] = item
-	itemsByName[item.tlName] = item
-	itemsByName[n1] = item
-	itemsByName[n2] = item
-	item.createObject = pleaseImportFactoryObject
-	item.createObjectBytes = pleaseImportFactoryBytesObject
-	// code below is as fast, but allocates some extra strings which are already in binary const segment due to JSON code
-	// itemsByName[fmt.Sprintf("%s#%08x", item.tlName, item.tag)] = item
-	// itemsByName[fmt.Sprintf("#%08x", item.tag)] = item
-}
-
-func fillObjectTL2(item *TLItem) {
+func fillObject(item *TLItem) {
 	itemsByName[item.tlName] = item
 	if item.tag != 0 {
 		itemsByTag[item.tag] = item
 	}
 	item.createObject = pleaseImportFactoryObject
-	item.createObjectBytes = pleaseImportFactoryBytesObject
 }
 
-func fillFunction(n1 string, n2 string, item *TLItem) {
-	fillObject(n1, n2, item)
+func fillFunction(item *TLItem) {
+	itemsByName[item.tlName] = item
+	if item.tag != 0 {
+		itemsByTag[item.tag] = item
+	}
 	item.createFunction = pleaseImportFactoryFunction
-	item.createFunctionBytes = pleaseImportFactoryBytesFunction
 }
 
 func init() {
-	// TL
-	fillObject("sqlite.metainfo#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "sqlite.metainfo", isTL2: false, resultTypeContainsUnionTypes: false, argumentsTypesContainUnionTypes: false})
+	fillObject(&TLItem{tlName: "sqlite.metainfo", tag: 0x9286affa, hasTL1: true})
 }

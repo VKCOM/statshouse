@@ -15,47 +15,64 @@ var _ = basictl.NatWrite
 
 type Stat map[string]string
 
+func (item *Stat) ptr() *map[string]string { return (*map[string]string)(item) }
+
 func (Stat) TLName() string { return "stat" }
 func (Stat) TLTag() uint32  { return 0x9d56e6b2 }
 
 func (item *Stat) Reset() {
-	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringReset(*ptr)
+	BuiltinDictStringStringReset(*item.ptr())
 }
 
 func (item *Stat) FillRandom(rg *basictl.RandGenerator) {
-	ptr := (*map[string]string)(item)
-	BuiltinVectorDictionaryFieldStringFillRandom(rg, ptr)
+	BuiltinDictStringStringFillRandom(rg, item.ptr())
 }
 
 func (item *Stat) Read(w []byte) (_ []byte, err error) {
-	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
+	return item.ReadTL1(w)
+}
+func (item *Stat) ReadTL1(w []byte) (_ []byte, err error) {
+	return BuiltinDictStringStringReadTL1(w, item.ptr())
 }
 
 func (item *Stat) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *Stat) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *Stat) Write(w []byte) []byte {
-	ptr := (*map[string]string)(item)
-	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
+	return item.WriteTL1(w)
+}
+func (item *Stat) WriteTL1(w []byte) []byte {
+	w = BuiltinDictStringStringWriteTL1(w, *item.ptr())
+	return w
 }
 
 func (item *Stat) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *Stat) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9d56e6b2); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *Stat) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *Stat) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *Stat) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *Stat) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9d56e6b2)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item Stat) String() string {
@@ -67,8 +84,7 @@ func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 }
 
 func (item *Stat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
@@ -85,8 +101,7 @@ func (item *Stat) WriteJSON(w []byte) []byte {
 }
 
 func (item *Stat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	ptr := (*map[string]string)(item)
-	w = BuiltinVectorDictionaryFieldStringWriteJSONOpt(tctx, w, *ptr)
+	w = BuiltinDictStringStringWriteJSONOpt(tctx, w, *item.ptr())
 	return w
 }
 func (item *Stat) MarshalJSON() ([]byte, error) {

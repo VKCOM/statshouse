@@ -35,6 +35,9 @@ func (item *NetPid) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *NetPid) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *NetPid) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Ip); err != nil {
 		return w, err
 	}
@@ -45,10 +48,16 @@ func (item *NetPid) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *NetPid) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *NetPid) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *NetPid) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *NetPid) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Ip)
 	w = basictl.NatWrite(w, item.PortPid)
 	w = basictl.NatWrite(w, item.Utime)
@@ -56,19 +65,28 @@ func (item *NetPid) Write(w []byte) []byte {
 }
 
 func (item *NetPid) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *NetPid) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x46409ccf); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *NetPid) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *NetPid) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *NetPid) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *NetPid) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x46409ccf)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item NetPid) String() string {

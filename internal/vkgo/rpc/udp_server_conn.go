@@ -21,7 +21,8 @@ import (
 type UdpServerConn struct {
 	serverConnCommon
 
-	conn *udp.Connection
+	conn       *udp.Connection
+	errHandler ErrHandlerFunc
 }
 
 func (sc *UdpServerConn) ListenAddr() net.Addr      { return sc.conn.ListenAddr() }
@@ -99,7 +100,7 @@ func (sc *UdpServerConn) SendEmptyResponse(lh LongpollHandle) {
 	if sc.server.opts.DebugRPC {
 		sc.server.opts.Logf("rpc_debug: %s WriteEmptyResponse queryID=%d err: %v", sc.debugName, lh.QueryID, err)
 	}
-	sc.SendLongpollResponse(hctx, err)
+	sc.SendResponse(hctx, err)
 }
 
 func (sc *UdpServerConn) acquireHandlerCtx() *HandlerContext {
@@ -116,42 +117,16 @@ func (sc *UdpServerConn) releaseHandlerCtx(hctx *HandlerContext) {
 	sc.server.releaseHandlerCtx(hctx)
 }
 
-func (sc *UdpServerConn) cancelAllLongpollResponses() {
-	// TODO - do this under correct Lock at correct time
-	/*
-		sc.mu.Lock()
-		longpolls := sc.longpolls
-		sc.longpolls = nil // If makeLongpollResponse is called, we'll panic. But this must be impossible if SyncHandler follows protocol
-		sc.mu.Unlock()
-		for _, resp := range longpolls {
-			if debugPrint {
-				fmt.Printf("longpolls cancel (all) %d\n", resp.handle.QueryID)
-			}
-			if debugTrace {
-				sc.server.addTrace(fmt.Sprintf("cancelAllLongpollResponse %d", resp.handle.QueryID))
-			}
-			sc.server.protocolStats[resp.protocolTransportID].longPollsWaiting.Add(-1)
-			sc.server.longpollTree.DeleteLongpoll(resp.handle, resp.deadline)
-			resp.canceller.CancelLongpoll(resp.handle)
-			// This happens only in shutdown, so we have to tell the client that his longpoll
-			// was cancelled
-			hctx := sc.acquireHctx().fillFromHijackedResponse(resp)
-			sc.pushResponse(hctx, errCancelHijack)
-			// isLongpoll false because it would look it up in sc.longpolls and incorrectly consider hctx released and do nothing
-		}
-	*/
-}
-
-func (sc *UdpServerConn) SendLongpollResponse(hctx *HandlerContext, err error) {
+func (sc *UdpServerConn) SendResponse(hctx *HandlerContext, err error) {
 	if hctx.longpollStarted || hctx.noResult {
 		if hctx.noResult && err != nil {
 			sc.server.rareLog(&sc.server.lastOtherLog, "rpc: failed to handle no_result query: #%v tag: #%08x method: %q error: %v", hctx.queryID, hctx.reqTag, hctx.requestFunctionName, err)
 		}
 		if sc.server.opts.DebugRPC {
 			if hctx.longpollStarted {
-				sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (longpollStarted) queryID=%d", sc.debugName, hctx.queryID)
+				sc.server.opts.Logf("rpc_debug: %s SendResponse (longpollStarted) queryID=%d", sc.debugName, hctx.queryID)
 			} else {
-				sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (noResult) queryID=%d", sc.debugName, hctx.queryID)
+				sc.server.opts.Logf("rpc_debug: %s SendResponse (noResult) queryID=%d", sc.debugName, hctx.queryID)
 			}
 		}
 		sc.releaseHandlerCtx(hctx)
@@ -169,23 +144,28 @@ func (sc *UdpServerConn) SendLongpollResponse(hctx *HandlerContext, err error) {
 		// Handler should return ErrNoHandler if it does not know how to return response
 		sc.server.rareLog(&sc.server.lastOtherLog, "rpc: handler returned empty response with no error query #%v tag #%08x (%s)", hctx.queryID, hctx.reqTag, hctx.requestFunctionName)
 	}
+
 	sc.mu.Lock()
 	if sc.connectionStatus >= serverStatusStopped {
 		sc.mu.Unlock()
 		if sc.server.opts.DebugRPC {
-			sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (closed) queryID=%d", sc.debugName, hctx.queryID)
+			sc.server.opts.Logf("rpc_debug: %s SendResponse (closed) queryID=%d", sc.debugName, hctx.queryID)
 		}
 		sc.releaseHandlerCtx(hctx)
 		return
 	}
 	sc.mu.Unlock()
+
+	queryID := hctx.queryID
+	sc.sendResponseImpl(hctx)
+	sc.releaseHandlerCtx(hctx)
+
 	if sc.server.opts.DebugRPC {
-		sc.server.opts.Logf("rpc_debug: %s SendLongpollResponse (push) queryID=%d", sc.debugName, hctx.queryID)
+		sc.server.opts.Logf("rpc_debug: %s SendResponse (push) queryID=%d", sc.debugName, queryID)
 	}
-	sc.pushUnlock(hctx)
 }
 
-func (sc *UdpServerConn) pushUnlock(hctx *HandlerContext) {
+func (sc *UdpServerConn) sendResponseImpl(hctx *HandlerContext) {
 	// TODO implement and use Transport::SendCircularMessage method
 	fullResponseSize := len(hctx.Response) + 4                           // tagSize
 	responseMessage := sc.server.allocateRequestBufUDP(fullResponseSize) // TODO - better idea
@@ -209,7 +189,6 @@ func (sc *UdpServerConn) pushUnlock(hctx *HandlerContext) {
 	if sc.serverConnCommon.server.opts.DebugUdpRPC >= 2 {
 		log.Printf("udp rpc response sent")
 	}
-	sc.releaseHandlerCtx(hctx)
 
 	if err != nil {
 		log.Printf("%+v", err)

@@ -24,7 +24,7 @@ func BuiltinVectorLongFillRandom(rg *basictl.RandGenerator, vec *[]int64) {
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
+func BuiltinVectorLongReadTL1(w []byte, vec *[]int64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -45,7 +45,7 @@ func BuiltinVectorLongRead(w []byte, vec *[]int64) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
+func BuiltinVectorLongWriteTL1(w []byte, vec []int64) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.LongWrite(w, elem)
@@ -53,35 +53,55 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) []byte {
 	return w
 }
 
-func BuiltinVectorLongCalculateLayout(sizes []int, vec *[]int64) []int {
-	currentSize := 0
+func BuiltinVectorLongCalculateLayout(sizes []int, optimizeEmpty bool, vec *[]int64) ([]int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return sizes, 0
+		}
+		return sizes, 1
+	}
 	sizePosition := len(sizes)
 	sizes = append(sizes, 0)
-	if len(*vec) != 0 {
-		currentSize += basictl.TL2CalculateSize(len(*vec))
-	}
-	for i := 0; i < len(*vec); i++ {
 
+	currentSize := 0
+	var sz int
+
+	currentSize += basictl.TL2CalculateSize(len(*vec))
+	for i := 0; i < len(*vec); i++ {
 		currentSize += 8
 	}
 	sizes[sizePosition] = currentSize
-	return sizes
+	currentSize += basictl.TL2CalculateSize(currentSize)
+	internal.Unused(sz)
+	return sizes, currentSize
 }
 
-func BuiltinVectorLongInternalWriteTL2(w []byte, sizes []int, vec *[]int64) ([]byte, []int) {
+func BuiltinVectorLongInternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool, vec *[]int64) ([]byte, []int, int) {
+	if len(*vec) == 0 {
+		if optimizeEmpty {
+			return w, sizes, 0
+		}
+		w = append(w, 0)
+		return w, sizes, 1
+	}
 	currentSize := sizes[0]
 	sizes = sizes[1:]
-
 	w = basictl.TL2WriteSize(w, currentSize)
-	if len(*vec) != 0 {
-		w = basictl.TL2WriteSize(w, len(*vec))
+	if currentSize == 0 {
+		return w, sizes, 1
 	}
+	oldLen := len(w)
+	w = basictl.TL2WriteSize(w, len(*vec))
 
+	var sz int
 	for i := 0; i < len(*vec); i++ {
-		elem := (*vec)[i]
-		w = basictl.LongWrite(w, elem)
+		w = basictl.LongWrite(w, (*vec)[i])
 	}
-	return w, sizes
+	internal.Unused(sz)
+	if len(w)-oldLen != currentSize {
+		panic("tl2: mismatch between calculate and write")
+	}
+	return w, sizes, currentSize
 }
 
 func BuiltinVectorLongInternalReadTL2(r []byte, vec *[]int64) (_ []byte, err error) {
@@ -100,6 +120,9 @@ func BuiltinVectorLongInternalReadTL2(r []byte, vec *[]int64) (_ []byte, err err
 	if currentSize != 0 {
 		if currentR, elementCount, err = basictl.TL2ParseSize(currentR); err != nil {
 			return r, err
+		}
+		if elementCount > len(currentR) {
+			return r, basictl.TL2ElementCountError(elementCount, currentR)
 		}
 	}
 

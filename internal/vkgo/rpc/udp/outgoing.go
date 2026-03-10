@@ -209,9 +209,15 @@ func (o *OutgoingConnection) ResetFlowControl() {
 	o.windowControlSeqNum = -1
 }
 
+func (o *OutgoingConnection) haveHolesToResend() bool {
+	return o.resendIndex+1 < len(o.resendRanges.Ranges) ||
+		o.resendIndex+1 == len(o.resendRanges.Ranges) &&
+			(o.resendRanges.Ranges[o.resendIndex].PacketNumFrom+uint32(o.rangeInnerIndex) <= o.resendRanges.Ranges[o.resendIndex].PacketNumTo)
+}
+
 func (o *OutgoingConnection) haveReliableChunksToSendNow(t *Transport) bool {
 	index := int(o.chunkToSendSeqNum - o.ackSeqNoPrefix)
-	return o.resendIndex < len(o.resendRanges.Ranges) ||
+	return o.haveHolesToResend() ||
 		(o.chunkToSendSeqNum < o.nextSeqNo || o.messageQueue.Len() != 0) && index < t.maxOutgoingWindowSize
 }
 

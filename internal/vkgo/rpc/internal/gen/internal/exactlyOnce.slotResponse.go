@@ -13,6 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
+// if the query header specifies exactlyOnce.prepareRequest, then the engine will respond with this type
 type ExactlyOnceSlotResponse struct {
 	PersistentQueryUuid ExactlyOnceUuid
 	PersistentSlotUuid  ExactlyOnceUuid
@@ -32,36 +33,54 @@ func (item *ExactlyOnceSlotResponse) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *ExactlyOnceSlotResponse) Read(w []byte) (_ []byte, err error) {
-	if w, err = item.PersistentQueryUuid.Read(w); err != nil {
+	return item.ReadTL1(w)
+}
+func (item *ExactlyOnceSlotResponse) ReadTL1(w []byte) (_ []byte, err error) {
+	if w, err = item.PersistentQueryUuid.ReadTL1(w); err != nil {
 		return w, err
 	}
-	return item.PersistentSlotUuid.Read(w)
+	return item.PersistentSlotUuid.ReadTL1(w)
 }
 
 func (item *ExactlyOnceSlotResponse) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *ExactlyOnceSlotResponse) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *ExactlyOnceSlotResponse) Write(w []byte) []byte {
-	w = item.PersistentQueryUuid.Write(w)
-	w = item.PersistentSlotUuid.Write(w)
+	return item.WriteTL1(w)
+}
+func (item *ExactlyOnceSlotResponse) WriteTL1(w []byte) []byte {
+	w = item.PersistentQueryUuid.WriteTL1(w)
+	w = item.PersistentSlotUuid.WriteTL1(w)
 	return w
 }
 
 func (item *ExactlyOnceSlotResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *ExactlyOnceSlotResponse) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x95f25c81); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *ExactlyOnceSlotResponse) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *ExactlyOnceSlotResponse) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *ExactlyOnceSlotResponse) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *ExactlyOnceSlotResponse) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x95f25c81)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item ExactlyOnceSlotResponse) String() string {

@@ -23,33 +23,54 @@ func (item *EngineVersion) Reset() {}
 
 func (item *EngineVersion) FillRandom(rg *basictl.RandGenerator) {}
 
-func (item *EngineVersion) Read(w []byte) (_ []byte, err error) { return w, nil }
+func (item *EngineVersion) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *EngineVersion) ReadTL1(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *EngineVersion) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *EngineVersion) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *EngineVersion) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *EngineVersion) WriteTL1(w []byte) []byte {
 	return w
 }
 
 func (item *EngineVersion) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *EngineVersion) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1a2e06fa); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *EngineVersion) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *EngineVersion) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *EngineVersion) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *EngineVersion) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1a2e06fa)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *EngineVersion) ReadResult(w []byte, ret *string) (_ []byte, err error) {
+	return item.ReadResultTL1(w, ret)
+}
+func (item *EngineVersion) ReadResultTL1(w []byte, ret *string) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xb5286e24); err != nil {
 		return w, err
 	}
@@ -57,6 +78,9 @@ func (item *EngineVersion) ReadResult(w []byte, ret *string) (_ []byte, err erro
 }
 
 func (item *EngineVersion) WriteResult(w []byte, ret string) (_ []byte, err error) {
+	return item.WriteResultTL1(w, ret)
+}
+func (item *EngineVersion) WriteResultTL1(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
 	w = basictl.StringWrite(w, ret)
 	return w, nil
@@ -79,28 +103,27 @@ func (item *EngineVersion) writeResultJSON(tctx *basictl.JSONWriteContext, w []b
 	return w, nil
 }
 
-func (item *EngineVersion) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *EngineVersion) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret string
 	ret = basictl.RandomString(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineVersion) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineVersion) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineVersion) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *EngineVersion) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
 }
 

@@ -20,7 +20,7 @@ type HandlerContextConnection interface {
 	CancelLongpoll(queryID int64) (_ LongpollCanceller, deadline int64)
 	FinishLongpoll(LongpollHandle) (*HandlerContext, error)
 	DebugName() string
-	SendLongpollResponse(hctx *HandlerContext, err error)
+	SendResponse(hctx *HandlerContext, err error)
 	SendEmptyResponse(lh LongpollHandle) // Prefer only one request instead of a batch here, because it's difficult to aggregate batches to different connections
 	AccountResponseMem(hctx *HandlerContext, respBodySizeEstimate int) error
 	ListenAddr() net.Addr
@@ -189,7 +189,7 @@ func (hctx *HandlerContext) StartLongpollWithTimeoutDeprecated(
 
 // Be careful, it's responsibility of the caller to synchronize SendLongpollResponse and CancelLongpoll
 func (hctx *HandlerContext) SendLongpollResponse(err error) {
-	hctx.commonConn.SendLongpollResponse(hctx, err)
+	hctx.commonConn.SendResponse(hctx, err)
 }
 
 // We serialize extra after body into Body, then write into reversed order

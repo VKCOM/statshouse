@@ -32,36 +32,54 @@ func (item *AllocSlotEvent) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *AllocSlotEvent) Read(w []byte) (_ []byte, err error) {
-	if w, err = item.Key.Read(w); err != nil {
+	return item.ReadTL1(w)
+}
+func (item *AllocSlotEvent) ReadTL1(w []byte) (_ []byte, err error) {
+	if w, err = item.Key.ReadTL1(w); err != nil {
 		return w, err
 	}
-	return item.Slot.Read(w)
+	return item.Slot.ReadTL1(w)
 }
 
 func (item *AllocSlotEvent) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *AllocSlotEvent) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *AllocSlotEvent) Write(w []byte) []byte {
-	w = item.Key.Write(w)
-	w = item.Slot.Write(w)
+	return item.WriteTL1(w)
+}
+func (item *AllocSlotEvent) WriteTL1(w []byte) []byte {
+	w = item.Key.WriteTL1(w)
+	w = item.Slot.WriteTL1(w)
 	return w
 }
 
 func (item *AllocSlotEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *AllocSlotEvent) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x2abb2c70); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *AllocSlotEvent) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *AllocSlotEvent) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *AllocSlotEvent) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *AllocSlotEvent) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2abb2c70)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item AllocSlotEvent) String() string {

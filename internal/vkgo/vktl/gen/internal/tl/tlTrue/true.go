@@ -15,6 +15,7 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// this can be used as void type and serialized to empty array in PHP
 type True struct {
 }
 
@@ -25,30 +26,48 @@ func (item *True) Reset() {}
 
 func (item *True) FillRandom(rg *basictl.RandGenerator) {}
 
-func (item *True) Read(w []byte) (_ []byte, err error) { return w, nil }
+func (item *True) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *True) ReadTL1(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *True) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *True) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *True) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *True) WriteTL1(w []byte) []byte {
 	return w
 }
 
 func (item *True) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *True) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x3fedd339); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *True) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *True) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *True) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *True) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x3fedd339)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item True) String() string {
@@ -102,49 +121,33 @@ func (item *True) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item *True) CalculateLayout(sizes []int) []int {
-	sizePosition := len(sizes)
-	sizes = append(sizes, 0)
-
-	currentSize := 0
-	lastUsedByte := 0
-
-	// append byte for each section until last mentioned field
-	if lastUsedByte != 0 {
-		currentSize += lastUsedByte
-	} else {
-		// remove unused values
-		sizes = sizes[:sizePosition+1]
+func (item *True) CalculateLayout(sizes []int, optimizeEmpty bool) ([]int, int) {
+	if optimizeEmpty {
+		return sizes, 0
 	}
-	sizes[sizePosition] = currentSize
-	return sizes
+	return sizes, 1
 }
 
-func (item *True) InternalWriteTL2(w []byte, sizes []int) ([]byte, []int) {
-	currentSize := sizes[0]
-	sizes = sizes[1:]
-
-	serializedSize := 0
-
-	w = basictl.TL2WriteSize(w, currentSize)
-	if currentSize == 0 {
-		return w, sizes
+func (item *True) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([]byte, []int, int) {
+	if optimizeEmpty {
+		return w, sizes, 0
 	}
-
 	w = append(w, 0)
-	serializedSize += 1
-	return w, sizes
+	return w, sizes, 1
 }
 
 func (item *True) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	var sizes []int
+	var sizes, sizes2 []int
 	if ctx != nil {
-		sizes = ctx.SizeBuffer
+		sizes = ctx.SizeBuffer[:0]
 	}
-	sizes = item.CalculateLayout(sizes[:0])
-	w, _ = item.InternalWriteTL2(w, sizes)
+	sizes, _ = item.CalculateLayout(sizes, false)
+	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
+	if len(sizes2) != 0 {
+		panic("tl2: internal write did not consume all size data")
+	}
 	if ctx != nil {
-		ctx.SizeBuffer = sizes[:0]
+		ctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -154,6 +157,10 @@ func (item *True) InternalReadTL2(r []byte) (_ []byte, err error) {
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
 	}
+	if currentSize == 0 {
+		item.Reset()
+		return r, nil
+	}
 	if len(r) < currentSize {
 		return r, basictl.TL2Error("not enough data: expected %d, got %d", currentSize, len(r))
 	}
@@ -161,10 +168,6 @@ func (item *True) InternalReadTL2(r []byte) (_ []byte, err error) {
 	currentR := r[:currentSize]
 	r = r[currentSize:]
 
-	if currentSize == 0 {
-		item.Reset()
-		return r, nil
-	}
 	var block byte
 	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
 		return currentR, err
@@ -176,12 +179,10 @@ func (item *True) InternalReadTL2(r []byte) (_ []byte, err error) {
 			return currentR, err
 		}
 		if index != 0 {
-			// unknown cases for current type
-			item.Reset()
-			return r, nil
+			return r, internal.ErrorInvalidUnionIndex("true", index)
 		}
 	}
-
+	internal.Unused(currentR)
 	return r, nil
 }
 
