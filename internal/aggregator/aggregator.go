@@ -23,18 +23,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeebo/xxh3"
-
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/metarqlite"
 	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
+	"github.com/zeebo/xxh3"
 
 	"pgregory.net/rand"
 )
@@ -106,6 +106,8 @@ type (
 		configS     string
 		configMu    sync.RWMutex
 		cfgNotifier *ConfigChangeNotifier
+
+		metricMetaLoader *metarqlite.RQLiteLoader
 
 		metricStorage   *metajournal.MetricsStorage
 		journalFast     *metajournal.JournalFast
@@ -221,7 +223,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// we do not try several times, because admin must quickly learn aggregator exited
 	// if we try forever, admin might think aggregator is running, while it is not
 	// but for local run, we want to run in wrong order, aggregator first, metadata second
-	tagMappingBootstrapResponse, err := loadBoostrap(config.Cluster, cacheDir, metadataClient)
+	tagMappingBootstrapResponse, err := loadBoostrap(config.Cluster, cacheDir, metadataClient, config.RemoteInitial.RQLiteAddrs)
 	if err != nil {
 		if !withoutCluster {
 			// in prod, running without bootstrap is dangerous and can leave large gap in all metrics
@@ -304,9 +306,11 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// 1. we do not bother to stop collection
 	// 2. we must not use statshouse lib in aggregator, there is nobody listening 13337
 	// _ = metrics.Run(a.server)
-	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
+	legacyMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
+	a.metricMetaLoader = metarqlite.NewRQliteLoader(config.RemoteInitial.RQLiteAddrs, metarqlite.DefaultMetaTimeout, legacyMetaLoader)
+
 	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
+		a.autoCreate = newAutoCreate(a, a.metricMetaLoader, config.AutoCreateDefaultNamespace)
 	}
 	a.metricStorage = metajournal.MakeMetricsStorage(func(configID int32, configS string) {
 		a.scrape.applyConfig(configID, configS)
@@ -337,20 +341,20 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		return nil, fmt.Errorf("built-in agent failed to start: %v", err)
 	}
 	a.sh2 = sh2
-	a.scrape.run(a.metricStorage, metricMetaLoader, sh2)
+	a.scrape.run(a.metricStorage, a.metricMetaLoader, sh2)
 	if a.autoCreate != nil {
 		a.autoCreate.run()
 	}
-	a.journalFast.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
-	a.journalCompact.Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
+	a.journalFast.Start(a.sh2, a.appendInternalLog, a.metricMetaLoader.LoadJournal)
+	a.journalCompact.Start(a.sh2, a.appendInternalLog, a.metricMetaLoader.LoadJournal)
 	a.mappingsStorage.StartPeriodicSaving()
-	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, metricMetaLoader.GetNewMappings, false)
+	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, a.metricMetaLoader.GetNewMappings, false)
 
 	a.testConnection = MakeTestConnection()
-	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)
-	a.tagsMapper3 = NewTagsMapper3(a, a.sh2, a.metricStorage, metricMetaLoader)
+	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, a.metricMetaLoader)
+	a.tagsMapper3 = NewTagsMapper3(a, a.sh2, a.metricStorage, a.metricMetaLoader)
 
-	a.aggregatorHostTag, err = loadAggregatorTag(mappingsCache, metricMetaLoader, hostName)
+	a.aggregatorHostTag, err = loadAggregatorTag(mappingsCache, a.metricMetaLoader, hostName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map aggregator host tag: %v", err)
 	}
@@ -493,33 +497,37 @@ func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader metajournal.M
 	return data_model.TagUnion{I: keyValue}, nil
 }
 
-func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client) ([]byte, error) {
+func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client, rqliteAddrs string) ([]byte, error) {
 	// we do not use chunked storage, because we do not want to split bootstrap into chunks
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
 	args := tlmetadata.GetTagMappingBootstrap{}
 	var ret tlstatshouse.GetTagMappingBootstrapResult
-	if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
-		cacheDataWithHash, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
-		if err != nil {
-			return nil, fmt.Errorf("failed to open boostrap cache: %w", err)
+	if rqliteAddrs == "" {
+		// We are going to get rid of boostrap in the near future soon anyway.
+		// Or we can implement this call in rqlite later.
+		if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
+			cacheDataWithHash, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
+			if err != nil {
+				return nil, fmt.Errorf("failed to open boostrap cache: %w", err)
+			}
+			hashOffset := len(cacheDataWithHash) - 16
+			if hashOffset < 0 {
+				return nil, fmt.Errorf("failed to parse boostrap cache: to short (%d) bytes", len(cacheDataWithHash))
+			}
+			cacheData := cacheDataWithHash[:hashOffset]
+			h := xxh3.Hash128(cacheData)
+			if h.Hi != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset:]) ||
+				h.Lo != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset+8:]) {
+				return nil, fmt.Errorf("failed to parse boostrap cache: wrong hash")
+			}
+			_, err = args.ReadResult(cacheData, &ret)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse boostrap cache: %w", err)
+			}
+			log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
+			return cacheData, nil // from cache
 		}
-		hashOffset := len(cacheDataWithHash) - 16
-		if hashOffset < 0 {
-			return nil, fmt.Errorf("failed to parse boostrap cache: to short (%d) bytes", len(cacheDataWithHash))
-		}
-		cacheData := cacheDataWithHash[:hashOffset]
-		h := xxh3.Hash128(cacheData)
-		if h.Hi != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset:]) ||
-			h.Lo != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset+8:]) {
-			return nil, fmt.Errorf("failed to parse boostrap cache: wrong hash")
-		}
-		_, err = args.ReadResult(cacheData, &ret)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse boostrap cache: %w", err)
-		}
-		log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
-		return cacheData, nil // from cache
 	}
 	cacheData, err := args.WriteResult(nil, ret)
 	if err != nil {
@@ -1125,6 +1133,7 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
 	a.tagsMapper2.SetConfig(config.configTagsMapper3)
 	a.tagsMapper3.SetConfig(config.configTagsMapper3)
+	a.metricMetaLoader.SetConfig(config.RQLiteAddrs)
 	if !agent.EqualConfigResult3(before, after) {
 		a.cfgNotifier.notifyConfigChange(a.sh2.HostName(), after)
 	}

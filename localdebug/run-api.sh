@@ -10,6 +10,7 @@ mkdir -p cache/api
   --metadata-addr "127.0.0.1:2442" --available-shards "1" --cache-dir=cache/api --announcement=Hello \
   "$@"
 
+# --rqlite-addrs "127.0.0.1:4001" 
 # --clickhouse-v2-addrs=localhost:9000,localhost:9000,localhost:9000,localhost:9000,localhost:9000,localhost:9000 \
 # --shard-by-metric-shards=2 \
 # --available-shards "1,2"

@@ -41,6 +41,7 @@ type Config struct {
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
 	Announcement                 string // if !empty, show to user in UI
+	RQLiteAddrs                  string // comma-separated list
 	chutil.RateLimitConfig
 }
 
@@ -148,6 +149,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.DurationVar(&argv.MinSleepDuration, "rate-limit-min-sleep-duration", default_.MinSleepDuration, "minimum sleep duration when entering sleep")
 	f.Uint64Var(&argv.CheckCount, "rate-limit-check-count", default_.CheckCount, "successful checks needed to exit check stage")
 	f.StringVar(&argv.Announcement, "announcement", default_.Announcement, "announcement text to show user in UI")
+	f.StringVar(&argv.RQLiteAddrs, "rqlite-addrs", default_.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 	f.DurationVar(&argv.RecalcInterval, "recalc-interval-sleep-duration", default_.RecalcInterval, "rate limit state recalculation interval")
 }
 
