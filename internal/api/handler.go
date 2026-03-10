@@ -209,7 +209,7 @@ type (
 		pointFloatsPoolSize   atomic.Int64
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
-		metadataLoader        *metajournal.MetricMetaLoader
+		metadataLoader        metajournal.MetadataLoader
 		mappingsStorage       *metajournal.MappingsStorage
 		jwtHelper             *vkuth.JWTHelper
 		plotRenderSem         *semaphore.Weighted
@@ -1323,10 +1323,7 @@ func HandlePostResetFlood(r *httpRequestHandler) {
 		}
 		limit = int32(i)
 	}
-	del, before, after, err := r.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r.Request), limit)
-	if err == nil && !del {
-		err = fmt.Errorf("metric flood counter was empty (no flood)")
-	}
+	before, after, err := r.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r.Request), limit)
 	respondJSON(r, &struct {
 		Before int32 `json:"before"`
 		After  int32 `json:"after"`
@@ -1362,7 +1359,7 @@ func HandlePostPromConfig(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	event, err := r.metadataLoader.SaveScrapeConfig(r.Context(), r.metricsStorage.PromConfig().Version, string(res), r.accessInfo.toMetadata())
+	event, err := r.metricsStorage.SaveScrapeConfig(r.Context(), r.metadataLoader, r.metricsStorage.PromConfig().Version, string(res), r.accessInfo.toMetadata())
 	if err != nil {
 		err = fmt.Errorf("failed to save prometheus config: %w", err)
 		respondJSON(r, nil, 0, 0, err)
@@ -1402,7 +1399,7 @@ func HandlePostKnownTags(r *httpRequestHandler) {
 		respondJSON(r, nil, 0, 0, err)
 		return
 	}
-	event, err := r.metadataLoader.SaveKnownTagsConfig(r.Context(), r.metricsStorage.KnownTags().Version, string(res))
+	event, err := r.metricsStorage.SaveKnownTagsConfig(r.Context(), r.metadataLoader, r.metricsStorage.KnownTags().Version, string(res))
 	if err != nil {
 		respondJSON(r, nil, 0, 0, err)
 		return
@@ -1583,7 +1580,13 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		dash.JSONData = map[string]interface{}{}
 	}
 	dash.JSONData[descriptionFieldName] = dash.Description
-	dashboard, err := h.metadataLoader.SaveDashboard(ctx, format.DashboardMeta{
+	if delete && dash.DeletedTime == 0 {
+		dash.DeletedTime = uint32(time.Now().Unix())
+	}
+	if !delete && dash.DeletedTime != 0 {
+		dash.DeletedTime = 0
+	}
+	dashboard, err := h.metricsStorage.SaveDashboard(ctx, h.metadataLoader, format.DashboardMeta{
 		DashboardID: dash.DashboardID,
 		Name:        dash.Name,
 		Version:     dash.Version,
@@ -1606,11 +1609,12 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 }
 
 func (h *Handler) handleGetGroup(_ accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
-	group, ok := h.metricsStorage.GetGroupWithMetricsList(id)
-	if !ok {
+	group := h.metricsStorage.GetGroup(id)
+	if group == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", id))
 	}
-	return &MetricsGroupInfo{Group: *group.Group, Metrics: group.Metrics}, defaultCacheTTL, nil
+	metricsNames := h.metricsStorage.GetGroupMetricsNames(id)
+	return &MetricsGroupInfo{Group: *group, Metrics: metricsNames}, defaultCacheTTL, nil
 }
 
 func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGroupListResp, time.Duration, error) {
@@ -1652,22 +1656,8 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("namespace %s not found", namespace.Name))
 	}
-	if !create {
-		if h.metricsStorage.GetNamespace(namespace.ID) == nil {
-			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
-		}
-	}
 	var err error
-	if namespace.ID >= 0 {
-		namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create, ai.toMetadata())
-	} else {
-		n := h.metricsStorage.GetNamespace(namespace.ID)
-		if n == nil {
-			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
-		}
-		create := n == format.BuiltInNamespaceDefault[namespace.ID]
-		namespace, err = h.metadataLoader.SaveBuiltinNamespace(ctx, namespace, create)
-	}
+	namespace, err = h.metricsStorage.SaveNamespace(ctx, h.metadataLoader, namespace, create, ai.toMetadata())
 
 	if err != nil {
 		s := "edit"
@@ -1687,20 +1677,8 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	if !ai.bitAdmin {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("group %s not found", group.Name))
 	}
-	if !create {
-		if h.metricsStorage.GetGroup(group.ID) == nil {
-			return &MetricsGroupInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", group.ID))
-		}
-	}
-	if !h.metricsStorage.CanAddOrChangeGroup(group.Name, group.ID) {
-		return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("group name %s is not posible", group.Name))
-	}
 	var err error
-	if group.ID >= 0 {
-		group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create, ai.toMetadata())
-	} else {
-		group, err = h.metadataLoader.SaveBuiltInGroup(ctx, group)
-	}
+	group, err = h.metricsStorage.SaveMetricsGroup(ctx, h.metadataLoader, group, create, ai.toMetadata())
 	if err != nil {
 		s := "edit"
 		if create {
@@ -1716,8 +1694,8 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	if err != nil {
 		return &MetricsGroupInfo{}, err
 	}
-	info, _ := h.metricsStorage.GetGroupWithMetricsList(group.ID)
-	return &MetricsGroupInfo{Group: group, Metrics: info.Metrics}, nil
+	metricsNames := h.metricsStorage.GetGroupMetricsNames(group.ID)
+	return &MetricsGroupInfo{Group: group, Metrics: metricsNames}, nil
 }
 
 func (h *Handler) applyShardsOnCreate(metric *format.MetricMetaValue) error {
@@ -1814,7 +1792,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if err = h.applyShardsOnCreate(&metric); err != nil {
 			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, err)
 		}
-		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
+		resp, err = h.metricsStorage.SaveMetric(ctx, h.metadataLoader, metric, ai.toMetadata())
 		if err != nil {
 			if metajournal.IsUserRequestError(err) {
 				errReturn := fmt.Errorf("cannot create metric: %w", err)
@@ -1823,10 +1801,6 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{}, fmt.Errorf("failed to create metric: %w", err)
 		}
 	} else {
-		if _, ok := format.BuiltinMetrics[metric.MetricID]; ok {
-			return format.MetricMetaValue{},
-				httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
-		}
 		old := h.metricsStorage.GetMetaMetric(metric.MetricID)
 		if old == nil {
 			return format.MetricMetaValue{},
@@ -1836,7 +1810,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{},
 				httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q: %v", old.Name, err))
 		}
-		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
+		resp, err = h.metricsStorage.SaveMetric(ctx, h.metadataLoader, metric, ai.toMetadata())
 		if err != nil {
 			if metajournal.IsUserRequestError(err) {
 				errReturn := fmt.Errorf("cannot update metric: %w", err)

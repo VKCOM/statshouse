@@ -178,18 +178,18 @@ const (
 	BuiltinKindNamespace = 3
 )
 
-// TODO - omitempty everywhere
-
+// This struct is immutable, it is accessed by mapping code without any locking
+//
 //easyjson:json
 type NamespaceMeta struct {
-	ID         int32  `json:"namespace_id"`
-	Name       string `json:"name"`
-	Version    int64  `json:"version"`
-	UpdateTime uint32 `json:"update_time"`
-	DeleteTime uint32 `json:"delete_time"`
+	ID         int32  `json:"namespace_id,omitempty"` // cleared in DB, restored from event
+	Name       string `json:"name,omitempty"`         // cleared in DB, restored from event
+	Version    int64  `json:"version,omitempty"`      // cleared in DB, restored from event
+	UpdateTime uint32 `json:"update_time,omitempty"`  // cleared in DB, restored from event
+	DeleteTime uint32 `json:"delete_time,omitempty"`  // cleared in DB, restored from event
 
-	Weight    float64 `json:"weight"`
-	Disable   bool    `json:"disable"`
+	Weight    float64 `json:"weight,omitempty"`
+	Disable   bool    `json:"disable"`              // no omitempty, in case we want to switch to "Visible" later
 	ShardKeys string  `json:"shard_nums,omitempty"` // 1-based
 
 	EffectiveWeight int64 `json:"-"`
@@ -197,24 +197,24 @@ type NamespaceMeta struct {
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type DashboardMeta struct {
-	DashboardID int32  `json:"dashboard_id"` // I'm sure day will come when we will be forced to make this int32
-	Name        string `json:"name"`
-	Version     int64  `json:"version,omitempty"`
-	UpdateTime  uint32 `json:"update_time"`
+	DashboardID int32  `json:"dashboard_id,omitempty"` // cleared in DB, restored from event
+	Name        string `json:"name,omitempty"`         // cleared in DB, restored from event
+	Version     int64  `json:"version,omitempty"`      // cleared in DB, restored from event
+	UpdateTime  uint32 `json:"update_time,omitempty"`  // cleared in DB, restored from event
 
-	DeleteTime uint32                 `json:"delete_time"` // TODO - do not store event-specific information in journal event.
-	JSONData   map[string]interface{} `json:"data"`        // TODO - there must be a better way?
+	DeleteTime uint32                 `json:"delete_time,omitempty"` // cleared in DB, restored from event, works like Disabled flag if != 0
+	JSONData   map[string]interface{} `json:"data"`                  // saved to DB
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
 //
 //easyjson:json
 type MetricsGroup struct {
-	ID          int32  `json:"group_id"`
-	NamespaceID int32  `json:"namespace_id"`
-	Name        string `json:"name"`
-	Version     int64  `json:"version"`
-	UpdateTime  uint32 `json:"update_time"`
+	ID          int32  `json:"group_id,omitempty"`     // cleared in DB, restored from event
+	NamespaceID int32  `json:"namespace_id,omitempty"` // checked and stored in DB
+	Name        string `json:"name,omitempty"`         // cleared in DB, restored from event
+	Version     int64  `json:"version,omitempty"`      // cleared in DB, restored from event
+	UpdateTime  uint32 `json:"update_time,omitempty"`  // cleared in DB, restored from event
 
 	Weight    float64 `json:"weight,omitempty"`
 	Disable   bool    `json:"disable,omitempty"`
@@ -235,11 +235,11 @@ const (
 //
 //easyjson:json
 type MetricMetaValue struct {
-	MetricID    int32  `json:"metric_id,omitempty"`
-	NamespaceID int32  `json:"namespace_id,omitempty"` // RO
-	Name        string `json:"name,omitempty"`
-	Version     int64  `json:"version,omitempty"`
-	UpdateTime  uint32 `json:"-"` // updated from event
+	MetricID    int32  `json:"metric_id,omitempty"`    // cleared in DB, restored from event
+	NamespaceID int32  `json:"namespace_id,omitempty"` // checked and stored in DB
+	Name        string `json:"name,omitempty"`         // cleared in DB, restored from event
+	Version     int64  `json:"version,omitempty"`      // cleared in DB, restored from event
+	UpdateTime  uint32 `json:"-"`                      // cleared in DB, restored from event
 
 	Description          string                   `json:"description,omitempty"`
 	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
@@ -299,15 +299,6 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	return nil
-}
-
-func (m *MetricMetaValue) WithGroupID(groupID int32) *MetricMetaValue {
-	if m.GroupID == groupID {
-		return m
-	}
-	c := *m
-	c.GroupID = groupID
-	return &c
 }
 
 // this method is faster than string hash, plus saves a lot of memory in maps
@@ -823,10 +814,6 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 		m.EffectiveWeight = MaxEffectiveNamespaceWeight
 	}
 	return err
-}
-
-func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
-	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
 // '@' is reserved by api access.Do not use it here

@@ -7,23 +7,17 @@
 package metajournal
 
 import (
+	"cmp"
 	"context"
-	"encoding/json"
 	"log"
+	"slices"
 	"strings"
 	"sync"
-
-	"github.com/mailru/easyjson"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
 )
-
-type GroupWithMetricsList struct {
-	Group   *format.MetricsGroup
-	Metrics []string
-}
 
 type ApplyPromConfig func(configID int32, configString string)
 
@@ -35,8 +29,9 @@ type MetricsStorage struct {
 
 	dashboardByID map[int32]*format.DashboardMeta
 
-	groupsByID   map[int32]*format.MetricsGroup
-	groupsByName map[string]*format.MetricsGroup
+	groupsByID    map[int32]*format.MetricsGroup
+	groupsByName  map[string]*format.MetricsGroup
+	groupsOrdered []*format.MetricsGroup // not disabled, not built in, reversed so longer suffix first
 
 	namespaceByID   map[int32]*format.NamespaceMeta
 	namespaceByName map[string]*format.NamespaceMeta
@@ -182,10 +177,9 @@ func (ms *MetricsStorage) GetGroup(id int32) *format.MetricsGroup {
 	return ms.groupsByID[id]
 }
 
-func (ms *MetricsStorage) GetGroupWithMetricsList(id int32) (GroupWithMetricsList, bool) {
+func (ms *MetricsStorage) GetGroupMetricsNames(id int32) []string {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	var group *format.MetricsGroup
 	var metricNames []string
 	for _, metric := range ms.metricsByID {
 		if metric.GroupID == id {
@@ -197,12 +191,7 @@ func (ms *MetricsStorage) GetGroupWithMetricsList(id int32) (GroupWithMetricsLis
 			metricNames = append(metricNames, m.Name)
 		}
 	}
-	var ok bool
-	if group, ok = ms.groupsByID[id]; !ok {
-		return GroupWithMetricsList{}, false
-	}
-	return GroupWithMetricsList{Group: group, Metrics: metricNames}, true
-
+	return metricNames
 }
 
 func (ms *MetricsStorage) GetGroupsList(showInvisible bool) []*format.MetricsGroup {
@@ -234,29 +223,36 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	return namespaces
 }
 
+// Here is the problem with the journal, groups and namespaces.
+// journal is not binlog, it does not maintain order of events, when metric is edited, it is removed
+// from its previous position in the journal and moved to the back.
+// this works because metrics are independent.
+// but groups and metrics are not independent, so when group is edited and moved to the last position,
+// everyone who reads journal from the beginning will first receive metrics references group he does not know about,
+// and then at the end will receive group.
+// in the same way, when namespace is edited, there could be moments where merics references namespace
+// which is not yet known. So groups and namespaces are not strict.
+
 func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
+	ms.metricUpdMu.Lock()
+	// do not return before unlocking below
 	promConfigSet := false
 	promConfigData := ""
 	promConfigGeneratedSet := false
 	promConfigGeneratedData := ""
 	knownTagsSet := false
 	knownTagsData := ""
-	type groupWithMeta struct {
-		old *format.MetricsGroup
-		new *format.MetricsGroup
-	}
-	var changedGroups []groupWithMeta
+	changedGroups := false
 
 	for _, e := range newEntries {
 		switch e.EventType {
 		case format.MetricEvent:
 			value, err := MetricMetaFromEvent(e)
 			if err != nil {
-				log.Printf("Cannot marshal metric: %v", err)
+				log.Printf("Cannot apply metric event: %v", err)
 				continue
 			}
-			ms.metricUpdMu.Lock()
 			ms.mu.Lock()
 			valueOld, idExists := ms.metricsByID[value.MetricID]
 			if idExists && valueOld.Name != value.Name {
@@ -265,59 +261,46 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			if idExists && valueOld.Name == value.Name {
 				value.GroupID = valueOld.GroupID
 			} else {
-				ms.calcGroupForMetricLocked(value)
+				value.GroupID = ms.calcGroupForMetricLocked(ms.groupsOrdered, value)
 			}
-			ms.updateMetric(value)
+			ms.metricsByID[value.MetricID] = value
+			ms.metricsByName[value.Name] = value
 			ms.mu.Unlock()
-			ms.metricUpdMu.Unlock()
 		case format.DashboardEvent:
-			m := map[string]interface{}{}
-			err := json.Unmarshal([]byte(e.Data), &m)
+			dash, err := DashboardMetaFromEvent(e)
 			if err != nil {
-				log.Printf("Cannot marshal metric %s: %v", e.Name, err)
+				log.Printf("Cannot apply dashboard event: %v", err)
+				continue
 			}
-			dash := &format.DashboardMeta{
-				DashboardID: int32(e.Id), // TODO - beware!
-				Name:        e.Name,
-				Version:     e.Version,
-				UpdateTime:  e.UpdateTime,
-				JSONData:    m,
-				DeleteTime:  e.Unused,
-			}
-
 			ms.mu.Lock()
 			ms.dashboardByID[dash.DashboardID] = dash
 			ms.mu.Unlock()
 		case format.MetricsGroupEvent:
-			value := &format.MetricsGroup{}
-			err := easyjson.Unmarshal([]byte(e.Data), value)
+			value, err := GroupMetaFromEvent(e)
 			if err != nil {
-				log.Printf("Cannot marshal metric group %s: %v", value.Name, err)
+				log.Printf("Cannot apply metric group event: %v", err)
 				continue
 			}
-			value.Version = e.Version
-			value.Name = e.Name
-			value.ID = int32(e.Id)
-			value.NamespaceID = int32(e.NamespaceId)
-			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo(value.ID < 0)
 			ms.mu.Lock()
 			valueOld, idExists := ms.groupsByID[value.ID]
-			ms.groupsByID[value.ID] = value
 			if idExists && valueOld.Name != value.Name {
 				delete(ms.groupsByName, valueOld.Name)
 			}
+			ms.groupsByID[value.ID] = value
 			ms.groupsByName[value.Name] = value
-			// cases when group might change for metrics:
+			// cases when change of group might change group for metrics
 			// 1. added new
 			// 2. name changed
 			// 3. enabled/disabled
 			if !idExists || valueOld.Name != value.Name || valueOld.Disable != value.Disable {
-				changedGroups = append(changedGroups, groupWithMeta{
-					old: valueOld,
-					new: value,
-				})
+				changedGroups = true
 			}
+			// We have not atomic updating, so before code below runs, for some time metric groups will be incorrectly assigned.
+			// How we should solve this problem:
+			// 1. create MetricGroupsAtomic class with metrics and groups, put it as a variable in MetricStorage
+			// 2. when we are applying events, while there is no actual group changes, we apply directly to member
+			// 3. as soon as we encounter actual group change event, we copy maps from member to new variable MetricGroupsAtomic
+			//    and call ApplyEvents on it. After it finishes, we atomically swap variable into our storage
 			ms.mu.Unlock()
 		case format.PromConfigEvent:
 			ms.mu.Lock()
@@ -337,68 +320,58 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			}
 			ms.mu.Unlock()
 		case format.NamespaceEvent:
-			value := &format.NamespaceMeta{}
-			err := easyjson.Unmarshal([]byte(e.Data), value)
+			value, err := NamespaceMetaFromEvent(e)
 			if err != nil {
-				log.Printf("Cannot marshal metric group %s: %v", value.Name, err)
+				log.Printf("Cannot apply namespace event: %v", err)
 				continue
 			}
-			value.ID = int32(e.Id)
-			value.Name = e.Name
-			value.Version = e.Version
-			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo(value.ID < 0)
-
 			ms.mu.Lock()
-			if oldNamespace, idExists := ms.namespaceByID[value.ID]; idExists && oldNamespace.Name != value.Name {
-				delete(ms.namespaceByName, oldNamespace.Name)
+			valueOld, idExists := ms.namespaceByID[value.ID]
+			if idExists && valueOld.Name != value.Name {
+				delete(ms.namespaceByName, valueOld.Name)
 			}
-
 			ms.namespaceByID[value.ID] = value
 			ms.namespaceByName[value.Name] = value
+			//we are not ready to namespace renaming, must be disabled.
 			ms.mu.Unlock()
 		}
 	}
-	if len(changedGroups) > 0 {
-		// we need separate lock in order to upgrade mu from read to write
-		ms.metricUpdMu.Lock()
+	if changedGroups {
 		ms.mu.RLock()
 		metricsByID := make(map[int32]*format.MetricMetaValue, len(ms.metricsByID))
 		metricsByName := make(map[string]*format.MetricMetaValue, len(ms.metricsByName))
-		// O(metrics * changed_groups)
+
+		var groupsOrdered []*format.MetricsGroup
+		for _, g := range ms.groupsByID {
+			if g.ID > 0 && !g.Disable {
+				groupsOrdered = append(groupsOrdered, g)
+			}
+		}
+		slices.SortFunc(groupsOrdered, func(a, b *format.MetricsGroup) int {
+			return -cmp.Compare(a.Name, b.Name) // reversed
+		})
+		// O(metrics * groups)
 		// doesn't slow down read requests
-		// can be optimized by storing metricsByName in trie or by adding metricsByGroupID
-		metricsChanged := false
 		for id, m := range ms.metricsByID {
-			um := m // updated metric
-			for _, g := range changedGroups {
-				if g.old != nil && g.old.MetricIn(um) && g.old.Name != g.new.Name {
-					um = um.WithGroupID(format.BuiltinGroupIDDefault)
-				}
-				if g.new.MetricIn(um) {
-					if g.new.Disable {
-						um = um.WithGroupID(format.BuiltinGroupIDDefault)
-					} else {
-						um = um.WithGroupID(g.new.ID)
-					}
-				}
+			newGroup := ms.calcGroupForMetricLocked(groupsOrdered, m)
+			if m.GroupID != newGroup { // optimize copy
+				mCopy := *m
+				mCopy.GroupID = newGroup
+				m = &mCopy
 			}
-			if um != m {
-				metricsChanged = true
-			}
-			metricsByID[id] = um
-			metricsByName[um.Name] = um
+			metricsByID[id] = m
+			metricsByName[m.Name] = m
 		}
 		ms.mu.RUnlock()
 
-		if metricsChanged {
-			ms.mu.Lock()
-			ms.metricsByID = metricsByID
-			ms.metricsByName = metricsByName
-			ms.mu.Unlock()
-		}
-		ms.metricUpdMu.Unlock()
+		ms.mu.Lock()
+		ms.metricsByID = metricsByID
+		ms.metricsByName = metricsByName
+		ms.groupsOrdered = groupsOrdered
+		ms.mu.Unlock()
 	}
+	// all callbacks below must operate not under lock
+	ms.metricUpdMu.Unlock()
 	if ms.applyPromConfig != nil {
 		// outside of lock, once
 		if promConfigSet {
@@ -416,38 +389,15 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	}
 }
 
-// call when metric is added or changed O(number of groups)
-func (ms *MetricsStorage) calcGroupForMetricLocked(new *format.MetricMetaValue) {
-	new.GroupID = format.BuiltinGroupIDDefault
-	for _, g := range ms.groupsByID {
-		if g.MetricIn(new) {
-			new.GroupID = g.ID
-			return
+func (ms *MetricsStorage) calcGroupForMetricLocked(groupsOrdered []*format.MetricsGroup, m *format.MetricMetaValue) int32 {
+	newGroup := int32(format.BuiltinGroupIDDefault)
+	for _, g := range groupsOrdered {
+		if strings.HasPrefix(m.Name, g.Name) {
+			newGroup = g.ID
+			break
 		}
 	}
-}
-
-func (ms *MetricsStorage) updateMetric(metric *format.MetricMetaValue) {
-	ms.metricsByID[metric.MetricID] = metric
-	ms.metricsByName[metric.Name] = metric
-}
-
-func (ms *MetricsStorage) CanAddOrChangeGroup(name string, id int32) bool {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	return ms.canAddOrChangeGroupLocked(name, id)
-}
-
-func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int32) bool {
-	for _, m := range ms.groupsByID {
-		if id != 0 && id == m.ID {
-			continue
-		}
-		if strings.HasPrefix(name, m.Name) || strings.HasPrefix(m.Name, name) {
-			return false
-		}
-	}
-	return true
+	return newGroup
 }
 
 func (ms *MetricsStorage) WaitVersion(ctx context.Context, version int64) error {

@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/sqlite"
@@ -41,26 +40,7 @@ func checkCreateEntity(c sqlite.Conn, name string, typ int32) error {
 	return nil
 }
 
-func checkGroup(c sqlite.Conn, id int64, name string, createEntity bool) error {
-	args := []sqlite.Arg{sqlite.Int64("$type", int64(format.MetricsGroupEvent))}
-	r := c.Query("select_groups", "SELECT id, name FROM metrics_v5 WHERE type = $type", args...)
-	for r.Next() {
-		groupID, _ := r.ColumnInt64(0)
-		groupName, err := r.ColumnBlobString(1)
-		if err != nil {
-			return err
-		}
-		if id == groupID {
-			continue
-		}
-		if strings.HasPrefix(groupName, name) || strings.HasPrefix(name, groupName) {
-			return fmt.Errorf("group can't be prefix of another group")
-		}
-	}
-	return r.Error()
-}
-
-func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity, deleteEntity bool) error {
+func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity bool) error {
 	if !createEntity {
 		oldName, err := loadNamespaceName(c, id, oldVersion)
 		if err != nil {
@@ -74,13 +54,11 @@ func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJ
 	return nil
 }
 
-func resolveEntity(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity, deleteEntity bool, typ int32) (namespaceID int64, _ error) {
+func resolveEntity(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity bool, typ int32) (namespaceID int64, _ error) {
 	var err error
 	switch typ {
-	case format.MetricsGroupEvent:
-		err = checkGroup(c, id, name, createEntity)
 	case format.NamespaceEvent:
-		err = checkNamespace(c, name, id, oldVersion, newJson, createEntity, deleteEntity)
+		err = checkNamespace(c, name, id, oldVersion, newJson, createEntity)
 	}
 	if err != nil {
 		return 0, err

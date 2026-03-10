@@ -23,7 +23,7 @@ type tagsMapper2 struct {
 	agg           *Aggregator
 	sh2           *agent.Agent
 	metricStorage *metajournal.MetricsStorage
-	loader        *metajournal.MetricMetaLoader
+	loader        metajournal.MetadataLoader
 
 	mu              sync.Mutex
 	unknownTags     map[string]unknownTag // collect statistics here
@@ -35,7 +35,7 @@ type tagsMapper2 struct {
 
 // TODO make unknownTagsList algo.CircularSlice[string]
 
-func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader *metajournal.MetricMetaLoader) *tagsMapper2 {
+func NewTagsMapper2(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, loader metajournal.MetadataLoader) *tagsMapper2 {
 	ms := &tagsMapper2{
 		agg:           agg,
 		sh2:           sh2,

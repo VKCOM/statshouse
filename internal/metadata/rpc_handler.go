@@ -384,7 +384,7 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
 	}
-	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType, args.Event.Metadata)
+	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.Event.Unused, args.Event.EventType, args.Event.Metadata)
 	if errors.Is(err, errInvalidMetricVersion) {
 		return "", data_model.ErrEntityInvalidVersion
 	}

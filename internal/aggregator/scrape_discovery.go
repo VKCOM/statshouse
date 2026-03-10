@@ -31,7 +31,7 @@ type scrapeDiscovery struct {
 
 	// initialized when "run" called
 	storage *metajournal.MetricsStorage
-	meta    *metajournal.MetricMetaLoader
+	meta    metajournal.MetadataLoader
 	sh2     *agent.Agent
 
 	// updated on "applyConfig"
@@ -54,7 +54,7 @@ func newScrapeDiscovery(cb scrapeDiscoveryCallback) scrapeDiscovery {
 	}
 }
 
-func (s *scrapeDiscovery) run(storage *metajournal.MetricsStorage, meta *metajournal.MetricMetaLoader, sh2 *agent.Agent) {
+func (s *scrapeDiscovery) run(storage *metajournal.MetricsStorage, meta metajournal.MetadataLoader, sh2 *agent.Agent) {
 	if s.storage != nil {
 		return
 	}

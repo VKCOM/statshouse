@@ -684,7 +684,7 @@ func mainPublishTagDrafts() int {
 		}
 
 		var err error
-		meta, err = loader.SaveMetric(context.Background(), meta, "")
+		meta, err = storage.SaveMetric(context.Background(), loader, meta, "")
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue
@@ -901,7 +901,7 @@ func massUpdateMetadata() int {
 		metricBytes, _ := easyjson.Marshal(meta2)
 		_, _ = fmt.Fprintf(os.Stderr, "SAVING!!!\n%s\n", metricBytes)
 		var err error
-		_, err = loader.SaveMetric(context.Background(), meta2, "")
+		_, err = storage.SaveMetric(context.Background(), loader, meta2, "")
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			continue

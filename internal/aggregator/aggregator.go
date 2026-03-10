@@ -472,7 +472,7 @@ func (a *Aggregator) WaitRPCServer(timeout time.Duration) {
 
 // We always return mapped tag for historic reasons. If we cannot map, aggregator will not run.
 // TODO - we can now refactor this to work with not mapped automatically
-func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader *metajournal.MetricMetaLoader, hostName string) (data_model.TagUnion, error) {
+func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader metajournal.MetadataLoader, hostName string) (data_model.TagUnion, error) {
 	nowUnix := uint32(time.Now().Unix())
 	if mapped, ok := mappingsCache.GetValue(nowUnix, hostName); ok {
 		return data_model.TagUnion{I: mapped}, nil

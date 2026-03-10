@@ -388,12 +388,12 @@ func (db *DBV2) GetEntityVersioned(ctx context.Context, id, version int64) (even
 	return event, err
 }
 
-func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32, metadata string) (tlmetadata.Event, error) {
+func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric bool, deleteTime uint32, typ int32, metadata string) (tlmetadata.Event, error) {
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		resolvedNamespaceID, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
+		resolvedNamespaceID, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, typ)
 		if err != nil {
 			return cache, err
 		}
@@ -421,17 +421,13 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			if !rows.Next() {
 				return cache, errInvalidMetricVersion
 			}
-			deletedAt, _ := rows.ColumnInt64(2)
-			if deleteEntity {
-				deletedAt = time.Now().Unix()
-			}
 			_, err := conn.Exec("update_entity", "UPDATE metrics_v5 SET version = (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), data = $data, updated_at = $updatedAt, name = $name, deleted_at = $deletedAt, namespace_id = $namespaceId WHERE version = $oldVersion AND id = $id;",
 				sqlite.TextString("$data", newJson),
 				sqlite.Int64("$updatedAt", updatedAt),
 				sqlite.Int64("$oldVersion", oldVersion),
 				sqlite.TextString("$name", name),
 				sqlite.Int64("$id", id),
-				sqlite.Int64("$deletedAt", deletedAt),
+				sqlite.Int64("$deletedAt", int64(deleteTime)),
 				sqlite.Int64("$namespaceId", resolvedNamespaceID))
 
 			if err != nil {
@@ -440,18 +436,20 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 		} else {
 			var err error
 			if !createFixed {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v5 (version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), $data, $name, $updatedAt, $type, 0, $namespaceId);",
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v5 (version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), $data, $name, $updatedAt, $type, $deletedAt, $namespaceId);",
 					sqlite.TextString("$data", newJson),
 					sqlite.TextString("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
+					sqlite.Int64("$deletedAt", int64(deleteTime)),
 					sqlite.Int64("$type", int64(typ)),
 					sqlite.Int64("$namespaceId", resolvedNamespaceID))
 			} else {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v5 (id, version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), $data, $name, $updatedAt, $type, 0, $namespaceId);",
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v5 (id, version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), $data, $name, $updatedAt, $type, $deletedAt, $namespaceId);",
 					sqlite.Int64("$id", id),
 					sqlite.TextString("$data", newJson),
 					sqlite.TextString("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
+					sqlite.Int64("$deletedAt", int64(deleteTime)),
 					sqlite.Int64("$type", int64(typ)),
 					sqlite.Int64("$namespaceId", resolvedNamespaceID))
 			}
@@ -698,7 +696,7 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 	var result tlmetadata.Event
 	createFixed := false
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
+		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, typ)
 		if err != nil {
 			return cache, fmt.Errorf("invalid entity: %w", err)
 		}
