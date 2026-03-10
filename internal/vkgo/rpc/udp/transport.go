@@ -92,6 +92,8 @@ type Connection struct {
 	localIp         uint32
 	activeSide      bool
 
+	needDatagramWithLastGenerationFromRemoteSide bool
+
 	randomKey [8]uint32
 	// readOld and writeOld ciphers are derived from full client and server pids
 	readNew  cipher.Block
@@ -125,6 +127,7 @@ const (
 
 	// TODO separate goWrite flags from others
 	// accessed by goWrite only
+	writeClosedFlag        = iota
 	inResendQueueFlag      = iota
 	ackSentFlag            = iota // when true - means that acks were sent with payload before ack timer burned - so no need to send acks again this time
 	forceResendRequestFlag = iota
@@ -265,10 +268,9 @@ func (c *Connection) resetGoReadUnlockedState() {
 	c.incoming.transport.tryAcquireMemory(c)
 	c.incoming.transport.releaseMemory(c.incoming.messagesTotalOffset - c.incoming.messagesBeginOffset)
 
-	c.incoming.transport = nil
+	//c.incoming.transport = nil
 	c.incoming.conn = nil
 	c.incoming.chunkPayloadForMyFriendEscapeAnalyzer = nil
-	c.incoming = IncomingConnection{}
 
 	c.UserData = nil
 	c.StreamLikeIncoming = false
@@ -302,6 +304,8 @@ func (c *Connection) resetGoWriteUnlockedState(t *Transport) {
 	c.acks = AcksToSend{}
 
 	c.writeNew = nil
+
+	c.SetFlag(writeClosedFlag, true)
 }
 
 // acts like bump_generation in engine repo
@@ -343,6 +347,7 @@ func (t *Transport) goReadOnRegenerate(oldConn *Connection) {
 
 	// TODO remove copy paste from here and processIncomingDatagramPid
 	conn := t.createConnection(status, localPid.Ip, remotePid, newGeneration, activeSide)
+	conn.needDatagramWithLastGenerationFromRemoteSide = true
 
 	if activeSide {
 		conn.MessageHandle = incomingMessageHandle
@@ -427,7 +432,13 @@ type Transport struct {
 	handshakeByPid   map[ConnectionID]*Connection // here all CID have zero Hash
 	shutdown         bool
 
-	debugUdpRPC int // 0 - nothing; 1 - prints key udp events; 2 - prints all udp activities (<0 equals to 0; >2 equals to 2)
+	debugUdpRPC                int // 0 - nothing; 1 - prints key udp events; 2 - prints all udp activities (<0 equals to 0; >2 equals to 2)
+	debugUDPLatency            bool
+	socketWriteLatencyMetric   func(millis float64)
+	socketReadLatencyMetric    func(millis float64)
+	writeScheduleLatencyMetric func(millis float64)
+	readScheduleLatencyMetric  func(millis float64)
+	printKeysGenerationInfo    bool // print debug info during generation of crypto keys
 
 	// accessed only from goRead
 	connectionById map[ConnectionID]*Connection
@@ -536,6 +547,8 @@ type TransportStats struct {
 	MessageReleased               atomic.Int64
 	DatagramRead                  atomic.Int64
 	DatagramWritten               atomic.Int64
+	DatagramSizeRead              atomic.Int64
+	DatagramSizeWritten           atomic.Int64
 	UnreliableMessagesReceived    atomic.Int64
 	ObsoletePidReceived           atomic.Int64
 	ObsoleteHashReceived          atomic.Int64
@@ -569,6 +582,8 @@ func (t *Transport) GetStats(res *TransportStats) {
 	res.MessageReleased.Add(t.stats.MessageReleased.Load())
 	res.DatagramRead.Add(t.stats.DatagramRead.Load())
 	res.DatagramWritten.Add(t.stats.DatagramWritten.Load())
+	res.DatagramSizeRead.Add(t.stats.DatagramSizeRead.Load())
+	res.DatagramSizeWritten.Add(t.stats.DatagramSizeWritten.Load())
 	res.UnreliableMessagesReceived.Add(t.stats.UnreliableMessagesReceived.Load())
 	res.ObsoletePidReceived.Add(t.stats.ObsoletePidReceived.Load())
 	res.ObsoleteHashReceived.Add(t.stats.ObsoleteHashReceived.Load())
@@ -612,6 +627,12 @@ func NewTransport(
 	messageDeallocator func(message *[]byte),
 	resendTimeout time.Duration,
 	debugUdpRPC int,
+	printKeysGenerationInfo bool,
+	debugUDPLatency bool,
+	socketWriteLatencyMetric func(millis float64),
+	socketReadLatencyMetric func(millis float64),
+	writeScheduleLatencyMetric func(millis float64),
+	readScheduleLatencyMetric func(millis float64),
 ) (*Transport, error) {
 	if len(cryptoKeys) == 0 {
 		return nil, fmt.Errorf("UDP transport requires at least 1 crypto key")
@@ -634,6 +655,12 @@ func NewTransport(
 	// TODO if acceptHandler == nil, then forbid accepting new connections, or pass special flag for this
 	t := &Transport{
 		debugUdpRPC:                 debugUdpRPC,
+		debugUDPLatency:             debugUDPLatency,
+		socketWriteLatencyMetric:    socketWriteLatencyMetric,
+		socketReadLatencyMetric:     socketReadLatencyMetric,
+		writeScheduleLatencyMetric:  writeScheduleLatencyMetric,
+		readScheduleLatencyMetric:   readScheduleLatencyMetric,
+		printKeysGenerationInfo:     printKeysGenerationInfo,
 		handshakeByPid:              make(map[ConnectionID]*Connection),
 		connectionById:              make(map[ConnectionID]*Connection),
 		ackTimeout:                  MinResendTimeoutMillis,
@@ -667,8 +694,19 @@ func NewTransport(
 		n := binary.LittleEndian.Uint32(keyID[:])
 		n &= CryptoKeyIdMask
 		binary.LittleEndian.PutUint32(keyID[:], n&CryptoKeyIdMask)
-		if _, exists := t.cryptoKeys[keyID]; exists {
-			return nil, errors.New("2 crypto keys with identical keyID")
+		if prevKey, exists := t.cryptoKeys[keyID]; exists {
+			if prevKey == key {
+				// Repeated key. Just skip it.
+				identicalKeysCount := 0
+				for _, k := range cryptoKeys {
+					if key == k {
+						identicalKeysCount++
+					}
+				}
+				log.Printf("Udp transport received %d identical crypto keys with keyID %d(%+v). Only first one was left.", identicalKeysCount, keyID, n)
+				continue
+			}
+			return nil, fmt.Errorf("2 crypto keys with identical keyID %d(%+v)", keyID, n)
 		}
 		t.cryptoKeys[keyID] = key
 	}
@@ -859,6 +897,7 @@ func (t *Transport) goRead() {
 		t.wg.Done()
 	}()
 
+	socketReadEnd := time.Time{}
 	buf := make([]byte, 65536)
 	//oob := make([]byte, 2048) TODO use oob to parse IP_PKT_INFO
 	for {
@@ -891,12 +930,23 @@ func (t *Transport) goRead() {
 			}
 			t.goReadOnRegenerate(conn)
 		}
+
+		socketReadStart := time.Now()
+		if t.debugUDPLatency && (socketReadEnd != time.Time{}) {
+			t.readScheduleLatencyMetric(socketReadStart.Sub(socketReadEnd).Seconds() * 1000)
+		}
 		// TODO process n bytes in case when err != nil and n > 0 !!!
 		n, addr, err := t.socket.ReadFromUDPAddrPort(buf)
+		if t.debugUDPLatency {
+			socketReadEnd = time.Now()
+			t.socketReadLatencyMetric(socketReadEnd.Sub(socketReadStart).Seconds() * 1000)
+		}
 		t.stats.DatagramRead.Add(1)
+		t.stats.DatagramSizeRead.Add(int64(n))
 		if t.debugUdpRPC >= 2 {
 			log.Printf("goRead() <- udp datagram from %s (%d bytes)", addr.String(), n)
 		}
+
 		if err != nil {
 			if commonCloseError(err) {
 				var handshakeMapCopy map[ConnectionID]*Connection
@@ -958,12 +1008,31 @@ func (t *Transport) goRead() {
 		if conn != nil {
 			t.writeMu.Lock()
 			if closed {
+				remoteAddr := conn.remoteAddr()
+				connID := conn.id
+
+				if conn.id.Hash != 0 {
+					delete(t.connectionById, conn.id)
+					t.stats.ConnectionsMapSize.Store(int64(len(t.connectionById)))
+				}
+
+				handshakeCid := conn.id
+				handshakeCid.Hash = 0
+				t.handshakeByPidMu.Lock()
+				delete(t.handshakeByPid, handshakeCid)
+				t.handshakeByPidMu.Unlock()
+				t.closeHandler(conn)
+
 				conn.SetFlag(closedFlag, true)
 				conn.resetLockedState()
 				t.closedConnections.PushBack(conn)
 				t.writeMu.Unlock()
 				t.writeCV.Signal()
 				conn.resetGoReadUnlockedState()
+
+				if t.debugUdpRPC >= 1 {
+					log.Printf("closed connection %s (%+v)", remoteAddr, connID)
+				}
 
 				// need to process this datagram again, to create new connection
 				// TODO remove this kostil sraniy and create new connection directly in place, where we closed this one !!!!!!
@@ -986,6 +1055,7 @@ func (t *Transport) goRead() {
 				}
 				t.writeMu.Lock()
 			}
+
 			if conn.GetFlag(inRegenerateQueue) {
 				conn.SetFlag(stopRegenerateTimerFlag, true)
 			}
@@ -1115,14 +1185,14 @@ func (t *Transport) processIncomingDatagramHash(addr netip.AddrPort, localIp uin
 		return nil, false, nil
 	}
 
+	conn.needDatagramWithLastGenerationFromRemoteSide = false
 	if conn.status == ConnectionStatusWaitingForHash {
 		t.writeMu.Lock()
 		conn.status = ConnectionStatusEstablished
 		t.writeMu.Unlock()
 	}
 
-	conn, err := t.processEncrypted(conn, unenc, encRef, resendReq, payload, false)
-	return conn, false, err
+	return t.processEncrypted(conn, unenc, encRef, resendReq, payload, false)
 }
 
 func (t *Transport) processIncomingDatagramPid(addr netip.AddrPort, localIp uint32, unenc tlnetUdpPacket.UnencHeader, encRef *tlnetUdpPacket.EncHeader, resendReq *tlnetUdpPacket.ResendRequest, payload []byte) (*Connection, bool, error) {
@@ -1181,40 +1251,32 @@ func (t *Transport) processIncomingDatagramPid(addr netip.AddrPort, localIp uint
 		}
 
 		// Remote side has renewed its pid because of restart or close
-		if conn.id.Hash != 0 {
-			delete(t.connectionById, conn.id)
-			t.stats.ConnectionsMapSize.Store(int64(len(t.connectionById)))
-		}
-
-		t.handshakeByPidMu.Lock()
-		delete(t.handshakeByPid, handshakeCid)
-		t.handshakeByPidMu.Unlock()
-		t.closeHandler(conn)
 		return conn, true, nil
 	}
 
 	if unenc.Generation < conn.generation {
+		if t.debugUdpRPC >= 2 {
+			log.Printf("received old generation %d from %s (we had generation %d)", unenc.Generation, conn.remoteAddr(), conn.generation)
+		}
 		// That side has old generation
 
-		t.setStatusAndAddConnectionToSendQueueUnlocked(conn, ConnectionSentObsoleteGeneration)
-		t.writeCV.Signal()
+		if conn.needDatagramWithLastGenerationFromRemoteSide {
+			t.setStatusAndAddConnectionToSendQueueUnlocked(conn, ConnectionSentObsoleteGeneration)
+			t.writeCV.Signal()
+		}
 		return nil, false, nil
 	}
 
 	if unenc.Generation > conn.generation {
-		if conn.id.Hash != 0 {
-			delete(t.connectionById, conn.id)
-			t.stats.ConnectionsMapSize.Store(int64(len(t.connectionById)))
+		if t.debugUdpRPC >= 2 {
+			log.Printf("received newer generation %d from %s (we had generation %d)", unenc.Generation, conn.remoteAddr(), conn.generation)
 		}
-
-		t.handshakeByPidMu.Lock()
-		delete(t.handshakeByPid, handshakeCid)
-		t.handshakeByPidMu.Unlock()
-		t.closeHandler(conn)
 		return conn, true, nil
 	}
 
-	if conn.status == ConnectionStatusWaitingForRemotePid || created {
+	conn.needDatagramWithLastGenerationFromRemoteSide = false
+
+	if conn.remoteUtime == 0 && conn.remoteProcessId == 0 || created {
 		// This code is both for server just received new handshake
 		// and for client received answer handshake from server.
 		// We need to generate full crypto keys and calculate session hash
@@ -1236,7 +1298,7 @@ func (t *Transport) processIncomingDatagramPid(addr netip.AddrPort, localIp uint
 		}
 		conn.readNew, conn.writeNew = t.generateCryptoKeys(t.cryptoKeys[getKeyID(unenc.CryptoFlags)], localPid, remotePid, unenc.Generation)
 
-		if conn.status == ConnectionStatusWaitingForRemotePid {
+		if conn.remoteUtime == 0 && conn.remoteProcessId == 0 {
 			// update client connection
 			t.writeMu.Lock()
 			conn.status = ConnectionStatusEstablished
@@ -1269,17 +1331,9 @@ func (t *Transport) processIncomingDatagramPid(addr netip.AddrPort, localIp uint
 		}
 	}
 
-	if unenc.RemotePid == (tlnet.Pid{}) {
-		if t.debugUdpRPC >= 2 {
-			log.Printf("received obsolete hash message")
-		}
-		//it is ObsoleteHash message
-		return conn, false, err
-	}
 	// only client encrypts data with an old cipher
 	oldCipher := unenc.RemotePid.Utime == 0 && processIdFromNetPid(unenc.RemotePid) == 0
-	conn, err = t.processEncrypted(conn, unenc, encRef, resendReq, payload, oldCipher)
-	return conn, false, err
+	return t.processEncrypted(conn, unenc, encRef, resendReq, payload, oldCipher)
 }
 
 func (t *Transport) ensureEqualAddrAndPid(addr netip.AddrPort, pid tlnet.Pid) (uint32, uint16, error) {
@@ -1343,6 +1397,9 @@ func (t *Transport) generateCryptoKeysOld(keyID [4]byte, localPid tlnet.Pid, rem
 }
 
 func (t *Transport) generateCryptoKeys(cryptoKey string, localPid tlnet.Pid, remotePid tlnet.Pid, generation uint32) (read cipher.Block, write cipher.Block) {
+	if t.debugUdpRPC >= 4 || t.printKeysGenerationInfo {
+		log.Printf("generating crypto keys for localPid(%+v) remotePid(%+v) generation(%d)", printPid(localPid), printPid(remotePid), generation)
+	}
 	keys := DeriveCryptoKeysUdp(cryptoKey, &localPid, &remotePid, generation)
 	var err error
 	read, write, err = centaur.AESCentaur(keys.ReadKey[:], keys.WriteKey[:])
@@ -1393,9 +1450,9 @@ func (t *Transport) readEncryptedUnencHeader(payload []byte, firstUnenc tlnetUdp
 	return payload, err
 }
 
-func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.UnencHeader, enc *tlnetUdpPacket.EncHeader, resendReq *tlnetUdpPacket.ResendRequest, payload []byte, oldCipher bool) (*Connection, error) {
+func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.UnencHeader, enc *tlnetUdpPacket.EncHeader, resendReq *tlnetUdpPacket.ResendRequest, payload []byte, oldCipher bool) (*Connection, bool, error) {
 	if !unenc.IsSetCryptoSha() || !unenc.IsSetCryptoRandom() || !unenc.IsSetEncryptedData() {
-		return nil, fmt.Errorf("no crypto random flag")
+		return nil, false, fmt.Errorf("no crypto random flag")
 	}
 
 	if cap(t.readByteCache) >= len(payload) {
@@ -1418,10 +1475,10 @@ func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.Unen
 
 	payload, err := enc.Read(payload)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if unenc.Flags&EncryptedFlagsMask != enc.Flags&EncryptedFlagsMask {
-		return nil, fmt.Errorf("encrypted and decrypted flags do not match")
+		return nil, false, fmt.Errorf("encrypted and decrypted flags do not match")
 	}
 
 	receivedSupportedVersion := (enc.Version >> 16) & 0x0000ffff
@@ -1433,7 +1490,7 @@ func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.Unen
 		seqNum = enc.PacketsFrom
 	}
 	if enc.IsSetVersion() && receivedSupportedVersion < TransportVersion && seqNum != ^uint32(0) {
-		return nil, fmt.Errorf("received supported version is %d but our minimal supported version is %d", receivedSupportedVersion, TransportVersion)
+		return nil, false, fmt.Errorf("received supported version is %d but our minimal supported version is %d", receivedSupportedVersion, TransportVersion)
 	}
 
 	paddingSize := 0
@@ -1453,36 +1510,48 @@ func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.Unen
 	var unenc2 tlnetUdpPacket.UnencHeader
 	unenc2Size := encryptedUnencHeaderSize(unenc)
 	if _, err = t.readEncryptedUnencHeader(payload[len(payload)-unenc2Size:], unenc, &unenc2); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if unenc.PidHash != unenc2.PidHash {
-		return nil, fmt.Errorf("unencoded header hash mismatch")
+		return nil, false, fmt.Errorf("unencoded header hash mismatch")
 	}
 	if unenc.LocalPid != unenc2.LocalPid {
-		return nil, fmt.Errorf("unencoded header LocalPid mismatch")
+		return nil, false, fmt.Errorf("unencoded header LocalPid mismatch")
 	}
 	if unenc.RemotePid != unenc2.RemotePid {
-		return nil, fmt.Errorf("unencoded header RemotePid mismatch")
+		return nil, false, fmt.Errorf("unencoded header RemotePid mismatch")
 	}
 	if unenc.Generation != unenc2.Generation {
-		return nil, fmt.Errorf("unencoded header Generation mismatch")
+		return nil, false, fmt.Errorf("unencoded header Generation mismatch")
 	}
 	if unenc.CryptoFlags != unenc2.CryptoFlags {
-		return nil, fmt.Errorf("unencoded header CryptoFlags mismatch")
+		return nil, false, fmt.Errorf("unencoded header CryptoFlags mismatch")
 	}
 	paddingStartIndex := len(payload) - unenc2Size - paddingSize
 	for i := 0; i < paddingSize; i++ {
 		if payload[paddingStartIndex+i] != 0 {
-			return nil, fmt.Errorf("non zero padding")
+			return nil, false, fmt.Errorf("non zero padding")
 		}
 	}
 	payload = payload[:paddingStartIndex]
 
-	if enc.IsSetPacketNum() || enc.IsSetPacketsFrom() {
-		err = conn.incoming.ReceiveDatagram(enc, resendReq, payload)
+	if t.debugUdpRPC >= 3 {
+		if enc.IsSetPacketNum() {
+			log.Printf("%s->%s received datagram with packet num %d", conn.remoteAddr(), conn.LocalAddr(), enc.PacketNum)
+		} else if enc.IsSetPacketsFrom() {
+			log.Printf("%s->%s received datagram with packets from %d to %d", conn.remoteAddr(), conn.LocalAddr(), enc.PacketAckFrom, enc.PacketAckTo)
+		} else {
+			log.Printf("%s->%s received datagram without payload", conn.remoteAddr(), conn.LocalAddr())
+		}
 	}
 
-	return conn, err
+	// conn.incoming.ReceiveDatagram() can handle obsolete hash message with our current hash, indicating that we must close connection
+	closed := false
+	if enc.IsSetPacketNum() || enc.IsSetPacketsFrom() {
+		closed, err = conn.incoming.ReceiveDatagram(enc, resendReq, payload)
+	}
+
+	return conn, closed, err
 }
 
 func encryptedUnencHeaderSize(unenc tlnetUdpPacket.UnencHeader) int {
@@ -1515,6 +1584,7 @@ func (t *Transport) goWrite() {
 		t.wg.Done()
 	}()
 
+	socketWriteEnd := time.Time{}
 	for {
 		for t.noGoWriteEvents() && !t.closed {
 			t.writeCV.Wait()
@@ -1534,8 +1604,18 @@ func (t *Transport) goWrite() {
 		if data != nil {
 			remoteAddr := conn.remoteAddr()
 			var err error
+
+			socketWriteStart := time.Now()
+			if t.debugUDPLatency && (socketWriteEnd != time.Time{}) {
+				t.writeScheduleLatencyMetric(socketWriteStart.Sub(socketWriteEnd).Seconds() * 1000)
+			}
 			_, err = t.socket.WriteToUDPAddrPort(data, netip.AddrPortFrom(netip.AddrFrom4(ipToBytes(remoteAddr.Ip)), remoteAddr.Port))
+			if t.debugUDPLatency {
+				socketWriteEnd = time.Now()
+				t.socketWriteLatencyMetric(socketWriteEnd.Sub(socketWriteStart).Seconds() * 1000)
+			}
 			t.stats.DatagramWritten.Add(1)
+			t.stats.DatagramSizeWritten.Add(int64(len(data)))
 			if t.debugUdpRPC >= 2 {
 				log.Printf("goWrite() -> datagram to %s (%d bytes)", remoteAddr.String(), len(data))
 			}
@@ -1553,7 +1633,7 @@ func (t *Transport) goWrite() {
 			}
 			//log.Printf("%s [ goWrite -> ] wrote datagram (%d bytes) to address %s", t.socket.LocalAddr().String(), len(data), conn.Addr.String())
 
-			if needResendTimer {
+			if needResendTimer && !conn.GetFlag(inResendQueueFlag) {
 				conn.resendTimeMs = time.Now().UnixMilli() + conn.resendTimeout
 
 				if t.resendTimers.Len() == 0 || conn.resendTimeMs < t.resendTimers.Min().resendTimeMs {
@@ -1562,7 +1642,7 @@ func (t *Transport) goWrite() {
 				t.resendTimers.Add(conn)
 				conn.SetFlag(inResendQueueFlag, true)
 			}
-			if needRegenerateTimer {
+			if needRegenerateTimer && !conn.GetFlag(inRegenerateQueue) {
 				conn.regenerateTimeMs = time.Now().UnixMilli() + t.regenerateTimeout
 
 				t.regenerateTimers.PushBack(conn)
@@ -1623,6 +1703,9 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 
 		for _, conn := range handshakesCopy {
 			t.writeMu.Lock()
+			if conn.GetFlag(closedFlag) {
+				continue
+			}
 			println("session: remote_pid", printPid(conn.remotePid()))
 			println("\tgeneration", conn.generation)
 			println("\tconn.status", conn.status)
@@ -1646,9 +1729,16 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	for t.newHdrRcvsLocal.Len() > 0 {
 		hdr := t.newHdrRcvsLocal.PopFront()
 		conn := hdr.conn
+		if conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		// update OutgoingConnection state with received acks
 		t.handleAck(conn, &hdr.enc)
+		// We must check `new chunks to send` after handleAck(), because window could have been reduced
+		if conn.outgoing.haveChunksToSendNow(t) {
+			t.connectionSendQueueLocal.PushBack(conn)
+		}
 
 		// update AcksToSend with received seqNums
 		if hdr.enc.IsSetPacketsFrom() {
@@ -1666,6 +1756,9 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	for t.newResendsLocal.Len() > 0 {
 		conn := t.newResendsLocal.PopFront()
 		conn.SetFlag(inResendQueueFlag, false)
+		if conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		conn.outgoing.OnResendTimeout()
 
@@ -1689,6 +1782,9 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	}
 	for t.newResendRequestSndsLocal.Len() > 0 {
 		conn := t.newResendRequestSndsLocal.PopFront()
+		if conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		if conn.acks.HaveHoles() {
 			t.stats.ResendRequestTimerBurned.Add(1)
@@ -1701,6 +1797,9 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	}
 	for t.newResendRequestsRcvsLocal.Len() > 0 {
 		connResReq := t.newResendRequestsRcvsLocal.PopFront()
+		if connResReq.conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		requestedSeqNumsOutOfWindow := 0
 		requestedSeqNumsActuallyAcked := 0
@@ -1730,6 +1829,9 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 	}
 	for t.newMessagesLocal.Len() > 0 {
 		cm := t.newMessagesLocal.PopFront()
+		if cm.conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		var m *OutgoingMessage
 		if n := len(t.outgoingMessagesPool); n == 0 {
@@ -1750,8 +1852,10 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		t.connectionSendQueueLocal.PushBack(cm.conn)
 	}
 	for t.newAckSndsLocal.Len() > 0 {
-
 		conn := t.newAckSndsLocal.PopFront()
+		if conn.GetFlag(writeClosedFlag) {
+			continue
+		}
 
 		// if connection is inSendQueue or has already sent datagram since ack timer run, then skip empty ack
 		if !conn.GetFlag(ackSentFlag) {
@@ -1768,6 +1872,7 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		if conn.GetFlag(closedFlag) {
 			continue
 		}
+
 		t.addConnectionToSendQueueLocked(conn)
 	}
 
@@ -1824,7 +1929,7 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		generation := conn.generation
 		remotePid := conn.remotePid()
 		hash := conn.id.Hash
-		oldCipher := status == ConnectionStatusWaitingForRemotePid || status == ConnectionSentObsoleteHash
+		oldCipher := status == ConnectionStatusWaitingForRemotePid || status == ConnectionSentObsoleteHash || status == ConnectionSentObsoleteGeneration
 		writeCipher := conn.writeNew
 		t.writeMu.Unlock()
 		if oldCipher {
@@ -1862,7 +1967,7 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		// TODO think what crypto use when send
 		// ConnectionSentObsoletePid
 		// and ConnectionSentObsoleteGeneration
-		oldCipher := status == ConnectionStatusWaitingForRemotePid || status == ConnectionSentObsoleteHash
+		oldCipher := status == ConnectionStatusWaitingForRemotePid || status == ConnectionSentObsoleteHash || status == ConnectionSentObsoleteGeneration
 		writeCipher := conn.writeNew
 		t.writeMu.Unlock()
 		if oldCipher {
@@ -1872,7 +1977,7 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 		var haveUserPayload bool
 		datagram, haveUserPayload = t.buildDatagram(conn, writeCipher, generation, status, remotePid, hash, withoutPayload, nil)
 
-		return datagram, conn, haveUserPayload && !conn.GetFlag(inResendQueueFlag), haveUserPayload && !conn.GetFlag(inRegenerateQueue), needToSignalGoResend, needToSignalGoResendRequest
+		return datagram, conn, conn.outgoing.timeoutedSeqNum < conn.outgoing.nextSeqNo, haveUserPayload, needToSignalGoResend, needToSignalGoResendRequest
 	}
 
 	// no datagram to send and timer to run
@@ -1880,10 +1985,15 @@ func (t *Transport) goWriteStep() (datagram []byte, connToWrite *Connection, nee
 }
 
 func (t *Transport) handleAck(conn *Connection, ack *tlnetUdpPacket.EncHeader) {
+	if ack.IsSetPacketAckPrefix() || ack.IsSetPacketAckFrom() || ack.IsSetPacketAckSet() {
+		if t.debugUdpRPC >= 3 {
+			log.Printf("%s->%s recieved acks %s", conn.remoteAddr(), conn.LocalAddr(), printAcks(ack))
+		}
+	}
 	if ack.IsSetPacketAckPrefix() {
 		err := conn.outgoing.AckPrefix(t, ack.PacketAckPrefix+1)
 		if err != nil {
-			log.Printf("goWrite: error from AckPrefix(): %s", err)
+			log.Printf("%s goWrite: error from AckPrefix(): %s", conn.remoteAddr(), err)
 		}
 	}
 
@@ -1891,7 +2001,7 @@ func (t *Transport) handleAck(conn *Connection, ack *tlnetUdpPacket.EncHeader) {
 		for ackSeqNo := ack.PacketAckFrom; ackSeqNo <= ack.PacketAckTo; ackSeqNo++ {
 			err := conn.outgoing.AckChunk(t, ackSeqNo)
 			if err != nil {
-				log.Printf("goWrite: error from AckChunk(): %s", err)
+				log.Printf("%s goWrite: error from AckChunk(): %s", conn.remoteAddr(), err)
 			}
 		}
 	}
@@ -1900,7 +2010,7 @@ func (t *Transport) handleAck(conn *Connection, ack *tlnetUdpPacket.EncHeader) {
 		for _, ackSeqNo := range ack.PacketAckSet {
 			err := conn.outgoing.AckChunk(t, ackSeqNo)
 			if err != nil {
-				log.Printf("goWrite: error from AckChunk(): %s", err)
+				log.Printf("%s goWrite: error from AckChunk(): %s", conn.remoteAddr(), err)
 			}
 		}
 	}
@@ -2010,14 +2120,37 @@ func setUnreliableEncFlags(enc *tlnetUdpPacket.EncHeader) {
 	enc.SetMultipleRpcMsgs(false)
 }
 
+func printAcks(enc *tlnetUdpPacket.EncHeader) string {
+	res := ""
+	if enc.IsSetPacketAckPrefix() {
+		res = fmt.Sprintf("[0..%d]", enc.PacketAckPrefix)
+	}
+	if enc.IsSetPacketAckFrom() {
+		res += fmt.Sprintf("+ [%d..%d]", enc.PacketAckFrom, enc.PacketAckTo)
+	}
+	if enc.IsSetPacketAckSet() {
+		res = fmt.Sprintf("+ %+v", enc.PacketAckSet)
+	}
+	if res == "" {
+		res = "no acks"
+	}
+	return res
+}
+
 func (t *Transport) buildResendRequestDatagram(conn *Connection, enc *tlnetUdpPacket.EncHeader, req *tlnetUdpPacket.ResendRequest) {
 	conn.acks.BuildAck(enc) // TODO set window control!!!
+	if t.debugUdpRPC >= 3 {
+		log.Printf("%s->%s buildResendRequestDatagram: conn.acks.BuildAck(enc) -> %s", conn.LocalAddr(), conn.remoteAddr(), printAcks(enc))
+	}
 	conn.acks.BuildNegativeAck(req)
 	setUnreliableEncFlags(enc)
 }
 
 func (t *Transport) buildPayloadDatagram(conn *Connection, enc *tlnetUdpPacket.EncHeader, withoutPayload bool) (haveUserPayload bool) {
 	conn.acks.BuildAck(enc) // TODO set window control!!!
+	if t.debugUdpRPC >= 3 {
+		log.Printf("%s->%s buildPayloadDatagram: conn.acks.BuildAck(enc) -> %s", conn.LocalAddr(), conn.remoteAddr(), printAcks(enc))
+	}
 	if withoutPayload {
 		return false
 	}
@@ -2027,6 +2160,13 @@ func (t *Transport) buildPayloadDatagram(conn *Connection, enc *tlnetUdpPacket.E
 	t.writeChunks = t.writeChunks[:0]
 	t.writeChunks, firstSeqNum, singleMessage = conn.outgoing.GetChunksToSend(t, t.writeChunks)
 	haveUserPayload = len(t.writeChunks) > 0
+	if t.debugUdpRPC >= 3 {
+		if haveUserPayload {
+			log.Printf("%s->%s GetChunksToSend -> chunks from %d to %d", conn.LocalAddr(), conn.remoteAddr(), firstSeqNum, firstSeqNum+uint32(len(t.writeChunks))-1)
+		} else {
+			log.Printf("%s->%s GetChunksToSend -> no chunks", conn.LocalAddr(), conn.remoteAddr())
+		}
+	}
 
 	// Encrypted header
 	if haveUserPayload {
@@ -2245,6 +2385,7 @@ func (t *Transport) goAck() {
 		if durationMs > 0 {
 			// to not hold mutex for the long time waiting for the timeout
 			t.writeMu.Unlock()
+			// TODO replace with interruptible wait to have possibility to stop Transport immediately
 			time.Sleep(time.Millisecond * time.Duration(durationMs))
 			t.writeMu.Lock()
 		}
@@ -2352,6 +2493,7 @@ func (t *Transport) goRegenerate() {
 		if durationMs > 0 {
 			// to not hold mutex for the long time waiting for the timeout
 			t.writeMu.Unlock()
+			// TODO replace with interruptible wait to have possibility to stop Transport immediately
 			time.Sleep(time.Millisecond * time.Duration(durationMs))
 			t.writeMu.Lock()
 		}

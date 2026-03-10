@@ -905,7 +905,8 @@ func Test_Engine_WaitCommit(t *testing.T) {
 	t.Run("wait_commit_should_timeout", func(t *testing.T) {
 		engine, _ = openEngine(t, t.TempDir(), "db", schema, true, false, false, nil)
 		ch := make(chan error)
-		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*50)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+		defer cancel()
 		go func() {
 			_, _, err := waitOffsetView(ctx, 1024)
 			ch <- err

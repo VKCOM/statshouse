@@ -14,6 +14,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 )
 
 // serialisation of RPC packets is here
@@ -46,8 +47,7 @@ func preparePacket(req *Request) error {
 		headerBuf = extra.WriteBoxed(headerBuf)
 	}
 	if req.BodyFormatTL2 {
-		// rpc-proxy consumes TL2Tag, waiting for fixes
-		headerBuf = basictl.NatWrite(headerBuf, 0x30324c54) // tl.RpcTL2Marker{}.TLTag())
+		headerBuf = basictl.NatWrite(headerBuf, tl.RpcTL2Marker{}.TLTag())
 	}
 	if err := validBodyLen(len(headerBuf)); err != nil { // exact
 		return err
@@ -64,7 +64,6 @@ func (hctx *HandlerContext) ParseInvokeReq(opts *ServerOptions) (err error) {
 	}
 	hctx.queryID = reqHeader.QueryId
 
-	var afterTag []byte
 	actorIDSet := 0
 	extraSet := 0
 	tl2MarkerSet := 0
@@ -72,12 +71,13 @@ func (hctx *HandlerContext) ParseInvokeReq(opts *ServerOptions) (err error) {
 loop:
 	for {
 		var tag uint32
+		var afterTag []byte
 		if afterTag, err = basictl.NatRead(hctx.Request, &tag); err != nil {
 			return fmt.Errorf("failed to read tag: %w", err)
 		}
 		switch tag {
 		case tl.RpcDestActor{}.TLTag():
-			if hctx.bodyFormatTL2 {
+			if tl2MarkerSet != 0 {
 				tl2MarkerNotLast = true
 			}
 			var extra tl.RpcDestActor
@@ -87,7 +87,7 @@ loop:
 			hctx.actorID = extra.ActorId
 			actorIDSet++
 		case tl.RpcDestFlags{}.TLTag():
-			if hctx.bodyFormatTL2 {
+			if tl2MarkerSet != 0 {
 				tl2MarkerNotLast = true
 			}
 			// var extra tl.RpcDestFlags
@@ -98,7 +98,7 @@ loop:
 			}
 			extraSet++
 		case tl.RpcDestActorFlags{}.TLTag():
-			if hctx.bodyFormatTL2 {
+			if tl2MarkerSet != 0 {
 				tl2MarkerNotLast = true
 			}
 			// var extra tl.RpcDestActorFlags
@@ -112,7 +112,7 @@ loop:
 			}
 			actorIDSet++
 			extraSet++
-		case 0x30324c54, tl.RpcTL2Marker{}.TLTag(): // rpc-proxy consumes TL2Tag, waiting for fixes
+		case tl.RpcTL2Marker{}.TLTag():
 			hctx.bodyFormatTL2 = true
 			hctx.Request = afterTag
 			tl2MarkerSet++
@@ -125,7 +125,7 @@ loop:
 		return fmt.Errorf("rpc: ActorID or RequestExtra set more than once (%d and %d) for request tag #%08d; please report to infrastructure team", actorIDSet, extraSet, hctx.reqTag)
 	}
 	if tl2MarkerSet > 1 {
-		return fmt.Errorf("rpc: TL2 marker set more than once %d for request tag #%08d; please report to infrastructure team", tl2MarkerSet, hctx.reqTag)
+		return fmt.Errorf("rpc: TL2 marker set more than once (%d) for request tag #%08d; please report to infrastructure team", tl2MarkerSet, hctx.reqTag)
 	}
 	if tl2MarkerNotLast {
 		return fmt.Errorf("rpc: TL2 marker is not last wrapper for request tag #%08d; please report to infrastructure team", hctx.reqTag)
@@ -156,18 +156,18 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		var respErr2 *Error
 		switch {
 		case err == ErrNoHandler: // this case is only to include reqTag into description
-			respErr.Code = TlErrorNoHandler
+			respErr.Code = tlerrorcodes.NoHandler
 			respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqTag)
 		case errors.As(err, &respErr2):
 			respErr = *respErr2    // OK, forward the error as-is
 			if respErr.Code == 0 { // important for rpc2.invokeReq, where Code != 0 is condition for error
-				respErr.Code = TlErrorUnknown
+				respErr.Code = tlerrorcodes.Unknown
 			}
 		case errors.Is(err, context.DeadlineExceeded):
-			respErr.Code = TlErrorTimeout
+			respErr.Code = tlerrorcodes.Timeout
 			respErr.Description = fmt.Sprintf("%s (server-adjusted request timeout was %v)", err.Error(), hctx.timeout)
 		default:
-			respErr.Code = TlErrorUnknown
+			respErr.Code = tlerrorcodes.Unknown
 			respErr.Description = err.Error()
 		}
 
@@ -200,11 +200,16 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		resp = basictl.NatWrite(resp, tl.ReqResultHeader{}.TLTag())
 		resp = hctx.ResponseExtra.Write(resp)
 	}
+	if err == nil && hctx.bodyFormatTL2 {
+		// we must use TL2 marker in response, otherwise first 4 bytes of TL2 body
+		// will randomly collide with Extra/Error magic
+		resp = basictl.NatWrite(resp, tl.RpcTL2Marker{}.TLTag())
+	}
 	hctx.Response = resp
 	return validBodyLen(len(resp))
 }
 
-func parseResponseExtra(extra *ResponseExtra, respBody []byte) (_ []byte, err error) {
+func parseResponseExtra(bodyFormatTL2 bool, extra *ResponseExtra, respBody []byte) (_ []byte, err error) {
 	var tag uint32
 	var afterTag []byte
 	extraSet := 0
@@ -243,6 +248,12 @@ func parseResponseExtra(extra *ResponseExtra, respBody []byte) (_ []byte, err er
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
+	}
+	if bodyFormatTL2 {
+		if tag != (tl.RpcTL2Marker{}.TLTag()) {
+			return respBody, fmt.Errorf("rpc: request in TL2 format requires TL2 marker set for result tag #%08d; please report to infrastructure team", tag)
+		}
+		return afterTag, nil
 	}
 	return respBody, nil
 }

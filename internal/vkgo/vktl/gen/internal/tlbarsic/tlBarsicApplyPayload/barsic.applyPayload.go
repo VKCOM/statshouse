@@ -16,9 +16,12 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// both way
 type BarsicApplyPayload struct {
 	FieldsMask uint32
+	// from engine. useful if progress depends on those commands be quickly committed. Without this flag commits might be delayed to issue less "fsync" commands to disk
 	// CommitASAP (TrueType) // Conditional: item.FieldsMask.0
+	// from barsic. Set if every byte of payload is committed. Can be useful on initial loading.
 	// Committed (TrueType) // Conditional: item.FieldsMask.1
 	Offset  int64
 	Payload string
@@ -58,6 +61,9 @@ func (item *BarsicApplyPayload) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicApplyPayload) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -68,10 +74,16 @@ func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicApplyPayload) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicApplyPayload) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicApplyPayload) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicApplyPayload) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWrite(w, item.Payload)
@@ -79,27 +91,42 @@ func (item *BarsicApplyPayload) Write(w []byte) []byte {
 }
 
 func (item *BarsicApplyPayload) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicApplyPayload) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x8c981e13); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicApplyPayload) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicApplyPayload) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicApplyPayload) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicApplyPayload) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8c981e13)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicApplyPayload) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicApplyPayload) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicApplyPayload) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicApplyPayload) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -121,29 +148,44 @@ func (item *BarsicApplyPayload) writeResultJSON(tctx *basictl.JSONWriteContext, 
 	return w, nil
 }
 
-func (item *BarsicApplyPayload) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicApplyPayload) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicApplyPayload) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicApplyPayload) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicApplyPayload) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayload) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayload) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
 func (item BarsicApplyPayload) String() string {
@@ -308,16 +350,19 @@ func (item *BarsicApplyPayload) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicApplyPayload) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload"))
 }
 
 func (item *BarsicApplyPayload) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
+// both way
 type BarsicApplyPayloadBytes struct {
 	FieldsMask uint32
+	// from engine. useful if progress depends on those commands be quickly committed. Without this flag commits might be delayed to issue less "fsync" commands to disk
 	// CommitASAP (TrueType) // Conditional: item.FieldsMask.0
+	// from barsic. Set if every byte of payload is committed. Can be useful on initial loading.
 	// Committed (TrueType) // Conditional: item.FieldsMask.1
 	Offset  int64
 	Payload []byte
@@ -357,6 +402,9 @@ func (item *BarsicApplyPayloadBytes) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicApplyPayloadBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -367,10 +415,16 @@ func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicApplyPayloadBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicApplyPayloadBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicApplyPayloadBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicApplyPayloadBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWriteBytes(w, item.Payload)
@@ -378,27 +432,42 @@ func (item *BarsicApplyPayloadBytes) Write(w []byte) []byte {
 }
 
 func (item *BarsicApplyPayloadBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicApplyPayloadBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x8c981e13); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicApplyPayloadBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicApplyPayloadBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicApplyPayloadBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8c981e13)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicApplyPayloadBytes) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicApplyPayloadBytes) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicApplyPayloadBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicApplyPayloadBytes) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -420,29 +489,44 @@ func (item *BarsicApplyPayloadBytes) writeResultJSON(tctx *basictl.JSONWriteCont
 	return w, nil
 }
 
-func (item *BarsicApplyPayloadBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicApplyPayloadBytes) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicApplyPayloadBytes) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayloadBytes) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayloadBytes) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
+}
+
+func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
 func (item BarsicApplyPayloadBytes) String() string {
@@ -607,7 +691,7 @@ func (item *BarsicApplyPayloadBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicApplyPayloadBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload"))
 }
 
 func (item *BarsicApplyPayloadBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

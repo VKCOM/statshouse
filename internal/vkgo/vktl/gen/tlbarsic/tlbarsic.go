@@ -35,34 +35,34 @@ import (
 )
 
 type (
-	ApplyPayload                          = tlBarsicApplyPayload.BarsicApplyPayload
-	ApplyPayloadBytes                     = tlBarsicApplyPayload.BarsicApplyPayloadBytes
-	ChangeRole                            = tlBarsicChangeRole.BarsicChangeRole
-	Commit                                = tlBarsicCommit.BarsicCommit
-	CommitBytes                           = tlBarsicCommit.BarsicCommitBytes
-	EngineStarted                         = tlBarsicEngineStarted.BarsicEngineStarted
-	EngineStartedBytes                    = tlBarsicEngineStarted.BarsicEngineStartedBytes
-	EngineStatus                          = tlBarsicEngineStatus.BarsicEngineStatus
-	EngineStatusBytes                     = tlBarsicEngineStatus.BarsicEngineStatusBytes
-	EngineWantsRestart                    = tlBarsicEngineWantsRestart.BarsicEngineWantsRestart
-	Reindex                               = tlBarsicReindex.BarsicReindex
-	Revert                                = tlBarsicRevert.BarsicRevert
-	Shutdown                              = tlBarsicShutdown.BarsicShutdown
-	Skip                                  = tlBarsicSkip.BarsicSkip
-	SnapshotDependency                    = tlBarsicSnapshotDependency.BarsicSnapshotDependency
-	SnapshotDependencyBytes               = tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
-	SnapshotExternalFile                  = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile
-	SnapshotExternalFileBytes             = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes
-	SnapshotHeader                        = tlBarsicSnapshotHeader.BarsicSnapshotHeader
-	SnapshotHeaderBytes                   = tlBarsicSnapshotHeader.BarsicSnapshotHeaderBytes
-	Split                                 = tlBarsicSplit.BarsicSplit
-	SplitBytes                            = tlBarsicSplit.BarsicSplitBytes
-	Start                                 = tlBarsicStart.BarsicStart
-	StartBytes                            = tlBarsicStart.BarsicStartBytes
-	VectorBarsicSnapshotDependency        = tlVectorBarsicSnapshotDependency.VectorBarsicSnapshotDependency
-	VectorBarsicSnapshotDependencyBytes   = tlVectorBarsicSnapshotDependency.VectorBarsicSnapshotDependencyBytes
-	VectorBarsicSnapshotExternalFile      = tlVectorBarsicSnapshotExternalFile.VectorBarsicSnapshotExternalFile
-	VectorBarsicSnapshotExternalFileBytes = tlVectorBarsicSnapshotExternalFile.VectorBarsicSnapshotExternalFileBytes
+	ApplyPayload                    = tlBarsicApplyPayload.BarsicApplyPayload
+	ApplyPayloadBytes               = tlBarsicApplyPayload.BarsicApplyPayloadBytes
+	ChangeRole                      = tlBarsicChangeRole.BarsicChangeRole
+	Commit                          = tlBarsicCommit.BarsicCommit
+	CommitBytes                     = tlBarsicCommit.BarsicCommitBytes
+	EngineStarted                   = tlBarsicEngineStarted.BarsicEngineStarted
+	EngineStartedBytes              = tlBarsicEngineStarted.BarsicEngineStartedBytes
+	EngineStatus                    = tlBarsicEngineStatus.BarsicEngineStatus
+	EngineStatusBytes               = tlBarsicEngineStatus.BarsicEngineStatusBytes
+	EngineWantsRestart              = tlBarsicEngineWantsRestart.BarsicEngineWantsRestart
+	Reindex                         = tlBarsicReindex.BarsicReindex
+	Revert                          = tlBarsicRevert.BarsicRevert
+	Shutdown                        = tlBarsicShutdown.BarsicShutdown
+	Skip                            = tlBarsicSkip.BarsicSkip
+	SnapshotDependency              = tlBarsicSnapshotDependency.BarsicSnapshotDependency
+	SnapshotDependencyBytes         = tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes
+	SnapshotExternalFile            = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile
+	SnapshotExternalFileBytes       = tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes
+	SnapshotHeader                  = tlBarsicSnapshotHeader.BarsicSnapshotHeader
+	SnapshotHeaderBytes             = tlBarsicSnapshotHeader.BarsicSnapshotHeaderBytes
+	Split                           = tlBarsicSplit.BarsicSplit
+	SplitBytes                      = tlBarsicSplit.BarsicSplitBytes
+	Start                           = tlBarsicStart.BarsicStart
+	StartBytes                      = tlBarsicStart.BarsicStartBytes
+	VectorSnapshotDependency        = tlVectorBarsicSnapshotDependency.VectorBarsicSnapshotDependency
+	VectorSnapshotDependencyBytes   = tlVectorBarsicSnapshotDependency.VectorBarsicSnapshotDependencyBytes
+	VectorSnapshotExternalFile      = tlVectorBarsicSnapshotExternalFile.VectorBarsicSnapshotExternalFile
+	VectorSnapshotExternalFileBytes = tlVectorBarsicSnapshotExternalFile.VectorBarsicSnapshotExternalFileBytes
 
 	ApplyPayload__Result       = tlTrue.True
 	ChangeRole__Result         = tlTrue.True
@@ -86,6 +86,7 @@ type Client struct {
 	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
+// both way
 func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, extra *rpc.InvokeReqExtra, ret *ApplyPayload__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -95,7 +96,7 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
@@ -108,7 +109,7 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 		return internal.ErrorClientDo("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
 		}
@@ -116,6 +117,7 @@ func (c *Client) ApplyPayloadBytes(ctx context.Context, args ApplyPayloadBytes, 
 	return nil
 }
 
+// both way
 func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc.InvokeReqExtra, ret *ApplyPayload__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -125,7 +127,7 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.applyPayload", err)
 	}
@@ -138,7 +140,7 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 		return internal.ErrorClientDo("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.applyPayload", c.Network, c.ActorID, c.Address, err)
 		}
@@ -146,6 +148,7 @@ func (c *Client) ApplyPayload(ctx context.Context, args ApplyPayload, extra *rpc
 	return nil
 }
 
+// from Barsic to engine, must echo back
 func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.InvokeReqExtra, ret *ChangeRole__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -155,7 +158,7 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.changeRole", err)
 	}
@@ -168,7 +171,7 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 		return internal.ErrorClientDo("barsic.changeRole", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.changeRole", c.Network, c.ActorID, c.Address, err)
 		}
@@ -176,6 +179,7 @@ func (c *Client) ChangeRole(ctx context.Context, args ChangeRole, extra *rpc.Inv
 	return nil
 }
 
+// from Barsic to engine, must echo back
 func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.InvokeReqExtra, ret *Commit__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -185,7 +189,7 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
@@ -198,7 +202,7 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 		return internal.ErrorClientDo("barsic.commit", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.commit", c.Network, c.ActorID, c.Address, err)
 		}
@@ -206,6 +210,7 @@ func (c *Client) CommitBytes(ctx context.Context, args CommitBytes, extra *rpc.I
 	return nil
 }
 
+// from Barsic to engine, must echo back
 func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqExtra, ret *Commit__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -215,7 +220,7 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.commit", err)
 	}
@@ -228,7 +233,7 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 		return internal.ErrorClientDo("barsic.commit", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.commit", c.Network, c.ActorID, c.Address, err)
 		}
@@ -236,6 +241,7 @@ func (c *Client) Commit(ctx context.Context, args Commit, extra *rpc.InvokeReqEx
 	return nil
 }
 
+// from engine to Barsic
 func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes, extra *rpc.InvokeReqExtra, ret *EngineStarted__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -245,7 +251,7 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
@@ -258,7 +264,7 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 		return internal.ErrorClientDo("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
 		}
@@ -266,6 +272,7 @@ func (c *Client) EngineStartedBytes(ctx context.Context, args EngineStartedBytes
 	return nil
 }
 
+// from engine to Barsic
 func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *rpc.InvokeReqExtra, ret *EngineStarted__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -275,7 +282,7 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStarted", err)
 	}
@@ -288,7 +295,7 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 		return internal.ErrorClientDo("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.engineStarted", c.Network, c.ActorID, c.Address, err)
 		}
@@ -296,6 +303,7 @@ func (c *Client) EngineStarted(ctx context.Context, args EngineStarted, extra *r
 	return nil
 }
 
+// from engine to Barsic
 func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, extra *rpc.InvokeReqExtra, ret *EngineStatus__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -305,7 +313,7 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
@@ -318,7 +326,7 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 		return internal.ErrorClientDo("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
 		}
@@ -326,6 +334,7 @@ func (c *Client) EngineStatusBytes(ctx context.Context, args EngineStatusBytes, 
 	return nil
 }
 
+// from engine to Barsic
 func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc.InvokeReqExtra, ret *EngineStatus__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -335,7 +344,7 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineStatus", err)
 	}
@@ -348,7 +357,7 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 		return internal.ErrorClientDo("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.engineStatus", c.Network, c.ActorID, c.Address, err)
 		}
@@ -356,6 +365,7 @@ func (c *Client) EngineStatus(ctx context.Context, args EngineStatus, extra *rpc
 	return nil
 }
 
+// from engine to Barsic
 func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart, extra *rpc.InvokeReqExtra, ret *EngineWantsRestart__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -365,7 +375,7 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.engineWantsRestart", err)
 	}
@@ -378,7 +388,7 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 		return internal.ErrorClientDo("barsic.engineWantsRestart", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.engineWantsRestart", c.Network, c.ActorID, c.Address, err)
 		}
@@ -386,6 +396,8 @@ func (c *Client) EngineWantsRestart(ctx context.Context, args EngineWantsRestart
 	return nil
 }
 
+// When sent from engine to barsic, should be considered a plea to reindex the engine
+// When sent from barsic to engine, should be considered an order to begin reindexing as soon as possible
 func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReqExtra, ret *Reindex__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -395,7 +407,7 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.reindex", err)
 	}
@@ -408,7 +420,7 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 		return internal.ErrorClientDo("barsic.reindex", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.reindex", c.Network, c.ActorID, c.Address, err)
 		}
@@ -416,6 +428,7 @@ func (c *Client) Reindex(ctx context.Context, args Reindex, extra *rpc.InvokeReq
 	return nil
 }
 
+// from Barsic to engine, must echo back
 func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqExtra, ret *Revert__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -425,7 +438,7 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.revert", err)
 	}
@@ -438,7 +451,7 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 		return internal.ErrorClientDo("barsic.revert", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.revert", c.Network, c.ActorID, c.Address, err)
 		}
@@ -446,6 +459,8 @@ func (c *Client) Revert(ctx context.Context, args Revert, extra *rpc.InvokeReqEx
 	return nil
 }
 
+// Sent once from Barsic to engine. Engine must perform graceful shutdown of all client connections.
+// Barsic will close connection to engine after some timeout, if engine can exit earlier (all connections closed), it should.
 func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeReqExtra, ret *Shutdown__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -455,7 +470,7 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.shutdown", err)
 	}
@@ -468,7 +483,7 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 		return internal.ErrorClientDo("barsic.shutdown", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.shutdown", c.Network, c.ActorID, c.Address, err)
 		}
@@ -476,6 +491,7 @@ func (c *Client) Shutdown(ctx context.Context, args Shutdown, extra *rpc.InvokeR
 	return nil
 }
 
+// From barsic to engine, no echo back
 func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra, ret *Skip__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -485,7 +501,7 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.skip", err)
 	}
@@ -498,7 +514,7 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 		return internal.ErrorClientDo("barsic.skip", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.skip", c.Network, c.ActorID, c.Address, err)
 		}
@@ -506,6 +522,13 @@ func (c *Client) Skip(ctx context.Context, args Skip, extra *rpc.InvokeReqExtra,
 	return nil
 }
 
+// From barsic to engine, no echo back.
+// After this command engine should forget state which does not belong to the new shard_id.
+// The next snapshot will contain new shard_id and only data of that shard.
+// Engine sibling running on another machine will receive split command with the other half.
+// This command also advances e:v pair to grigger new leader discovery in proxies, and sets
+// new snapshot_meta for snapshots started after split.
+// IF there was a snapshot waiting for commit, that snapshot waiting state must be forgotten and restarted.
 func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.InvokeReqExtra, ret *Split__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -515,7 +538,7 @@ func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.Inv
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.split", err)
 	}
@@ -528,7 +551,7 @@ func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.Inv
 		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.split", c.Network, c.ActorID, c.Address, err)
 		}
@@ -536,6 +559,13 @@ func (c *Client) SplitBytes(ctx context.Context, args SplitBytes, extra *rpc.Inv
 	return nil
 }
 
+// From barsic to engine, no echo back.
+// After this command engine should forget state which does not belong to the new shard_id.
+// The next snapshot will contain new shard_id and only data of that shard.
+// Engine sibling running on another machine will receive split command with the other half.
+// This command also advances e:v pair to grigger new leader discovery in proxies, and sets
+// new snapshot_meta for snapshots started after split.
+// IF there was a snapshot waiting for commit, that snapshot waiting state must be forgotten and restarted.
 func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtra, ret *Split__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -545,7 +575,7 @@ func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtr
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.split", err)
 	}
@@ -558,7 +588,7 @@ func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientDo("barsic.split", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.split", c.Network, c.ActorID, c.Address, err)
 		}
@@ -566,6 +596,7 @@ func (c *Client) Split(ctx context.Context, args Split, extra *rpc.InvokeReqExtr
 	return nil
 }
 
+// first message from Barsic to engine, but see below
 func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.InvokeReqExtra, ret *Start__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -575,7 +606,7 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
 	}
@@ -588,7 +619,7 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 		return internal.ErrorClientDo("barsic.start", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.start", c.Network, c.ActorID, c.Address, err)
 		}
@@ -596,6 +627,7 @@ func (c *Client) StartBytes(ctx context.Context, args StartBytes, extra *rpc.Inv
 	return nil
 }
 
+// first message from Barsic to engine, but see below
 func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtra, ret *Start__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -605,7 +637,7 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 		req.FailIfNoConnection = extra.FailIfNoConnection
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
-	req.Body, err = args.WriteBoxedGeneral(req.Body)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 	if err != nil {
 		return internal.ErrorClientWrite("barsic.start", err)
 	}
@@ -618,7 +650,7 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientDo("barsic.start", c.Network, c.ActorID, c.Address, err)
 	}
 	if ret != nil {
-		resp.Body, err = args.ReadResult(resp.Body, ret)
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
 		if err != nil {
 			return internal.ErrorClientReadResult("barsic.start", c.Network, c.ActorID, c.Address, err)
 		}
@@ -627,18 +659,38 @@ func (c *Client) Start(ctx context.Context, args Start, extra *rpc.InvokeReqExtr
 }
 
 type Handler struct {
-	ApplyPayload       func(ctx context.Context, args ApplyPayload) (ApplyPayload__Result, error)             // barsic.applyPayload
-	ChangeRole         func(ctx context.Context, args ChangeRole) (ChangeRole__Result, error)                 // barsic.changeRole
-	Commit             func(ctx context.Context, args Commit) (Commit__Result, error)                         // barsic.commit
-	EngineStarted      func(ctx context.Context, args EngineStarted) (EngineStarted__Result, error)           // barsic.engineStarted
-	EngineStatus       func(ctx context.Context, args EngineStatus) (EngineStatus__Result, error)             // barsic.engineStatus
+	// both way
+	ApplyPayload func(ctx context.Context, args ApplyPayload) (ApplyPayload__Result, error) // barsic.applyPayload
+	// from Barsic to engine, must echo back
+	ChangeRole func(ctx context.Context, args ChangeRole) (ChangeRole__Result, error) // barsic.changeRole
+	// from Barsic to engine, must echo back
+	Commit func(ctx context.Context, args Commit) (Commit__Result, error) // barsic.commit
+	// from engine to Barsic
+	EngineStarted func(ctx context.Context, args EngineStarted) (EngineStarted__Result, error) // barsic.engineStarted
+	// from engine to Barsic
+	EngineStatus func(ctx context.Context, args EngineStatus) (EngineStatus__Result, error) // barsic.engineStatus
+	// from engine to Barsic
 	EngineWantsRestart func(ctx context.Context, args EngineWantsRestart) (EngineWantsRestart__Result, error) // barsic.engineWantsRestart
-	Reindex            func(ctx context.Context, args Reindex) (Reindex__Result, error)                       // barsic.reindex
-	Revert             func(ctx context.Context, args Revert) (Revert__Result, error)                         // barsic.revert
-	Shutdown           func(ctx context.Context, args Shutdown) (Shutdown__Result, error)                     // barsic.shutdown
-	Skip               func(ctx context.Context, args Skip) (Skip__Result, error)                             // barsic.skip
-	Split              func(ctx context.Context, args Split) (Split__Result, error)                           // barsic.split
-	Start              func(ctx context.Context, args Start) (Start__Result, error)                           // barsic.start
+	// When sent from engine to barsic, should be considered a plea to reindex the engine
+	// When sent from barsic to engine, should be considered an order to begin reindexing as soon as possible
+	Reindex func(ctx context.Context, args Reindex) (Reindex__Result, error) // barsic.reindex
+	// from Barsic to engine, must echo back
+	Revert func(ctx context.Context, args Revert) (Revert__Result, error) // barsic.revert
+	// Sent once from Barsic to engine. Engine must perform graceful shutdown of all client connections.
+	// Barsic will close connection to engine after some timeout, if engine can exit earlier (all connections closed), it should.
+	Shutdown func(ctx context.Context, args Shutdown) (Shutdown__Result, error) // barsic.shutdown
+	// From barsic to engine, no echo back
+	Skip func(ctx context.Context, args Skip) (Skip__Result, error) // barsic.skip
+	// From barsic to engine, no echo back.
+	// After this command engine should forget state which does not belong to the new shard_id.
+	// The next snapshot will contain new shard_id and only data of that shard.
+	// Engine sibling running on another machine will receive split command with the other half.
+	// This command also advances e:v pair to grigger new leader discovery in proxies, and sets
+	// new snapshot_meta for snapshots started after split.
+	// IF there was a snapshot waiting for commit, that snapshot waiting state must be forgotten and restarted.
+	Split func(ctx context.Context, args Split) (Split__Result, error) // barsic.split
+	// first message from Barsic to engine, but see below
+	Start func(ctx context.Context, args Start) (Start__Result, error) // barsic.start
 
 }
 
@@ -650,23 +702,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.ApplyPayload != nil {
 			var args ApplyPayload
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.applyPayload", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ApplyPayload(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.applyPayload", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.applyPayload", err)
 			}
@@ -677,23 +728,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.ChangeRole != nil {
 			var args ChangeRole
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.changeRole", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.ChangeRole(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.changeRole", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.changeRole", err)
 			}
@@ -704,23 +754,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Commit != nil {
 			var args Commit
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.commit", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Commit(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.commit", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.commit", err)
 			}
@@ -731,23 +780,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.EngineStarted != nil {
 			var args EngineStarted
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.engineStarted", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EngineStarted(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.engineStarted", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.engineStarted", err)
 			}
@@ -758,23 +806,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.EngineStatus != nil {
 			var args EngineStatus
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.engineStatus", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EngineStatus(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.engineStatus", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.engineStatus", err)
 			}
@@ -785,23 +832,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.EngineWantsRestart != nil {
 			var args EngineWantsRestart
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.engineWantsRestart", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.EngineWantsRestart(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.engineWantsRestart", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.engineWantsRestart", err)
 			}
@@ -812,23 +858,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Reindex != nil {
 			var args Reindex
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.reindex", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Reindex(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.reindex", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.reindex", err)
 			}
@@ -839,23 +884,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Revert != nil {
 			var args Revert
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.revert", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Revert(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.revert", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.revert", err)
 			}
@@ -866,23 +910,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Shutdown != nil {
 			var args Shutdown
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.shutdown", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Shutdown(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.shutdown", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.shutdown", err)
 			}
@@ -893,23 +936,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Skip != nil {
 			var args Skip
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.skip", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Skip(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.skip", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.skip", err)
 			}
@@ -920,23 +962,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Split != nil {
 			var args Split
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.split", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Split(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.split", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.split", err)
 			}
@@ -947,23 +988,22 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 		if h.Start != nil {
 			var args Start
 			if hctx.BodyFormatTL2() {
-				tctx := basictl.TL2ReadContext{}
-				_, err = args.ReadTL2(r, &tctx)
+				_, err = args.ReadTL2(r, nil)
 			} else {
-				_, err = args.Read(r)
+				_, err = args.ReadTL1(r)
 			}
 			if err != nil {
 				return internal.ErrorServerRead("barsic.start", err)
 			}
 			ctx = hctx.WithContext(ctx)
 			ret, err := h.Start(ctx, args)
-			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
-				return err
-			}
 			if err != nil {
 				return internal.ErrorServerHandle("barsic.start", err)
 			}
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				return internal.ErrorServerWriteResult("barsic.start", err)
 			}

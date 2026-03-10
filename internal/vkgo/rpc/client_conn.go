@@ -159,7 +159,7 @@ func (pc *clientConn) cancelCallImpl(queryID int64) (shouldReleaseCctx *Response
 	return cctx, nil
 }
 
-func (pc *clientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, extra *ResponseExtra, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool, requestSentTime time.Time, closeNow *PacketConn) {
+func (pc *clientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, parseExtra bool, err error) (bodyOwned bool, finishedCallback callResult, recordLatency bool, requestSentTime time.Time, closeNow *PacketConn) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
@@ -177,11 +177,16 @@ func (pc *clientConn) finishCall(queryID int64, reuseBody *[]byte, body []byte, 
 	if pc.inFlight < 0 {
 		panic("rpc.Client invariant violation: pc.inFlight < 0")
 	}
+	if parseExtra {
+		// (err passed to this function is nil in this case)
+		// we have to parse under lock, because we must deliver result under lock below,
+		// and we must know if request was TL2. We process requests sequentially anyway.
+		body, err = parseResponseExtra(cctx.bodyFormatTL2, &cctx.Extra, body)
+	}
 	recordLatency = cctx.actorID == requestLatencyDebugActorId
 	requestSentTime = cctx.debugRequestSentTime
 	cctx.reuseBody = reuseBody
 	cctx.Body = body
-	cctx.Extra = *extra
 	if cctx.result != nil {
 		cctx.result <- callResult{resp: cctx, err: err} // must deliver under lock
 	} else {
@@ -562,9 +567,8 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
 		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
-		var extra ResponseExtra
 		var closeNow *PacketConn
-		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, &extra, err)
+		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(reqResultError.QueryId, respReuseData, respBody, false, err)
 		if closeNow != nil { // not under lock
 			_ = closeNow.Close()
 		}
@@ -575,11 +579,8 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 		if respBody, err = header.Read(respBody); err != nil {
 			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
-		var extra ResponseExtra
 		var closeNow *PacketConn
-		respBody, err = parseResponseExtra(&extra, respBody)
-
-		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(header.QueryId, respReuseData, respBody, &extra, err)
+		bodyOwned, finishedCallback, recordLatency, requestSentTime, closeNow = pc.finishCall(header.QueryId, respReuseData, respBody, true, nil)
 		if closeNow != nil { // not under lock
 			_ = closeNow.Close()
 		}

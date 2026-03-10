@@ -12,20 +12,21 @@ import (
 )
 
 type ClientOptions struct {
-	Logf                LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	TracingInject       TracingInjectFunc
-	TrustedSubnetGroups [][]*net.IPNet
-	ForceEncryption     bool
-	CryptoKey           string
-	ConnReadBufSize     int
-	ConnWriteBufSize    int
-	PacketTimeout       time.Duration
-	ProtocolVersion     uint32        // if >0, will send modified nonce packet. Server must be upgraded to at least ignore higher bits of nonce.Schema
-	DefaultTimeout      time.Duration // has no effect if <= 0
-	localUDPAddress     string        // experimental, for tests only
-	MaxReconnectDelay   time.Duration
-	DebugUdp            int
-	HookMaker           func() ClientHook
+	Logf                    LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
+	TracingInject           TracingInjectFunc
+	TrustedSubnetGroups     [][]*net.IPNet
+	ForceEncryption         bool
+	CryptoKey               string
+	ConnReadBufSize         int
+	ConnWriteBufSize        int
+	PacketTimeout           time.Duration
+	ProtocolVersion         uint32        // if >0, will send modified nonce packet. Server must be upgraded to at least ignore higher bits of nonce.Schema
+	DefaultTimeout          time.Duration // has no effect if <= 0
+	localUDPAddress         string        // experimental, for tests only
+	MaxReconnectDelay       time.Duration
+	DebugUdp                int
+	PrintKeysGenerationInfo bool
+	HookMaker               func() ClientHook
 
 	beforeSendHookLatencyHandler LatencyHandler
 	sendLatencyHandler           LatencyHandler

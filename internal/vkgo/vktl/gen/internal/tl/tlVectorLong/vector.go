@@ -18,47 +18,64 @@ var _ = internal.ErrorInvalidEnumTag
 
 type VectorLong []int64
 
+func (item *VectorLong) ptr() *[]int64 { return (*[]int64)(item) }
+
 func (VectorLong) TLName() string { return "vector" }
 func (VectorLong) TLTag() uint32  { return 0x1cb5c415 }
 
 func (item *VectorLong) Reset() {
-	ptr := (*[]int64)(item)
-	*ptr = (*ptr)[:0]
+	*item.ptr() = (*item.ptr())[:0]
 }
 
 func (item *VectorLong) FillRandom(rg *basictl.RandGenerator) {
-	ptr := (*[]int64)(item)
-	tlBuiltinVectorLong.BuiltinVectorLongFillRandom(rg, ptr)
+	tlBuiltinVectorLong.BuiltinVectorLongFillRandom(rg, item.ptr())
 }
 
 func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]int64)(item)
-	return tlBuiltinVectorLong.BuiltinVectorLongRead(w, ptr)
+	return item.ReadTL1(w)
+}
+func (item *VectorLong) ReadTL1(w []byte) (_ []byte, err error) {
+	return tlBuiltinVectorLong.BuiltinVectorLongReadTL1(w, item.ptr())
 }
 
 func (item *VectorLong) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *VectorLong) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *VectorLong) Write(w []byte) []byte {
-	ptr := (*[]int64)(item)
-	return tlBuiltinVectorLong.BuiltinVectorLongWrite(w, *ptr)
+	return item.WriteTL1(w)
+}
+func (item *VectorLong) WriteTL1(w []byte) []byte {
+	w = tlBuiltinVectorLong.BuiltinVectorLongWriteTL1(w, *item.ptr())
+	return w
 }
 
 func (item *VectorLong) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *VectorLong) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *VectorLong) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *VectorLong) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *VectorLong) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *VectorLong) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item VectorLong) String() string {
@@ -70,8 +87,7 @@ func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) er
 }
 
 func (item *VectorLong) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	ptr := (*[]int64)(item)
-	if err := tlBuiltinVectorLong.BuiltinVectorLongReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := tlBuiltinVectorLong.BuiltinVectorLongReadJSONGeneral(tctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
@@ -88,8 +104,7 @@ func (item *VectorLong) WriteJSON(w []byte) []byte {
 }
 
 func (item *VectorLong) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	ptr := (*[]int64)(item)
-	w = tlBuiltinVectorLong.BuiltinVectorLongWriteJSONOpt(tctx, w, *ptr)
+	w = tlBuiltinVectorLong.BuiltinVectorLongWriteJSONOpt(tctx, w, *item.ptr())
 	return w
 }
 func (item *VectorLong) MarshalJSON() ([]byte, error) {
@@ -103,34 +118,27 @@ func (item *VectorLong) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item *VectorLong) CalculateLayout(sizes []int) []int {
-	ptr := (*[]int64)(item)
-	sizes = tlBuiltinVectorLong.BuiltinVectorLongCalculateLayout(sizes, ptr)
-	return sizes
-}
-
-func (item *VectorLong) InternalWriteTL2(w []byte, sizes []int) ([]byte, []int) {
-	ptr := (*[]int64)(item)
-	w, sizes = tlBuiltinVectorLong.BuiltinVectorLongInternalWriteTL2(w, sizes, ptr)
-	return w, sizes
-}
-
 func (item *VectorLong) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
 	var sizes []int
 	if ctx != nil {
-		sizes = ctx.SizeBuffer
+		sizes = ctx.SizeBuffer[:0]
 	}
-	sizes = item.CalculateLayout(sizes[:0])
-	w, _ = item.InternalWriteTL2(w, sizes)
+	var sz int
+	var currentSize int
+	sizes, sz = tlBuiltinVectorLong.BuiltinVectorLongCalculateLayout(sizes, false, item.ptr())
+	currentSize += sz
+	w, sizes, _ = tlBuiltinVectorLong.BuiltinVectorLongInternalWriteTL2(w, sizes, false, item.ptr())
+
+	internal.Unused(currentSize)
+	internal.Unused(sz)
 	if ctx != nil {
-		ctx.SizeBuffer = sizes[:0]
+		ctx.SizeBuffer = sizes
 	}
 	return w
 }
 
 func (item *VectorLong) InternalReadTL2(r []byte) (_ []byte, err error) {
-	ptr := (*[]int64)(item)
-	if r, err = tlBuiltinVectorLong.BuiltinVectorLongInternalReadTL2(r, ptr); err != nil {
+	if r, err = tlBuiltinVectorLong.BuiltinVectorLongInternalReadTL2(r, item.ptr()); err != nil {
 		return r, err
 	}
 	return r, nil

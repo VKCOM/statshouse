@@ -7,47 +7,19 @@
 package udp
 
 import (
-	"log"
-	"net/http"
-	"os"
 	"testing"
 )
 
-const corpusDirName = "corpus"
-
-//const crasherDirName = "crashers"
-
-func TestFuzzCorpus(f *testing.T) {
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	dir, err := os.ReadDir(corpusDirName)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range dir {
-		fuzzFile(corpusDirName + "/" + file.Name())
-	}
-}
-
-func fuzzFile(filename string) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	//log.Println("fuzz", filename)
-	res := FuzzDyukov(data)
-	if res != 1 {
-		log.Panicf("udp transport fuzzing failed on corpus file '%s'", filename)
-	}
+// standard go approach
+func FuzzTransportWithoutRestarts(f *testing.F) {
+	f.Fuzz(func(t *testing.T, commands []byte) {
+		_ = FuzzDyukov(commands, false)
+	})
 }
 
 // standard go approach
-func FuzzTransport(f *testing.F) {
+func FuzzTransportWithRestarts(f *testing.F) {
 	f.Fuzz(func(t *testing.T, commands []byte) {
-		_ = FuzzDyukov(commands)
+		_ = FuzzDyukov(commands, true)
 	})
 }

@@ -25,7 +25,7 @@ func BuiltinVectorBarsicSnapshotExternalFileFillRandom(rg *basictl.RandGenerator
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorBarsicSnapshotExternalFileRead(w []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotExternalFileReadTL1(w []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -39,17 +39,17 @@ func BuiltinVectorBarsicSnapshotExternalFileRead(w []byte, vec *[]tlBarsicSnapsh
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
+		if w, err = (*vec)[i].ReadTL1(w); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotExternalFileWrite(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) []byte {
+func BuiltinVectorBarsicSnapshotExternalFileWriteTL1(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.Write(w)
+		w = elem.WriteTL1(w)
 	}
 	return w
 }
@@ -108,7 +108,7 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesFillRandom(rg *basictl.RandGene
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorBarsicSnapshotExternalFileBytesRead(w []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotExternalFileBytesReadTL1(w []byte, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -122,17 +122,17 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesRead(w []byte, vec *[]tlBarsicS
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
+		if w, err = (*vec)[i].ReadTL1(w); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotExternalFileBytesWrite(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) []byte {
+func BuiltinVectorBarsicSnapshotExternalFileBytesWriteTL1(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.Write(w)
+		w = elem.WriteTL1(w)
 	}
 	return w
 }

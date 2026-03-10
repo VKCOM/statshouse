@@ -25,7 +25,9 @@ const (
 
 	cryptoMaxTimeDelta = 30 * time.Second
 
-	DefaultProtocolVersion = 0 // TODO - bump to 2 after testing
+	// In February 2026 rpc proxy still does not support proper version negotiation, will not work with version 2.
+	// As soon as rpc proxy fixed, you can remove this const and always use LatestProtocolVersion as default
+	DefaultProtocolVersion = 1
 	LatestProtocolVersion  = 2
 )
 

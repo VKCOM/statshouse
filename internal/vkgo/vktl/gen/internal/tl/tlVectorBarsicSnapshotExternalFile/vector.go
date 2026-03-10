@@ -19,47 +19,66 @@ var _ = internal.ErrorInvalidEnumTag
 
 type VectorBarsicSnapshotExternalFile []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile
 
+func (item *VectorBarsicSnapshotExternalFile) ptr() *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile {
+	return (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
+}
+
 func (VectorBarsicSnapshotExternalFile) TLName() string { return "vector" }
 func (VectorBarsicSnapshotExternalFile) TLTag() uint32  { return 0x1cb5c415 }
 
 func (item *VectorBarsicSnapshotExternalFile) Reset() {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	*ptr = (*ptr)[:0]
+	*item.ptr() = (*item.ptr())[:0]
 }
 
 func (item *VectorBarsicSnapshotExternalFile) FillRandom(rg *basictl.RandGenerator) {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileFillRandom(rg, ptr)
+	tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileFillRandom(rg, item.ptr())
 }
 
 func (item *VectorBarsicSnapshotExternalFile) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileRead(w, ptr)
+	return item.ReadTL1(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) ReadTL1(w []byte) (_ []byte, err error) {
+	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadTL1(w, item.ptr())
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFile) Write(w []byte) []byte {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWrite(w, *ptr)
+	return item.WriteTL1(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) WriteTL1(w []byte) []byte {
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteTL1(w, *item.ptr())
+	return w
 }
 
 func (item *VectorBarsicSnapshotExternalFile) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *VectorBarsicSnapshotExternalFile) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item VectorBarsicSnapshotExternalFile) String() string {
@@ -71,8 +90,7 @@ func (item *VectorBarsicSnapshotExternalFile) ReadJSON(legacyTypeNames bool, in 
 }
 
 func (item *VectorBarsicSnapshotExternalFile) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
@@ -89,8 +107,7 @@ func (item *VectorBarsicSnapshotExternalFile) WriteJSON(w []byte) []byte {
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile)(item)
-	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(tctx, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(tctx, w, *item.ptr())
 	return w
 }
 func (item *VectorBarsicSnapshotExternalFile) MarshalJSON() ([]byte, error) {
@@ -105,7 +122,7 @@ func (item *VectorBarsicSnapshotExternalFile) UnmarshalJSON(b []byte) error {
 }
 
 func (item *VectorBarsicSnapshotExternalFile) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("vector"))
 }
 
 func (item *VectorBarsicSnapshotExternalFile) InternalReadTL2(r []byte) (_ []byte, err error) {
@@ -118,47 +135,66 @@ func (item *VectorBarsicSnapshotExternalFile) ReadTL2(r []byte, ctx *basictl.TL2
 
 type VectorBarsicSnapshotExternalFileBytes []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes
 
+func (item *VectorBarsicSnapshotExternalFileBytes) ptr() *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes {
+	return (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
+}
+
 func (VectorBarsicSnapshotExternalFileBytes) TLName() string { return "vector" }
 func (VectorBarsicSnapshotExternalFileBytes) TLTag() uint32  { return 0x1cb5c415 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) Reset() {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	*ptr = (*ptr)[:0]
+	*item.ptr() = (*item.ptr())[:0]
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) FillRandom(rg *basictl.RandGenerator) {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesFillRandom(rg, ptr)
+	tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesFillRandom(rg, item.ptr())
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesRead(w, ptr)
+	return item.ReadTL1(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) ReadTL1(w []byte) (_ []byte, err error) {
+	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadTL1(w, item.ptr())
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) Write(w []byte) []byte {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	return tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWrite(w, *ptr)
+	return item.WriteTL1(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteTL1(w []byte) []byte {
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteTL1(w, *item.ptr())
+	return w
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *VectorBarsicSnapshotExternalFileBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item VectorBarsicSnapshotExternalFileBytes) String() string {
@@ -170,8 +206,7 @@ func (item *VectorBarsicSnapshotExternalFileBytes) ReadJSON(legacyTypeNames bool
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx, in, ptr); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
@@ -188,8 +223,7 @@ func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSON(w []byte) []byte {
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	ptr := (*[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes)(item)
-	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(tctx, w, *ptr)
+	w = tlBuiltinVectorBarsicSnapshotExternalFile.BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(tctx, w, *item.ptr())
 	return w
 }
 func (item *VectorBarsicSnapshotExternalFileBytes) MarshalJSON() ([]byte, error) {
@@ -204,7 +238,7 @@ func (item *VectorBarsicSnapshotExternalFileBytes) UnmarshalJSON(b []byte) error
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("vector"))
 }
 
 func (item *VectorBarsicSnapshotExternalFileBytes) InternalReadTL2(r []byte) (_ []byte, err error) {

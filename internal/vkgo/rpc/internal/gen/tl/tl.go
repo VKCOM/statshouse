@@ -12,43 +12,41 @@ import (
 )
 
 type (
-	AllocSlotEvent              = internal.AllocSlotEvent
-	DictionaryFieldLong         = internal.DictionaryFieldLong
-	DictionaryFieldString       = internal.DictionaryFieldString
-	DictionaryLong              = internal.DictionaryLong
-	DictionaryString            = internal.DictionaryString
-	ReleaseSlotEvent            = internal.ReleaseSlotEvent
-	ReqError                    = internal.ReqError
-	ReqResultHeader             = internal.ReqResultHeader
-	RpcCancelReq                = internal.RpcCancelReq
-	RpcClientWantsFin           = internal.RpcClientWantsFin
-	RpcDestActor                = internal.RpcDestActor
-	RpcDestActorFlags           = internal.RpcDestActorFlags
-	RpcDestFlags                = internal.RpcDestFlags
-	RpcInvokeReqExtra           = internal.RpcInvokeReqExtra
-	RpcInvokeReqHeader          = internal.RpcInvokeReqHeader
-	RpcPing                     = internal.RpcPing
-	RpcPong                     = internal.RpcPong
-	RpcReqResultError           = internal.RpcReqResultError
-	RpcReqResultErrorWrapped    = internal.RpcReqResultErrorWrapped
-	RpcReqResultExtra           = internal.RpcReqResultExtra
-	RpcReqResultHeader          = internal.RpcReqResultHeader
-	RpcServerWantsFin           = internal.RpcServerWantsFin
-	RpcTL2Marker                = internal.RpcTL2Marker
-	Stat                        = internal.Stat
-	String                      = internal.String
-	True                        = internal.True
-	Tuple8                      = internal.Tuple8
-	Vector                      = internal.Vector
-	VectorDictionaryFieldLong   = internal.VectorDictionaryFieldLong
-	VectorDictionaryFieldString = internal.VectorDictionaryFieldString
-	VectorLong                  = internal.VectorLong
-	VectorString                = internal.VectorString
+	AllocSlotEvent           = internal.AllocSlotEvent
+	DictFieldStringLong      = internal.DictFieldStringLong
+	DictFieldStringString    = internal.DictFieldStringString
+	DictionaryLong           = internal.DictionaryLong
+	DictionaryString         = internal.DictionaryString
+	ReleaseSlotEvent         = internal.ReleaseSlotEvent
+	ReqError                 = internal.ReqError
+	ReqResultHeader          = internal.ReqResultHeader
+	RpcCancelReq             = internal.RpcCancelReq
+	RpcClientWantsFin        = internal.RpcClientWantsFin
+	RpcDestActor             = internal.RpcDestActor
+	RpcDestActorFlags        = internal.RpcDestActorFlags
+	RpcDestFlags             = internal.RpcDestFlags
+	RpcInvokeReqExtra        = internal.RpcInvokeReqExtra
+	RpcInvokeReqHeader       = internal.RpcInvokeReqHeader
+	RpcPing                  = internal.RpcPing
+	RpcPong                  = internal.RpcPong
+	RpcReqResultError        = internal.RpcReqResultError
+	RpcReqResultErrorWrapped = internal.RpcReqResultErrorWrapped
+	RpcReqResultExtra        = internal.RpcReqResultExtra
+	RpcReqResultHeader       = internal.RpcReqResultHeader
+	RpcServerWantsFin        = internal.RpcServerWantsFin
+	RpcTL2Marker             = internal.RpcTL2Marker
+	Stat                     = internal.Stat
+	String                   = internal.String
+	True                     = internal.True
+	TupleNat8                = internal.TupleNat8
+	VectorLong               = internal.VectorLong
+	VectorNat                = internal.VectorNat
+	VectorString             = internal.VectorString
 )
 
-func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
-	return internal.BoolReadBoxed(w, v)
+func BoolReadTL1Boxed(w []byte, v *bool) ([]byte, error) {
+	return internal.BoolReadTL1Boxed(w, v)
 }
-func BoolWriteBoxed(w []byte, v bool) []byte {
-	return internal.BoolWriteBoxed(w, v)
+func BoolWriteTL1Boxed(w []byte, v bool) []byte {
+	return internal.BoolWriteTL1Boxed(w, v)
 }

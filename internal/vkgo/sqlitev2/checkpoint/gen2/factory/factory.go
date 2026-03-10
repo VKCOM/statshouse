@@ -13,24 +13,37 @@ import (
 )
 
 func CreateFunction(tag uint32) meta.Function {
-	return meta.CreateFunction(tag)
+	item := meta.FactoryItemByTLTag(tag)
+	if item == nil || !item.IsFunction() {
+		return nil
+	}
+	return item.CreateFunction()
 }
 
 func CreateObject(tag uint32) meta.Object {
-	return meta.CreateObject(tag)
+	item := meta.FactoryItemByTLTag(tag)
+	if item == nil {
+		return nil
+	}
+	return item.CreateObject()
 }
 
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
 func CreateFunctionFromName(name string) meta.Function {
-	return meta.CreateFunctionFromName(name)
+	item := meta.FactoryItemByTLName(name)
+	if item == nil || !item.IsFunction() {
+		return nil
+	}
+	return item.CreateFunction()
 }
 
-// name can be in any of 3 forms "ch_proxy.insert#7cf362ba", "ch_proxy.insert" or "#7cf362ba"
 func CreateObjectFromName(name string) meta.Object {
-	return meta.CreateObjectFromName(name)
+	item := meta.FactoryItemByTLName(name)
+	if item == nil {
+		return nil
+	}
+	return item.CreateObject()
 }
 
 func init() {
-	// TL
-	meta.SetGlobalFactoryCreateForObject(0x9286affa, func() meta.Object { var ret internal.SqliteMetainfo; return &ret })
+	meta.SetGlobalFactoryCreateForObject("sqlite.metainfo", func() meta.Object { return new(internal.SqliteMetainfo) })
 }

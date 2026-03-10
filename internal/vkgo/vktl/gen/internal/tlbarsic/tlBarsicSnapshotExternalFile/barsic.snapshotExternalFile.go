@@ -15,8 +15,11 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// for cases when snapshot has several files or has file in external format (e.g. sqlite db)
+// barsic will delete, backup this files with main snapshot file
 type BarsicSnapshotExternalFile struct {
-	FieldsMask   uint32
+	FieldsMask uint32
+	// relative path from directory with main snapshot file (only forward path, no "..")
 	RelativePath string
 }
 
@@ -34,6 +37,9 @@ func (item *BarsicSnapshotExternalFile) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicSnapshotExternalFile) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotExternalFile) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -41,29 +47,44 @@ func (item *BarsicSnapshotExternalFile) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicSnapshotExternalFile) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotExternalFile) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotExternalFile) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotExternalFile) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.RelativePath)
 	return w
 }
 
 func (item *BarsicSnapshotExternalFile) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotExternalFile) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x888c63ed); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotExternalFile) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotExternalFile) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotExternalFile) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotExternalFile) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x888c63ed)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotExternalFile) String() string {
@@ -163,15 +184,18 @@ func (item *BarsicSnapshotExternalFile) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotExternalFile) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotExternalFile"))
 }
 
 func (item *BarsicSnapshotExternalFile) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.snapshotExternalFile")
 }
 
+// for cases when snapshot has several files or has file in external format (e.g. sqlite db)
+// barsic will delete, backup this files with main snapshot file
 type BarsicSnapshotExternalFileBytes struct {
-	FieldsMask   uint32
+	FieldsMask uint32
+	// relative path from directory with main snapshot file (only forward path, no "..")
 	RelativePath []byte
 }
 
@@ -189,6 +213,9 @@ func (item *BarsicSnapshotExternalFileBytes) FillRandom(rg *basictl.RandGenerato
 }
 
 func (item *BarsicSnapshotExternalFileBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -196,29 +223,44 @@ func (item *BarsicSnapshotExternalFileBytes) Read(w []byte) (_ []byte, err error
 }
 
 func (item *BarsicSnapshotExternalFileBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotExternalFileBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.RelativePath)
 	return w
 }
 
 func (item *BarsicSnapshotExternalFileBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x888c63ed); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotExternalFileBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotExternalFileBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotExternalFileBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x888c63ed)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotExternalFileBytes) String() string {
@@ -318,7 +360,7 @@ func (item *BarsicSnapshotExternalFileBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotExternalFileBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotExternalFile"))
 }
 
 func (item *BarsicSnapshotExternalFileBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

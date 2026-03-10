@@ -29,32 +29,50 @@ func (item *NetUdpPacketResendRequest) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *NetUdpPacketResendRequest) Read(w []byte) (_ []byte, err error) {
-	return BuiltinVectorNetUdpPacketResendRangeRead(w, &item.Ranges)
+	return item.ReadTL1(w)
+}
+func (item *NetUdpPacketResendRequest) ReadTL1(w []byte) (_ []byte, err error) {
+	return BuiltinVectorNetUdpPacketResendRangeReadTL1(w, &item.Ranges)
 }
 
 func (item *NetUdpPacketResendRequest) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *NetUdpPacketResendRequest) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *NetUdpPacketResendRequest) Write(w []byte) []byte {
-	w = BuiltinVectorNetUdpPacketResendRangeWrite(w, item.Ranges)
+	return item.WriteTL1(w)
+}
+func (item *NetUdpPacketResendRequest) WriteTL1(w []byte) []byte {
+	w = BuiltinVectorNetUdpPacketResendRangeWriteTL1(w, item.Ranges)
 	return w
 }
 
 func (item *NetUdpPacketResendRequest) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *NetUdpPacketResendRequest) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x643736d9); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *NetUdpPacketResendRequest) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *NetUdpPacketResendRequest) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *NetUdpPacketResendRequest) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *NetUdpPacketResendRequest) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x643736d9)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item NetUdpPacketResendRequest) String() string {

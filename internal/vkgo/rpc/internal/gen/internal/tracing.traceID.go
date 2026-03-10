@@ -32,6 +32,9 @@ func (item *TracingTraceID) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *TracingTraceID) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *TracingTraceID) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.Lo); err != nil {
 		return w, err
 	}
@@ -39,29 +42,44 @@ func (item *TracingTraceID) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *TracingTraceID) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *TracingTraceID) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *TracingTraceID) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *TracingTraceID) WriteTL1(w []byte) []byte {
 	w = basictl.LongWrite(w, item.Lo)
 	w = basictl.LongWrite(w, item.Hi)
 	return w
 }
 
 func (item *TracingTraceID) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *TracingTraceID) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x2f4ac855); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *TracingTraceID) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *TracingTraceID) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *TracingTraceID) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *TracingTraceID) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x2f4ac855)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item TracingTraceID) String() string {

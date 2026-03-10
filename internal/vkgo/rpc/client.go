@@ -156,7 +156,7 @@ func UnwrapClient(c Client) (*ClientImpl, bool) {
 }
 
 type ClientHook interface {
-	BeforeSend(ctx context.Context, addr NetAddr, req *Request) error
+	BeforeSend(ctx context.Context, addr NetAddr, req *Request) (context.Context, error)
 	AfterSend(resp *Response, err error)
 }
 
@@ -256,13 +256,15 @@ func (c *ClientImpl) Do(ctx context.Context, network string, address string, req
 	response := c.getResponse(req)
 	response.debugRequestSentTime = time.Time{}
 	hook := response.hook
+	var err error
 	if hook != nil {
-		err := hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
+		ctx, err = hook.BeforeSend(ctx, NetAddr{Network: network, Address: address}, req)
 		if err != nil {
 			return response, err
 		}
 	}
-	err := c.do(ctx, network, address, req, response)
+
+	err = c.do(ctx, network, address, req, response)
 	if hook != nil {
 		hook.AfterSend(response, err)
 	}

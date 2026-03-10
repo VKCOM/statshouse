@@ -292,7 +292,7 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 		item.PacketAckTo = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		BuiltinVectorFillRandom(rg, &item.PacketAckSet)
+		BuiltinVectorNatFillRandom(rg, &item.PacketAckSet)
 	} else {
 		item.PacketAckSet = item.PacketAckSet[:0]
 	}
@@ -344,6 +344,9 @@ func (item *NetUdpPacketEncHeader) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *NetUdpPacketEncHeader) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err
 	}
@@ -383,7 +386,7 @@ func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 		item.PacketAckTo = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		if w, err = BuiltinVectorRead(w, &item.PacketAckSet); err != nil {
+		if w, err = BuiltinVectorNatReadTL1(w, &item.PacketAckSet); err != nil {
 			return w, err
 		}
 	} else {
@@ -456,10 +459,16 @@ func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *NetUdpPacketEncHeader) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *NetUdpPacketEncHeader) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *NetUdpPacketEncHeader) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *NetUdpPacketEncHeader) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.Flags)
 	if item.Flags&(1<<9) != 0 {
 		w = basictl.IntWrite(w, item.Time)
@@ -477,7 +486,7 @@ func (item *NetUdpPacketEncHeader) Write(w []byte) []byte {
 		w = basictl.NatWrite(w, item.PacketAckTo)
 	}
 	if item.Flags&(1<<15) != 0 {
-		w = BuiltinVectorWrite(w, item.PacketAckSet)
+		w = BuiltinVectorNatWriteTL1(w, item.PacketAckSet)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.NatWrite(w, item.PacketNum)
@@ -510,19 +519,28 @@ func (item *NetUdpPacketEncHeader) Write(w []byte) []byte {
 }
 
 func (item *NetUdpPacketEncHeader) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *NetUdpPacketEncHeader) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x251a7bfd); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *NetUdpPacketEncHeader) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *NetUdpPacketEncHeader) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *NetUdpPacketEncHeader) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *NetUdpPacketEncHeader) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x251a7bfd)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item NetUdpPacketEncHeader) String() string {
@@ -625,7 +643,7 @@ func (item *NetUdpPacketEncHeader) ReadJSONGeneral(tctx *basictl.JSONReadContext
 				if propPacketAckSetPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_set")
 				}
-				if err := BuiltinVectorReadJSONGeneral(tctx, in, &item.PacketAckSet); err != nil {
+				if err := BuiltinVectorNatReadJSONGeneral(tctx, in, &item.PacketAckSet); err != nil {
 					return err
 				}
 				propPacketAckSetPresented = true
@@ -955,7 +973,7 @@ func (item *NetUdpPacketEncHeader) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_set":`...)
-		w = BuiltinVectorWriteJSONOpt(tctx, w, item.PacketAckSet)
+		w = BuiltinVectorNatWriteJSONOpt(tctx, w, item.PacketAckSet)
 	}
 	if item.Flags&(1<<20) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

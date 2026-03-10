@@ -57,11 +57,11 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 			Code:        int32(n),
 			Description: strconv.Itoa(int(n)),
 		}
+		if n/7%2 == 0 || hctx.BodyFormatTL2() {
+			return rpcErr // will serialize by default.
+		}
 		switch (n / 2) % 3 {
 		case 0:
-			if n/6%2 == 0 {
-				return rpcErr // will serialize by default
-			}
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.ReqError{}.TLTag())
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)

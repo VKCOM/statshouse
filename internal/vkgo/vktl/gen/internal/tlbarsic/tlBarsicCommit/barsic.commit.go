@@ -16,10 +16,12 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+// from Barsic to engine, must echo back
 type BarsicCommit struct {
-	FieldsMask         uint32
-	Offset             int64
-	SnapshotMeta       string
+	FieldsMask   uint32
+	Offset       int64
+	SnapshotMeta string
+	// minimum of local fsync offset and commit offset, ensures snapshot is valid locally
 	SafeSnapshotOffset int64
 }
 
@@ -41,6 +43,9 @@ func (item *BarsicCommit) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicCommit) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicCommit) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -54,10 +59,16 @@ func (item *BarsicCommit) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicCommit) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicCommit) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicCommit) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicCommit) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWrite(w, item.SnapshotMeta)
@@ -66,27 +77,42 @@ func (item *BarsicCommit) Write(w []byte) []byte {
 }
 
 func (item *BarsicCommit) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicCommit) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x12357324); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicCommit) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicCommit) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicCommit) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicCommit) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12357324)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicCommit) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicCommit) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicCommit) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicCommit) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -108,29 +134,44 @@ func (item *BarsicCommit) writeResultJSON(tctx *basictl.JSONWriteContext, w []by
 	return w, nil
 }
 
-func (item *BarsicCommit) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicCommit) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicCommit) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicCommit) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicCommit) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicCommit) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicCommit) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommit) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommit) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommit) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
 }
 
 func (item BarsicCommit) String() string {
@@ -268,17 +309,19 @@ func (item *BarsicCommit) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicCommit) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.commit"))
 }
 
 func (item *BarsicCommit) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
 }
 
+// from Barsic to engine, must echo back
 type BarsicCommitBytes struct {
-	FieldsMask         uint32
-	Offset             int64
-	SnapshotMeta       []byte
+	FieldsMask   uint32
+	Offset       int64
+	SnapshotMeta []byte
+	// minimum of local fsync offset and commit offset, ensures snapshot is valid locally
 	SafeSnapshotOffset int64
 }
 
@@ -300,6 +343,9 @@ func (item *BarsicCommitBytes) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicCommitBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicCommitBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -313,10 +359,16 @@ func (item *BarsicCommitBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicCommitBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicCommitBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicCommitBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicCommitBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
 	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
@@ -325,27 +377,42 @@ func (item *BarsicCommitBytes) Write(w []byte) []byte {
 }
 
 func (item *BarsicCommitBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicCommitBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x12357324); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicCommitBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicCommitBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicCommitBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicCommitBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x12357324)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item *BarsicCommitBytes) ReadResult(w []byte, ret *tlTrue.True) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return item.ReadResultTL1(w, ret)
+}
+func (item *BarsicCommitBytes) ReadResultTL1(w []byte, ret *tlTrue.True) (_ []byte, err error) {
+	return ret.ReadTL1Boxed(w)
 }
 
 func (item *BarsicCommitBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteBoxed(w)
+	return item.WriteResultTL1(w, ret)
+}
+func (item *BarsicCommitBytes) WriteResultTL1(w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteTL1Boxed(w)
 	return w, nil
 }
 
@@ -367,29 +434,44 @@ func (item *BarsicCommitBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w
 	return w, nil
 }
 
-func (item *BarsicCommitBytes) FillRandomResult(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
+func (item *BarsicCommitBytes) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte) ([]byte, error) {
 	var ret tlTrue.True
 	ret.FillRandom(rg)
-	return item.WriteResult(w, ret)
+	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicCommitBytes) ReadResultWriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicCommitBytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if r, err = item.ReadResult(r, &ret); err != nil {
+	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.writeResultJSON(tctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicCommitBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *BarsicCommitBytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
-	if err != nil {
+	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.WriteResult(w, ret)
+	w, err = item.WriteResultTL1(w, ret)
 	return r, w, err
+}
+
+func (item *BarsicCommitBytes) ReadResultTL1WriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommitBytes) ReadResultTL2WriteResultTL1(tctx *basictl.TL2ReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommitBytes) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadContext, jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
+}
+
+func (item *BarsicCommitBytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.commit")
 }
 
 func (item BarsicCommitBytes) String() string {
@@ -527,7 +609,7 @@ func (item *BarsicCommitBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicCommitBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.commit"))
 }
 
 func (item *BarsicCommitBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

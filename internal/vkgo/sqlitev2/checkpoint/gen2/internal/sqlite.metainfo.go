@@ -39,6 +39,9 @@ func (item *SqliteMetainfo) Reset() {
 }
 
 func (item *SqliteMetainfo) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *SqliteMetainfo) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -56,10 +59,16 @@ func (item *SqliteMetainfo) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *SqliteMetainfo) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *SqliteMetainfo) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *SqliteMetainfo) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *SqliteMetainfo) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Offset)
 	if item.FieldMask&(1<<0) != 0 {
@@ -69,19 +78,28 @@ func (item *SqliteMetainfo) Write(w []byte) []byte {
 }
 
 func (item *SqliteMetainfo) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *SqliteMetainfo) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286affa); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *SqliteMetainfo) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *SqliteMetainfo) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *SqliteMetainfo) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *SqliteMetainfo) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9286affa)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item SqliteMetainfo) String() string {
@@ -226,6 +244,9 @@ func (item *SqliteMetainfoBytes) Reset() {
 }
 
 func (item *SqliteMetainfoBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *SqliteMetainfoBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -243,10 +264,16 @@ func (item *SqliteMetainfoBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *SqliteMetainfoBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *SqliteMetainfoBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *SqliteMetainfoBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *SqliteMetainfoBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Offset)
 	if item.FieldMask&(1<<0) != 0 {
@@ -256,19 +283,28 @@ func (item *SqliteMetainfoBytes) Write(w []byte) []byte {
 }
 
 func (item *SqliteMetainfoBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *SqliteMetainfoBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286affa); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *SqliteMetainfoBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *SqliteMetainfoBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *SqliteMetainfoBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *SqliteMetainfoBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x9286affa)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item SqliteMetainfoBytes) String() string {

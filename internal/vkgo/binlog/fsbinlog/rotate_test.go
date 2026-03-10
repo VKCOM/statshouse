@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -276,4 +277,49 @@ func calcFirstBinlogFileLogHash(data []byte) uint64 {
 
 	fileHash := hasher.Sum(nil)
 	return binary.LittleEndian.Uint64(fileHash)
+}
+
+func TestBinlogGenerateNameForSmallPos(t *testing.T) {
+	prefixPath := "data1/test01"
+	name := fmt.Sprintf("%s.000000.bin", prefixPath)
+
+	name9999, err := generateNextBinlogFilename(prefixPath, name, 9999)
+	require.NoError(t, err)
+	require.Less(t, name, name9999)
+	require.Equal(t, fmt.Sprintf("%s.009999.bin", prefixPath), name9999)
+
+	name10k, err := generateNextBinlogFilename(prefixPath, name9999, 10000)
+	require.NoError(t, err)
+	require.Less(t, name, name10k)
+	require.Less(t, name9999, name10k)
+	require.Equal(t, fmt.Sprintf("%s.011000.bin", prefixPath), name10k)
+
+	name10001, err := generateNextBinlogFilename(prefixPath, name10k, 10001)
+	require.NoError(t, err)
+	require.Less(t, name, name10001)
+	require.Less(t, name9999, name10001)
+	require.Less(t, name10k, name10001)
+	require.Equal(t, fmt.Sprintf("%s.0110001.bin", prefixPath), name10001)
+
+	name100k, err := generateNextBinlogFilename(prefixPath, name10001, 100000)
+	require.NoError(t, err)
+	require.Less(t, name, name100k)
+	require.Less(t, name9999, name100k)
+	require.Less(t, name10k, name100k)
+	require.Less(t, name10001, name100k)
+	require.Equal(t, fmt.Sprintf("%s.021000.bin", prefixPath), name100k)
+}
+
+func TestBinlogGenerateNameForLargePos(t *testing.T) {
+	const iterations = 1 << 17
+	logPos := int64(1<<30) - 100
+	prefixPath := "data1/test01"
+	name := fmt.Sprintf("%s.000000.bin", prefixPath)
+	for i := 0; i < iterations; i++ {
+		newName, err := generateNextBinlogFilename(prefixPath, name, logPos)
+		require.NoError(t, err)
+		require.Less(t, strings.TrimSuffix(name, ".bin"), strings.TrimSuffix(newName, ".bin"))
+		name = newName
+		logPos += 1 + rand.Int63n(1<<30)
+	}
 }

@@ -100,6 +100,12 @@ func (s *Server) serveUDP(conn *net.UDPConn) (*udp.Transport, error) {
 		s.deAllocateRequestBufUDP, // we copy response to slice we get using allocateRequestBufUDP
 		0,
 		s.opts.DebugUdpRPC,
+		s.opts.PrintKeysGenerationInfo,
+		s.opts.DebugUDPLatency,
+		s.opts.socketWriteLatencyMetric,
+		s.opts.socketReadLatencyMetric,
+		s.opts.writeScheduleLatencyMetric,
+		s.opts.readScheduleLatencyMetric,
 	)
 	if err != nil {
 		return nil, err
@@ -138,7 +144,8 @@ func (s *Server) acceptHandlerUDP(listenAddr net.Addr) func(conn *udp.Connection
 				cancelCloseCtx: cancelCloseCtx,
 				longpolls:      map[int64]longpollHctx{},
 			},
-			conn: conn,
+			errHandler: s.opts.ConnErrHandler,
+			conn:       conn,
 		}
 		sc.setDebugName("UDP", conn.RemoteAddr(), conn.LocalAddr())
 
@@ -196,8 +203,36 @@ func (s *Server) closeHandlerUDP(conn *udp.Connection) {
 	s.protocolStats[protocolUDP].connectionsCurrent.Add(-1)
 	if conn.UserData != nil {
 		if sc, ok := conn.UserData.(*UdpServerConn); ok {
-			sc.cancelAllLongpollResponses()
+			// shutdown
+			sc.mu.Lock()
+			if sc.connectionStatus >= serverStatusStopped {
+				sc.mu.Unlock()
+				return
+			}
+			sc.connectionStatus = serverStatusStopped
+
+			queryIDs := make([]int64, 0, 8) // will use stack if len(sc.longpolls) <= 8
+			for queryID := range sc.longpolls {
+				queryIDs = append(queryIDs, queryID)
+			}
+			sc.mu.Unlock()
+
+			for _, queryID := range queryIDs {
+				lh := LongpollHandle{QueryID: queryID, CommonConn: sc}
+				sc.SendEmptyResponse(lh)
+			}
+
+			// close
+			if sc.errHandler != nil {
+				sc.errHandler(errUdpConnClose)
+			}
+			if sc.server.opts.DebugRPC {
+				sc.server.opts.Logf("rpc_debug: %s Close", sc.debugName)
+			}
+
 			sc.cancelCloseCtx(errUdpConnClose)
+
+			sc.conn = nil
 		}
 	}
 	// TODO - will all sending hctx be released?

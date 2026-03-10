@@ -40,6 +40,9 @@ func (item *BarsicSnapshotDependency) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotDependency) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -53,10 +56,16 @@ func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *BarsicSnapshotDependency) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotDependency) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotDependency) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotDependency) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWrite(w, item.ClusterId)
 	w = basictl.StringWrite(w, item.ShardId)
@@ -65,19 +74,28 @@ func (item *BarsicSnapshotDependency) Write(w []byte) []byte {
 }
 
 func (item *BarsicSnapshotDependency) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotDependency) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x8258fc86); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotDependency) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotDependency) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotDependency) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotDependency) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8258fc86)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotDependency) String() string {
@@ -215,7 +233,7 @@ func (item *BarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotDependency) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotDependency"))
 }
 
 func (item *BarsicSnapshotDependency) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
@@ -247,6 +265,9 @@ func (item *BarsicSnapshotDependencyBytes) FillRandom(rg *basictl.RandGenerator)
 }
 
 func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *BarsicSnapshotDependencyBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -260,10 +281,16 @@ func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) 
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *BarsicSnapshotDependencyBytes) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *BarsicSnapshotDependencyBytes) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *BarsicSnapshotDependencyBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.StringWriteBytes(w, item.ClusterId)
 	w = basictl.StringWriteBytes(w, item.ShardId)
@@ -272,19 +299,28 @@ func (item *BarsicSnapshotDependencyBytes) Write(w []byte) []byte {
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *BarsicSnapshotDependencyBytes) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x8258fc86); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *BarsicSnapshotDependencyBytes) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *BarsicSnapshotDependencyBytes) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0x8258fc86)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item BarsicSnapshotDependencyBytes) String() string {
@@ -422,7 +458,7 @@ func (item *BarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
-	return w
+	panic(internal.ErrorTL2SerializersNotGenerated("barsic.snapshotDependency"))
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {

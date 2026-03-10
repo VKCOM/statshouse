@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -73,8 +74,8 @@ func (h *rpcRouter) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err e
 		var code int // "0" means "success"
 		if r := recover(); r != nil {
 			w.savePanic(hctx.RequestFunctionName(), r, debug.Stack())
-			code = rpc.TlErrorInternal
-			err = &rpc.Error{Code: rpc.TlErrorInternal}
+			code = int(tlerrorcodes.Internal)
+			err = &rpc.Error{Code: tlerrorcodes.Internal}
 		} else if err != nil {
 			code = rpcCode(err)
 		}

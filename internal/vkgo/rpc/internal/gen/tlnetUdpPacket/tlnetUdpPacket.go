@@ -12,13 +12,13 @@ import (
 )
 
 type (
-	EncHeader                     = internal.NetUdpPacketEncHeader
-	ObsoleteGeneration            = internal.NetUdpPacketObsoleteGeneration
-	ObsoleteHash                  = internal.NetUdpPacketObsoleteHash
-	ObsoletePid                   = internal.NetUdpPacketObsoletePid
-	ResendRange                   = internal.NetUdpPacketResendRange
-	ResendRequest                 = internal.NetUdpPacketResendRequest
-	UnencHeader                   = internal.NetUdpPacketUnencHeader
-	VectorNetUdpPacketResendRange = internal.VectorNetUdpPacketResendRange
-	Wait                          = internal.NetUdpPacketWait
+	EncHeader          = internal.NetUdpPacketEncHeader
+	ObsoleteGeneration = internal.NetUdpPacketObsoleteGeneration
+	ObsoleteHash       = internal.NetUdpPacketObsoleteHash
+	ObsoletePid        = internal.NetUdpPacketObsoletePid
+	ResendRange        = internal.NetUdpPacketResendRange
+	ResendRequest      = internal.NetUdpPacketResendRequest
+	UnencHeader        = internal.NetUdpPacketUnencHeader
+	VectorResendRange  = internal.VectorNetUdpPacketResendRange
+	Wait               = internal.NetUdpPacketWait
 )

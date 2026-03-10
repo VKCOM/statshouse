@@ -16,6 +16,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/curve25519"
@@ -46,6 +47,26 @@ func ParseTrustedSubnets(groups [][]string) (trustedSubnetGroups [][]*net.IPNet,
 		trustedSubnetGroups = append(trustedSubnetGroups, g)
 	}
 	return trustedSubnetGroups, errs
+}
+
+func ParseTrustedSubnetGroupsFromString(groups string) (trustedSubnetGroups [][]*net.IPNet, errs []error) {
+	if len(groups) == 0 {
+		return
+	}
+	var trustedSubnetGroupsS [][]string
+	for _, group := range strings.Split(groups, ";") {
+		var s []string
+		for _, addr := range strings.Split(group, ",") {
+			t := strings.TrimSpace(addr)
+			if len(t) != 0 {
+				s = append(s, t)
+			}
+		}
+		if len(s) != 0 {
+			trustedSubnetGroupsS = append(trustedSubnetGroupsS, s)
+		}
+	}
+	return ParseTrustedSubnets(trustedSubnetGroupsS)
 }
 
 func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime uint32, flags uint32, packetTimeout time.Duration, protocolVersion uint32) error {

@@ -30,7 +30,7 @@ type LongpollHandle struct {
 // When you are ready to reply to longpoll, call this function to abtain hctx.
 // if this function returns (nil, false) you must do nothing.
 // otherwise it returns (!nil, true) and you should write response to hctx.Response
-// and send it with hctx.SendLongpollResponse
+// and send it with hctx.SendResponse
 func (lh *LongpollHandle) FinishLongpoll() (*HandlerContext, bool) {
 	// We do not want our users to try doing something with err.
 	// And we want explicit warning that hctx will sometimes (rarely) be nil.

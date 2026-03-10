@@ -32,36 +32,54 @@ func (item *RpcDestActorFlags) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *RpcDestActorFlags) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *RpcDestActorFlags) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.ActorId); err != nil {
 		return w, err
 	}
-	return item.Extra.Read(w)
+	return item.Extra.ReadTL1(w)
 }
 
 func (item *RpcDestActorFlags) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *RpcDestActorFlags) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *RpcDestActorFlags) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *RpcDestActorFlags) WriteTL1(w []byte) []byte {
 	w = basictl.LongWrite(w, item.ActorId)
-	w = item.Extra.Write(w)
+	w = item.Extra.WriteTL1(w)
 	return w
 }
 
 func (item *RpcDestActorFlags) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *RpcDestActorFlags) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xf0a5acf7); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *RpcDestActorFlags) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *RpcDestActorFlags) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *RpcDestActorFlags) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *RpcDestActorFlags) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xf0a5acf7)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item RpcDestActorFlags) String() string {

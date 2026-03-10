@@ -18,6 +18,7 @@ type TracingTraceContext struct {
 	TraceId    TracingTraceID
 	ParentId   int64  // Conditional: item.FieldsMask.2
 	SourceId   string // Conditional: item.FieldsMask.3
+	// 0 = drop, 1 = record, 2 = defer
 	// ReservedStatus0 (TrueType) // Conditional: item.FieldsMask.0
 	// ReservedStatus1 (TrueType) // Conditional: item.FieldsMask.1
 	// ReservedLevel0 (TrueType) // Conditional: item.FieldsMask.4
@@ -126,10 +127,13 @@ func (item *TracingTraceContext) FillRandom(rg *basictl.RandGenerator) {
 }
 
 func (item *TracingTraceContext) Read(w []byte) (_ []byte, err error) {
+	return item.ReadTL1(w)
+}
+func (item *TracingTraceContext) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = item.TraceId.Read(w); err != nil {
+	if w, err = item.TraceId.ReadTL1(w); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<2) != 0 {
@@ -150,12 +154,18 @@ func (item *TracingTraceContext) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *TracingTraceContext) WriteGeneral(w []byte) (_ []byte, err error) {
-	return item.Write(w), nil
+	return item.WriteTL1General(w)
+}
+func (item *TracingTraceContext) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
 }
 
 func (item *TracingTraceContext) Write(w []byte) []byte {
+	return item.WriteTL1(w)
+}
+func (item *TracingTraceContext) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	w = item.TraceId.Write(w)
+	w = item.TraceId.WriteTL1(w)
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.LongWrite(w, item.ParentId)
 	}
@@ -166,19 +176,28 @@ func (item *TracingTraceContext) Write(w []byte) []byte {
 }
 
 func (item *TracingTraceContext) ReadBoxed(w []byte) (_ []byte, err error) {
+	return item.ReadTL1Boxed(w)
+}
+func (item *TracingTraceContext) ReadTL1Boxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0xc463a95c); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.ReadTL1(w)
 }
 
 func (item *TracingTraceContext) WriteBoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteBoxed(w), nil
+	return item.WriteTL1BoxedGeneral(w)
+}
+func (item *TracingTraceContext) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
 }
 
 func (item *TracingTraceContext) WriteBoxed(w []byte) []byte {
+	return item.WriteTL1Boxed(w)
+}
+func (item *TracingTraceContext) WriteTL1Boxed(w []byte) []byte {
 	w = basictl.NatWrite(w, 0xc463a95c)
-	return item.Write(w)
+	return item.WriteTL1(w)
 }
 
 func (item TracingTraceContext) String() string {

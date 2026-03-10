@@ -52,7 +52,7 @@ const (
 	RpcReqResultExtra              = 0xc5011709 // rpcReqResultExtra
 	RpcReqResultHeader             = 0x63aeda4e // rpcReqResultHeader
 	RpcServerWantsFin              = 0xa8ddbc46 // rpcServerWantsFin
-	RpcTL2Marker                   = 0x29324c54 // rpcTL2Marker
+	RpcTL2Marker                   = 0x30324c54 // rpcTL2Marker
 	Stat                           = 0x9d56e6b2 // stat
 	String                         = 0xb5286e24 // string
 	TracingTraceContext            = 0xc463a95c // tracing.traceContext

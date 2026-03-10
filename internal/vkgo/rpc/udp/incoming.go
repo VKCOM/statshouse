@@ -58,7 +58,7 @@ type IncomingConnection struct {
 	windowControl int64 // seqNo of first chunk that sender should not send
 }
 
-func handleUdpMsgIfAny(t *Transport, data []byte, resendReq *tlnetUdpPacket.ResendRequest) bool {
+func (c *IncomingConnection) handleUdpMsgIfAny(t *Transport, data []byte, resendReq *tlnetUdpPacket.ResendRequest, needToCloseConn *bool) bool {
 	if len(data) >= 4 {
 		var tag uint32
 		_, err := basictl.NatRead(data, &tag)
@@ -78,18 +78,27 @@ func handleUdpMsgIfAny(t *Transport, data []byte, resendReq *tlnetUdpPacket.Rese
 			t.stats.ObsoleteGenerationReceived.Add(1)
 			return true
 		case tlnetUdpPacket.ObsoleteHash{}.TLTag():
-			// We do not deserialize obsolete hash and do not compare it with ours, because
-			// if we really have obsolete hash, we update remote pid at first and then recalculate new hash
+			arg := tlnetUdpPacket.ObsoleteHash{}
+			_, err = arg.ReadBoxed(data)
+			if err != nil {
+				log.Printf("incorrect obsolete hash message: %+v", err)
+				return true
+			}
+			if needToCloseConn == nil {
+				log.Printf("obsolete hash received as reliable message!")
+			} else if c.conn.id.Hash == arg.Hash {
+				*needToCloseConn = true
+			}
 			t.stats.ObsoleteHashReceived.Add(1)
 			return true
 		case tlnetUdpPacket.ResendRequest{}.TLTag():
 			if resendReq == nil {
-				panic("ResendRequest received as reliable message!")
+				log.Printf("ResendRequest received as reliable message!")
+				return true
 			}
 			_, err = resendReq.ReadBoxed(data)
 			if err != nil {
-				// TODO
-				log.Panicf("incorrect resend request: %+v", err)
+				log.Printf("incorrect resend request: %+v", err)
 			}
 			t.stats.ResendRequestReceived.Add(1)
 			return true
@@ -102,6 +111,7 @@ func handleUdpMsgIfAny(t *Transport, data []byte, resendReq *tlnetUdpPacket.Rese
 
 func (c *IncomingConnection) receiveMessageChunk(
 	resendReq *tlnetUdpPacket.ResendRequest,
+	needToCloseConn *bool,
 	seqNo uint32,
 	prevParts uint32,
 	nextParts uint32,
@@ -113,7 +123,7 @@ func (c *IncomingConnection) receiveMessageChunk(
 ) bool {
 	if seqNo == ^uint32(0) {
 		c.transport.stats.UnreliableMessagesReceived.Add(1)
-		if !handleUdpMsgIfAny(c.transport, payload, resendReq) {
+		if !c.handleUdpMsgIfAny(c.transport, payload, resendReq, needToCloseConn) {
 			// We do not call c.conn.MessageHandle(&chunk.payload, false), because this will force escape analyzer to allocate chunk on heap
 			c.chunkPayloadForMyFriendEscapeAnalyzer = payload
 			c.conn.MessageHandle(&c.chunkPayloadForMyFriendEscapeAnalyzer, false)
@@ -191,7 +201,7 @@ func (c *IncomingConnection) receiveMessageChunk(
 		if message.remaining == 0 {
 			if !c.conn.StreamLikeIncoming {
 				messageSize := int64(len(*message.data))
-				if !handleUdpMsgIfAny(c.transport, *message.data, nil) {
+				if !c.handleUdpMsgIfAny(c.transport, *message.data, nil, nil) {
 					c.conn.MessageHandle(message.data, true)
 				}
 				c.transport.stats.MessageHandlerCalled.Add(1)
@@ -238,7 +248,7 @@ func (c *IncomingConnection) moveWindowPrefix() {
 			if c.conn.StreamLikeIncoming {
 				messageSize := int64(len(*message.data))
 				// `chunk` is the last chunk of message, so it's time to call handler
-				if !handleUdpMsgIfAny(c.transport, *message.data, nil) {
+				if !c.handleUdpMsgIfAny(c.transport, *message.data, nil, nil) {
 					c.conn.MessageHandle(message.data, true)
 				}
 				c.transport.stats.MessageHandlerCalled.Add(1)
@@ -339,9 +349,9 @@ func (c *IncomingConnection) extendWindow(seqNo uint32) {
 //
 // We need this behaviour to avoid situation, when we hadn't actually received chunk,
 // but goWrite() received enc header with this chunk, and sent ack to the peer, leading to protocol deadlock.
-func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, resendReq *tlnetUdpPacket.ResendRequest, packet []byte) error {
+func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, resendReq *tlnetUdpPacket.ResendRequest, packet []byte) (bool, error) {
 	if !enc.IsSetPacketNum() && !enc.IsSetPacketsFrom() {
-		return nil
+		return false, nil
 	}
 
 	seqNo := enc.PacketNum
@@ -356,6 +366,7 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 	anyReceived := false
 	firstReceivedSeqNum := uint32(0)
 	lastReceivedSeqNum := uint32(0)
+	needToCloseConn := false
 
 	offset := enc.PacketOffset
 	for i := 0; i < int(count); i++ {
@@ -366,11 +377,11 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 		} else {
 			packet, err = basictl.NatRead(packet, &partSize)
 			if err != nil {
-				return err
+				return false, err
 			}
 		}
 		if uint32(len(packet)) < partSize {
-			return fmt.Errorf("message part size %d > remaining bytes %d", partSize, len(packet))
+			return false, fmt.Errorf("message part size %d > remaining bytes %d", partSize, len(packet))
 		}
 
 		var prev, next uint32
@@ -391,6 +402,7 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 		}
 		received := c.receiveMessageChunk(
 			resendReq,
+			&needToCloseConn,
 			seqNo,
 			prev,
 			next,
@@ -426,5 +438,5 @@ func (c *IncomingConnection) ReceiveDatagram(enc *tlnetUdpPacket.EncHeader, rese
 		}
 	}
 
-	return nil
+	return needToCloseConn, nil
 }

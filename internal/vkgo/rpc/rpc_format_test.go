@@ -60,7 +60,7 @@ func testRPCResponseRoundTrip(t *testing.T, hctx *HandlerContext, sendErr error,
 	}
 
 	var extra ResponseExtra
-	if _, err = parseResponseExtra(&extra, body); err != nil && err.Error() != sendErr.Error() {
+	if _, err = parseResponseExtra(hctx.bodyFormatTL2, &extra, body); err != nil && err.Error() != sendErr.Error() {
 		t.Error(err)
 	}
 	if hctx.QueryID() != header.QueryId {
@@ -98,5 +98,36 @@ func TestRPCFormat(t *testing.T) {
 		},
 	}
 	testRPCResponseRoundTrip(t, hctx, nil, "de00000000000000e14cc88c0000000800000000000000000903000000000000a1b2c3d4")
+	testRPCResponseRoundTrip(t, hctx, &Error{Code: 444, Description: "bad"}, "de00000000000000e14cc88c0000000800000000000000000903000000000000f532e47ade00000000000000bc01000003626164")
+}
+
+func TestRPCFormatTL2(t *testing.T) {
+	req := &Request{
+		Body:          []byte{0xaa, 0xbb, 0xcc, 0xdd},
+		FunctionName:  "memcache.Get",
+		queryID:       222,
+		BodyFormatTL2: true,
+	}
+	testRPCRequestRoundTrip(t, req, "de00000000000000544c3230aabbccdd")
+	testRPCRequestRoundTrip(t, req, "de00000000000000544c3230aabbccdd")
+	req.ActorID = 111
+	testRPCRequestRoundTrip(t, req, "de00000000000000bdaa68756f00000000000000544c3230aabbccdd")
+	req.ActorID = 0
+	req.Extra.SetCustomTimeoutMs(255)
+	req.Extra.SetReturnViewNumber(true)
+	requestExtraFieldsmask := req.Extra.Flags
+	testRPCRequestRoundTrip(t, req, "de000000000000005e0352e300008008ff000000544c3230aabbccdd")
+	req.ActorID = 111
+	testRPCRequestRoundTrip(t, req, "de00000000000000f7aca5f06f0000000000000000008008ff000000544c3230aabbccdd")
+
+	hctx := &HandlerContext{
+		queryID:  222,
+		Response: []byte{0xa1, 0xb2, 0xc3, 0xd4},
+		handlerContextFields: handlerContextFields{
+			requestExtraFieldsmask: requestExtraFieldsmask,
+			bodyFormatTL2:          true,
+		},
+	}
+	testRPCResponseRoundTrip(t, hctx, nil, "de00000000000000e14cc88c0000000800000000000000000903000000000000544c3230a1b2c3d4")
 	testRPCResponseRoundTrip(t, hctx, &Error{Code: 444, Description: "bad"}, "de00000000000000e14cc88c0000000800000000000000000903000000000000f532e47ade00000000000000bc01000003626164")
 }
