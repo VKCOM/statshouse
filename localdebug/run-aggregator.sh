@@ -8,3 +8,5 @@ mkdir -p cache/aggregator/
    --deny-old-agents=false --metadata-addr "127.0.0.1:2442" --cache-dir=cache/aggregator "$@"
 
 # --auto-create --auto-create-default-namespace
+
+# --rqlite-addrs "127.0.0.1:4001"

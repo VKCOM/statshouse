@@ -24,7 +24,7 @@ import (
 
 type autoCreate struct {
 	agg        *Aggregator
-	client     *tlmetadata.Client
+	loader     metajournal.MetadataLoader
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
 	co         *sync.Cond
@@ -41,10 +41,10 @@ type autoCreate struct {
 	running bool // guard against double "run"
 }
 
-func newAutoCreate(a *Aggregator, client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
+func newAutoCreate(a *Aggregator, loader metajournal.MetadataLoader, defaultNamespaceAllowed bool) *autoCreate {
 	ac := &autoCreate{
 		agg:                     a,
-		client:                  client,
+		loader:                  loader,
 		args:                    make(map[rpc.LongpollHandle]tlstatshouse.AutoCreateBytes),
 		defaultNamespaceAllowed: defaultNamespaceAllowed,
 	}
@@ -270,11 +270,9 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		tagEditCreate = 1 // create
 		edit.SetCreate(true)
 	}
-	// issue RPC call
-	var ret tlmetadata.Event
-	ctx, cancel := context.WithTimeout(ac.ctx, time.Minute)
-	defer cancel()
-	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)
+	metadata := `{"user_email":"@autocreate","user_name":"","user_ref":""}`
+	// loader itself sets some default timeout
+	ret, err := ac.storage.SaveMetric(context.Background(), ac.loader, value, metadata)
 	if err != nil {
 		ac.agg.sh2.AddCounter(uint32(time.Now().Unix()), format.BuiltinMetricMetaAutoCreateMetric,
 			[]int32{0, tagEditCreate, 2}, 1) // 2 - failure
@@ -283,7 +281,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	// succeeded, wait a bit until changes applied locally
 	ac.agg.sh2.AddCounter(uint32(time.Now().Unix()), format.BuiltinMetricMetaAutoCreateMetric,
 		[]int32{0, tagEditCreate, 1}, 1) // 1 - success
-	ctx, cancel = context.WithTimeout(ac.ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ac.ctx, 5*time.Second)
 	defer cancel()
 	_ = ac.storage.WaitVersion(ctx, ret.Version)
 	return nil

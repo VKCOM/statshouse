@@ -31,33 +31,28 @@ import (
 	ttemplate "text/template"
 	"time"
 
-	"go.uber.org/atomic"
-	"golang.org/x/sync/semaphore"
-	"golang.org/x/sync/singleflight"
-
-	"github.com/VKCOM/statshouse/internal/chutil"
-
-	"github.com/prometheus/prometheus/model/labels"
-
-	"github.com/VKCOM/statshouse-go"
-
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/mailru/easyjson"
-	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
-
+	"github.com/VKCOM/statshouse-go"
 	"github.com/VKCOM/statshouse/internal/aggregator"
+	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/config"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/metarqlite"
 	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/VKCOM/statshouse/internal/promql/parser"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
-
+	"github.com/mailru/easyjson"
+	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
+	"github.com/prometheus/prometheus/model/labels"
+	"go.uber.org/atomic"
+	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 	"pgregory.net/rand"
 )
 
@@ -209,7 +204,7 @@ type (
 		pointFloatsPoolSize   atomic.Int64
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
-		metadataLoader        metajournal.MetadataLoader
+		metadataLoader        *metarqlite.RQLiteLoader
 		mappingsStorage       *metajournal.MappingsStorage
 		jwtHelper             *vkuth.JWTHelper
 		plotRenderSem         *semaphore.Weighted
@@ -591,7 +586,8 @@ type (
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
 func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
-	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
+	legacyMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
+	metadataLoader := metarqlite.NewRQliteLoader(cfg.RQLiteAddrs, metarqlite.DefaultMetaTimeout, legacyMetaLoader)
 
 	tmpl, err := template.ParseFS(staticDir, "index.html")
 	if err != nil {
@@ -653,6 +649,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		h.blockedUsers = cfg.BlockedUsers
 		h.availableShards = cfg.AvailableShards
 		h.announcement = cfg.Announcement
+		h.metadataLoader.SetConfig(cfg.RQLiteAddrs)
 	}
 	applyCfg(cfg)
 	cl.AddChangeCB(applyCfg)

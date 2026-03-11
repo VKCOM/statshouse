@@ -43,6 +43,8 @@ type ConfigAggregatorRemote struct {
 	ClusterShardsAddrs   []string
 	EnableMappingStorage bool
 
+	RQLiteAddrs string // comma-separated list
+
 	configTagsMapper3
 }
 
@@ -178,6 +180,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 	}
+	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }
 
 func ValidateConfigAggregator(c *ConfigAggregator) error {

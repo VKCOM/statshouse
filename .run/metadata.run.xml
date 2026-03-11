@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="metadata" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="statshouse" />
+    <working_directory value="$PROJECT_DIR$/localdebug" />
+    <parameters value="-p 2442 --db-path=dbmeta/db --binlog-prefix=dbmeta/binlog/bl" />
+    <kind value="PACKAGE" />
+    <package value="github.com/VKCOM/statshouse/cmd/statshouse-metadata" />
+    <directory value="$PROJECT_DIR$/cmd/statshouse-api" />
+    <filePath value="$PROJECT_DIR$/cmd/statshouse-api/statshouse-api.go" />
+    <method v="2" />
+  </configuration>
+</component>
