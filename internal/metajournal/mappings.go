@@ -442,6 +442,32 @@ func (ms *MappingsStorage) goUpdateMappings() {
 	}
 }
 
+func (ms *MappingsStorage) UpdateMappingsUntilVersion(ver int32, componentTag int32, mappingsLoader MappingsLoader) {
+	ms.component = componentTag
+	ms.mappingsLoader = mappingsLoader
+	backoffTimeout := time.Duration(0)
+
+	for {
+		ms.mu.RLock()
+		currVer := ms.currentVersion
+		ms.mu.RUnlock()
+		if currVer >= ver {
+			log.Printf("Successfully updated mappings until version %d", currVer)
+			return
+		}
+
+		err := ms.updateMappings()
+		if err == nil {
+			backoffTimeout = 0
+			time.Sleep(ms.mappingsRequestDelay)
+			continue
+		}
+		backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
+		log.Printf("Failed to update mappings from metadata, will retry: %v", err)
+		time.Sleep(backoffTimeout)
+	}
+}
+
 func (ms *MappingsStorage) GetValue(str string) (int32, bool) {
 	shard := int(xxh3.HashString(str) % uint64(len(ms.shards)))
 	ms.shards[shard].mu.RLock()

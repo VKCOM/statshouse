@@ -11,11 +11,13 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/vkgo/kittenhouseclient/rowbinary"
 )
 
@@ -23,13 +25,20 @@ const V3_PK_COLUMNS_STR = "index_type, metric, pre_tag, pre_stag, time, tag0, st
 const V3_VALUE_COLUMNS_STR = "count, min, max, max_count, sum, sumsquare, min_host, max_host, max_count_host, percentiles, uniq_state"
 
 type MigrationConfigV3 struct {
-	SourceTableName string        // Source table name (default: "statshouse_value_dist_1h")
-	TargetTableName string        // Destination table name (default: "statshouse_v3_1h")
-	StateTableName  string        // Migration state table name
-	LogsTableName   string        // Migration logs table name
-	StepDuration    time.Duration // Time step for migration (default: time.Hour)
-	TotalShards     int           // Total number of shards (default: 16)
-	Format          string
+	SourceTableName             string        // Source table name (default: "statshouse_value_dist_1h")
+	TargetTableName             string        // Destination table name (default: "statshouse_v3_1h")
+	StateTableName              string        // Migration state table name
+	LogsTableName               string        // Migration logs table name
+	StepDuration                time.Duration // Time step for migration (default: time.Hour)
+	TotalShards                 int           // Total number of shards (default: 16)
+	Format                      string
+	ReplacementMappingsFileName string
+}
+
+type MigrationV3Data struct {
+	replacementMappings map[int32]struct{}
+	mappingsStorage     *metajournal.MappingsStorage
+	mappingsLoader      metajournal.MappingsLoader
 }
 
 // v3Row models the subset of columns needed from the V1 schema.
@@ -56,18 +65,25 @@ type v3Row struct {
 
 func NewDefaultMigrationConfigV3() *MigrationConfigV3 {
 	return &MigrationConfigV3{
-		SourceTableName: "statshouse_v3_1h",
-		TargetTableName: "statshouse_v6_1h",
-		StateTableName:  "statshouse_migration_state",
-		LogsTableName:   "statshouse_migration_logs",
-		StepDuration:    time.Hour,
-		TotalShards:     18,
-		Format:          "RowBinary",
+		SourceTableName:             "statshouse_v3_1h",
+		TargetTableName:             "statshouse_v6_1h",
+		StateTableName:              "statshouse_migration_state",
+		LogsTableName:               "statshouse_migration_logs",
+		StepDuration:                time.Hour,
+		TotalShards:                 18,
+		Format:                      "RowBinary",
+		ReplacementMappingsFileName: "cache/aggregator/replacement_mappings.csv",
+	}
+}
+
+func MakeMigrationV3Data(mappingStorage *metajournal.MappingsStorage) *MigrationV3Data {
+	return &MigrationV3Data{
+		replacementMappings: make(map[int32]struct{}, 3_000),
+		mappingsStorage:     mappingStorage,
 	}
 }
 
 func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
-
 	if a.replicaKey != 1 {
 		log.Printf("[migration_v3] Skipping migration: replica key is %d, expected 1", a.replicaKey)
 		return // Only one replica should run migration per shard
@@ -79,6 +95,8 @@ func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
 	}
 
 	httpClient := makeHTTPClient()
+
+	a.loadMigrationData()
 
 	log.Printf("[migration_v3] Starting migration routine for shard %d", a.shardKey)
 	for {
@@ -141,7 +159,7 @@ func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
 		log.Printf("[migration_v3] Processing timestamp: %s", nextTs.Format("2006-01-02 15:04:05"))
 
 		// Perform migration for this timestamp
-		sourceRowsNum, targetRowsNum, err := a._migrateTimestampWithRetry(httpClient, nextTs)
+		sourceRowsNum, targetRowsNum, err := a.migrateTimestampWithRetryV3(httpClient, nextTs)
 		if err != nil {
 			log.Printf("[migration_v3] Failed to migrate timestamp %s: %v", nextTs.Format("2006-01-02 15:04:05"), err)
 			a.configMu.RLock()
@@ -158,7 +176,55 @@ func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
 	}
 }
 
-func (a *Aggregator) _migrateTimestampWithRetry(httpClient *http.Client, ts time.Time) (sourceRowsNum, targetRowsNum uint64, err error) {
+func (a *Aggregator) loadMigrationData() error {
+	maxMapping, err := a.loadReplacementMappingsFromFile()
+	if err != nil {
+		return err
+	}
+
+	err = a.loadMappingsStorageWithReverse(maxMapping)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Aggregator) loadReplacementMappingsFromFile() (maxMapping int32, err error) {
+	file, err := os.OpenFile(a.migrationConfigV3.ReplacementMappingsFileName, os.O_RDONLY, 0)
+	if err != nil {
+		return -1, err
+	}
+	defer file.Close()
+
+	in := bufio.NewReader(file)
+
+	log.Printf("reading replacement mappings set")
+	for {
+		var x int32
+		_, err = fmt.Fscanln(in, &x)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return -1, err
+		}
+		maxMapping = max(maxMapping, x)
+		a.migrationV3Data.replacementMappings[x] = struct{}{}
+	}
+	log.Printf("[migration_v3] Mappings for replacement loaded from file %s", a.migrationConfigV3.ReplacementMappingsFileName)
+	return maxMapping, nil
+}
+
+func (a *Aggregator) loadMappingsStorageWithReverse(maxVer int32) error {
+
+	a.migrationV3Data.mappingsStorage.StartPeriodicSaving()
+	a.migrationV3Data.mappingsStorage.UpdateMappingsUntilVersion(maxVer, format.TagValueIDComponentAggregator, a.migrationV3Data.mappingsLoader)
+	log.Printf("[migration_v3] Successfully loaded mappings for max ver: %d", maxVer)
+	return nil
+}
+
+func (a *Aggregator) migrateTimestampWithRetryV3(httpClient *http.Client, ts time.Time) (sourceRowsNum, targetRowsNum uint64, err error) {
 	var lastErr error
 	started := time.Now()
 	sourceRowsNum, sourceCountErr := a.countSourceRowsForTs(httpClient, ts)
@@ -290,10 +356,6 @@ func (a *Aggregator) countSourceRowsForTs(httpClient *http.Client, ts time.Time)
 	return count, nil
 }
 
-//func (a *Aggregator) findNextTimestampToMigrateV3() (time.Time, error) {
-//	return time.Unix(1769086800, 0), nil
-//}
-
 func (a *Aggregator) findNextTimestampToMigrateV3(httpClient *http.Client) (time.Time, error) {
 	a.configMu.RLock()
 	startTs, endTs := a.configR.ParseMigrationTimeRange(a.configR.MigrationTimeRange)
@@ -391,11 +453,11 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 	reader := bufio.NewReaderSize(v3DataResp, 8192)
 
 	var rowsConverted int
+	var tagsStringified int
 	var conversionErr error
-
 	go func() {
 		defer pipeWriter.Close()
-		rowsConverted, conversionErr = a.convertV3Response(reader, pipeWriter)
+		rowsConverted, tagsStringified, conversionErr = a.convertV3Response(reader, pipeWriter)
 		if conversionErr != nil {
 			log.Printf("[migration_v3] Error during conversion: %v", conversionErr)
 			pipeWriter.CloseWithError(conversionErr)
@@ -407,7 +469,7 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 		return fmt.Errorf("failed to read body: %w", err)
 	}
 
-	log.Printf("[migration_v3] Converted %d rows, body size: %d bytes", rowsConverted, len(bodyBytes))
+	log.Printf("[migration_v3] Converted %d rows, stringified %d tags, body size: %d bytes", rowsConverted, tagsStringified, len(bodyBytes))
 
 	resp, err := a.executeV3Query(insertQuery, false, bodyBytes, httpClient)
 
@@ -526,7 +588,7 @@ func (a *Aggregator) executeV3Query(query string, isSelect bool, body []byte, ht
 	return response, nil
 }
 
-func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rowsProcessed int, err error) {
+func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rowsProcessed int, tagsStringified int, err error) {
 	reader := bufio.NewReaderSize(v3Data, 8192)
 	rowData := make([]byte, 0, 4096)
 	var v3row v3Row
@@ -542,25 +604,28 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 				// Incomplete row, but we're using io.Reader so this shouldn't happen
 				// unless the reader itself is incomplete
 				log.Printf("[migration_v3] Unexpected EOF after processing %d rows: %v", rowsProcessed, parseErr)
-				return rowsProcessed, parseErr
+				return rowsProcessed, tagsStringified, parseErr
 			}
 			log.Printf("[migration_v3] Parse error after processing %d rows: %v", rowsProcessed, parseErr)
-			return rowsProcessed, fmt.Errorf("failed to parse V2 row: %w", parseErr)
+			return rowsProcessed, tagsStringified, fmt.Errorf("failed to parse V2 row: %w", parseErr)
 		}
+
+		// TODO: skip if metric % shards_num != shard
 		rowData = rowData[:0]
-		rowData = encodeV3Row(rowData, &v3row)
+		stringified := a.encodeV3Row(rowData, &v3row)
 
 		if _, writeErr := output.Write(rowData); writeErr != nil {
 			log.Printf("[migration] Write error after processing %d rows: %v", rowsProcessed, writeErr)
-			return rowsProcessed, fmt.Errorf("failed to write converted row: %w", writeErr)
+			return rowsProcessed, tagsStringified, fmt.Errorf("failed to write converted row: %w", writeErr)
 		}
-
+		tagsStringified += stringified
 		rowsProcessed++
+
 	}
-	return rowsProcessed, nil
+	return rowsProcessed, tagsStringified, nil
 }
 
-func encodeV3Row(buf []byte, row *v3Row) []byte {
+func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row) (tagsStringified int) {
 	buf = rowbinary.AppendUint8(buf, row.index_type)
 	buf = rowbinary.AppendInt32(buf, row.metric)
 	buf = rowbinary.AppendUint32(buf, row.pre_tag)
@@ -568,8 +633,22 @@ func encodeV3Row(buf []byte, row *v3Row) []byte {
 	buf = rowbinary.AppendDateTime(buf, time.Unix(int64(row.time), 0))
 
 	for i := 0; i < 48; i++ {
-		buf = rowbinary.AppendInt32(buf, row.tags[i])
-		buf = rowbinary.AppendString(buf, row.stags[i])
+		tag := row.tags[i]
+		stag := row.stags[i]
+		// TODO: check for rawness
+		_, ok := a.migrationV3Data.replacementMappings[tag]
+		if ok {
+			stag, ok = a.migrationV3Data.mappingsStorage.GetString(tag)
+			if !ok {
+				log.Printf("[migration_v3] Tag %s has to be replaced, but not found in mappings storage", tag)
+				stag = ""
+			} else {
+				tag = 0
+				tagsStringified += 1
+			}
+		}
+		buf = rowbinary.AppendInt32(buf, tag)
+		buf = rowbinary.AppendString(buf, stag)
 	}
 
 	buf = rowbinary.AppendFloat64(buf, row.count)
@@ -585,5 +664,5 @@ func encodeV3Row(buf []byte, row *v3Row) []byte {
 	buf = row.percentiles.MarshallAppend(buf, 1)
 	buf = row.uniq_state.MarshallAppend(buf)
 
-	return buf
+	return tagsStringified
 }
