@@ -129,6 +129,9 @@ type (
 		// migration configuration
 		migrationConfig   *MigrationConfig
 		migrationConfigV3 *MigrationConfigV3
+
+		// migration data
+		migrationV3Data *MigrationV3Data
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -153,7 +156,8 @@ func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.H
 }
 
 // aggregator is also run in this method
-func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache, mappingsStorage *metajournal.MappingsStorage,
+func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
+	mappingsStorage *metajournal.MappingsStorage, v3MigratorMappingsStorage *metajournal.MappingsStorage,
 	cacheDir string, listenAddr string, aesPwd string, trustedSubnetGroups [][]string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	var shardKey int32 = 1
@@ -257,6 +261,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
 		migrationConfigV3:           NewDefaultMigrationConfigV3(),
+		migrationV3Data:             MakeMigrationV3Data(v3MigratorMappingsStorage),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -296,7 +301,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		rpc.ServerWithMaxWorkers(-1),
 		rpc.ServerWithSyncHandler(a.handleClient),
 		rpc.ServerWithDisableContextTimeout(true),
-		rpc.ServerWithTrustedSubnetGroups(trustedSubnetGroups),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(0), // explicit infinite timeout
 		rpc.ServerWithResponseBufSize(1024),
@@ -310,6 +315,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// _ = metrics.Run(a.server)
 	legacyMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	a.metricMetaLoader = metarqlite.NewRQliteLoader(config.RemoteInitial.RQLiteAddrs, metarqlite.DefaultMetaTimeout, legacyMetaLoader)
+	metricMetaLoader2 := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, a.metricMetaLoader, config.AutoCreateDefaultNamespace)
@@ -351,6 +357,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.journalCompact.Start(a.sh2, a.appendInternalLog, a.metricMetaLoader.LoadJournal)
 	a.mappingsStorage.StartPeriodicSaving()
 	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, a.metricMetaLoader.GetNewMappings, false)
+
+	a.migrationV3Data.mappingsLoader = metricMetaLoader2.GetNewMappings
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, a.metricMetaLoader)
