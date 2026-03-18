@@ -38,7 +38,8 @@ type MigrationConfigV3 struct {
 type MigrationV3Data struct {
 	replacementMappings map[int32]struct{}
 	mappingsStorage     *metajournal.MappingsStorage
-	mappingsLoader      metajournal.MappingsLoader
+	metricMetaLoader    *metajournal.MetricMetaLoader
+	isRawTagOfMetric    map[int32][]bool
 }
 
 // v3Row models the subset of columns needed from the V1 schema.
@@ -70,7 +71,7 @@ func NewDefaultMigrationConfigV3() *MigrationConfigV3 {
 		StateTableName:              "statshouse_migration_state",
 		LogsTableName:               "statshouse_migration_logs",
 		StepDuration:                time.Hour,
-		TotalShards:                 18,
+		TotalShards:                 16, // NOTE: как переливаем 17-18?
 		Format:                      "RowBinary",
 		ReplacementMappingsFileName: "cache/aggregator/replacement_mappings.csv",
 	}
@@ -80,6 +81,7 @@ func MakeMigrationV3Data(mappingStorage *metajournal.MappingsStorage) *Migration
 	return &MigrationV3Data{
 		replacementMappings: make(map[int32]struct{}, 3_000),
 		mappingsStorage:     mappingStorage,
+		isRawTagOfMetric:    make(map[int32][]bool),
 	}
 }
 
@@ -187,7 +189,30 @@ func (a *Aggregator) loadMigrationData() error {
 		return err
 	}
 
+	err = a.hardcodedLoadRawTagsInfo()
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (a *Aggregator) hardcodedLoadRawTagsInfo() error {
+	// NOTE: hardcoded rawness for every metric within [-200, 200] + every 4th tag
+	for met := int32(-200); met < 200; met++ {
+		for i := 0; i < 48; i += 4 {
+			a.migrationV3Data.isRawTagOfMetric[met][i] = true
+		}
+	}
+
+	return nil
+}
+
+func (a *Aggregator) isRelevantMetric(metricId int32) bool {
+	if metricId >= 0 {
+		return (metricId%16)+1 == a.shardKey
+	}
+	return (-metricId%16)+1 == a.shardKey
 }
 
 func (a *Aggregator) loadReplacementMappingsFromFile() (maxMapping int32, err error) {
@@ -219,7 +244,8 @@ func (a *Aggregator) loadReplacementMappingsFromFile() (maxMapping int32, err er
 func (a *Aggregator) loadMappingsStorageWithReverse(maxVer int32) error {
 
 	a.migrationV3Data.mappingsStorage.StartPeriodicSaving()
-	a.migrationV3Data.mappingsStorage.UpdateMappingsUntilVersion(maxVer, format.TagValueIDComponentAggregator, a.migrationV3Data.mappingsLoader)
+	log.Printf("[migration_v3] Starting mapping update loop")
+	a.migrationV3Data.mappingsStorage.UpdateMappingsUntilVersion(maxVer, format.TagValueIDComponentAggregator, a.migrationV3Data.metricMetaLoader.GetNewMappings)
 	log.Printf("[migration_v3] Successfully loaded mappings for max ver: %d", maxVer)
 	return nil
 }
@@ -610,9 +636,21 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 			return rowsProcessed, tagsStringified, fmt.Errorf("failed to parse V2 row: %w", parseErr)
 		}
 
-		// TODO: skip if metric % shards_num != shard
+		if !a.isRelevantMetric(v3row.metric) {
+			continue
+		}
+
+		rawness, ok := a.migrationV3Data.isRawTagOfMetric[v3row.metric]
+		if !ok {
+			err := a.loadMetricTagRawness(v3row.metric)
+			if err != nil {
+				log.Printf("[migration_v3] Failed to load tag rawness for metric %s: %v", v3row.metric, err)
+			}
+			rawness = a.migrationV3Data.isRawTagOfMetric[v3row.metric]
+		}
+
 		rowData = rowData[:0]
-		stringified := a.encodeV3Row(rowData, &v3row)
+		stringified := a.encodeV3Row(rowData, &v3row, rawness)
 
 		if _, writeErr := output.Write(rowData); writeErr != nil {
 			log.Printf("[migration] Write error after processing %d rows: %v", rowsProcessed, writeErr)
@@ -625,7 +663,28 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 	return rowsProcessed, tagsStringified, nil
 }
 
-func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row) (tagsStringified int) {
+func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
+	m, err := a.migrationV3Data.metricMetaLoader.GetMetric(context.Background(), int64(metricId), 0)
+	if err != nil {
+		log.Printf("[migration_v3] Failed to get metric id=%v, %s", metricId, err.Error())
+		return err
+	}
+	if len(m.Tags) != 48 {
+		log.Printf("[migration_v3] wrong number of tags for metric id=%v, %d", metricId, len(m.Tags))
+		return err
+	}
+	a.migrationV3Data.isRawTagOfMetric[metricId] = make([]bool, 48)
+	for j := 0; j < 48; j++ {
+		t := m.Tags[j]
+		if t.RawKind != "" {
+			a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
+		}
+	}
+	log.Printf("[migration_v3] Loaded tag rawness for metric id %v]")
+	return nil
+}
+
+func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (tagsStringified int) {
 	buf = rowbinary.AppendUint8(buf, row.index_type)
 	buf = rowbinary.AppendInt32(buf, row.metric)
 	buf = rowbinary.AppendUint32(buf, row.pre_tag)
@@ -635,9 +694,8 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row) (tagsStringified int) {
 	for i := 0; i < 48; i++ {
 		tag := row.tags[i]
 		stag := row.stags[i]
-		// TODO: check for rawness
 		_, ok := a.migrationV3Data.replacementMappings[tag]
-		if ok {
+		if ok && isRawByTag != nil && isRawByTag[i] {
 			stag, ok = a.migrationV3Data.mappingsStorage.GetString(tag)
 			if !ok {
 				log.Printf("[migration_v3] Tag %s has to be replaced, but not found in mappings storage", tag)

@@ -315,7 +315,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// _ = metrics.Run(a.server)
 	legacyMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	a.metricMetaLoader = metarqlite.NewRQliteLoader(config.RemoteInitial.RQLiteAddrs, metarqlite.DefaultMetaTimeout, legacyMetaLoader)
-	metricMetaLoader2 := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, a.metricMetaLoader, config.AutoCreateDefaultNamespace)
@@ -358,7 +357,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.mappingsStorage.StartPeriodicSaving()
 	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, a.metricMetaLoader.GetNewMappings, false)
 
-	a.migrationV3Data.mappingsLoader = metricMetaLoader2.GetNewMappings
+	a.migrationV3Data.metricMetaLoader = legacyMetaLoader
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, a.metricMetaLoader)
