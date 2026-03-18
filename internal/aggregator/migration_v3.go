@@ -200,6 +200,7 @@ func (a *Aggregator) loadMigrationData() error {
 func (a *Aggregator) hardcodedLoadRawTagsInfo() error {
 	// NOTE: hardcoded rawness for every metric within [-200, 200] + every 4th tag
 	for met := int32(-200); met < 200; met++ {
+		a.migrationV3Data.isRawTagOfMetric[met] = make([]bool, 48)
 		for i := 0; i < 48; i += 4 {
 			a.migrationV3Data.isRawTagOfMetric[met][i] = true
 		}
@@ -644,16 +645,17 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 		if !ok {
 			err := a.loadMetricTagRawness(v3row.metric)
 			if err != nil {
-				log.Printf("[migration_v3] Failed to load tag rawness for metric %s: %v", v3row.metric, err)
+				log.Printf("[migration_v3] Failed to load tag rawness for metric %d: %v", v3row.metric, err)
 			}
 			rawness = a.migrationV3Data.isRawTagOfMetric[v3row.metric]
 		}
 
 		rowData = rowData[:0]
-		stringified := a.encodeV3Row(rowData, &v3row, rawness)
+		var stringified int
+		rowData, stringified = a.encodeV3Row(rowData, &v3row, rawness)
 
 		if _, writeErr := output.Write(rowData); writeErr != nil {
-			log.Printf("[migration] Write error after processing %d rows: %v", rowsProcessed, writeErr)
+			log.Printf("[migration_v3] Write error after processing %d rows: %v", rowsProcessed, writeErr)
 			return rowsProcessed, tagsStringified, fmt.Errorf("failed to write converted row: %w", writeErr)
 		}
 		tagsStringified += stringified
@@ -680,11 +682,11 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 			a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
 		}
 	}
-	log.Printf("[migration_v3] Loaded tag rawness for metric id %v]")
+	log.Printf("[migration_v3] Loaded tag rawness for metric id=%d", metricId)
 	return nil
 }
 
-func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (tagsStringified int) {
+func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ []byte, tagsStringified int) {
 	buf = rowbinary.AppendUint8(buf, row.index_type)
 	buf = rowbinary.AppendInt32(buf, row.metric)
 	buf = rowbinary.AppendUint32(buf, row.pre_tag)
@@ -698,7 +700,7 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (tag
 		if ok && isRawByTag != nil && isRawByTag[i] {
 			stag, ok = a.migrationV3Data.mappingsStorage.GetString(tag)
 			if !ok {
-				log.Printf("[migration_v3] Tag %s has to be replaced, but not found in mappings storage", tag)
+				log.Printf("[migration_v3] Tag %d has to be replaced, but not found in mappings storage", tag)
 				stag = ""
 			} else {
 				tag = 0
@@ -722,5 +724,5 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (tag
 	buf = row.percentiles.MarshallAppend(buf, 1)
 	buf = row.uniq_state.MarshallAppend(buf)
 
-	return tagsStringified
+	return buf, tagsStringified
 }
