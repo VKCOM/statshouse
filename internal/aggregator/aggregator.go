@@ -312,7 +312,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	// 2. we must not use statshouse lib in aggregator, there is nobody listening 13337
 	// _ = metrics.Run(a.server)
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	metricMetaLoader2 := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	if config.AutoCreate {
 		a.autoCreate = newAutoCreate(a, metadataClient, config.AutoCreateDefaultNamespace)
 	}
@@ -354,7 +353,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.mappingsStorage.StartPeriodicSaving()
 	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, metricMetaLoader.GetNewMappings, false)
 
-	a.migrationV3Data.mappingsLoader = metricMetaLoader2.GetNewMappings
+	a.migrationV3Data.metricMetaLoader = metricMetaLoader
 
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, metricMetaLoader)

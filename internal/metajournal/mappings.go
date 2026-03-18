@@ -446,11 +446,11 @@ func (ms *MappingsStorage) UpdateMappingsUntilVersion(ver int32, componentTag in
 	ms.component = componentTag
 	ms.mappingsLoader = mappingsLoader
 	backoffTimeout := time.Duration(0)
-
 	for {
 		ms.mu.RLock()
 		currVer := ms.currentVersion
 		ms.mu.RUnlock()
+		// TODO: check for infinite loop
 		if currVer >= ver {
 			log.Printf("Successfully updated mappings until version %d", currVer)
 			return
