@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
-	_ "encoding/binary"
 	"errors"
 	"fmt"
 	"io"
