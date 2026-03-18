@@ -209,11 +209,22 @@ func (a *Aggregator) hardcodedLoadRawTagsInfo() error {
 	return nil
 }
 
-func (a *Aggregator) isRelevantMetric(metricId int32) bool {
-	if metricId >= 0 {
-		return (metricId%16)+1 == a.shardKey
+func (a *Aggregator) isRelevantMetric(metricID int32) bool {
+	metric := a.metricStorage.GetMetaMetric(metricID)
+	if metric == nil {
+		return true
 	}
-	return (-metricId%16)+1 == a.shardKey
+
+	shardNum := metric.Shard(a.migrationConfigV3.TotalShards)
+	if shardNum == -1 {
+		return true
+	}
+
+	if int32(shardNum+1) == a.shardKey {
+		return true
+	}
+	// only if we know metric, strategy and shard
+	return false
 }
 
 func (a *Aggregator) loadReplacementMappingsFromFile() (maxMapping int32, err error) {
@@ -666,14 +677,12 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 }
 
 func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
-	m, err := a.migrationV3Data.metricMetaLoader.GetMetric(context.Background(), int64(metricId), 0)
-	if err != nil {
-		log.Printf("[migration_v3] Failed to get metric id=%v, %s", metricId, err.Error())
-		return err
+	m := a.metricStorage.GetMetaMetric(metricId)
+	if m == nil {
+		return fmt.Errorf("metric meta not found in storage: id=%d", metricId)
 	}
 	if len(m.Tags) != 48 {
-		log.Printf("[migration_v3] wrong number of tags for metric id=%v, %d", metricId, len(m.Tags))
-		return err
+		return fmt.Errorf("wrong number of tags for metric id=%d: %d", metricId, len(m.Tags))
 	}
 	a.migrationV3Data.isRawTagOfMetric[metricId] = make([]bool, 48)
 	for j := 0; j < 48; j++ {
