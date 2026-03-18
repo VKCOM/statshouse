@@ -30,7 +30,8 @@ type MigrationConfigV3 struct {
 	StateTableName              string        // Migration state table name
 	LogsTableName               string        // Migration logs table name
 	StepDuration                time.Duration // Time step for migration (default: time.Hour)
-	TotalShards                 int           // Total number of shards (default: 16)
+	TotalShards                 int           // Total number of shards (default: 18)
+	ShardsForShardingById       int           // Number of shards for an old sharding strategy (metricId % num_shards)
 	Format                      string
 	ReplacementMappingsFileName string
 }
@@ -71,7 +72,8 @@ func NewDefaultMigrationConfigV3() *MigrationConfigV3 {
 		StateTableName:              "statshouse_migration_state",
 		LogsTableName:               "statshouse_migration_logs",
 		StepDuration:                time.Hour,
-		TotalShards:                 16, // NOTE: как переливаем 17-18?
+		TotalShards:                 18,
+		ShardsForShardingById:       16,
 		Format:                      "RowBinary",
 		ReplacementMappingsFileName: "cache/aggregator/replacement_mappings.csv",
 	}
@@ -215,7 +217,7 @@ func (a *Aggregator) isRelevantMetric(metricID int32) bool {
 		return true
 	}
 
-	shardNum := metric.Shard(a.migrationConfigV3.TotalShards)
+	shardNum := metric.Shard(a.migrationConfigV3.ShardsForShardingById)
 	if shardNum == -1 {
 		return true
 	}
@@ -474,7 +476,7 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 	v3DataResp, err := a.executeV3Query(selectQuery, true, nil, httpClient)
 
 	if err != nil {
-		return fmt.Errorf("failed to execute select query: %w", err)
+		return fmt.Errorf("[migration_v3] failed to execute select query: %w", err)
 	}
 	defer v3DataResp.Close()
 
@@ -504,7 +506,7 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 
 	bodyBytes, err := io.ReadAll(pipeReader)
 	if err != nil {
-		return fmt.Errorf("failed to read body: %w", err)
+		return fmt.Errorf("[migration_v3] failed to read body: %w", err)
 	}
 
 	log.Printf("[migration_v3] Converted %d rows, stringified %d tags, body size: %d bytes", rowsConverted, tagsStringified, len(bodyBytes))
@@ -512,7 +514,7 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 	resp, err := a.executeV3Query(insertQuery, false, bodyBytes, httpClient)
 
 	if err != nil {
-		return fmt.Errorf("failed to execute insert query: %w", err)
+		return fmt.Errorf("[migration_v3] failed to execute insert query: %w", err)
 	}
 
 	defer resp.Close()
@@ -656,7 +658,9 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 		if !ok {
 			err := a.loadMetricTagRawness(v3row.metric)
 			if err != nil {
+				// shouldn't happen
 				log.Printf("[migration_v3] Failed to load tag rawness for metric %d: %v", v3row.metric, err)
+				return rowsProcessed, tagsStringified, fmt.Errorf("[migration_v3] Failed to load tag rawness for metric %d: %w", v3row.metric, err)
 			}
 			rawness = a.migrationV3Data.isRawTagOfMetric[v3row.metric]
 		}
