@@ -190,27 +190,14 @@ func (a *Aggregator) loadMigrationData() error {
 		return err
 	}
 
-	err = a.hardcodedLoadRawTagsInfo()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *Aggregator) hardcodedLoadRawTagsInfo() error {
-	// NOTE: hardcoded rawness for every metric within [-200, 200] + every 4th tag
-	for met := int32(-200); met < 200; met++ {
-		a.migrationV3Data.isRawTagOfMetric[met] = make([]bool, 48)
-		for i := 0; i < 48; i += 4 {
-			a.migrationV3Data.isRawTagOfMetric[met][i] = true
-		}
-	}
-
 	return nil
 }
 
 func (a *Aggregator) isRelevantMetric(metricID int32) bool {
+	// assumes the metric is relevant unless possible to determine that it's not
+	if a.metricStorage == nil {
+		return true
+	}
 	metric := a.metricStorage.GetMetaMetric(metricID)
 	if metric == nil {
 		return true
@@ -709,7 +696,7 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 		tag := row.tags[i]
 		stag := row.stags[i]
 		_, ok := a.migrationV3Data.replacementMappings[tag]
-		if ok && isRawByTag != nil && isRawByTag[i] {
+		if ok && isRawByTag != nil && !isRawByTag[i] {
 			stag, ok = a.migrationV3Data.mappingsStorage.GetString(tag)
 			if !ok {
 				log.Printf("[migration_v3] Tag %d has to be replaced, but not found in mappings storage", tag)
