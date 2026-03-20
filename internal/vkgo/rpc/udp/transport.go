@@ -1116,7 +1116,7 @@ func (t *Transport) processIncomingDatagram(addr netip.AddrPort, localIp uint32,
 
 	unencLen := len(payload)
 	var unenc tlnetUdpPacket.UnencHeader
-	payload, err := unenc.ReadBoxed(payload)
+	payload, err := unenc.ReadTL1Boxed(payload)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1423,11 +1423,11 @@ func (t *Transport) readEncryptedUnencHeader(payload []byte, firstUnenc tlnetUdp
 		secondUnenc.SetPidHash(hash)
 	}
 	if firstUnenc.IsSetLocalPid() {
-		payload, err = secondUnenc.LocalPid.Read(payload)
+		payload, err = secondUnenc.LocalPid.ReadTL1(payload)
 		if err != nil {
 			return nil, err
 		}
-		payload, err = secondUnenc.RemotePid.Read(payload)
+		payload, err = secondUnenc.RemotePid.ReadTL1(payload)
 		if err != nil {
 			return nil, err
 		}
@@ -1473,7 +1473,7 @@ func (t *Transport) processEncrypted(conn *Connection, unenc tlnetUdpPacket.Unen
 
 	payload = t.readByteCache
 
-	payload, err := enc.Read(payload)
+	payload, err := enc.ReadTL1(payload)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2054,7 +2054,7 @@ func (t *Transport) buildDatagram(
 	} else if status == ConnectionSentObsoleteGeneration {
 		payload := make([]byte, 0, ObsoleteGenerationPayloadSize)
 		payload = basictl.NatWrite(payload, tlnetUdpPacket.ObsoleteGeneration{}.TLTag())
-		payload = localPid.Write(payload)
+		payload = localPid.WriteTL1(payload)
 		payload = basictl.NatWrite(payload, generation)
 
 		t.writeChunks = append(t.writeChunks, payload)
@@ -2066,7 +2066,7 @@ func (t *Transport) buildDatagram(
 		payload := make([]byte, 0, ObsoleteHashPayloadSize)
 		payload = basictl.NatWrite(payload, tlnetUdpPacket.ObsoleteHash{}.TLTag())
 		payload = basictl.LongWrite(payload, conn.receivedObsoleteHash)
-		payload = localPid.Write(payload)
+		payload = localPid.WriteTL1(payload)
 
 		t.writeChunks = append(t.writeChunks, payload)
 
@@ -2078,7 +2078,7 @@ func (t *Transport) buildDatagram(
 		var req tlnetUdpPacket.ResendRequest
 		t.buildResendRequestDatagram(conn, &enc, &req)
 		t.writeChunks = algo.ResizeSlice(t.writeChunks, 1)
-		t.writeChunks[0] = req.WriteBoxed(t.writeChunks[0])
+		t.writeChunks[0] = req.WriteTL1Boxed(t.writeChunks[0])
 
 		t.stats.ResendRequestSent.Add(1)
 	} else {
@@ -2203,7 +2203,7 @@ func (t *Transport) serializeDatagram(
 	t.writeBuffer = t.writeBuffer[:0]
 	t.writeEncryptedBuffer = t.writeEncryptedBuffer[:0]
 
-	t.writeBuffer = enc.Write(t.writeBuffer)
+	t.writeBuffer = enc.WriteTL1(t.writeBuffer)
 	for i, chunk := range t.writeChunks {
 		if len(t.writeChunks) > 1 {
 			t.writeBuffer = basictl.NatWrite(t.writeBuffer, uint32(len(chunk)))
@@ -2249,7 +2249,7 @@ func (t *Transport) serializeDatagram(
 	t.writeBuffer = writeEncryptedUnencHeader(t.writeBuffer, unenc)
 
 	// Unencrypted header
-	t.writeEncryptedBuffer = unenc.WriteBoxed(t.writeEncryptedBuffer)
+	t.writeEncryptedBuffer = unenc.WriteTL1Boxed(t.writeEncryptedBuffer)
 
 	// Unencrypted header + encrypted part
 	unencHeaderSize := len(t.writeEncryptedBuffer)
@@ -2269,8 +2269,8 @@ func writeEncryptedUnencHeader(payload []byte, unenc tlnetUdpPacket.UnencHeader)
 		payload = basictl.LongWrite(payload, unenc.PidHash)
 	}
 	if unenc.IsSetLocalPid() {
-		payload = unenc.LocalPid.Write(payload)
-		payload = unenc.RemotePid.Write(payload)
+		payload = unenc.LocalPid.WriteTL1(payload)
+		payload = unenc.RemotePid.WriteTL1(payload)
 		payload = basictl.NatWrite(payload, unenc.Generation)
 	}
 	if unenc.IsSetCryptoFlags() {

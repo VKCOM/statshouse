@@ -149,8 +149,8 @@ func pidFromPortPid(portPid uint32) uint16 {
 
 func (m *handshakeMsg) writeTo(buf []byte) []byte {
 	buf = basictl.NatWrite(buf, m.Flags)
-	buf = m.SenderPID.Write(buf)
-	buf = m.PeerPID.Write(buf)
+	buf = m.SenderPID.WriteTL1(buf)
+	buf = m.PeerPID.WriteTL1(buf)
 	return buf
 }
 
@@ -162,10 +162,10 @@ func (m *handshakeMsg) readFrom(packetType uint32, body []byte) (_ []byte, err e
 	if body, err = basictl.NatRead(body, &m.Flags); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
-	if body, err = m.SenderPID.Read(body); err != nil {
+	if body, err = m.SenderPID.ReadTL1(body); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
-	if body, err = m.PeerPID.Read(body); err != nil {
+	if body, err = m.PeerPID.ReadTL1(body); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
 	// We expect future protocol extensions to have additional fields here

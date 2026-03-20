@@ -69,7 +69,7 @@ func (ms *JournalFast) broadcastJournal() {
 		delete(ms.metricsVersionClients3, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 			var err error
-			hctx.Response, err = args.WriteResult(hctx.Response, ret)
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 			if err != nil {
 				ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
 			} else {
@@ -102,7 +102,7 @@ func (ms *JournalFast) HandleGetMetrics3(args tlstatshouse.GetMetrics3, hctx *rp
 	ms.getJournalDiffLocked3(args.From, &ret)
 	if len(ret.Events) != 0 {
 		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, ret)
+		hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
 		if err != nil {
 			ms.builtinAddValue(&ms.BuiltinLongPollImmediateError, 0)
 		} else {

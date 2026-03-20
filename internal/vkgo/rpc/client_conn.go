@@ -462,7 +462,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 				}
 			} else {
 				ret := tl.RpcCancelReq{QueryId: wr.queryID}
-				customBody = ret.Write(customBody[:0])
+				customBody = ret.WriteTL1(customBody[:0])
 				err := conn.WritePacketNoFlushUnlocked(tl.RpcCancelReq{}.TLTag(), customBody, pc.client.opts.PacketTimeout)
 				if err != nil {
 					if !isShutdown && !commonConnCloseError(err) {
@@ -563,7 +563,7 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var reqResultError tl.RpcReqResultError
 		var err error
-		if respBody, err = reqResultError.Read(respBody); err != nil {
+		if respBody, err = reqResultError.ReadTL1(respBody); err != nil {
 			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
 		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
@@ -576,7 +576,7 @@ func (pc *clientConn) handlePacket(responseType uint32, respReuseData *[]byte, r
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
 		var err error
-		if respBody, err = header.Read(respBody); err != nil {
+		if respBody, err = header.ReadTL1(respBody); err != nil {
 			return false, callResult{}, false, time.Time{}, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
 		var closeNow *PacketConn

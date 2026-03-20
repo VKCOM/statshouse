@@ -39,7 +39,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *logz.Logger) (err er
 		log.Error("db doesn't exist")
 		return nil
 	}
-	wals, err := loadWalsInfo(opt.Path)
+	wals, err := loadWals(opt.Path)
 	if err != nil {
 		return fmt.Errorf("failed to load wals: %w", err)
 	}
@@ -158,17 +158,21 @@ func checkFileExist(path string) (bool, error) {
 	return true, nil
 }
 
-func checkFollowAndOrder(wals []walInfo) error {
+func reorderWals(wals []walInfo) error {
 	chkpt1 := wals[0].hdr.chkpt
 	chkpt2 := wals[1].hdr.chkpt
-	// The case where *-wal2 may follow *-wal
-	if chkpt1 <= 0x0F && chkpt2 == chkpt1+1 {
-		// ok
-	} else // When *-wal may follow *-wal2
-	if (chkpt2 == 0x0F && chkpt1 == 0) || (chkpt2 < 0x0F && chkpt2 == chkpt1-1) {
+
+	next := func(v uint32) uint32 {
+		return (v + 1) & 0x0F
+	}
+
+	if chkpt2 == next(chkpt1) {
+		// *-wal2 follows *-wal
+	} else if chkpt1 == next(chkpt2) {
+		// *-wal follows *-wal2
 		slices.Reverse(wals)
 	} else {
-		panic("???")
+		return fmt.Errorf("wals are inconsistent, checkpoint counters: wal=%d wal2=%d", chkpt1, chkpt2)
 	}
 	return nil
 }
@@ -222,7 +226,7 @@ func loadWal(iWal bool, path string) (i walInfo, walExists bool, _ error) {
 }
 
 // TODO надо отсеивать фреймы которые не были закомиченны и проверять чексуммы
-func loadWalsInfo(path string) (wals []walInfo, err error) {
+func loadWals(path string) (wals []walInfo, _ error) {
 	wal1, wal1Exists, err := loadWal(false, walPath(false, path))
 	if err != nil {
 		return wals, fmt.Errorf("failed to load wal1: %w", err)
@@ -241,9 +245,5 @@ func loadWalsInfo(path string) (wals []walInfo, err error) {
 	if !wal1Exists || !wal2Exists {
 		return wals, nil
 	}
-	err = checkFollowAndOrder(wals)
-	if err != nil {
-		return wals, fmt.Errorf("failed to check wals consistency: %w", err)
-	}
-	return wals, nil
+	return wals, reorderWals(wals)
 }

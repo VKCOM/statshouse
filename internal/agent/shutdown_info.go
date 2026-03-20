@@ -28,7 +28,7 @@ func ShutdownInfoReport(sh2 *Agent, componentTag int32, cacheDir string, startDi
 		data, err := os.ReadFile(fn)
 		if err != nil {
 			log.Printf("error reading %q, no shutdown metrics will be written", fn)
-		} else if _, err := si.ReadBoxed(data); err != nil {
+		} else if _, err := si.ReadTL1Boxed(data); err != nil {
 			log.Printf("error parsing %q, no shutdown metrics will be written", fn)
 		}
 		_ = os.Remove(fn) // We do not want duplicates. If we crash before saving metrics, we better lose them.
@@ -111,7 +111,7 @@ func ShutdownInfoReport(sh2 *Agent, componentTag int32, cacheDir string, startDi
 
 func ShutdownInfoSave(cacheDir string, si tlstatshouse.ShutdownInfo) {
 	if cacheDir != "" {
-		_ = os.WriteFile(filepath.Join(cacheDir, shutdownInfoFileName), si.WriteBoxed(nil), os.ModePerm)
+		_ = os.WriteFile(filepath.Join(cacheDir, shutdownInfoFileName), si.WriteTL1Boxed(nil), os.ModePerm)
 	}
 }
 

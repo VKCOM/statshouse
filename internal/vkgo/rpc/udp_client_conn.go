@@ -86,7 +86,7 @@ func (pc *udpClientConn) cancelCall(queryID int64) (shouldReleaseCctx *Response)
 		var message = pc.client.allocateMessage(12)
 		ret := tl.RpcCancelReq{QueryId: queryID}
 		*message = (*message)[:0]
-		*message = ret.Write(*message)
+		*message = ret.WriteTL1(*message)
 		err := pc.conn.SendMessage(message)
 		if err != nil {
 			panic(err) // cancel message is always 12 byte sized, so code must be unreachable
@@ -175,7 +175,7 @@ func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte
 	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var reqResultError tl.RpcReqResultError
 		var err error
-		if respBody, err = reqResultError.Read(respBody); err != nil {
+		if respBody, err = reqResultError.ReadTL1(respBody); err != nil {
 			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultError: %w", err)
 		}
 		err = &Error{Code: reqResultError.ErrorCode, Description: reqResultError.Error}
@@ -184,7 +184,7 @@ func (pc *udpClientConn) handlePacket(responseType uint32, respReuseData *[]byte
 	case tl.RpcReqResultHeader{}.TLTag():
 		var header tl.RpcReqResultHeader
 		var err error
-		if respBody, err = header.Read(respBody); err != nil {
+		if respBody, err = header.ReadTL1(respBody); err != nil {
 			return false, callResult{}, false, fmt.Errorf("failed to read RpcReqResultHeader: %w", err)
 		}
 		bodyOwned, finishedCallback, recordLatency = pc.finishCall(header.QueryId, respReuseData, respBody, true, nil)

@@ -26,8 +26,8 @@ type shutdownTestServer struct {
 
 func (s *shutdownTestServer) CancelLongpoll(lh LongpollHandle) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.clients, lh)
-	s.mu.Unlock()
 }
 
 func (s *shutdownTestServer) WriteEmptyResponse(lh LongpollHandle, hctx *HandlerContext) error {

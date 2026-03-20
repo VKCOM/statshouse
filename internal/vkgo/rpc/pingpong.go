@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked(timeout time.Duration) error {
@@ -21,13 +22,13 @@ func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked(timeout time.Duration) e
 	}
 
 	if pc.writePing {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], timeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked((tl.RpcPing{}).TLTag(), pc.writePingID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePing = false
 	}
 	if pc.writePong {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], timeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked((tl.RpcPong{}).TLTag(), pc.writePongID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePong = false
@@ -45,13 +46,13 @@ func (pc *PacketConn) WritePacketBuiltin(timeout time.Duration) error {
 	defer pc.writeMu.Unlock()
 
 	if pc.writePing {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], timeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked(tl.RpcPing{}.TLTag(), pc.writePingID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePing = false
 	}
 	if pc.writePong {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], timeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked((tl.RpcPong{}).TLTag(), pc.writePongID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePong = false

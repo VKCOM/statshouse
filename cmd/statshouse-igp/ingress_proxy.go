@@ -24,7 +24,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/constants"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/pcache"
@@ -419,7 +418,7 @@ func (p *proxyConn) run() {
 		}
 		if firstReq.tip == rpcInvokeReqHeaderTLTag {
 			switch firstReq.RequestTag() {
-			case constants.StatshouseGetConfig2, constants.StatshouseGetConfig3:
+			case tlstatshouse.GetConfig2{}.TLTag(), tlstatshouse.GetConfig3{}.TLTag():
 				// GetConfigX does not send shardReplica
 				if res := firstReq.process(p); res.Error() != nil {
 					return // failed to serve GetConfigX request
@@ -537,17 +536,17 @@ func (p *proxyConn) readRequest() (req proxyRequest, err error) {
 			return proxyRequest{}, err
 		}
 		switch req.RequestTag() {
-		case constants.StatshouseGetConfig2,
-			constants.StatshouseGetConfig3,
-			constants.StatshouseGetTagMapping2,
-			constants.StatshouseSendKeepAlive2,
-			constants.StatshouseSendKeepAlive3,
-			constants.StatshouseSendSourceBucket3,
-			constants.StatshouseTestConnection2,
-			constants.StatshouseGetTargets2,
-			constants.StatshouseGetTagMappingBootstrap,
-			constants.StatshouseGetMetrics3,
-			constants.StatshouseAutoCreate,
+		case tlstatshouse.GetConfig2{}.TLTag(),
+			tlstatshouse.GetConfig3{}.TLTag(),
+			tlstatshouse.GetTagMapping2{}.TLTag(),
+			tlstatshouse.SendKeepAlive2{}.TLTag(),
+			tlstatshouse.SendKeepAlive3{}.TLTag(),
+			tlstatshouse.SendSourceBucket3{}.TLTag(),
+			tlstatshouse.TestConnection2{}.TLTag(),
+			tlstatshouse.GetTargets2{}.TLTag(),
+			tlstatshouse.GetTagMappingBootstrap{}.TLTag(),
+			tlstatshouse.GetMetrics3{}.TLTag(),
+			tlstatshouse.AutoCreate{}.TLTag(),
 			rpcPingTLTag:
 			// pass
 			return req, nil
@@ -617,10 +616,10 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 	switch req.tip {
 	case rpcInvokeReqHeaderTLTag:
 		switch req.RequestTag() {
-		case constants.StatshouseGetConfig2:
+		case tlstatshouse.GetConfig2{}.TLTag():
 			var autoConfigStatus int32
 			var args tlstatshouse.GetConfig2
-			if _, err = args.ReadBoxed(req.Request); err == nil {
+			if _, err = args.ReadTL1Boxed(req.Request); err == nil {
 				if args.Cluster != p.cluster {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
 					p.logClientError("GetConfig2", err, rpc.PacketHeaderCircularBuffer{})
@@ -631,9 +630,9 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 
 						config := p.config2
 						config.Addresses = config.Addresses[:min(argv.LegacyAddrLimit, len(config.Addresses))]
-						req.Response, _ = args.WriteResult(req.Response[:0], config)
+						req.Response, _ = args.WriteResultTL1(req.Response[:0], config)
 					} else {
-						req.Response, _ = args.WriteResult(req.Response[:0], p.config2)
+						req.Response, _ = args.WriteResultTL1(req.Response[:0], p.config2)
 					}
 					autoConfigStatus = format.TagValueIDAutoConfigOK
 				}
@@ -643,10 +642,10 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 				p.logClientError("write", err, rpc.PacketHeaderCircularBuffer{})
 				// not an error ("requestLoop" exits on request read-write errors only)
 			}
-		case constants.StatshouseGetConfig3:
+		case tlstatshouse.GetConfig3{}.TLTag():
 			var autoConfigStatus int32
 			var args tlstatshouse.GetConfig3
-			if _, err = args.ReadBoxed(req.Request); err == nil {
+			if _, err = args.ReadTL1Boxed(req.Request); err == nil {
 				if args.Cluster != p.cluster {
 					err = fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, p.cluster)
 					p.logClientError("GetConfig3", err, rpc.PacketHeaderCircularBuffer{})
@@ -663,7 +662,7 @@ func (req *proxyRequest) process(p *proxyConn) (res rpc.ForwardPacketsResult) {
 					} else {
 						config.AgentIp = p.clientAddr
 						config.SetIngressProxy(true)
-						req.Response, _ = args.WriteResult(req.Response[:0], config)
+						req.Response, _ = args.WriteResultTL1(req.Response[:0], config)
 						autoConfigStatus = format.TagValueIDAutoConfigOK
 					}
 				}

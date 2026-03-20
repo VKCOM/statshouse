@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 const (
@@ -265,7 +266,7 @@ func (pc *PacketConn) ReadPacketHeaderUnlocked(header *packetHeader, timeout tim
 			}
 			return nil, true, "sendPing", nil // send builtin ping
 		}
-		if header.tip == PacketTypeRPCPing {
+		if header.tip == (tl.RpcPing{}).TLTag() {
 			if header.length != packetOverhead+8 {
 				return nil, false, "", &tagError{
 					tag: "out_of_range_packet_size",
@@ -281,7 +282,7 @@ func (pc *PacketConn) ReadPacketHeaderUnlocked(header *packetHeader, timeout tim
 			}
 			return nil, true, "sendPong", nil // send builtin pong
 		}
-		if header.tip == PacketTypeRPCPong {
+		if header.tip == (tl.RpcPong{}).TLTag() {
 			if header.length != packetOverhead+8 {
 				return nil, false, "", fmt.Errorf("pong packet has wrong length %d", header.length)
 			}

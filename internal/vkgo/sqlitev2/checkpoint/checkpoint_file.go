@@ -127,14 +127,14 @@ func (f *RestartFile) GetSnapshotMetaCopy() []byte {
 }
 
 func encode(metainfo tlsqlite.MetainfoBytes, buffer []byte) []byte {
-	buffer = metainfo.WriteBoxed(buffer)
+	buffer = metainfo.WriteTL1Boxed(buffer)
 	hash := xxh3.Hash(buffer)
 	buffer = binary.BigEndian.AppendUint64(buffer, hash)
 	return buffer
 }
 
 func decode(data []byte) (metainfo tlsqlite.MetainfoBytes, err error) {
-	tail, err := metainfo.ReadBoxed(data)
+	tail, err := metainfo.ReadTL1Boxed(data)
 	if err != nil {
 		return metainfo, fmt.Errorf("failed to decode checkpoint file: %w", err)
 	}

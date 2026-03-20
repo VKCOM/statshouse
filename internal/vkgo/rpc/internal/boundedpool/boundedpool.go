@@ -45,10 +45,14 @@ func (t *T) Get() (any, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	for !(t.closed || len(t.free) > 0 || t.created < t.create) {
+	if !(t.closed || len(t.free) > 0 || t.created < t.create) {
 		if t.beforeWait != nil {
+			t.mu.Unlock()
 			t.beforeWait()
+			t.mu.Lock()
 		}
+	}
+	for !(t.closed || len(t.free) > 0 || t.created < t.create) {
 		t.cond.Wait()
 	}
 

@@ -12,12 +12,11 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"unsafe"
 
 	"github.com/dchest/siphash"
 	"github.com/dgryski/go-maglev"
 	"pgregory.net/rand"
-
-	"github.com/VKCOM/statshouse/internal/vkgo/mem"
 )
 
 // TODO: weighted balancing
@@ -322,7 +321,11 @@ func HashSlice(key []byte) uint64 {
 }
 
 func HashString(key string) uint64 {
-	return mem.SipHash24(k0, k1, key)
+	return siphash.Hash(k0, k1, toByteSlice(key))
+}
+
+func toByteSlice(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
 func hashInt(key uint64) uint64 {

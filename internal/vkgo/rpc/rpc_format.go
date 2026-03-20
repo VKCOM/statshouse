@@ -27,24 +27,24 @@ func preparePacket(req *Request) error {
 	headerBuf := req.Body // move to local var, then back for speed
 	req.extraStart = len(headerBuf)
 	reqHeader := tl.RpcInvokeReqHeader{QueryId: req.queryID}
-	headerBuf = reqHeader.Write(headerBuf)
+	headerBuf = reqHeader.WriteTL1(headerBuf)
 	switch {
 	case req.ActorID != 0 && req.Extra.Flags != 0:
 		// extra := tl.RpcDestActorFlags{ActorId: req.ActorID, Extra: req.Extra}
-		// headerBuf = extra.WriteBoxed(headerBuf)
+		// headerBuf = extra.WriteTL1Boxed(headerBuf)
 		// we optimize copy of large extra here by writing code above manually
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestActorFlags{}.TLTag())
 		headerBuf = basictl.LongWrite(headerBuf, req.ActorID)
-		headerBuf = req.Extra.Write(headerBuf)
+		headerBuf = req.Extra.WriteTL1(headerBuf)
 	case req.Extra.Flags != 0:
 		// extra := tl.RpcDestFlags{Extra: req.Extra}
-		// headerBuf = extra.WriteBoxed(headerBuf)
+		// headerBuf = extra.WriteTL1Boxed(headerBuf)
 		// we optimize copy of large extra here by writing code above manually
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcDestFlags{}.TLTag())
-		headerBuf = req.Extra.Write(headerBuf)
+		headerBuf = req.Extra.WriteTL1(headerBuf)
 	case req.ActorID != 0:
 		extra := tl.RpcDestActor{ActorId: req.ActorID}
-		headerBuf = extra.WriteBoxed(headerBuf)
+		headerBuf = extra.WriteTL1Boxed(headerBuf)
 	}
 	if req.BodyFormatTL2 {
 		headerBuf = basictl.NatWrite(headerBuf, tl.RpcTL2Marker{}.TLTag())
@@ -59,7 +59,7 @@ func preparePacket(req *Request) error {
 // This method is temporarily public, do not use directly
 func (hctx *HandlerContext) ParseInvokeReq(opts *ServerOptions) (err error) {
 	var reqHeader tl.RpcInvokeReqHeader
-	if hctx.Request, err = reqHeader.Read(hctx.Request); err != nil {
+	if hctx.Request, err = reqHeader.ReadTL1(hctx.Request); err != nil {
 		return fmt.Errorf("failed to read request query ID: %w", err)
 	}
 	hctx.queryID = reqHeader.QueryId
@@ -81,7 +81,7 @@ loop:
 				tl2MarkerNotLast = true
 			}
 			var extra tl.RpcDestActor
-			if hctx.Request, err = extra.Read(afterTag); err != nil {
+			if hctx.Request, err = extra.ReadTL1(afterTag); err != nil {
 				return fmt.Errorf("failed to read rpcDestActor: %w", err)
 			}
 			hctx.actorID = extra.ActorId
@@ -93,7 +93,7 @@ loop:
 			// var extra tl.RpcDestFlags
 			// if hctx.Request, err = extra.Read(afterTag); err != nil {
 			// here we optimize copy of large extra
-			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+			if hctx.Request, err = hctx.RequestExtra.ReadTL1(afterTag); err != nil {
 				return fmt.Errorf("failed to read request rpcDestFlags: %w", err)
 			}
 			extraSet++
@@ -107,7 +107,7 @@ loop:
 			if afterTag, err = basictl.LongRead(afterTag, &hctx.actorID); err != nil {
 				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
 			}
-			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+			if hctx.Request, err = hctx.RequestExtra.ReadTL1(afterTag); err != nil {
 				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
 			}
 			actorIDSet++
@@ -184,21 +184,21 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		//	ErrorCode: respErr.Code,
 		//	Error:     respErr.Description,
 		// }
-		resp = ret.WriteBoxed(resp)
+		resp = ret.WriteTL1Boxed(resp)
 	}
 	if hctx.noResult { // We do not care what is in Response, might be any trash
 		return nil
 	}
 	hctx.extraStart = len(resp)
 	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}
-	resp = rest.Write(resp)
+	resp = rest.WriteTL1(resp)
 	hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
 	if hctx.ResponseExtra.Flags != 0 {
 		// extra := tl.ReqResultHeader{Extra: hctx.ResponseExtra}
-		// resp = extra.WriteBoxed(resp)
+		// resp = extra.WriteTL1Boxed(resp)
 		// we optimize copy of large extra here by writing code above manually
 		resp = basictl.NatWrite(resp, tl.ReqResultHeader{}.TLTag())
-		resp = hctx.ResponseExtra.Write(resp)
+		resp = hctx.ResponseExtra.WriteTL1(resp)
 	}
 	if err == nil && hctx.bodyFormatTL2 {
 		// we must use TL2 marker in response, otherwise first 4 bytes of TL2 body
@@ -220,7 +220,7 @@ func parseResponseExtra(bodyFormatTL2 bool, extra *ResponseExtra, respBody []byt
 		if (tag != tl.ReqResultHeader{}.TLTag()) {
 			break
 		}
-		if respBody, err = extra.Read(afterTag); err != nil {
+		if respBody, err = extra.ReadTL1(afterTag); err != nil {
 			return respBody, err
 		}
 		extraSet++
@@ -232,19 +232,19 @@ func parseResponseExtra(bodyFormatTL2 bool, extra *ResponseExtra, respBody []byt
 	switch tag {
 	case tl.ReqError{}.TLTag():
 		var rpcErr tl.ReqError
-		if respBody, err = rpcErr.Read(afterTag); err != nil {
+		if respBody, err = rpcErr.ReadTL1(afterTag); err != nil {
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultError{}.TLTag(): // old style, should not be sent by modern servers
 		var rpcErr tl.RpcReqResultError // ignore query ID
-		if respBody, err = rpcErr.Read(afterTag); err != nil {
+		if respBody, err = rpcErr.ReadTL1(afterTag); err != nil {
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}
 	case tl.RpcReqResultErrorWrapped{}.TLTag(): // old style, should not be sent by modern servers
 		var rpcErr tl.RpcReqResultErrorWrapped
-		if respBody, err = rpcErr.Read(afterTag); err != nil {
+		if respBody, err = rpcErr.ReadTL1(afterTag); err != nil {
 			return respBody, err
 		}
 		return respBody, &Error{Code: rpcErr.ErrorCode, Description: rpcErr.Error}

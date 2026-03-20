@@ -49,9 +49,9 @@ func newLongpollTree() *longpollTree {
 func (lt *longpollTree) AddLongpoll(lh LongpollHandle, deadline int64) {
 	lti := longpollTreeItem{lh: lh, deadline: deadline}
 	lt.mu.Lock()
+	defer lt.mu.Unlock()
 	oldMin, exists := lt.timeouts.Min()
 	lt.timeouts.ReplaceOrInsert(lti)
-	lt.mu.Unlock()
 
 	if exists && oldMin.deadline <= lti.deadline {
 		// Don't need to send an update, anyway already waiting
@@ -115,7 +115,9 @@ func (lt *longpollTree) LongpollCheckLoop(ctx context.Context) {
 		minLp, exists := lt.timeouts.Min()
 		lt.mu.Unlock()
 
-		// Send responses to all expired longpolls
+		// Send responses to all expired longpolls, without holding locks
+		// if longpoll is already called and removed from connection,
+		// this call will be NOP
 		for _, lh := range expired {
 			lh.CommonConn.SendEmptyResponse(lh)
 		}

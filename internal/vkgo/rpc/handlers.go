@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
@@ -200,27 +199,27 @@ func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
 		log.Printf("udp ping recieved")
 	}
 	req := tlengine.Pid{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	if s.engineShutdown.Load() {
 		return errGracefulShutdown
 	}
 	pid := prepareHandshakePIDServer(hctx.LocalAddr(), s.startTime)
-	hctx.Response, err = req.WriteResult(hctx.Response, pid)
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, pid)
 	return err
 }
 
 func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 	req := tlengine.Stat{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	stats := s.CollectStats(hctx.LocalAddr())
 	keys := sortedStatKeys(stats)
 	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
 
-	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
+	hctx.Response = basictl.NatWrite(hctx.Response, tl.Stat{}.TLTag())
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
 		hctx.Response = basictl.StringWrite(hctx.Response, k)
@@ -231,7 +230,7 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 
 func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 	req := tlengine.FilteredStat{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	stats := s.CollectStats(hctx.LocalAddr())
@@ -239,7 +238,7 @@ func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 	keys := sortedStatKeys(stats)
 	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
 
-	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
+	hctx.Response = basictl.NatWrite(hctx.Response, tl.Stat{}.TLTag())
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
 		hctx.Response = basictl.StringWrite(hctx.Response, k)
@@ -251,16 +250,16 @@ func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 
 func (s *Server) handleEngineVersion(hctx *HandlerContext) (err error) {
 	req := tlengine.Version{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
-	hctx.Response, err = req.WriteResult(hctx.Response, s.opts.Version)
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, s.opts.Version)
 	return err
 }
 
 func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 	req := tlengine.SetVerbosity{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	if s.opts.VerbosityHandler == nil {
@@ -269,7 +268,7 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 	if err = s.opts.VerbosityHandler(int(req.Verbosity)); err != nil {
 		return err
 	}
-	hctx.Response, err = req.WriteResult(hctx.Response, tl.True{})
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, tl.True{})
 	return err
 }
 
@@ -299,31 +298,31 @@ func handleEngineSleep(ctx context.Context, hctx *HandlerContext, timeMs int32) 
 
 func (s *Server) handleEngineSleep(ctx context.Context, hctx *HandlerContext) (err error) {
 	req := tlengine.Sleep{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	if err := handleEngineSleep(ctx, hctx, req.TimeMs); err != nil {
 		return err
 	}
-	hctx.Response, err = req.WriteResult(hctx.Response, true)
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, true)
 	return err
 }
 
 func (s *Server) handleEngineAsyncSleep(ctx context.Context, hctx *HandlerContext) (err error) {
 	req := tlengine.AsyncSleep{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	if err := handleEngineSleep(ctx, hctx, req.TimeMs); err != nil {
 		return err
 	}
-	hctx.Response, err = req.WriteResult(hctx.Response, true)
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, true)
 	return err
 }
 
 func (s *Server) handleNetDumpUdpTargets(ctx context.Context, hctx *HandlerContext) (err error) {
 	/*req := tlnet.DumpUdpTargets{}
-	if _, err = req.ReadBoxed(hctx.Request); err != nil {
+	if _, err = req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}*/
 	s.mu.Lock()
@@ -409,7 +408,7 @@ func marshalMemcachedStats(stats map[string]string) []byte {
 
 func (s *Server) handleGoPProf(hctx *HandlerContext) (err error) {
 	req := tlgo.Pprof{}
-	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+	if _, err := req.ReadTL1Boxed(hctx.Request); err != nil {
 		return err
 	}
 	u, err := url.Parse(req.Params)
@@ -439,6 +438,6 @@ func (s *Server) handleGoPProf(hctx *HandlerContext) (err error) {
 	if err != nil {
 		return err
 	}
-	hctx.Response, err = req.WriteResult(hctx.Response, buf.String())
+	hctx.Response, err = req.WriteResultTL1(hctx.Response, buf.String())
 	return err
 }

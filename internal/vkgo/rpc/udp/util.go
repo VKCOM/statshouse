@@ -28,8 +28,8 @@ func CalcHash(localPid tlnet.Pid, remotePid tlnet.Pid, generation uint32) uint64
 	var byteLocalPid []byte
 	var byteRemotePid []byte
 
-	byteLocalPid = localPid.Write(byteLocalPid)
-	byteRemotePid = remotePid.Write(byteRemotePid)
+	byteLocalPid = localPid.WriteTL1(byteLocalPid)
+	byteRemotePid = remotePid.WriteTL1(byteRemotePid)
 
 	if bytes.Compare(byteLocalPid, byteRemotePid) < 0 {
 		//fmt.Println("Smallest: ", localPid)

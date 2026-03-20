@@ -18,7 +18,7 @@ const levCrcSize = 20
 const levRotateSize = 36
 
 func readLevStart(lev *tlfsbinlog.LevStart, data []byte) (int, error) {
-	newData, err := lev.ReadBoxed(data)
+	newData, err := lev.ReadTL1Boxed(data)
 	return len(data) - len(newData), err
 }
 
