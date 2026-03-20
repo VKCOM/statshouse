@@ -7,7 +7,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/env"
 	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/metricshandler"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type RPCServerMetrics struct {

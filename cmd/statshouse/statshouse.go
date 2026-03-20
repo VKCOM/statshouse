@@ -36,9 +36,9 @@ import (
 	"github.com/VKCOM/statshouse/internal/trustedsubnets"
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const defaultPathToPwd = `/etc/engine/pass`

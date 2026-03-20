@@ -32,8 +32,8 @@ import (
 	"github.com/VKCOM/statshouse/internal/metarqlite"
 	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
+	"github.com/VKCOM/tl/pkg/rpc"
 	"github.com/zeebo/xxh3"
 
 	"pgregory.net/rand"
