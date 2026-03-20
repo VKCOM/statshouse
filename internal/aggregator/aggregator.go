@@ -301,7 +301,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		rpc.ServerWithMaxWorkers(-1),
 		rpc.ServerWithSyncHandler(a.handleClient),
 		rpc.ServerWithDisableContextTimeout(true),
-		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithTrustedSubnetGroups(trustedSubnetGroups),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(0), // explicit infinite timeout
 		rpc.ServerWithResponseBufSize(1024),
