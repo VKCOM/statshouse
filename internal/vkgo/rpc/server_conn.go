@@ -78,32 +78,21 @@ func (sc *serverConnCommon) AccountResponseMem(hctx *HandlerContext, respBodySiz
 
 func (sc *serverConnCommon) makeLongpollResponse(lh LongpollHandle, resp longpollHctx) error {
 	sc.mu.Lock()
+	defer sc.mu.Unlock()
 	if sc.connectionStatus >= serverStatusShutdown { // we must not start longpolls in this state
-		sc.mu.Unlock()
 		return errGracefulShutdown
 	}
 	if _, ok := sc.longpolls[lh.QueryID]; ok {
-		sc.mu.Unlock()
 		sc.server.rareLog(&sc.server.lastLongpollWarningLog, "rpc: %s invariant violation, longpoll response queryID %d collision", sc.debugName, lh.QueryID)
 		return errLongpollQueryIDCollision
 	}
 	sc.longpolls[lh.QueryID] = resp
-	sc.mu.Unlock()
 
 	sc.server.protocolStats[resp.protocolTransportID].longPollsWaiting.Add(1)
 
-	// It is important to perform AddLongpoll without holding sc.mu.
-	// Although this leads to inconsistency between sc.longpolls
-	// and longpollTree, it avoids a deadlock. The deadlock scenario is as
-	// follows: makeLongpollResponse calls AddLongpoll, but
-	// longpollTree.updatesCh is full. This causes makeLongpollResponse
-	// to block on write to updatesCh.
-	// Meanwhile, the check loop is trying to lock sc.mu in SendEmptyResponse.
-	// This inconsistency is not a problem because SendEmptyRequests
-	// ignores longpolls that have already been answered or canceled.
 	// Zero means infinite timeout, useful for tcp
 	if resp.deadline != 0 {
-		sc.server.longpollTree.AddLongpoll(lh, resp.deadline)
+		sc.server.longpollTree.AddLongpoll(lh, resp.deadline) // under connection lock
 	}
 	if sc.server.opts.DebugRPC {
 		sc.server.opts.Logf("rpc_debug: %s StartLongpoll queryID=%d, timeout=%v, deadline=%v", sc.debugName, lh.QueryID, resp.timeout, resp.deadline)
@@ -111,17 +100,20 @@ func (sc *serverConnCommon) makeLongpollResponse(lh LongpollHandle, resp longpol
 	return nil
 }
 
-func (sc *serverConnCommon) finishLongpoll(queryID int64, protocol int) (longpollHctx, error) {
+func (sc *serverConnCommon) finishLongpoll(lh LongpollHandle, protocol int) longpollHctx {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	if resp, exist := sc.longpolls[queryID]; exist {
+	if resp, exist := sc.longpolls[lh.QueryID]; exist {
 		// Race is over, user's handler wins
-		delete(sc.longpolls, queryID)
+		delete(sc.longpolls, lh.QueryID)
 		sc.server.protocolStats[protocolTCP].longPollsWaiting.Add(-1)
-		return resp, nil
+		if resp.deadline != 0 {
+			sc.server.longpollTree.DeleteLongpoll(lh, resp.deadline) // under connection lock
+		}
+		return resp
 	}
 	if sc.server.opts.DebugRPC {
-		sc.server.opts.Logf("rpc_debug: %s FinishLongpoll already cancelled queryID=%d", sc.debugName, queryID)
+		sc.server.opts.Logf("rpc_debug: %s FinishLongpoll already cancelled queryID=%d", sc.debugName, lh.QueryID)
 	}
-	return longpollHctx{}, errAlreadyCanceled
+	return longpollHctx{}
 }

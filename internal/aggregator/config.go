@@ -277,7 +277,7 @@ func (c *ConfigChangeNotifier) notifyConfigChange(connectedTo string, cc tlstats
 			cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
 			cc.ConnectedTo = connectedTo
 			var err error
-			hctx.Response, err = args.WriteResult(hctx.Response, cc)
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, cc)
 			hctx.SendLongpollResponse(err)
 		}
 	}

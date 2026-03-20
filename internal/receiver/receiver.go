@@ -181,7 +181,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 		for len(pkt) > 0 {
 			var err error
 			was := pkt
-			pkt, err = batch.ReadBoxed(pkt)
+			pkt, err = batch.ReadTL1Boxed(pkt)
 			if !u.handleMetricsBatch(h, ingestionError, batch, was, err, scratch) {
 				setValueSize(u.batchSizeTLErr, len(was))
 				setValueSize(u.packetSizeTLErr, pktLen)

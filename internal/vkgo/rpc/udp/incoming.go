@@ -79,7 +79,7 @@ func (c *IncomingConnection) handleUdpMsgIfAny(t *Transport, data []byte, resend
 			return true
 		case tlnetUdpPacket.ObsoleteHash{}.TLTag():
 			arg := tlnetUdpPacket.ObsoleteHash{}
-			_, err = arg.ReadBoxed(data)
+			_, err = arg.ReadTL1Boxed(data)
 			if err != nil {
 				log.Printf("incorrect obsolete hash message: %+v", err)
 				return true
@@ -96,7 +96,7 @@ func (c *IncomingConnection) handleUdpMsgIfAny(t *Transport, data []byte, resend
 				log.Printf("ResendRequest received as reliable message!")
 				return true
 			}
-			_, err = resendReq.ReadBoxed(data)
+			_, err = resendReq.ReadTL1Boxed(data)
 			if err != nil {
 				log.Printf("incorrect resend request: %+v", err)
 			}

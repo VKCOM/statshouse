@@ -114,9 +114,9 @@ func (h *rpcRequestHandler) init(accessToken string) (err error) {
 	return h.requestHandler.init(accessToken, sourceJWTNotSet)
 }
 
-func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouseApi.GetQueryPoint) (tlstatshouseApi.GetQueryPointResponse, error) {
+func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouseApi.GetQueryPoint) (tlstatshouseApi.QueryPointResponse, error) {
 	if err := h.init(args.AccessToken); err != nil {
-		return tlstatshouseApi.GetQueryPointResponse{}, err
+		return tlstatshouseApi.QueryPointResponse{}, err
 	}
 	qry := seriesRequestRPC{
 		filter:      args.Query.Filter,
@@ -132,16 +132,16 @@ func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouse
 	}
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
-		return tlstatshouseApi.GetQueryPointResponse{}, err
+		return tlstatshouseApi.QueryPointResponse{}, err
 	}
 	sr, cancel, err := h.handleSeriesRequest(ctx, req, seriesRequestOptions{mode: data_model.PointQuery})
 	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 	if err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
-		return tlstatshouseApi.GetQueryPointResponse{}, err
+		return tlstatshouseApi.QueryPointResponse{}, err
 	}
 	defer cancel()
-	res := tlstatshouseApi.GetQueryPointResponse{}
+	res := tlstatshouseApi.QueryPointResponse{}
 	for i, d := range sr.Series.Data {
 		if len(sr.Time) < 2 {
 			continue
@@ -166,9 +166,9 @@ func (h *rpcRequestHandler) getQueryPoint(ctx context.Context, args tlstatshouse
 	return res, nil
 }
 
-func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
+func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.QueryResponse, error) {
 	if err := h.init(args.AccessToken); err != nil {
-		return tlstatshouseApi.GetQueryResponse{}, err
+		return tlstatshouseApi.QueryResponse{}, err
 	}
 	qry := seriesRequestRPC{
 		filter:      args.Query.Filter,
@@ -187,16 +187,16 @@ func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.G
 	}
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
-		return tlstatshouseApi.GetQueryResponse{}, err
+		return tlstatshouseApi.QueryResponse{}, err
 	}
 	srs, cancel, err := h.handleSeriesRequestS(ctx, req, make([]seriesResponse, 1))
 	h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 	if err != nil {
-		return tlstatshouseApi.GetQueryResponse{}, err
+		return tlstatshouseApi.QueryResponse{}, err
 	}
 	defer cancel()
 	sr := h.buildSeriesResponse(srs...)
-	res := tlstatshouseApi.GetQueryResponse{
+	res := tlstatshouseApi.QueryResponse{
 		TotalTimePoints: int32(len(sr.Series.Time)),
 		SeriesMeta:      make([]tlstatshouseApi.SeriesMeta, 0, len(sr.Series.SeriesMeta)),
 	}
@@ -229,7 +229,7 @@ func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.G
 			res.Series.SeriesData = append(res.Series.SeriesData, *FloatSlicePtrToNative(data))
 		}
 	} else if chunkMaxSize < metaSize {
-		return tlstatshouseApi.GetQueryResponse{}, &rpc.Error{
+		return tlstatshouseApi.QueryResponse{}, &rpc.Error{
 			Code:        rpcErrorCodeChunkStorageFailed,
 			Description: fmt.Sprintf("response metadata size %d out of range", metaSize),
 		}
@@ -238,7 +238,7 @@ func (h *rpcRequestHandler) getQuery(ctx context.Context, args tlstatshouseApi.G
 		res.Series = chunks[0] // return first chunk immediately
 		rid := int64(rand.Uint64())
 		if err = h.brs.Set(ctx, rid, h.accessInfo.user, chunks[1:], bigResponseTTL); err != nil {
-			return tlstatshouseApi.GetQueryResponse{}, &rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
+			return tlstatshouseApi.QueryResponse{}, &rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
 		}
 		res.ResponseId = rid
 		res.ChunkIds = make([]int32, 0, len(chunks)-1)
@@ -265,29 +265,29 @@ type seriesRequestRPC struct {
 	whatFlagSet bool
 }
 
-func (h *rpcRequestHandler) getChunk(ctx context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.GetChunkResponse, error) {
+func (h *rpcRequestHandler) getChunk(ctx context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.ChunkResponse, error) {
 	if err := h.init(args.AccessToken); err != nil {
 		err = &rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
-		return tlstatshouseApi.GetChunkResponse{}, err
+		return tlstatshouseApi.ChunkResponse{}, err
 	}
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
 		err := &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return tlstatshouseApi.GetChunkResponse{}, err
+		return tlstatshouseApi.ChunkResponse{}, err
 	}
 	if br.owner != h.accessInfo.user {
 		err := &rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return tlstatshouseApi.GetChunkResponse{}, err
+		return tlstatshouseApi.ChunkResponse{}, err
 	}
 	if int(args.ChunkId) > len(br.chunks)-1 {
 		err := &rpc.Error{Code: rpcErrorCodeBadChunkID, Description: fmt.Sprintf("got id %q, there are only %d chunks", args.ResponseId, len(br.chunks))}
 		h.endpointStat.report(rpcCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
-		return tlstatshouseApi.GetChunkResponse{}, err
+		return tlstatshouseApi.ChunkResponse{}, err
 	}
 	h.endpointStat.report(0, format.BuiltinMetricMetaAPIServiceTime.Name)
-	res := tlstatshouseApi.GetChunkResponse{
+	res := tlstatshouseApi.ChunkResponse{
 		Series: br.chunks[int(args.ChunkId)],
 		Index:  args.ChunkId,
 	}

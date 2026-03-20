@@ -468,7 +468,7 @@ loop:
 		case constants.FsbinlogLevUpgradeToGms:
 			var lev tlfsbinlog.LevUpgradeToGms
 			var leftover []byte
-			leftover, processErr = lev.ReadBoxed(buff)
+			leftover, processErr = lev.ReadTL1Boxed(buff)
 			readBytes = len(buff) - len(leftover)
 			if processErr == nil {
 				processErr = ErrUpgradeToBarsicLev
@@ -591,7 +591,7 @@ func readBinlogHeader(header *FileHeader, buff []byte, expectedMagic uint32) err
 	switch levType {
 	case constants.FsbinlogLevStart:
 		var lev tlfsbinlog.LevStart
-		if _, err := lev.ReadBoxed(buff); err != nil {
+		if _, err := lev.ReadTL1Boxed(buff); err != nil {
 			return err
 		}
 		if expectedMagic != 0 && expectedMagic != uint32(lev.SchemaId) {

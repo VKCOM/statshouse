@@ -231,7 +231,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 			return nil, fmt.Errorf("failed to load mapping bootstrap: %v", err)
 		}
 		// ok, empty bootstrap is good for us for running locally
-		tagMappingBootstrapResponse, _ = (&tlmetadata.GetTagMappingBootstrap{}).WriteResult(nil, tlstatshouse.GetTagMappingBootstrapResult{})
+		tagMappingBootstrapResponse, _ = (&tlmetadata.GetTagMappingBootstrap{}).WriteResultTL1(nil, tlstatshouse.GetTagMappingBootstrapResult{})
 	}
 
 	cancelInsertCtx, cancelInsertFunc := context.WithCancel(context.Background())
@@ -521,7 +521,7 @@ func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client, rq
 				h.Lo != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset+8:]) {
 				return nil, fmt.Errorf("failed to parse boostrap cache: wrong hash")
 			}
-			_, err = args.ReadResult(cacheData, &ret)
+			_, err = args.ReadResultTL1(cacheData, &ret)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse boostrap cache: %w", err)
 			}
@@ -529,7 +529,7 @@ func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client, rq
 			return cacheData, nil // from cache
 		}
 	}
-	cacheData, err := args.WriteResult(nil, ret)
+	cacheData, err := args.WriteResultTL1(nil, ret)
 	if err != nil {
 		log.Printf("failed to serialize bootstrap of %d mappings", len(ret.Mappings))
 	}
@@ -805,7 +805,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				for lh := range b.contributors {
 					var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
 					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-						hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
+						hctx.Response, _ = ssb2.WriteResultTL1(hctx.Response, "Successfully discarded historic bucket with timestamp before historic window")
 						hctx.SendLongpollResponse(nil)
 					}
 				}
@@ -814,7 +814,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					resp.Warning = "Successfully discarded historic bucket with timestamp before historic window"
 					resp.SetDiscard(true)
 					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-						hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+						hctx.Response, _ = ssb3.WriteResultTL1(hctx.Response, resp)
 						hctx.SendLongpollResponse(nil)
 					}
 				}
@@ -892,7 +892,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			for lh := range b.contributors {
 				var ssb2 tlstatshouse.SendKeepAlive2 // Dummy
 				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-					hctx.Response, _ = ssb2.WriteResult(hctx.Response, "Dummy historic result")
+					hctx.Response, _ = ssb2.WriteResultTL1(hctx.Response, "Dummy historic result")
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
@@ -903,7 +903,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 				}
 				resp.SetDiscard(sendErr == nil)
 				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-					hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+					hctx.Response, _ = ssb3.WriteResultTL1(hctx.Response, resp)
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
@@ -1085,7 +1085,7 @@ func (a *Aggregator) goTicker() {
 					var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 					if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 						resp.Warning = err.Error()
-						hctx.Response, _ = ssb3.WriteResult(hctx.Response, resp)
+						hctx.Response, _ = ssb3.WriteResultTL1(hctx.Response, resp)
 						hctx.SendLongpollResponse(nil)
 					}
 				}

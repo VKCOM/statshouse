@@ -18,7 +18,7 @@ import (
 func TestValidateMetric(t *testing.T) {
 	m := tlstatshouse.MetricBytes{
 		Name: []byte("metric"),
-		Tags: []tl.DictionaryFieldStringBytes{{Key: []byte("key0"), Value: []byte("v0")}, {Key: []byte("key3"), Value: []byte("v3")}},
+		Tags: []tl.DictFieldStringStringBytes{{Key: []byte("key0"), Value: []byte("v0")}, {Key: []byte("key3"), Value: []byte("v3")}},
 	}
 	require.Equal(t, len(m.Tags), 2)
 	require.Equal(t, string(m.Tags[0].Key), "key0")

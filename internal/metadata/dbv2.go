@@ -488,13 +488,13 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
 			}
-			cache = metadataCreatMetricEvent.WriteBoxed(cache)
+			cache = metadataCreatMetricEvent.WriteTL1Boxed(cache)
 		} else {
 			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
-			cache = metadataEditMetricEvent.WriteBoxed(cache)
+			cache = metadataEditMetricEvent.WriteTL1Boxed(cache)
 		}
 		if err != nil {
 			return cache, fmt.Errorf("can't encode binlog event: %w", err)
@@ -655,7 +655,7 @@ func (db *DBV2) GetBootstrap(ctx context.Context) (tlstatshouse.GetTagMappingBoo
 			if err != nil {
 				return cache, err
 			}
-			_, err = res.Read(resBytes)
+			_, err = res.ReadTL1(resBytes)
 			if err != nil {
 				return cache, err
 			}
@@ -789,13 +789,13 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
 			}
-			cache = metadataCreatMetricEvent.WriteBoxed(cache)
+			cache = metadataCreatMetricEvent.WriteTL1Boxed(cache)
 		} else {
 			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
-			cache = metadataEditMetricEvent.WriteBoxed(cache)
+			cache = metadataEditMetricEvent.WriteTL1Boxed(cache)
 		}
 		return cache, nil
 	})

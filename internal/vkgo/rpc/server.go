@@ -20,8 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/udp"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
@@ -69,7 +70,6 @@ var (
 	errLongpollQueryIDCollision = &Error{Code: tlerrorcodes.Internal, Description: "rpc: client invariant violation, longpoll queryID repeated"}
 	errTooLarge                 = &Error{Code: tlerrorcodes.ResultToLarge, Description: fmt.Sprintf("rpc: packet size (metadata+extra+response) exceeds %v bytes", maxPacketLen)}
 	errGracefulShutdown         = &Error{Code: tlerrorcodes.GracefulShutdown, Description: "rpc: server is shutting down"}
-	errAlreadyCanceled          = fmt.Errorf("longpoll already have been canceled") // not sent, only written to log
 	ErrLongpollNoEmptyResponse  = &Error{Code: tlerrorcodes.Timeout, Description: "empty longpoll response not implemented by server"}
 
 	statCPUInfo = srvfunc.MakeCPUInfo() // TODO - remove global
@@ -223,7 +223,8 @@ type Server struct {
 	listeners    []net.Listener // will close after
 	connsTCP     map[*serverConnTCP]struct{}
 
-	// Longpoll timeouts have to be stored in the server, not in the connection struct
+	// Longpoll timeouts have to be stored in the server, not in the connection struct.
+	// longpollTree is accessed under serverConn's lock
 	longpollTree *longpollTree
 
 	transportsUDP []*udp.Transport // many transportsUDP, one per listen address
@@ -897,7 +898,7 @@ func (s *Server) handleRequest(ctx context.Context, reqHeaderTip uint32, hctx *H
 }
 
 func (s *Server) cancelLongpoll(sc HandlerContextConnection, queryID int64) {
-	canceller, deadline := sc.CancelLongpoll(queryID)
+	canceller, _ := sc.CancelLongpoll(queryID)
 	if canceller == nil { // already cancelled or sent
 		if s.opts.DebugRPC {
 			s.opts.Logf("rpc_debug: %s longpoll cancel (NOP) queryID=%d\n", sc.DebugName(), queryID)
@@ -908,9 +909,6 @@ func (s *Server) cancelLongpoll(sc HandlerContextConnection, queryID int64) {
 		s.opts.Logf("rpc_debug: %s longpoll cancel queryID=%d\n", sc.DebugName(), queryID)
 	}
 	lh := LongpollHandle{QueryID: queryID, CommonConn: sc}
-	if deadline != 0 {
-		s.longpollTree.DeleteLongpoll(lh, deadline)
-	}
 	canceller.CancelLongpoll(lh)
 	// if sc.server.opts.ResponseHook != nil {
 	// 	sc.server.opts.ResponseHook(resp.lctx, errCancelHijack) // TODO: что тут делать в случае с лонгполлом?
@@ -921,7 +919,7 @@ func (s *Server) doSyncHandler(ctx context.Context, reqHeaderTip uint32, hctx *H
 	switch reqHeaderTip {
 	case tl.RpcCancelReq{}.TLTag():
 		cancelReq := tl.RpcCancelReq{}
-		if _, err := cancelReq.Read(hctx.Request); err != nil {
+		if _, err := cancelReq.ReadTL1(hctx.Request); err != nil {
 			return ctx, err
 		}
 		if s.opts.DebugRPC {
@@ -974,21 +972,21 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 
 func (s *Server) callHandlerNoRecover(ctx context.Context, hctx *HandlerContext) (err error) {
 	switch hctx.reqTag {
-	case constants.EnginePid:
+	case tlengine.Pid{}.TLTag():
 		return s.handleEnginePID(hctx)
-	case constants.EngineStat:
+	case tlengine.Stat{}.TLTag():
 		return s.handleEngineStat(hctx)
-	case constants.EngineFilteredStat:
+	case tlengine.FilteredStat{}.TLTag():
 		return s.handleEngineFilteredStat(hctx)
-	case constants.EngineVersion:
+	case tlengine.Version{}.TLTag():
 		return s.handleEngineVersion(hctx)
-	case constants.EngineSetVerbosity:
+	case tlengine.SetVerbosity{}.TLTag():
 		return s.handleEngineSetVerbosity(hctx)
-	case constants.EngineSleep:
+	case tlengine.Sleep{}.TLTag():
 		return s.handleEngineSleep(ctx, hctx)
-	case constants.EngineAsyncSleep:
+	case tlengine.AsyncSleep{}.TLTag():
 		return s.handleEngineAsyncSleep(ctx, hctx)
-	case constants.GoPprof:
+	case tlgo.Pprof{}.TLTag():
 		return s.handleGoPProf(hctx)
 	case 0xabcb5b38: // TODO why netDumpUdpTargets is missing in internal constants?
 		return s.handleNetDumpUdpTargets(ctx, hctx)

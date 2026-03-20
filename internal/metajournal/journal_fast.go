@@ -164,7 +164,7 @@ func (ms *JournalFast) loadImpl(loaderVersion *int64, lastEventVersion *int64) (
 		}
 		var entry tlmetadata.Event
 		for len(chunk) != 0 {
-			if chunk, err = entry.ReadBoxed(chunk); err != nil {
+			if chunk, err = entry.ReadTL1Boxed(chunk); err != nil {
 				return src, fmt.Errorf("error parsing journal entry: %v", err)
 			}
 			src = append(src, entry)
@@ -211,7 +211,7 @@ func (ms *JournalFast) save(storage *data_model.ChunkedStorage2, maxChunkSize in
 		if !ok {
 			panic(fmt.Sprintf("journal order violation - entry not found %s", order.key.key()))
 		}
-		chunk = event.WriteBoxed(chunk)
+		chunk = event.WriteTL1Boxed(chunk)
 		chunk, iteratorError = storage.FinishItem(chunk)
 		return iteratorError == nil // ok, save only elements that fit
 	})
@@ -316,7 +316,7 @@ func equalWithoutVersionJournalEvent(a, b tlmetadata.Event) bool {
 
 func hashWithoutVersionJournalEvent(scratch []byte, entry tlmetadata.Event) ([]byte, xxh3.Uint128) {
 	entry.Version = 0 // in accordance with code above
-	scratch = entry.Write(scratch[:0])
+	scratch = entry.WriteTL1(scratch[:0])
 	return scratch, xxh3.Hash128(scratch)
 }
 

@@ -53,26 +53,26 @@ func (sc *serverConnTCP) StartLongpoll(hctx *HandlerContext, canceller LongpollC
 	return lh, nil
 }
 
-func (sc *serverConnTCP) finishLongpoll2(lh LongpollHandle) (*HandlerContext, LongpollCanceller, error) {
-	resp, err := sc.finishLongpoll(lh.QueryID, protocolTCP)
-	if err != nil {
-		return nil, nil, err
-	}
-	if resp.deadline != 0 {
-		sc.server.longpollTree.DeleteLongpoll(lh, resp.deadline)
+// hctx==nil, canceller==nil - do nothing, response already sent
+// hctx!=nil, canceller!=nil - normal, call canceller.SendEmptyReponse
+// hctx==nil, canceller!=nil - server shutdown, call canceller.Cancel
+func (sc *serverConnTCP) finishLongpoll2(lh LongpollHandle) (*HandlerContext, LongpollCanceller) {
+	resp := sc.finishLongpoll(lh, protocolTCP)
+	if resp.canceller == nil {
+		return nil, nil
 	}
 	hctx := sc.acquireHandlerCtx()
 	hctx.queryID = lh.QueryID
 	hctx.commonConn = lh.CommonConn
 	hctx.handlerContextFields = resp.handlerContextFields
-	if err = sc.server.acquireHCtxResponse(sc.closeCtx, hctx); err != nil {
+	if err := sc.server.acquireHCtxResponse(sc.closeCtx, hctx); err != nil {
 		sc.releaseHandlerCtx(hctx)
 		if sc.server.opts.DebugRPC {
 			sc.server.opts.Logf("rpc_debug: %s FinishLongpoll connection closed queryID=%d", sc.debugName, lh.QueryID)
 		}
-		return nil, nil, err
+		return nil, resp.canceller
 	}
-	return hctx, resp.canceller, nil
+	return hctx, resp.canceller
 }
 
 func (sc *serverConnTCP) DebugName() string {
@@ -80,31 +80,36 @@ func (sc *serverConnTCP) DebugName() string {
 }
 
 func (sc *serverConnTCP) FinishLongpoll(lh LongpollHandle) (*HandlerContext, error) {
-	hctx, _, err := sc.finishLongpoll2(lh)
-	if err == nil {
-		if sc.server.opts.DebugRPC {
+	hctx, _ := sc.finishLongpoll2(lh)
+	// called by user, so we should not call CancelLongpoll
+	if sc.server.opts.DebugRPC {
+		if hctx != nil {
 			sc.server.opts.Logf("rpc_debug: %s FinishLongpoll success queryID=%d", sc.debugName, lh.QueryID)
+		} else {
+			sc.server.opts.Logf("rpc_debug: %s FinishLongpoll empty queryID=%d", sc.debugName, lh.QueryID)
 		}
 	}
-	return hctx, err
+	return hctx, nil
 }
 
 func (sc *serverConnTCP) CancelLongpoll(queryID int64) (LongpollCanceller, int64) {
-	resp, err := sc.finishLongpoll(queryID, protocolTCP)
-	if err != nil {
-		return nil, 0
-	}
+	lh := LongpollHandle{QueryID: queryID, CommonConn: sc}
+	resp := sc.finishLongpoll(lh, protocolTCP)
 	return resp.canceller, resp.deadline
 }
 
 func (sc *serverConnTCP) SendEmptyResponse(lh LongpollHandle) {
-	hctx, canceller, err := sc.finishLongpoll2(lh)
-	if err != nil {
+	hctx, canceller := sc.finishLongpoll2(lh)
+	if canceller == nil {
 		return
 	}
-	err = canceller.WriteEmptyResponse(lh, hctx)
+	if hctx == nil {
+		canceller.CancelLongpoll(lh)
+		return
+	}
+	err := canceller.WriteEmptyResponse(lh, hctx)
 	if err == nil && len(hctx.Response) == 0 {
-		err = ErrLongpollNoEmptyResponse // TODO - make public, let clients return from their methods
+		err = ErrLongpollNoEmptyResponse
 	}
 	if sc.server.opts.DebugRPC {
 		sc.server.opts.Logf("rpc_debug: %s WriteEmptyResponse queryID=%d err: %v", sc.debugName, lh.QueryID, err)

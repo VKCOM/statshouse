@@ -38,7 +38,7 @@ func main() {
 			Function:   tlstatshouseApi.FnCount(),
 		},
 	}
-	resp := tlstatshouseApi.GetQueryPointResponse{}
+	resp := tlstatshouseApi.QueryPointResponse{}
 	err := apiClient.GetQueryPoint(context.Background(), qp, nil, &resp)
 	if err != nil {
 		panic(err)

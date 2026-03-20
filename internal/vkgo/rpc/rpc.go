@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/constants"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
+	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
 )
 
 const (
@@ -25,10 +25,6 @@ const (
 
 	packetTypeRPCNonce     = uint32(0x7acb87aa)
 	packetTypeRPCHandshake = uint32(0x7682eef5)
-
-	PacketTypeRPCPing = constants.RpcPing
-	PacketTypeRPCPong = constants.RpcPong
-	// contains 8 byte payload
 
 	DefaultPacketTimeout = 10 * time.Second
 	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
@@ -62,8 +58,6 @@ type InvokeReqExtra struct { // additional parameters to auto generated client c
 	// By settings this to 1 or 2, user selects preferred format to use, if generated code supports both
 	PreferTLVersion int
 
-	PreferTL2 bool // TODO - remove on the next iteration
-
 	ResponseExtra ResponseExtra // after call, response extra is available here
 }
 
@@ -87,6 +81,7 @@ func NewError(code int32, description string) *Error {
 
 func NewDefaultError(description string) *Error {
 	return &Error{
+		Code:        tlerrorcodes.Unknown,
 		Description: description,
 	}
 }

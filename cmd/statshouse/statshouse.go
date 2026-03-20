@@ -713,15 +713,15 @@ func parseCommandLine() (int, error) {
 		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 		flag.StringVar(&argv.statshouseAddr, "api-addr", "127.0.0.1:2400", "statshouse API address for tlclient")
 		flag.StringVar(&argv.statshouseNet, "api-net", "tcp4", "statshouse API network for tlclient")
-		preferTL2 := false
-		flag.BoolVar(&preferTL2, "tl2", false, "prefer TL2")
+		tlVersion := 0
+		flag.IntVar(&tlVersion, "tl-version", 0, "TL version to use")
 		flag.DurationVar(&argv.tlclientTimeout, "timeout", 2*time.Second, "timeout of RPC call to statshouse API")
 		argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)
 		build.FlagParseShowVersionHelp()
 		if verb == "tlclient.api.stub" {
-			return mainTLClientAPIStub(preferTL2), nil
+			return mainTLClientAPIStub(tlVersion), nil
 		}
-		return mainTLClientAPI(preferTL2), nil
+		return mainTLClientAPI(tlVersion), nil
 	case "tag_mapping":
 		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
 		flag.IntVar(&argv.budget, "budget", 0, "mapping budget to set")

@@ -47,9 +47,9 @@ func DeriveCryptoKeysUdp(key string, localPid *tlnet.Pid, remotePid *tlnet.Pid, 
 func writeCryptoInitMsgUdp(key string, localPid *tlnet.Pid, remotePid *tlnet.Pid, generation uint32) []byte {
 	var message []byte
 
-	message = localPid.Write(message)
+	message = localPid.WriteTL1(message)
 	message = append(message, key...)
-	message = remotePid.Write(message)
+	message = remotePid.WriteTL1(message)
 	message = basictl.NatWrite(message, generation)
 	return message
 }

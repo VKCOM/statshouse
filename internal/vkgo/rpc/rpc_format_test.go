@@ -55,7 +55,7 @@ func testRPCResponseRoundTrip(t *testing.T, hctx *HandlerContext, sendErr error,
 
 	var header tl.RpcReqResultHeader
 	var err error
-	if body, err = header.Read(body); err != nil {
+	if body, err = header.ReadTL1(body); err != nil {
 		t.Error(err)
 	}
 
