@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func main() {

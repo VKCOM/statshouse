@@ -25,7 +25,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, *tlmetadata.Client, *Handler) {

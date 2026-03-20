@@ -14,7 +14,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc/tlerrorcodes"
+	"github.com/VKCOM/tl/pkg/rpc/tlerrorcodes"
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -22,7 +22,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/promql"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const (

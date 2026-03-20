@@ -71,7 +71,7 @@ gen-tl: ./internal/data_model/api.tl ./internal/data_model/common.tl ./internal/
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
-		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--basicRPCPath=github.com/VKCOM/tl/pkg/rpc \
 		--generateRandomCode \
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
@@ -98,7 +98,7 @@ gen-tl2:
 		--generateRPCCode=true \
 		--pkgPath=github.com/VKCOM/statshouse/internal/data_model/gen2/tl \
 		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
-		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+		--basicRPCPath=github.com/VKCOM/tl/pkg/rpc \
 		--generateRandomCode \
 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
 		--rawHandlerWhiteList=statshouse.,metadata. \
@@ -120,7 +120,7 @@ gen-tl2:
 #		--generateRPCCode=true \
 #		--pkgPath=github.com/VKCOM/statshouse/internal/sqlitev2/checkpoint/gen2/tl \
 #		--basicPkgPath=github.com/VKCOM/statshouse/internal/vkgo/basictl \
-#		--basicRPCPath=github.com/VKCOM/statshouse/internal/vkgo/rpc \
+#		--basicRPCPath=github.com/VKCOM/tl/pkg/rpc \
 #		--generateByteVersions=sqlite. \
 #		--copyrightPath=./copyright \
 #		./internal/data_model/common.tl \

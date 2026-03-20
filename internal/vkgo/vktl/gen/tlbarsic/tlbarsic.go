@@ -11,8 +11,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/internal"
 	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/internal/tl/tlTrue"
 	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/internal/tl/tlVectorBarsicSnapshotDependency"

@@ -13,7 +13,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type RPCReceiver struct {

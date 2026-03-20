@@ -19,8 +19,8 @@ import (
 	"github.com/VKCOM/statshouse-go"
 
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const (
