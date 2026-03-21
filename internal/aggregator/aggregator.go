@@ -127,7 +127,11 @@ type (
 		migrationMu    sync.RWMutex
 
 		// migration configuration
-		migrationConfig *MigrationConfig
+		migrationConfig   *MigrationConfig
+		migrationConfigV3 *MigrationConfigV3
+
+		// migration data
+		migrationV3Data *MigrationV3Data
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -152,7 +156,8 @@ func (b *aggregatorBucket) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.H
 }
 
 // aggregator is also run in this method
-func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache, mappingsStorage *metajournal.MappingsStorage,
+func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.MappingsCache,
+	mappingsStorage *metajournal.MappingsStorage, v3MigratorMappingsStorage *metajournal.MappingsStorage,
 	cacheDir string, listenAddr string, aesPwd string, trustedSubnetGroups [][]string, config ConfigAggregator, hostName string, logTrace bool) (*Aggregator, error) {
 	localAddresses := strings.Split(listenAddr, ",")
 	var shardKey int32 = 1
@@ -255,6 +260,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		mappingsCache:               mappingsCache,
 		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
+		migrationConfigV3:           NewDefaultMigrationConfigV3(),
+		migrationV3Data:             MakeMigrationV3Data(v3MigratorMappingsStorage),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -350,6 +357,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.mappingsStorage.StartPeriodicSaving()
 	a.mappingsStorage.Start(format.TagValueIDComponentAggregator, a.sh2, a.metricMetaLoader.GetNewMappings, false)
 
+	a.migrationV3Data.metricMetaLoader = legacyMetaLoader
+
 	a.testConnection = MakeTestConnection()
 	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, a.metricMetaLoader)
 	a.tagsMapper3 = NewTagsMapper3(a, a.sh2, a.metricStorage, a.metricMetaLoader)
@@ -378,6 +387,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		go a.goInsert(a.insertsSema, a.cancelInsertsCtx, a.bucketsToSend, i)
 	}
 	go a.goMigrate(a.cancelInsertsCtx)
+	go a.goMigrateV3(a.cancelInsertsCtx)
 	go a.goInternalLog()
 
 	go func() { // before sh2.Run because agent will also connect to local aggregator
