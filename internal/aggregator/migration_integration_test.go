@@ -76,6 +76,9 @@ func TestMain(m *testing.M) {
 	// Create shared HTTP client
 	httpClient = &http.Client{Timeout: 120 * time.Second}
 
+	// Create and configure aggregator (for V3 migrations)
+	prepareAggregator(clickHouseAddr)
+
 	// Ensure tables are created once for all tests
 	err = ensureTablesCreated()
 	if err != nil {
@@ -125,6 +128,11 @@ func ensureTablesCreated() error {
 		return fmt.Errorf("failed to create V3 table: %w", err)
 	}
 
+	// Create V6 table
+	if err := executeQueryRequest(createV6tableQuery); err != nil {
+		return fmt.Errorf("failed to create V6 table: %w", err)
+	}
+
 	// Create migration state table
 	if err := executeQueryRequest(createMigrationStateTableQuery); err != nil {
 		return fmt.Errorf("failed to create migration state table: %w", err)
@@ -170,6 +178,17 @@ func cleanupTables() error {
 		return fmt.Errorf("failed to close V3 table clear response: %w", err)
 	}
 
+	// Clear V6 table data
+	req.Query = "TRUNCATE TABLE statshouse_v6_1h"
+	resp, err = req.Execute(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to clear V6 table: %w", err)
+	}
+	err = resp.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close V6 table clear response: %w", err)
+	}
+
 	// Clear migration state data
 	req.Query = "TRUNCATE TABLE statshouse_migration_state"
 	resp, err = req.Execute(context.Background())
@@ -212,6 +231,38 @@ const createV2tableQuery = `CREATE TABLE statshouse_value_1h_dist (
 	ORDER BY (metric, time, key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, key13, key14, key15, skey)`
 
 const createV3tableQuery = `CREATE TABLE statshouse_v3_1h (
+		index_type UInt8,
+		metric Int32,
+		pre_tag UInt32,
+		pre_stag String,
+		time DateTime,
+		tag0 Int32, stag0 String, tag1 Int32, stag1 String, tag2 Int32, stag2 String, tag3 Int32, stag3 String,
+		tag4 Int32, stag4 String, tag5 Int32, stag5 String, tag6 Int32, stag6 String, tag7 Int32, stag7 String,
+		tag8 Int32, stag8 String, tag9 Int32, stag9 String, tag10 Int32, stag10 String, tag11 Int32, stag11 String,
+		tag12 Int32, stag12 String, tag13 Int32, stag13 String, tag14 Int32, stag14 String, tag15 Int32, stag15 String,
+		tag16 Int32, stag16 String, tag17 Int32, stag17 String, tag18 Int32, stag18 String, tag19 Int32, stag19 String,
+		tag20 Int32, stag20 String, tag21 Int32, stag21 String, tag22 Int32, stag22 String, tag23 Int32, stag23 String,
+		tag24 Int32, stag24 String, tag25 Int32, stag25 String, tag26 Int32, stag26 String, tag27 Int32, stag27 String,
+		tag28 Int32, stag28 String, tag29 Int32, stag29 String, tag30 Int32, stag30 String, tag31 Int32, stag31 String,
+		tag32 Int32, stag32 String, tag33 Int32, stag33 String, tag34 Int32, stag34 String, tag35 Int32, stag35 String,
+		tag36 Int32, stag36 String, tag37 Int32, stag37 String, tag38 Int32, stag38 String, tag39 Int32, stag39 String,
+		tag40 Int32, stag40 String, tag41 Int32, stag41 String, tag42 Int32, stag42 String, tag43 Int32, stag43 String,
+		tag44 Int32, stag44 String, tag45 Int32, stag45 String, tag46 Int32, stag46 String, tag47 Int32, stag47 String,
+		count SimpleAggregateFunction(sum, Float64),
+		min SimpleAggregateFunction(min, Float64),
+		max SimpleAggregateFunction(max, Float64),
+		max_count SimpleAggregateFunction(max, Float64),
+		sum SimpleAggregateFunction(sum, Float64),
+		sumsquare SimpleAggregateFunction(sum, Float64),
+		min_host AggregateFunction(argMin, String, Float32),
+		max_host AggregateFunction(argMax, String, Float32),
+		max_count_host AggregateFunction(argMax, String, Float32),
+		percentiles AggregateFunction(quantilesTDigest(0.5), Float32),
+		uniq_state AggregateFunction(uniq, Int64)
+	) ENGINE = AggregatingMergeTree()
+	ORDER BY (metric, time, tag0, tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8, tag9, tag10, tag11, tag12, tag13, tag14, tag15, stag47)`
+
+const createV6tableQuery = `CREATE TABLE statshouse_v6_1h (
 		index_type UInt8,
 		metric Int32,
 		pre_tag UInt32,
@@ -498,12 +549,12 @@ func TestMigrateSingleStepIntegration(t *testing.T) {
 			resp, err = req.Execute(ctx)
 			require.NoError(t, err)
 
-			// Parse the RowBinary response using parseV3Row function
+			// Parse the RowBinary response using parseV3RowOld function
 			// Parse exactly the expected number of rows instead of relying on EOF
-			var migratedRows []*v3Row
+			var migratedRows []*v3RowOld
 			bufReader := bufio.NewReader(resp)
 			for i := uint64(0); i < expectedRowCount; i++ {
-				row, err := parseV3Row(bufReader, t)
+				row, err := parseV3RowOld(bufReader, t)
 				require.NoError(t, err, "Failed to parse V3 row %d", i+1)
 				migratedRows = append(migratedRows, row)
 				t.Logf("Shard %d: Parsed V3 row %d: metric=%d, time=%d, tag0=%d, stag47=%s, count=%.2f",
@@ -788,8 +839,9 @@ func appendV2RowBinary(buf []byte, row *v2Row) []byte {
 	return buf
 }
 
-// v3Row represents a parsed row from V3 format (after migration)
-type v3Row struct {
+// v3RowOld represents a parsed row from V3 format (after migration)
+// backwards compatibility with early v1->v2 migration tests
+type v3RowOld struct {
 	metric    int32
 	time      uint32
 	tags      [16]int32 // tag0-tag15
@@ -807,8 +859,8 @@ type v3Row struct {
 
 // parseV3Row parses a single V3 row from rowbinary data
 // Based on the V3 insert query order: metric,time, tag0-tag15,stag47, count,min,max,sum,sumsquare, min_host,max_host,percentiles,uniq_state
-func parseV3Row(reader *bufio.Reader, t *testing.T) (*v3Row, error) {
-	row := &v3Row{}
+func parseV3RowOld(reader *bufio.Reader, t *testing.T) (*v3RowOld, error) {
+	row := &v3RowOld{}
 
 	// Parse metric (Int32)
 	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
