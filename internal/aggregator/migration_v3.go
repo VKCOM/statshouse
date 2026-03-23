@@ -483,7 +483,7 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 	var conversionErr error
 	go func() {
 		defer pipeWriter.Close()
-		rowsConverted, tagsStringified, conversionErr = a.convertV3Response(reader, pipeWriter)
+		rowsConverted, tagsStringified, conversionErr = a.convertV3Response(reader, pipeWriter, ts)
 		if conversionErr != nil {
 			log.Printf("[migration_v3] Error during conversion: %v", conversionErr)
 			pipeWriter.CloseWithError(conversionErr)
@@ -613,7 +613,7 @@ func (a *Aggregator) executeV3Query(query string, isSelect bool, body []byte, ht
 	return response, nil
 }
 
-func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rowsProcessed int, tagsStringified int, err error) {
+func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts time.Time) (rowsProcessed int, tagsStringified int, err error) {
 	reader := bufio.NewReaderSize(v3Data, 8192)
 	rowData := make([]byte, 0, 4096)
 	var v3row v3Row
@@ -635,10 +635,14 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer) (rows
 			return rowsProcessed, tagsStringified, fmt.Errorf("failed to parse V2 row: %w", parseErr)
 		}
 
+		// quick verification that the read timestamp matches the target migration ts, to prevent writing wrong time ranges
+		if ts.Unix() != int64(v3row.time) {
+			return rowsProcessed, tagsStringified, fmt.Errorf("unexpected timestamp after processing %d rows: %d", rowsProcessed, v3row.time)
+		}
+
 		if !a.isRelevantMetric(v3row.metric) {
 			continue
 		}
-
 		rawness, ok := a.migrationV3Data.isRawTagOfMetric[v3row.metric]
 		if !ok {
 			err := a.loadMetricTagRawness(v3row.metric)
