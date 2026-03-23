@@ -554,16 +554,15 @@ func parseV3Row(reader *bufio.Reader, row *v3Row) error {
 		return err
 	}
 
-	buf := make([]byte, 6)
-	if _, err := row.min_host.ReadFrom(reader, buf); err != nil {
+	if _, err := row.min_host.ReadFrom(reader, nil); err != nil {
 		return err
 	}
-	buf = make([]byte, 6)
-	if _, err := row.max_host.ReadFrom(reader, buf); err != nil {
+
+	if _, err := row.max_host.ReadFrom(reader, nil); err != nil {
 		return err
 	}
-	buf = make([]byte, 6)
-	if _, err := row.max_count_host.ReadFrom(reader, buf); err != nil {
+
+	if _, err := row.max_count_host.ReadFrom(reader, nil); err != nil {
 		return err
 	}
 	if err := row.percentiles.ReadFrom(reader); err != nil {
@@ -681,7 +680,6 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 			a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
 		}
 	}
-	log.Printf("[migration_v3] Loaded tag rawness for metric id=%d", metricId)
 	return nil
 }
 
