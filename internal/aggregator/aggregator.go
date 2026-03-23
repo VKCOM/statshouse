@@ -260,7 +260,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		mappingsCache:               mappingsCache,
 		mappingsStorage:             mappingsStorage,
 		migrationConfig:             NewDefaultMigrationConfig(),
-		migrationConfigV3:           NewDefaultMigrationConfigV3(),
+		migrationConfigV3:           NewDefaultMigrationConfigV3(cacheDir),
 		migrationV3Data:             MakeMigrationV3Data(v3MigratorMappingsStorage),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
