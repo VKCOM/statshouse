@@ -19,7 +19,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type autoCreate struct {
@@ -122,7 +122,7 @@ func (ac *autoCreate) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.Handle
 
 func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.AutoCreateBytes
-	_, err := args.Read(hctx.Request)
+	_, err := args.ReadTL1(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.autoCreate request: %w", err)
 	}
@@ -159,7 +159,7 @@ func (ac *autoCreate) goWork() {
 		ac.mu.Unlock()
 		createErr := ac.createMetric(args)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
-			hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
+			hctx.Response, _ = args.WriteResultTL1(hctx.Response, tl.True{})
 			hctx.SendLongpollResponse(createErr)
 		}
 		if createErr != nil {

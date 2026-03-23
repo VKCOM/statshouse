@@ -372,7 +372,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 
 func (p *phpMachine) Check(*rapid.T) {}
 
-func receivedSlice(m []tl.DictionaryFieldStringBytes, skey []byte) []tag {
+func receivedSlice(m []tl.DictFieldStringStringBytes, skey []byte) []tag {
 	res := make([]tag, 0, len(m))
 	for i := range m {
 		res = append(res, tag{K: string(m[i].Key), V: string(m[i].Value)})

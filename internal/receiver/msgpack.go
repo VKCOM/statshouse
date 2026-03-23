@@ -46,7 +46,7 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 			if cap(m.Tags) >= int(numTags) {
 				m.Tags = m.Tags[:numTags]
 			} else {
-				m.Tags = make([]tl.DictionaryFieldStringBytes, numTags)
+				m.Tags = make([]tl.DictFieldStringStringBytes, numTags)
 			}
 			for i := range m.Tags {
 				m.Tags[i].Key, buf, err = msgp.ReadStringAsBytes(buf, m.Tags[i].Key)

@@ -16,7 +16,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const MaxTestResponseSize = 10 << 20
@@ -67,7 +67,7 @@ func (ms *TestConnection) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.Ha
 	}
 	delete(ms.testConnectionClients, lh)
 	var err error
-	hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
+	hctx.Response, err = tcc.args.WriteResultTL1(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
 	return err
 }
 
@@ -82,7 +82,7 @@ func (ms *TestConnection) broadcastResponses() {
 		delete(ms.testConnectionClients, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 			var err error
-			hctx.Response, err = tcc.args.WriteResult(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
+			hctx.Response, err = tcc.args.WriteResultTL1(hctx.Response, testResponse[:tcc.args.ResponseSize]) // size checked in handler
 			hctx.SendLongpollResponse(err)
 		}
 	}
@@ -91,7 +91,7 @@ func (ms *TestConnection) broadcastResponses() {
 func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext) error {
 	var tcc testConnectionClient
 	tcc.requestTime = hctx.RequestTime()
-	_, err := tcc.args.Read(hctx.Request)
+	_, err := tcc.args.ReadTL1(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
 	}
@@ -103,7 +103,7 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 	}
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime().UnixNano()))
-	hctx.Response, _ = tcc.args.WriteResult(hctx.Response, buf[:])
+	hctx.Response, _ = tcc.args.WriteResultTL1(hctx.Response, buf[:])
 	if tcc.args.ResponseTimeoutSec <= 0 {
 		hctx.Response = append(hctx.Response, testResponse[:tcc.args.ResponseSize]...) // approximate
 		return nil

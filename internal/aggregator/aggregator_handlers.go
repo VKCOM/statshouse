@@ -24,7 +24,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func bool2int(b bool) int { // freaking golang clowns
@@ -93,7 +93,7 @@ func (a *Aggregator) aggKey(t uint32, m int32, k [format.MaxTags]int32) *data_mo
 
 func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.GetConfig3
-	_, err := args.Read(hctx.Request)
+	_, err := args.ReadTL1(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.getConfig3 request: %w", err)
 	}
@@ -137,13 +137,13 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 		1, hostTag, aera)
 	cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
 	cc.ConnectedTo = a.sh2.HostName()
-	hctx.Response, err = args.WriteResult(hctx.Response, cc)
+	hctx.Response, err = args.WriteResultTL1(hctx.Response, cc)
 	return err
 }
 
 func (a *Aggregator) handleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.GetMetrics3
-	_, err := args.Read(hctx.Request)
+	_, err := args.ReadTL1(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
 	}
@@ -163,9 +163,9 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 			Warning: []byte(warning),
 		}
 		resp.SetDiscard(discard)
-		hctx.Response, _ = args.WriteResult(hctx.Response, resp)
+		hctx.Response, _ = args.WriteResultTL1(hctx.Response, resp)
 	}
-	if _, err := args.Read(hctx.Request); err != nil {
+	if _, err := args.ReadTL1(hctx.Request); err != nil {
 		writeResponse(fmt.Sprintf("failed to deserialize statshouse.sendSourceBucket3 request: %v", err), true)
 		return nil
 	}
@@ -175,7 +175,7 @@ func (a *Aggregator) handleSendSourceBucket3(_ context.Context, hctx *rpc.Handle
 		return nil
 	}
 	var bucket tlstatshouse.SourceBucket3Bytes
-	if _, err := bucket.ReadBoxed(bucketBytes); err != nil {
+	if _, err := bucket.ReadTL1Boxed(bucketBytes); err != nil {
 		writeResponse(fmt.Sprintf("failed to deserialize statshouse.sourceBucket3: %v", err), true)
 		return nil
 	}
@@ -744,7 +744,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 
 func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.SendKeepAlive2Bytes
-	if _, err := args.Read(hctx.Request); err != nil {
+	if _, err := args.ReadTL1(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
 	}
 	return a.handleSendKeepAliveAny(hctx, tlstatshouse.SendKeepAlive3Bytes(args), false)
@@ -752,7 +752,7 @@ func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerCo
 
 func (a *Aggregator) handleSendKeepAlive3(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.SendKeepAlive3Bytes
-	if _, err := args.Read(hctx.Request); err != nil {
+	if _, err := args.ReadTL1(hctx.Request); err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive3 request: %w", err)
 	}
 	return a.handleSendKeepAliveAny(hctx, args, true)

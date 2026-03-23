@@ -197,7 +197,7 @@ func receiveBenchmark() int {
 	batch := tlstatshouse.AddMetricsBatch{
 		Metrics: []tlstatshouse.Metric{metric, metric, metric, metric, metric, metric, metric, metric, metric, metric},
 	}
-	metricBytes := batch.WriteBoxed(nil)
+	metricBytes := batch.WriteTL1Boxed(nil)
 	packet := metricBytes
 	for len(packet)+len(metricBytes) < packetSize {
 		packet = append(packet, metricBytes...)

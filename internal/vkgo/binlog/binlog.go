@@ -10,7 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/vkgo/vktl/gen/tlbarsic"
 )
 

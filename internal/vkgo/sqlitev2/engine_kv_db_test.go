@@ -39,7 +39,7 @@ func (e *eng) insert(ctx context.Context, k, v int64) error {
 			return cache, err
 		}
 		event := tl.VectorLong{k, v}
-		cache = event.WriteBoxed(cache)
+		cache = event.WriteTL1Boxed(cache)
 		return cache, err
 	})
 	return err
@@ -55,7 +55,7 @@ func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
 	}
 	err = multierr.Append(err, rows.Error())
 	event := tl.VectorLong{k, v}
-	cache = event.WriteBoxed(cache)
+	cache = event.WriteTL1Boxed(cache)
 	return cache, err
 }
 
@@ -88,7 +88,7 @@ func applyKV(conn Conn, bytes []byte) (read int, err error) {
 		if len(bytes) < 4 {
 			return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
 		}
-		newBytes, err := event.ReadBoxed(bytes)
+		newBytes, err := event.ReadTL1Boxed(bytes)
 		if err != nil {
 			return read, err
 		}

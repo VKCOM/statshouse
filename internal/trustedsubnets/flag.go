@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type Flag struct {

@@ -37,7 +37,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/receiver"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func mainBenchmarks() int {
@@ -248,7 +248,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 			Metrics: []tlstatshouse.MetricBytes{{
 				FieldsMask: 0,
 				Name:       []byte("metric1"),
-				Tags: []tl.DictionaryFieldStringBytes{{Key: []byte("1"), Value: []byte(keyPrefix + "1")},
+				Tags: []tl.DictFieldStringStringBytes{{Key: []byte("1"), Value: []byte(keyPrefix + "1")},
 					{Key: []byte("2"), Value: []byte(keyPrefix + "2")},
 					{Key: []byte("3"), Value: []byte(keyPrefix + "3")},
 					{Key: []byte("4"), Value: []byte("404")},
@@ -260,15 +260,15 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		args.Metrics[0].SetValue([]float64{1, 2, 3, 4, 5})
 		var w []byte
 		for len(w) < 60000 {
-			w = args.WriteBoxed(w)
+			w = args.WriteTL1Boxed(w)
 		}
-		// _ = args.WriteBoxed(&w)
+		// _ = args.WriteTL1Boxed(&w)
 		for {
 			if !testFastPath {
 				w = w[:0]
 				args.Metrics[0].Tags[0].Value = append(args.Metrics[0].Tags[0].Value[:0], keyPrefix...)
 				args.Metrics[0].Tags[0].Value = strconv.AppendInt(args.Metrics[0].Tags[0].Value, int64(rand.New().Int31()), 10)
-				w = args.WriteBoxed(w)
+				w = args.WriteTL1Boxed(w)
 			}
 			sentMetric.Inc()
 			if _, err := uconn.Write(w); err != nil {
@@ -358,7 +358,7 @@ func mainModules() int {
 // 2025/12/23 16:39:18 {"intValue":0,"stringValue":"boot3879"}
 // statshouse$ echo '{"fields_mask":24, "access_token":"","intValue":1}' | target/statshouse tlclient.api --api-addr=127.0.0.1:10889 --tl2
 // statshouseApi.getMapping failed - statshouseApi.getMapping request to tcp4://0@127.0.0.1:10889 failed: context deadline exceeded
-func mainTLClientAPI(preferTL2 bool) int {
+func mainTLClientAPI(tlVersion int) int {
 	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
@@ -377,7 +377,7 @@ func mainTLClientAPI(preferTL2 bool) int {
 		return 1
 	}
 	var ret tlstatshouseApi.GetMappingResponse
-	extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTL2: preferTL2}
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTLVersion: tlVersion}
 	ctx, cancel := context.WithTimeout(context.Background(), argv.tlclientTimeout)
 	defer cancel()
 	if err := tlapiclient.GetMapping(ctx, batch, &extra, &ret); err != nil {
@@ -393,7 +393,7 @@ func mainTLClientAPI(preferTL2 bool) int {
 	return 0
 }
 
-func mainTLClientAPIStub(preferTL2 bool) int {
+func mainTLClientAPIStub(tlVersion int) int {
 	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
@@ -437,8 +437,8 @@ func mainTLClientAPIStub(preferTL2 bool) int {
 
 	ctx := context.Background()
 	for _, request := range requests {
-		extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTL2: preferTL2}
-		var ret tlstatshouseApi.GetQueryResponse
+		extra := rpc.InvokeReqExtra{FailIfNoConnection: true, PreferTLVersion: tlVersion}
+		var ret tlstatshouseApi.QueryResponse
 		if err := tlapiclient.GetQuery(ctx, request, &extra, &ret); err != nil {
 			log.Fatalf("tlapiclient.GetQuery failed - %v", err)
 		}
@@ -447,7 +447,7 @@ func mainTLClientAPIStub(preferTL2 bool) int {
 		log.Printf("points: %v\n\n", len(ret.Series.Time))
 
 		for _, cid := range ret.ChunkIds {
-			var rc tlstatshouseApi.GetChunkResponse
+			var rc tlstatshouseApi.ChunkResponse
 			if err := tlapiclient.GetChunk(ctx, tlstatshouseApi.GetChunk{ResponseId: ret.ResponseId, ChunkId: cid}, nil, &rc); err != nil {
 				log.Fatalf("tlapiclient.GetChunk failed - %v", err)
 			}

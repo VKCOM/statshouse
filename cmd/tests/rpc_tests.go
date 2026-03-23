@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouseApi"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 			Function:   tlstatshouseApi.FnCount(),
 		},
 	}
-	resp := tlstatshouseApi.GetQueryPointResponse{}
+	resp := tlstatshouseApi.QueryPointResponse{}
 	err := apiClient.GetQueryPoint(context.Background(), qp, nil, &resp)
 	if err != nil {
 		panic(err)

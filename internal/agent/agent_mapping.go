@@ -73,7 +73,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 	}
 }
 
-func (s *Agent) mapEnvironmentTag(h *data_model.MappedMetricHeader, v *tl.DictionaryFieldStringBytes) {
+func (s *Agent) mapEnvironmentTag(h *data_model.MappedMetricHeader, v *tl.DictFieldStringStringBytes) {
 	var err error
 	v.Value, err = format.AppendValidStringValue(v.Value[:0], v.Value)
 	if err != nil || len(v.Value) == 0 {

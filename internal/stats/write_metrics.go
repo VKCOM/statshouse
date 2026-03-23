@@ -164,7 +164,7 @@ func fillCommonMetric[A Tag | int32](p *MetricWriterSHImpl, m *tlstatshouse.Metr
 	}
 	tagsLength := len(tagsList) + used
 	if cap(m.Tags) < tagsLength {
-		m.Tags = make([]tl.DictionaryFieldStringBytes, tagsLength)
+		m.Tags = make([]tl.DictFieldStringStringBytes, tagsLength)
 	} else {
 		m.Tags = m.Tags[:tagsLength]
 	}
