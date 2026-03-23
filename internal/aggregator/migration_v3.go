@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/chutil"
@@ -33,6 +34,7 @@ type MigrationConfigV3 struct {
 	ShardsForShardingById       int           // Number of shards for an old sharding strategy (metricId % num_shards)
 	Format                      string
 	ReplacementMappingsFileName string
+	ReplacementMappingsDirPath  string
 }
 
 type MigrationV3Data struct {
@@ -64,7 +66,7 @@ type v3Row struct {
 	uniq_state     data_model.ChUnique
 }
 
-func NewDefaultMigrationConfigV3() *MigrationConfigV3 {
+func NewDefaultMigrationConfigV3(cacheDir string) *MigrationConfigV3 {
 	return &MigrationConfigV3{
 		SourceTableName:             "statshouse_v3_1h",
 		TargetTableName:             "statshouse_v6_1h",
@@ -74,7 +76,8 @@ func NewDefaultMigrationConfigV3() *MigrationConfigV3 {
 		TotalShards:                 18,
 		ShardsForShardingById:       16,
 		Format:                      "RowBinary",
-		ReplacementMappingsFileName: "cache/aggregator/replacement_mappings.csv",
+		ReplacementMappingsFileName: "replacement_mappings.csv",
+		ReplacementMappingsDirPath:  cacheDir,
 	}
 }
 
@@ -99,7 +102,11 @@ func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
 
 	httpClient := makeHTTPClient()
 
-	a.loadMigrationData()
+	err := a.loadMigrationData()
+	if err != nil {
+		log.Printf("[migration_v3] Skipping migration: failed to load migration data: %s", err)
+		return
+	}
 
 	log.Printf("[migration_v3] Starting migration routine for shard %d", a.shardKey)
 	for {
@@ -216,7 +223,8 @@ func (a *Aggregator) isRelevantMetric(metricID int32) bool {
 }
 
 func (a *Aggregator) loadReplacementMappingsFromFile() (maxMapping int32, err error) {
-	file, err := os.OpenFile(a.migrationConfigV3.ReplacementMappingsFileName, os.O_RDONLY, 0)
+	filePath := filepath.Join(a.migrationConfigV3.ReplacementMappingsDirPath, a.migrationConfigV3.ReplacementMappingsFileName)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, 0)
 	if err != nil {
 		return -1, err
 	}
