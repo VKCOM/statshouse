@@ -465,46 +465,36 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				}
 			}
 
+			queryCtx := ctx
+			cancel := func() {}
+			if ch.opt.SelectTimeout > 0 {
+				queryCtx, cancel = context.WithTimeout(ctx, ch.opt.SelectTimeout)
+			}
+
 			start := time.Now()
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				queryCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-				defer cancel()
-				err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(queryCtx, query) })
-				err = throttling(servers[i].rate.GetReplicaKey(), pool.rnd, err, trotCfg)
-				duration := time.Since(start)
-				sem.Release()
+			err = servers[i].rate.DoInflight(func() error { return servers[i].pool.Do(queryCtx, query) })
+			err = throttling(servers[i].rate.GetReplicaKey(), pool.rnd, err, trotCfg)
+			info.QueryDuration = time.Since(start)
+			sem.Release()
+			pool.recordQueryDuration(info.QueryDuration, shard)
 
-				info.QueryDuration = duration
-				pool.recordQueryDuration(duration, shard)
-				if queryCtx.Err() != nil {
-					statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
-						1:  modeStr(meta.IsFast, meta.IsLight, meta.IsHardware),
-						2:  strconv.Itoa(int(meta.Metric.MetricID)),
-						3:  meta.Table,
-						5:  "error",
-						7:  meta.User,
-						8:  strconv.Itoa(shard),
-						10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, duration.Seconds())
-				}
-			}()
-
-			select {
-			case <-ctx.Done():
-				servers[i].rate.RecordEvent(Event{
-					Timestamp: start,
-					Status:    StatusError,
-					Duration:  time.Since(start),
-				})
-				info.QueryDuration = time.Since(start)
+			if queryCtx.Err() != nil && !errors.Is(queryCtx.Err(), ctx.Err()) {
+				statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
+					1:  modeStr(meta.IsFast, meta.IsLight, meta.IsHardware),
+					2:  strconv.Itoa(int(meta.Metric.MetricID)),
+					3:  meta.Table,
+					5:  "error",
+					7:  meta.User,
+					8:  strconv.Itoa(shard),
+					10: strconv.Itoa(format.TagValueIDAPIResponseExceptionLongCHTimeout)}, info.QueryDuration.Seconds())
+			}
+			if err != nil && queryCtx.Err() != nil {
 				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHTimeout
-				if errors.Is(ctx.Err(), context.Canceled) {
+				if errors.Is(queryCtx.Err(), context.Canceled) {
 					info.ErrorCode = format.TagValueIDAPIResponseExceptionCtxCanceled
 				}
-				return info, ctx.Err() // failed
-			case <-done:
 			}
+			cancel()
 			if err == nil {
 				servers[i].rate.RecordEvent(Event{
 					Timestamp: start,
@@ -520,9 +510,11 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				Status:    StatusError,
 				Duration:  info.QueryDuration,
 			})
-			info.ErrorCode = format.TagValueIDAPIResponseExceptionCHUnknown
-			if code, ok := chgo.AsException(err); ok {
-				info.ErrorCode = int(code.Code)
+			if info.ErrorCode == 0 {
+				info.ErrorCode = format.TagValueIDAPIResponseExceptionCHUnknown
+				if code, ok := chgo.AsException(err); ok {
+					info.ErrorCode = int(code.Code)
+				}
 			}
 		}
 		// keep searching alive server
