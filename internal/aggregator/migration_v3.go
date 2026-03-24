@@ -120,13 +120,21 @@ func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
 
 		//Check if migration is enabled (time range must be configured)
 		a.configMu.RLock()
-		if a.configR.MigrationTimeRange == "" {
-			a.configMu.RUnlock()
-			log.Println("[migration_v3] Migration disabled: no time range configured")
-			time.Sleep(time.Duration(a.configR.MigrationDelaySec) * time.Second)
+		_, isShardDisabled := a.configR.MigrationV3DisabledShards[a.shardKey]
+		isTimeRangeEmpty := a.configR.MigrationTimeRange == ""
+		delaySec := a.configR.MigrationDelaySec
+		a.configMu.RUnlock()
+
+		if isTimeRangeEmpty || isShardDisabled {
+			if isTimeRangeEmpty {
+				log.Println("[migration_v3] Migration disabled: no time range configured")
+			}
+			if isShardDisabled {
+				log.Printf("[migration_v3] Migration disabled: shard %d disabled", a.shardKey)
+			}
+			time.Sleep(time.Duration(delaySec) * time.Second)
 			continue
 		}
-		a.configMu.RUnlock()
 
 		a.migrationMu.Lock()
 		insertTimeEWMA := a.insertTimeEWMA
