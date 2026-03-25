@@ -696,14 +696,17 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 	}
 
 	a.migrationV3Data.isRawTagOfMetric[metricId] = make([]bool, 48)
+	nextIsRaw := false
 	for j := 0; j < len(m.Tags); j++ {
 		t := m.Tags[j]
 		if t.Index != int32(j) {
 			return fmt.Errorf("[migration_v3] unexpected tag index %d on metric id %d for tag %d", t.Index, metricId, j)
 		}
-		if t.RawKind != "" {
+		if nextIsRaw || t.RawKind != "" {
 			a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
 		}
+		nextIsRaw = t.Raw64()
+
 	}
 	for j := len(m.Tags); j < 48; j++ {
 		// tags that weren't provided are interpreted as raw
