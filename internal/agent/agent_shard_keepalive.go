@@ -83,8 +83,11 @@ func (s *ShardReplica) goLiveChecker() {
 	now := time.Now()
 	backoffTimeout := time.Duration(0)
 	for {
+		// sendKeepLive blocks until response is received, at least for time to insert into clickhouse.
+		// so we do not need precision here, but we like all 48+ goroutines to wake up
+		// at the same moment. TODO - block on CondVar.
 		tick := time.After(data_model.TillStartOfNextSecond(now))
-		now = <-tick // We synchronize with calendar second boundary
+		now = <-tick
 		if s.alive.Load() {
 			continue
 		}
