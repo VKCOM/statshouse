@@ -686,9 +686,17 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 }
 
 func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
-	m := a.metricStorage.GetMetaMetric(metricId)
-	if m == nil {
-		return fmt.Errorf("metric meta not found in storage: id=%d", metricId)
+	var m *format.MetricMetaValue
+	if metricId < 0 {
+		m = format.BuiltinMetrics[metricId]
+		if m == nil {
+			return fmt.Errorf("unexpected negative metricId: %d (not present in builtin metrics list)", metricId)
+		}
+	} else {
+		m = a.metricStorage.GetMetaMetric(metricId)
+		if m == nil {
+			return fmt.Errorf("metric meta not found in storage: id=%d", metricId)
+		}
 	}
 
 	if len(m.Tags) > 48 {
