@@ -567,7 +567,7 @@ func (l *cache2Loader) run(ctx context.Context) (cache2Data, error) {
 			l.waitC = make(chan error)
 		}
 		l.waitN++
-		go l.loadChunks()
+		go l.loadChunks(ctx)
 	}
 	return l.data[l.loadStart:l.loadEnd], l.wait(ctx)
 }
@@ -637,7 +637,7 @@ func (l *cache2Loader) awaitCopyChunks(s []cache2LoaderChunk, info *cache2Update
 	return s[:0]
 }
 
-func (l *cache2Loader) loadChunks() {
+func (l *cache2Loader) loadChunks(ctx context.Context) {
 	startLoadChunks := time.Now()
 	defer func() {
 		l.handler.endpointStat.reportTiming("cache-load-chunks", time.Since(startLoadChunks))
@@ -659,7 +659,7 @@ func (l *cache2Loader) loadChunks() {
 	c, b := l.cache, l.bucket
 	data := l.data[first.chunkStart:last.chunkEnd]
 
-	ctx, cancel := context.WithTimeout(context.Background(), QuerySelectTimeoutDefault)
+	ctx, cancel := context.WithTimeout(ctx, QuerySelectTimeoutDefault)
 	defer cancel()
 	_, err := c.loader(ctx, h, q, lod, data, 0)
 	if err == nil {
