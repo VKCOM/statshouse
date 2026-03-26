@@ -695,23 +695,17 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 		return fmt.Errorf("[migration_v3] unexpected number of tags  %d", len(m.Tags))
 	}
 
-	a.migrationV3Data.isRawTagOfMetric[metricId] = make([]bool, 48)
-	nextIsRaw := false
-	for j := 0; j < len(m.Tags); j++ {
-		t := m.Tags[j]
-		if t.Index != int32(j) {
-			return fmt.Errorf("[migration_v3] unexpected tag index %d on metric id %d for tag %d", t.Index, metricId, j)
+	rd := make([]bool, 48)
+	for j, t := range m.Tags {
+		if t.Raw() && j < len(rd) {
+			rd[j] = true
 		}
-		if nextIsRaw || t.RawKind != "" {
-			a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
+		if t.Raw64() && j+1 < len(rd) {
+			rd[j+1] = true
 		}
-		nextIsRaw = t.Raw64()
+	}
+	a.migrationV3Data.isRawTagOfMetric[metricId] = rd
 
-	}
-	for j := len(m.Tags); j < 48; j++ {
-		// tags that weren't provided are interpreted as raw
-		a.migrationV3Data.isRawTagOfMetric[metricId][j] = true
-	}
 	return nil
 }
 
