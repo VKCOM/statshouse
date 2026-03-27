@@ -145,7 +145,7 @@ func (ms *tagsMapper2) createTag(str string, extra data_model.CreateMappingExtra
 		// Journal can be stale, while mapping works.
 		// Explicit metric for this situation allows resetting limit from UI, like any other metric
 	}
-	keyValue, c, _, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
+	keyValue, c, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
 	ms.sh2.AddValueCounterHostAERA(0, format.BuiltinMetricMetaAggMappingCreated,
 		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
 		float64(keyValue), 1, extra.HostTag, extra.Aera)

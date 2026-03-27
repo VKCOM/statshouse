@@ -8,7 +8,6 @@ package metajournal
 
 import (
 	"context"
-	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 
@@ -29,6 +28,6 @@ type MetadataLoader interface {
 	// mappings
 	GetNewMappings(ctx context.Context, lastVersion int32, returnIfEmpty bool) (m []tlstatshouse.Mapping, curV, lastV int32, err error)
 	PutTagMapping(ctx context.Context, tag string, id int32) error
-	GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error)
+	GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, error)
 	ResetFlood(ctx context.Context, metricName string, value int32) (before int32, after int32, _ error)
 }

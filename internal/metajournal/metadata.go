@@ -24,8 +24,7 @@ import (
 )
 
 const (
-	pmcBigNegativeCacheTTL = 1 * time.Hour
-	DefaultMetaTimeout     = 2 * time.Second
+	DefaultMetaTimeout = 2 * time.Second
 )
 
 var errorInvalidUserRequest = errors.New("")
@@ -160,12 +159,12 @@ func (l *MetricMetaLoader) PutTagMapping(ctx context.Context, tag string, id int
 	return nil
 }
 
-func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error) {
+func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, error) {
 	if tag == "" {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, errEmptyStringMapping
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, errEmptyStringMapping
 	}
 	if !format.ValidStringValue(mem.S(tag)) {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidValue, pmcBigNegativeCacheTTL, errInvalidKeyValue
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidString, errInvalidKeyValue
 	}
 
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
@@ -179,27 +178,28 @@ func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metric
 	resp := tlmetadata.GetMappingResponse{}
 	err := l.client.GetMapping(ctx, req, nil, &resp)
 	if err != nil {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorRPCFailed, err
 	}
 	if resp.IsKeyNotExists() {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate, 0, fmt.Errorf("not asked to create mapping for non-existent key %q", tag)
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate, fmt.Errorf("not asked to create mapping for non-existent key %q", tag)
 	}
 	if resp.IsFloodLimitError() {
-		return format.TagValueIDMappingFlood, format.TagValueIDAggMappingCreatedStatusFlood, -1, nil // use TTL of -1 to avoid caching the "mapping"
+		return format.TagValueIDMappingFlood, format.TagValueIDAggMappingCreatedStatusFlood, nil
 	}
 	if r, ok := resp.AsGetMappingResponse(); ok {
 		if r.Id == 0 {
-			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, fmt.Errorf("metdata returned %q -> 0 mapping, which is invalid", tag)
+			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, fmt.Errorf("metadata returned %q -> 0 mapping, which is invalid", tag)
 		}
-		return r.Id, format.TagValueIDAggMappingCreatedStatusOK, 0, nil
+		return r.Id, format.TagValueIDAggMappingCreatedStatusOK, nil
 	}
 	if r, ok := resp.AsCreated(); ok {
 		if r.Id == 0 {
-			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, fmt.Errorf("metdata created %q -> 0 mapping, which is invalid", tag)
+			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, fmt.Errorf("metadata created %q -> 0 mapping, which is invalid", tag)
 		}
-		return r.Id, format.TagValueIDAggMappingCreatedStatusCreated, 0, nil
+		return r.Id, format.TagValueIDAggMappingCreatedStatusCreated, nil
 	}
-	return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err
+	// should be never here
+	return 0, format.TagValueIDAggMappingCreatedStatusErrorRPCFailed, err
 }
 
 func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string, value int32) (before int32, after int32, _ error) {
@@ -213,7 +213,6 @@ func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string, va
 	}
 	resp := tlmetadata.ResetFloodResponse2{}
 	err := l.client.ResetFlood2(ctx, req, nil, &resp)
-	// TODO - return budget before and after in a message to UI
 	if err != nil {
 		return resp.BudgetBefore, resp.BudgetAfter, err
 	}
