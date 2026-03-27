@@ -623,7 +623,12 @@ func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 			loadFactor -= shardLoadReductionRatio
 		}
 	}
-	sem.AdjustCapacity(uint64(maxSize * loadFactor / 100))
+	capacity := maxSize * loadFactor / 100
+	if capacity == 0 && maxSize > 0 && loadFactor > 0 {
+		// Avoid deadlocking low-capacity shard pools such as 1 * 75% -> 0.
+		capacity = 1
+	}
+	sem.AdjustCapacity(uint64(capacity))
 }
 
 func (pool *connPool) getAvgQueryDuration(shard int) time.Duration {
