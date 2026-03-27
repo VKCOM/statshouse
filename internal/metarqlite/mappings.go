@@ -86,23 +86,23 @@ func (l *RQLiteLoader) PutTagMapping(ctx context.Context, tag string, id int32) 
 	return errors.New("PutTagMapping not implemented - user rqlite console to manually modify mappings")
 }
 
-func (l *RQLiteLoader) GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, time.Duration, error) {
+func (l *RQLiteLoader) GetTagMapping(ctx context.Context, tag string, metricName string, create bool) (int32, int32, error) {
 	address, cfg, err := l.updateConfig()
 	if address == "" {
 		return l.parent.GetTagMapping(ctx, tag, metricName, create)
 	}
 	if err != nil {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, pmcBigNegativeCacheTTL, err
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorRPCFailed, err
 	}
 	if tag == "" {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, errEmptyStringMapping
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, errEmptyStringMapping
 	}
 	if !format.ValidStringValue(mem.S(tag)) {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidValue, pmcBigNegativeCacheTTL, errInvalidKeyValue
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidString, errInvalidKeyValue
 	}
 
 	if !create {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidValue, pmcBigNegativeCacheTTL, errors.New("GetTagMapping with create=false not implemented - all components must use subscription to all mappings")
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidString, errors.New("GetTagMapping with create=false not implemented - all components must use subscription to all mappings")
 	}
 	// 1. select existing metric if subsequent creation will fail for reason it exists
 	// 2. update flood limits - first initialize if not there
@@ -132,7 +132,7 @@ func (l *RQLiteLoader) GetTagMapping(ctx context.Context, tag string, metricName
 	}, args)
 	respBody, err := l.sendRequest(address, "request", true, reqBody)
 	if err != nil {
-		return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err
+		return 0, format.TagValueIDAggMappingCreatedStatusErrorRPCFailed, err
 	}
 	l.wakeUp(l.mappingsUpdated)
 
@@ -147,19 +147,19 @@ func (l *RQLiteLoader) GetTagMapping(ctx context.Context, tag string, metricName
 	if len(values1) == 1 {
 		m := jmapping(values1[0])
 		if m.Value == 0 {
-			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, fmt.Errorf("metdata returned %q -> 0 mapping, which is invalid", tag)
+			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, fmt.Errorf("metadata returned %q -> 0 mapping, which is invalid", tag)
 		}
-		return m.Value, format.TagValueIDAggMappingCreatedStatusOK, 0, nil
+		return m.Value, format.TagValueIDAggMappingCreatedStatusOK, nil
 	}
 	values5 := jarray(jobject(results[5])["values"])
 	if len(values5) == 1 {
 		m := jmapping(values5[0])
 		if m.Value == 0 {
-			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, pmcBigNegativeCacheTTL, fmt.Errorf("metdata returned %q -> 0 mapping, which is invalid", tag)
+			return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, fmt.Errorf("metadata returned %q -> 0 mapping, which is invalid", tag)
 		}
-		return m.Value, format.TagValueIDAggMappingCreatedStatusCreated, 0, nil
+		return m.Value, format.TagValueIDAggMappingCreatedStatusCreated, nil
 	}
-	return format.TagValueIDMappingFlood, format.TagValueIDAggMappingCreatedStatusFlood, -1, nil // use TTL of -1 to avoid caching the "mapping"
+	return format.TagValueIDMappingFlood, format.TagValueIDAggMappingCreatedStatusFlood, nil
 }
 
 func (l *RQLiteLoader) ResetFlood(ctx context.Context, metricName string, value int32) (before int32, after int32, _ error) {

@@ -23,8 +23,7 @@ import (
 //
 
 const (
-	pmcBigNegativeCacheTTL = 1 * time.Hour
-	pollInterval           = time.Second * 1
+	pollInterval = time.Second * 1
 )
 
 var errInvalidKeyValue = errors.New("key value is invalid")
