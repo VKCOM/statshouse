@@ -267,7 +267,7 @@ export function GroupPage() {
                     step={0.01}
                     className="form-control"
                     id="metricsGroupWeight"
-                    value={selectMetricsGroup.group.weight.toString()}
+                    value={selectMetricsGroup.group.weight?.toString() ?? '0'}
                     onChange={onChangeWeight}
                   />
                   <div className="col-form-label ms-2" style={{ width: 80 }}>
