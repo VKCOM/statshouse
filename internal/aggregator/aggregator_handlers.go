@@ -532,7 +532,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 		}
 		for i, tb := range item.Top {
-			if m := mapStringTag(i, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
+			if m := mapStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
 				item.Top[i].Tag = m
 			}
 			if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
