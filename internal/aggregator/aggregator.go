@@ -493,7 +493,7 @@ func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader metajournal.M
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
-	keyValue, _, _, err := loader.GetTagMapping(ctx, string(hostName), format.BuiltinMetricMetaBudgetAggregatorHost.Name, true)
+	keyValue, _, _, err := loader.GetTagMapping(ctx, hostName, format.BuiltinMetricMetaBudgetAggregatorHost.Name, true)
 	if err != nil {
 		return data_model.TagUnion{}, err
 	}
