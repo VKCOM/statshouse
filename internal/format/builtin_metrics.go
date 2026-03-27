@@ -702,7 +702,7 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 			TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_factor",
 			TagValueIDBadgeIngestionErrors:     "ingestion_errors",
 			TagValueIDBadgeIngestionWarnings:   "ingestion_warnings",
-			TagValueIDBadgeAggMappingErrors:    "mapping_errors",
+			TagValueIDBadgeAggMappingErrors:    "mapping_errors", // not used since mapping errors do not affect metrics
 			TagValueIDBadgeContributors:        "contributors",
 		}),
 	}, {
