@@ -73,7 +73,7 @@ func DefaultConfig() Config {
 		StringTopCountSend:               20,
 		LivenessResponsesWindowLength:    5,
 		LivenessResponsesWindowSuccesses: 3,
-		KeepAliveSuccessTimeout:          time.Second * 5, // aggregator puts keep-alive requests in a bucket most soon to be inserted, so this is larger than strictly required
+		KeepAliveSuccessTimeout:          time.Second * 7, // aggregator puts keep-alive requests in a bucket most soon to be inserted, but insert is only every 3rd second.
 		SaveSecondsImmediately:           false,
 		SendMoreBytes:                    0,
 		StatsHouseEnv:                    "production",

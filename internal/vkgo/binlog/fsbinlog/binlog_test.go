@@ -145,7 +145,7 @@ func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotO
 	e.commitPosition.Store(offset)
 	e.commitMeta = snapshotMeta
 	meta := tlfsbinlog.SnapshotMeta{}
-	_, err := meta.ReadBoxed(snapshotMeta)
+	_, err := meta.ReadTL1Boxed(snapshotMeta)
 	if err != nil {
 		log.Fatalf("cannot read snap meta: %s", err)
 	}

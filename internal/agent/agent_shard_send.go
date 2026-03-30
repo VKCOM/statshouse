@@ -117,7 +117,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 
 	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
-	scratch = sb.WriteBoxed(scratch[:0])
+	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
 	cbd := compressedBucketData{time: bucket.Time, data: compressed}
 	s.sendToSenders(cbd)
@@ -139,7 +139,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
 		item := v.Key.TLMultiItemFromKey(bucket.Time)
 		scratch = v.Tail.MultiValueToTL(v.MetricMeta, &item.Tail, v.SF, &item.FieldsMask, scratch)
-		scratch = item.Write(scratch[:0])
+		scratch = item.WriteTL1(scratch[:0])
 
 		switch { // This is only an approximation
 		case item.Tail.IsSetUniques(item.FieldsMask):
@@ -162,7 +162,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			}
 			scratch = value.MultiValueToTL(v.MetricMeta, &el.Value, v.SF, &el.FieldsMask, scratch)
 			top = append(top, el)
-			scratch = el.Write(scratch[:0])
+			scratch = el.WriteTL1(scratch[:0])
 			sizeStringTop[sampling] += len(scratch)
 		}
 		if len(top) != 0 {
@@ -272,11 +272,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
-	scratch = sbSizeCalc.Write(scratch[:0])
+	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeSampleFactors, format.TagValueIDSamplingNo, len(scratch))
 
 	sbSizeCalc = tlstatshouse.SourceBucket3{IngestionStatusOk2: sb.IngestionStatusOk2}
-	scratch = sbSizeCalc.Write(scratch[:0])
+	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
 
 	return sampler.SamplerBuffers, scratch

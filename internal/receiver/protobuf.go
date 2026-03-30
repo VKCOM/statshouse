@@ -110,7 +110,7 @@ func protoSkipField(buf []byte, f protowire.Number, t protowire.Type) ([]byte, e
 //			else
 //				skip_by_type(field_type, &s, e);
 //		}
-func protobufUnmarshalFieldEntry(buf []byte, m *tl.DictionaryFieldStringBytes) ([]byte, error) {
+func protobufUnmarshalFieldEntry(buf []byte, m *tl.DictFieldStringStringBytes) ([]byte, error) {
 	m.Key = m.Key[:0]
 	m.Value = m.Value[:0]
 	var f protowire.Number
@@ -220,7 +220,7 @@ func protobufUnmarshalStatshouseMetric(buf []byte, m *tlstatshouse.MetricBytes) 
 			if cap(m.Tags) > len(m.Tags) {
 				m.Tags = m.Tags[:len(m.Tags)+1]
 			} else {
-				m.Tags = append(m.Tags, tl.DictionaryFieldStringBytes{})
+				m.Tags = append(m.Tags, tl.DictFieldStringStringBytes{})
 			}
 			buf = buf[n:]
 			if _, err = protobufUnmarshalFieldEntry(data, &m.Tags[len(m.Tags)-1]); err != nil {

@@ -269,7 +269,7 @@ export function NamespacePage() {
                     step={0.01}
                     className="form-control"
                     id="metricsNamespaceWeight"
-                    value={selectMetricsNamespace.namespace.weight.toString()}
+                    value={selectMetricsNamespace.namespace.weight?.toString() ?? '0'}
                     onChange={onChangeWeight}
                   />
                   <div className="col-form-label ms-2" style={{ width: 80 }}>

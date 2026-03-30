@@ -13,10 +13,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 )
 
 // ConfigChangeNotifier notify getConfigResult3Locked if ConfigAggregatorRemote.ClusterShardsAddrs was updated
@@ -40,7 +41,8 @@ type ConfigAggregatorRemote struct {
 	MappingCacheTTL           int
 	BufferedInsertAgeSec      int    // age in seconds of data that should be sent to buffer table
 	MigrationTimeRange        string // format: "{begin timestamp}-{end timestamp}"
-	MigrationDelaySec         int    // delay in seconds between migration steps
+	MigrationV3DisabledShards map[int32]struct{}
+	MigrationDelaySec         int // delay in seconds between migration steps
 	ClusterShardsAddrs        []string
 	EnableMappingStorage      bool
 	EnableDynamicSampleFactor bool
@@ -95,18 +97,19 @@ func DefaultConfigAggregator() ConfigAggregator {
 		LocalShard:           1,
 
 		RemoteInitial: ConfigAggregatorRemote{
-			ShortWindow:          data_model.MaxShortWindow,
-			InsertBudget:         400,
-			ReceiveSampleBudget:  800,
-			StringTopCountInsert: 20,
-			SampleNamespaces:     true,
-			SampleGroups:         true,
-			SampleKeys:           true,
-			DenyOldAgents:        true,
-			MappingCacheSize:     1 << 30,
-			MappingCacheTTL:      86400 * 7,
-			MigrationTimeRange:   "", // empty means migration disabled
-			MigrationDelaySec:    30, // 30 seconds delay between migration steps
+			ShortWindow:               data_model.MaxShortWindow,
+			InsertBudget:              400,
+			ReceiveSampleBudget:       800,
+			StringTopCountInsert:      20,
+			SampleNamespaces:          true,
+			SampleGroups:              true,
+			SampleKeys:                true,
+			DenyOldAgents:             true,
+			MappingCacheSize:          1 << 30,
+			MappingCacheTTL:           86400 * 7,
+			MigrationTimeRange:        "",                          // empty means migration disabled
+			MigrationV3DisabledShards: make(map[int32]struct{}, 1), // empty means no disabled shards
+			MigrationDelaySec:         30,                          // 30 seconds delay between migration steps
 
 			configTagsMapper3: configTagsMapper3{
 				MaxUnknownTagsInBucket:    1024,
@@ -149,6 +152,31 @@ func (c *ConfigAggregatorRemote) setClusterShardsHosts(param string) error {
 	return nil
 }
 
+func (c *ConfigAggregatorRemote) setMigrationV3DisabledShards(param string) error {
+	if param == "" {
+		// no shards disabled
+		c.MigrationV3DisabledShards = make(map[int32]struct{})
+		return nil
+	}
+
+	disabledShardsTokens := strings.Split(param, ",")
+	disabledShardsMap := make(map[int32]struct{}, len(disabledShardsTokens))
+
+	for _, shardStr := range disabledShardsTokens {
+		parsedShard, err := strconv.ParseInt(shardStr, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid input format for --migration-v3-disabled-shards, expected integer, got %s: %v", shardStr, err)
+		}
+		shardKey := int32(parsedShard)
+		if shardKey < 1 || shardKey > 18 {
+			return fmt.Errorf("incorrect shard value in --migration-v3-disabled-shards, expected 1-18, got %s", shardStr)
+		}
+		disabledShardsMap[shardKey] = struct{}{}
+	}
+	c.MigrationV3DisabledShards = disabledShardsMap // overwrite old value
+	return nil
+}
+
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.ShortWindow, "short-window", d.ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
@@ -173,6 +201,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&mapStringTop, "map-string-top", false, "Map string top. Not used.")
 		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
+		f.Func("migration-v3-disabled-shards", "List of disabled shards for migration v3", c.setMigrationV3DisabledShards)
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
 		f.BoolVar(&c.EnableMappingStorage, "enable-mapping-storage", d.EnableMappingStorage, "Enable full mapping inmemory&disk storage")
@@ -283,7 +312,7 @@ func (c *ConfigChangeNotifier) notifyConfigChange(connectedTo string, cc tlstats
 			cc.AgentIp = agent.ConfigAddrIPs(hctx.RemoteAddr())
 			cc.ConnectedTo = connectedTo
 			var err error
-			hctx.Response, err = args.WriteResult(hctx.Response, cc)
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, cc)
 			hctx.SendLongpollResponse(err)
 		}
 	}

@@ -10,7 +10,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type RpcMethod func(ctx context.Context, hctx *rpc.HandlerContext) (status string, err error)

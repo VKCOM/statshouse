@@ -625,7 +625,8 @@ var BuiltinMetricMetaAggMappingCreated = &MetricMetaValue{
 	Kind: MetricKindValue,
 	Description: `Status of mapping string tags to integer values.
 Value is actual integer value created (by incrementing global counter).
-Set by aggregator.`,
+Set by aggregator. Mapping flood or errors here do not prevent event from being written,
+so serves only as a warning/information for statshouse developers.`,
 	StringTopDescription:    "Tag Values",
 	NoSampleAgent:           false,
 	BuiltinAllowedToReceive: false,
@@ -640,10 +641,10 @@ Set by aggregator.`,
 			TagValueIDAggMappingCreatedStatusOK:                    "ok",
 			TagValueIDAggMappingCreatedStatusCreated:               "created",
 			TagValueIDAggMappingCreatedStatusFlood:                 "mapping_flood",
-			TagValueIDAggMappingCreatedStatusErrorPMC:              "err_pmc",
-			TagValueIDAggMappingCreatedStatusErrorInvariant:        "err_pmc_invariant",
+			TagValueIDAggMappingCreatedStatusErrorRPCFailed:        "err_rpc_failed",
+			TagValueIDAggMappingCreatedStatusErrorInvariant:        "err_invariant", // Must be never, if appears, we should investigate why
 			TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate: "err_not_asked_to_create",
-			TagValueIDAggMappingCreatedStatusErrorInvalidValue:     "err_invalid_value",
+			TagValueIDAggMappingCreatedStatusErrorInvalidString:    "err_invalid_string", // Must be never because all strings are validated, if appears, we should investigate why
 		}),
 	}, {
 		Description: "tag_id",
@@ -701,7 +702,7 @@ var BuiltinMetricMetaBadges = &MetricMetaValue{
 			TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_factor",
 			TagValueIDBadgeIngestionErrors:     "ingestion_errors",
 			TagValueIDBadgeIngestionWarnings:   "ingestion_warnings",
-			TagValueIDBadgeAggMappingErrors:    "mapping_errors",
+			TagValueIDBadgeAggMappingErrors:    "mapping_errors", // not used since mapping errors do not affect metrics
 			TagValueIDBadgeContributors:        "contributors",
 		}),
 	}, {
@@ -1024,6 +1025,7 @@ var BuiltinMetricMetaRPCRequests = &MetricMetaValue{
 			0x75a7f68e: "statshouse.getTagMappingBootstrap",
 			0x41df72a3: "statshouse.getTargets2",
 			0x4285ff53: "statshouse.sendKeepAlive2",
+			0x4285ff54: "statshouse.sendKeepAlive3",
 			0x44575940: "statshouse.sendSourceBucket2",
 			0x0d04aa3f: "statshouse.sendSourceBucket3",
 			0x4285ff58: "statshouse.testConnection2",

@@ -19,7 +19,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type ShardReplica struct {

@@ -13,7 +13,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type RPCReceiver struct {
@@ -43,7 +43,7 @@ func getUserData(hctx *rpc.HandlerContext) *tlstatshouse.AddMetricsBatchBytes {
 func (r *RPCReceiver) RawAddMetricsBatch(ctx context.Context, hctx *rpc.HandlerContext) error {
 	args := getUserData(hctx)
 	packetLen := len(hctx.Request)
-	_, err := args.Read(hctx.Request)
+	_, err := args.ReadTL1(hctx.Request)
 	if err != nil {
 		r.statBatchesTotalErr.Inc()
 		r.Handler.HandleParseError(hctx.Request, err)
@@ -61,6 +61,6 @@ func (r *RPCReceiver) RawAddMetricsBatch(ctx context.Context, hctx *rpc.HandlerC
 	r.statBatchesTotalOK.Inc()
 	setValueSize(r.batchSizeRPCOK, packetLen)
 	setValueSize(r.packetSizeRPCOK, packetLen)
-	hctx.Response, err = args.WriteResult(hctx.Response, tl.True{})
+	hctx.Response, err = args.WriteResultTL1(hctx.Response, tl.True{})
 	return err
 }

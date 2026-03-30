@@ -236,7 +236,7 @@ func (b *fsBinlog) ReadAll(offset int64, snapshotMeta []byte, engine binlog.Engi
 	var si *tlfsbinlog.SnapshotMeta
 	if len(snapshotMeta) > 0 {
 		si = &tlfsbinlog.SnapshotMeta{}
-		_, err := si.ReadBoxed(snapshotMeta)
+		_, err := si.ReadTL1Boxed(snapshotMeta)
 		if err != nil {
 			return PositionInfo{}, fmt.Errorf("wrong snapshot meta format: %w", err)
 		}

@@ -12,7 +12,7 @@ import (
 	"github.com/VKCOM/statshouse-go"
 	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics"
 	"github.com/VKCOM/statshouse/internal/vkgo/commonmetrics/internal"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func CommonRPC(hctx *rpc.HandlerContext, err error) {

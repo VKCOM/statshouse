@@ -51,17 +51,17 @@ func TestCreateMappings(t *testing.T) {
 
 	tag := fmt.Sprintf("str%d", rand.Uint64())
 
-	tagValue, status, ttl, err := loader.GetTagMapping(context.Background(), tag, "metric", true)
+	tagValue, status, err := loader.GetTagMapping(context.Background(), tag, "metric", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%d %d %v\n", tagValue, status, ttl)
+	fmt.Printf("%d %d\n", tagValue, status)
 
-	tagValue, status, ttl, err = loader.GetTagMapping(context.Background(), tag, "metric", true)
+	tagValue, status, err = loader.GetTagMapping(context.Background(), tag, "metric", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%d %d %v\n", tagValue, status, ttl)
+	fmt.Printf("%d %d\n", tagValue, status)
 }
 
 func TestResetFlood(t *testing.T) {

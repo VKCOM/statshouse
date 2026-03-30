@@ -198,12 +198,6 @@ func appendBadge(rng *rand.Rand, res []byte, k *data_model.Key, v data_model.Ite
 		return appendValueStat(rng, res, &data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [format.MaxTags]int32{0, format.TagValueIDBadgeAgentSamplingFactor, k.Tags[1]}}, v, metricCache, false)
 	case format.BuiltinMetricIDAggSamplingFactor:
 		return appendValueStat(rng, res, &data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [format.MaxTags]int32{0, format.TagValueIDBadgeAggSamplingFactor, k.Tags[4]}}, v, metricCache, false)
-	case format.BuiltinMetricIDAggMappingCreated:
-		if k.Tags[5] == format.TagValueIDAggMappingCreatedStatusOK ||
-			k.Tags[5] == format.TagValueIDAggMappingCreatedStatusCreated {
-			return res
-		}
-		return appendValueStat(rng, res, &data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [format.MaxTags]int32{0, format.TagValueIDBadgeAggMappingErrors, k.Tags[4]}}, v, metricCache, false)
 	case format.BuiltinMetricIDAggBucketReceiveDelaySec:
 		return appendValueStat(rng, res, &data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Tags: [format.MaxTags]int32{0, format.TagValueIDBadgeContributors, 0}}, v, metricCache, false)
 	}

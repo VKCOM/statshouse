@@ -23,8 +23,7 @@ import (
 //
 
 const (
-	pmcBigNegativeCacheTTL = 1 * time.Hour
-	pollInterval           = time.Second * 1
+	pollInterval = time.Second * 1
 )
 
 var errInvalidKeyValue = errors.New("key value is invalid")
@@ -259,7 +258,7 @@ func (l *RQLiteLoader) getEntity(ctx context.Context, id int64, version int64) (
 func (l *RQLiteLoader) GetShortHistory(ctx context.Context, id int64) (ret tlmetadata.HistoryShortResponse, err error) {
 	address, _, _ := l.getConfig()
 	if address == "" {
-		return ret, fmt.Errorf("unexpected change of config")
+		return l.parent.GetShortHistory(ctx, id)
 	}
 
 	args := fmt.Sprintf(`{"id":%d,"limit":%d}`, id, 1000)

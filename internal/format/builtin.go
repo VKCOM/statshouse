@@ -306,7 +306,7 @@ func init() {
 			if t.Description == "" && t.Name == "" {
 				t.Description = "-" // remove unused tags from UI
 			}
-			if i == 0 { // env is not raw
+			if i == 0 || i == 47 { // env & string top are not raw
 				continue
 			}
 			if t.Description == "tag_id" { // cannot set at init() because # of tags is dynamic

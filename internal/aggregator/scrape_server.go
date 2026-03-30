@@ -33,7 +33,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
-	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type scrapeServer struct {
@@ -113,7 +113,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 				gaugeMetrics[i] = []byte(v)
 			}
 		}
-		ns := tl.DictionaryFieldStringBytes{
+		ns := tl.DictFieldStringStringBytes{
 			Key:   []byte(format.ScrapeNamespaceTagName),
 			Value: []byte(c.Options.Namespace),
 		}
@@ -146,7 +146,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 					}
 				}
 				jj := j
-				ls := make([]tl.DictionaryFieldStringBytes, 0, len(g.Labels)+1)
+				ls := make([]tl.DictFieldStringStringBytes, 0, len(g.Labels)+1)
 				ls = append(ls, ns)
 				for k, v := range g.Labels {
 					switch k {
@@ -163,7 +163,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 							jj.ScrapeTimeout = d
 						}
 					default:
-						ls = append(ls, tl.DictionaryFieldStringBytes{
+						ls = append(ls, tl.DictFieldStringStringBytes{
 							Key:   []byte(k),
 							Value: []byte(v),
 						})
@@ -204,7 +204,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 			return bytes.Compare(a.Url, b.Url) < 0
 		})
 		v.Hash = nil
-		buf = v.WriteBoxed(buf[:0], 0xffffffff)
+		buf = v.WriteTL1Boxed(buf[:0], 0xffffffff)
 		sum := sha256.Sum256(buf)
 		v.Hash = sum[:]
 	}
@@ -253,7 +253,7 @@ func (s *scrapeServer) applyScrapeConfig(cs []ScrapeConfig) {
 		delete(s.requests, lh)
 		if hctx, _ := lh.FinishLongpoll(); hctx != nil {
 			var err error
-			hctx.Response, err = v.args.WriteResult(hctx.Response, res)
+			hctx.Response, err = v.args.WriteResultTL1(hctx.Response, res)
 			hctx.SendLongpollResponse(err)
 		}
 	}
@@ -267,7 +267,7 @@ func (s *scrapeServer) reportConfigHash(nowUnix uint32) {
 
 func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext) error {
 	var args tlstatshouse.GetTargets2Bytes
-	_, err := args.Read(hctx.Request)
+	_, err := args.ReadTL1(hctx.Request)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize statshouse.getTargets2 request: %w", err)
 	}
@@ -288,7 +288,7 @@ func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 	defer s.configMu.Unlock()
 	res, changed := s.tryGetNewTargetsLocked(req)
 	if changed {
-		hctx.Response, err = args.WriteResult(hctx.Response, res)
+		hctx.Response, err = args.WriteResultTL1(hctx.Response, res)
 		return err
 	}
 	// long poll, scrape targets will be sent once ready
@@ -332,7 +332,7 @@ func (s *scrapeServer) WriteEmptyResponse(lh rpc.LongpollHandle, hctx *rpc.Handl
 	return rpc.ErrLongpollNoEmptyResponse
 }
 
-func (job *scrapeJobConfig) toPromTargetBytes(addr string, labels []tl.DictionaryFieldStringBytes) tlstatshouse.PromTargetBytes {
+func (job *scrapeJobConfig) toPromTargetBytes(addr string, labels []tl.DictFieldStringStringBytes) tlstatshouse.PromTargetBytes {
 	var err error
 	u := url.URL{Scheme: job.Scheme, Host: addr}
 	if u.Path, err = url.QueryUnescape(job.MetricsPath); err != nil {
