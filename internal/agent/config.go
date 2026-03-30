@@ -55,6 +55,7 @@ type Config struct {
 
 	AutoCreate           bool
 	DisableNoSampleAgent bool
+	EnableBudgetFromAgg  bool
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
@@ -85,6 +86,7 @@ func DefaultConfig() Config {
 		RemoteWritePath:              "/write",
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
+		EnableBudgetFromAgg:          false,
 		HardwareMetricResolution:     5,
 		HardwareSlowMetricResolution: 15,
 	}
@@ -145,6 +147,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
+	f.BoolVar(&c.EnableBudgetFromAgg, "enable-budget-from-agg", d.EnableBudgetFromAgg, "Apply per-host receive sample budget from aggregator responses (pair with aggregator enable-dynamic-sample-factor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")

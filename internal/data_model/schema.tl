@@ -159,6 +159,7 @@ statshouse.shutdownInfo#4124cf9c
 statshouse.sendSourceBucket3Response#0e177acc
     field_mask: #
     discard: field_mask.0?true // agent should discard bucket, either they were inserted successfully or they can never be inserted
+    sample_budget: field_mask.1?long
     warning: string // if !empty, aggregator wants this in client log
     mappings: (vector statshouse.mapping)
 = statshouse.SendSourceBucket3Response;

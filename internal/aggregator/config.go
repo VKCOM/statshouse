@@ -26,22 +26,24 @@ type ConfigChangeNotifier struct {
 }
 
 type ConfigAggregatorRemote struct {
-	ShortWindow          int
-	InsertBudget         int         // for single replica, in bytes per contributor, when many contributors
-	ShardInsertBudget    map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
-	StringTopCountInsert int
-	SampleNamespaces     bool
-	SampleGroups         bool
-	SampleKeys           bool
-	DenyOldAgents        bool
-	V3InsertSettings     string
-	MappingCacheSize     int64
-	MappingCacheTTL      int
-	BufferedInsertAgeSec int    // age in seconds of data that should be sent to buffer table
-	MigrationTimeRange   string // format: "{begin timestamp}-{end timestamp}"
-	MigrationDelaySec    int    // delay in seconds between migration steps
-	ClusterShardsAddrs   []string
-	EnableMappingStorage bool
+	ShortWindow               int
+	InsertBudget              int         // for single replica, in bytes per contributor, when many contributors
+	ShardInsertBudget         map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	ReceiveSampleBudget       int         // total pre-aggregator receive budget per shard, in bytes per second
+	StringTopCountInsert      int
+	SampleNamespaces          bool
+	SampleGroups              bool
+	SampleKeys                bool
+	DenyOldAgents             bool
+	V3InsertSettings          string
+	MappingCacheSize          int64
+	MappingCacheTTL           int
+	BufferedInsertAgeSec      int    // age in seconds of data that should be sent to buffer table
+	MigrationTimeRange        string // format: "{begin timestamp}-{end timestamp}"
+	MigrationDelaySec         int    // delay in seconds between migration steps
+	ClusterShardsAddrs        []string
+	EnableMappingStorage      bool
+	EnableDynamicSampleFactor bool
 
 	RQLiteAddrs string // comma-separated list
 
@@ -95,6 +97,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 		RemoteInitial: ConfigAggregatorRemote{
 			ShortWindow:          data_model.MaxShortWindow,
 			InsertBudget:         400,
+			ReceiveSampleBudget:  800,
 			StringTopCountInsert: 20,
 			SampleNamespaces:     true,
 			SampleGroups:         true,
@@ -149,6 +152,7 @@ func (c *ConfigAggregatorRemote) setClusterShardsHosts(param string) error {
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.ShortWindow, "short-window", d.ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
+	f.IntVar(&c.ReceiveSampleBudget, "receive-sample-budget", d.ReceiveSampleBudget, "Total per-shard pre-aggregator receive budget, in bytes per second, to be divided between active contributors.")
 	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 	if !legacyVerb {
@@ -179,6 +183,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
+
+		f.BoolVar(&c.EnableDynamicSampleFactor, "enable-dynamic-sample-factor", d.EnableDynamicSampleFactor, "Enable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }

@@ -16,10 +16,11 @@ import (
 	"github.com/VKCOM/statshouse/internal/compress"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 // If clients want less jitter (most want), they should send data quickly after end of calendar second.
@@ -128,6 +129,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 	s.mu.Lock()
 	config := s.config
+
+	var budgetFromAgg int64
+	if config.EnableBudgetFromAgg {
+		budgetFromAgg = s.SampleBudgetFromAgg
+	}
 	s.mu.Unlock()
 
 	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
@@ -220,6 +226,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		numShards := int(s.agent.shardByMetricCount)
 		remainingBudget = int64((config.SampleBudget + numShards - 1) / numShards)
 	}
+	remainingBudget = max(remainingBudget, budgetFromAgg)
+
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}
@@ -329,6 +337,13 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 		s.agent.logF("Send Warning: %s, moving bucket %d to historic conveyor for shard %d",
 			respV3.Warning, cbd.time, s.ShardKey)
 	}
+	if respV3.IsSetSampleBudget() {
+		s.mu.Lock()
+		if s.config.EnableBudgetFromAgg {
+			s.SampleBudgetFromAgg = respV3.SampleBudget
+		}
+		s.mu.Unlock()
+	}
 	if !respV3.IsSetDiscard() {
 		shardReplica.stats.recentSendKeep.Add(1)
 		return false
@@ -427,6 +442,13 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		// we choose to use bucket time here, because we do not map new strings for historic buckets
 		// at the moment of sending, if they were not mapped at the moment of saving
 		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
+		if respV3.IsSetSampleBudget() {
+			s.mu.Lock()
+			if s.config.EnableBudgetFromAgg {
+				s.SampleBudgetFromAgg = respV3.SampleBudget
+			}
+			s.mu.Unlock()
+		}
 		if !respV3.IsSetDiscard() {
 			shardReplica.stats.historicSendKeep.Add(1)
 			select {

@@ -16,8 +16,9 @@ var _ = basictl.NatWrite
 type StatshouseSendSourceBucket3Response struct {
 	FieldMask uint32
 	// Discard (TrueType) // Conditional: item.FieldMask.0
-	Warning  string
-	Mappings []StatshouseMapping
+	SampleBudget int64 // Conditional: item.FieldMask.1
+	Warning      string
+	Mappings     []StatshouseMapping
 }
 
 func (StatshouseSendSourceBucket3Response) TLName() string {
@@ -36,14 +37,32 @@ func (item *StatshouseSendSourceBucket3Response) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
+func (item *StatshouseSendSourceBucket3Response) SetSampleBudget(v int64) {
+	item.SampleBudget = v
+	item.FieldMask |= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3Response) ClearSampleBudget() {
+	item.SampleBudget = 0
+	item.FieldMask &^= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3Response) IsSetSampleBudget() bool {
+	return item.FieldMask&(1<<1) != 0
+}
+
 func (item *StatshouseSendSourceBucket3Response) Reset() {
 	item.FieldMask = 0
+	item.SampleBudget = 0
 	item.Warning = ""
 	item.Mappings = item.Mappings[:0]
 }
 
 func (item *StatshouseSendSourceBucket3Response) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
+	if item.FieldMask&(1<<1) != 0 {
+		item.SampleBudget = basictl.RandomLong(rg)
+	} else {
+		item.SampleBudget = 0
+	}
 	item.Warning = basictl.RandomString(rg)
 	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Mappings)
 }
@@ -51,6 +70,13 @@ func (item *StatshouseSendSourceBucket3Response) FillRandom(rg *basictl.RandGene
 func (item *StatshouseSendSourceBucket3Response) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.LongRead(w, &item.SampleBudget); err != nil {
+			return w, err
+		}
+	} else {
+		item.SampleBudget = 0
 	}
 	if w, err = basictl.StringRead(w, &item.Warning); err != nil {
 		return w, err
@@ -64,6 +90,9 @@ func (item *StatshouseSendSourceBucket3Response) WriteGeneral(w []byte) (_ []byt
 
 func (item *StatshouseSendSourceBucket3Response) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.LongWrite(w, item.SampleBudget)
+	}
 	w = basictl.StringWrite(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
 	return w
@@ -98,6 +127,7 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 	var propFieldMaskPresented bool
 	var trueTypeDiscardPresented bool
 	var trueTypeDiscardValue bool
+	var propSampleBudgetPresented bool
 	var propWarningPresented bool
 	var propMappingsPresented bool
 
@@ -126,6 +156,14 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 					return err
 				}
 				trueTypeDiscardPresented = true
+			case "sample_budget":
+				if propSampleBudgetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "sample_budget")
+				}
+				if err := Json2ReadInt64(in, &item.SampleBudget); err != nil {
+					return err
+				}
+				propSampleBudgetPresented = true
 			case "warning":
 				if propWarningPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "warning")
@@ -155,6 +193,9 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 	if !propFieldMaskPresented {
 		item.FieldMask = 0
 	}
+	if !propSampleBudgetPresented {
+		item.SampleBudget = 0
+	}
 	if !propWarningPresented {
 		item.Warning = ""
 	}
@@ -165,6 +206,9 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 		if trueTypeDiscardValue {
 			item.FieldMask |= 1 << 0
 		}
+	}
+	if propSampleBudgetPresented {
+		item.FieldMask |= 1 << 1
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
@@ -194,6 +238,11 @@ func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(tctx *basictl.JSON
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"discard":true`...)
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"sample_budget":`...)
+		w = basictl.JSONWriteInt64(w, item.SampleBudget)
 	}
 	backupIndexWarning := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -234,8 +283,9 @@ func (item *StatshouseSendSourceBucket3Response) ReadTL2(r []byte, ctx *basictl.
 type StatshouseSendSourceBucket3ResponseBytes struct {
 	FieldMask uint32
 	// Discard (TrueType) // Conditional: item.FieldMask.0
-	Warning  []byte
-	Mappings []StatshouseMappingBytes
+	SampleBudget int64 // Conditional: item.FieldMask.1
+	Warning      []byte
+	Mappings     []StatshouseMappingBytes
 }
 
 func (StatshouseSendSourceBucket3ResponseBytes) TLName() string {
@@ -254,14 +304,32 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
+func (item *StatshouseSendSourceBucket3ResponseBytes) SetSampleBudget(v int64) {
+	item.SampleBudget = v
+	item.FieldMask |= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3ResponseBytes) ClearSampleBudget() {
+	item.SampleBudget = 0
+	item.FieldMask &^= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3ResponseBytes) IsSetSampleBudget() bool {
+	return item.FieldMask&(1<<1) != 0
+}
+
 func (item *StatshouseSendSourceBucket3ResponseBytes) Reset() {
 	item.FieldMask = 0
+	item.SampleBudget = 0
 	item.Warning = item.Warning[:0]
 	item.Mappings = item.Mappings[:0]
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
+	if item.FieldMask&(1<<1) != 0 {
+		item.SampleBudget = basictl.RandomLong(rg)
+	} else {
+		item.SampleBudget = 0
+	}
 	item.Warning = basictl.RandomStringBytes(rg)
 	BuiltinVectorStatshouseMappingBytesFillRandom(rg, &item.Mappings)
 }
@@ -269,6 +337,13 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) FillRandom(rg *basictl.Ran
 func (item *StatshouseSendSourceBucket3ResponseBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.LongRead(w, &item.SampleBudget); err != nil {
+			return w, err
+		}
+	} else {
+		item.SampleBudget = 0
 	}
 	if w, err = basictl.StringReadBytes(w, &item.Warning); err != nil {
 		return w, err
@@ -282,6 +357,9 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteGeneral(w []byte) (_ 
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) Write(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.LongWrite(w, item.SampleBudget)
+	}
 	w = basictl.StringWriteBytes(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingBytesWrite(w, item.Mappings)
 	return w
@@ -316,6 +394,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 	var propFieldMaskPresented bool
 	var trueTypeDiscardPresented bool
 	var trueTypeDiscardValue bool
+	var propSampleBudgetPresented bool
 	var propWarningPresented bool
 	var propMappingsPresented bool
 
@@ -344,6 +423,14 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 					return err
 				}
 				trueTypeDiscardPresented = true
+			case "sample_budget":
+				if propSampleBudgetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "sample_budget")
+				}
+				if err := Json2ReadInt64(in, &item.SampleBudget); err != nil {
+					return err
+				}
+				propSampleBudgetPresented = true
 			case "warning":
 				if propWarningPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "warning")
@@ -373,6 +460,9 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 	if !propFieldMaskPresented {
 		item.FieldMask = 0
 	}
+	if !propSampleBudgetPresented {
+		item.SampleBudget = 0
+	}
 	if !propWarningPresented {
 		item.Warning = item.Warning[:0]
 	}
@@ -383,6 +473,9 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 		if trueTypeDiscardValue {
 			item.FieldMask |= 1 << 0
 		}
+	}
+	if propSampleBudgetPresented {
+		item.FieldMask |= 1 << 1
 	}
 	// tries to set bit to zero if it is 1
 	if trueTypeDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
@@ -412,6 +505,11 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(tctx *basictl
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"discard":true`...)
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"sample_budget":`...)
+		w = basictl.JSONWriteInt64(w, item.SampleBudget)
 	}
 	backupIndexWarning := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

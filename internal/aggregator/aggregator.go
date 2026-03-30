@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeebo/xxh3"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -34,7 +36,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/rpc"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
-	"github.com/zeebo/xxh3"
 
 	"pgregory.net/rand"
 )
@@ -55,8 +56,13 @@ type (
 
 		contributors       map[rpc.LongpollHandle]struct{}                               // Protected by mu, can be removed if client disconnects. SendKeepAlive2 are also here
 		contributors3      map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response // Protected by mu, can be removed if client disconnects.
+		contributorsHost   map[rpc.LongpollHandle]data_model.TagUnion                    // Protected by mu
 		historicHosts      [2][2]map[data_model.TagUnion]int64                           // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue                                    // [role][route] Not recorded for keep-alive, protected by aggregator mutex
+
+		agentRequestSize  map[data_model.TagUnion]float64
+		agentSampleFactor map[data_model.TagUnion]float64
+		agentMetrics      map[data_model.TagUnion]map[int32]struct{}
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
@@ -90,7 +96,9 @@ type (
 
 		internalLog []byte // simply flushed every couple seconds
 
-		estimator data_model.Estimator
+		estimator     data_model.Estimator
+		srcSFSmoother data_model.Smoother
+		aggSFSmoother data_model.Smoother
 
 		// we potentially have 100+ buckets with 20000+ contributors each,
 		// so we have to maintain a sum of waiting hosts if we want accurate and fast metric.
@@ -360,6 +368,8 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	}
 
 	a.estimator.Init()
+	a.srcSFSmoother.Init()
+	a.aggSFSmoother.Init()
 
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
@@ -848,7 +858,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		var marshalDur time.Duration
 		var stats insertStats
-		bodyStorage, buffers, stats, marshalDur = a.rowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0])
+		var aggSampleFactor map[int32]float64
+		bodyStorage, buffers, aggSampleFactor, stats, marshalDur = a.rowDataMarshalAppendPositions(aggBuckets, buffers, rnd, bodyStorage[:0])
 
 		// Never empty, because adds value stats
 		ctx, cancelSendToCh := context.WithTimeout(cancelCtx, data_model.ClickHouseTimeoutInsert)
@@ -896,6 +907,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
+			a.assignReceiveSampleBudgetLocked(configR, b, aggSampleFactor)
 			for lh, resp := range b.contributors3 {
 				var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
 				if sendErr != nil {
@@ -909,6 +921,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			}
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once
+			clear(b.agentRequestSize)
+			clear(b.agentSampleFactor)
+			clear(b.agentMetrics)
+			clear(b.contributorsHost)
 			historicHosts := b.historicHosts
 			b.mu.Unlock()
 			a.mu.Lock()
@@ -959,6 +975,42 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		}
 		clear(aggBucket.contributorsSimulatedErrors)
 		aggBucket.mu.Unlock()
+	}
+}
+
+func (a *Aggregator) assignReceiveSampleBudgetLocked(configR ConfigAggregatorRemote, b *aggregatorBucket, aggSampleFactor map[int32]float64) {
+	if !configR.EnableDynamicSampleFactor {
+		return
+	}
+	weightSum := float64(1)
+	weights := make(map[data_model.TagUnion]float64, len(b.agentRequestSize))
+	for host, size := range b.agentRequestSize {
+		srcSF := max(b.agentSampleFactor[host], 1)
+		aggSF := float64(1)
+		for metricID := range b.agentMetrics[host] {
+			aggSF += aggSampleFactor[metricID]
+		}
+		srcSFSmooth := a.srcSFSmoother.AddAndSmooth(host, b.time, srcSF)
+		aggSFSmooth := a.aggSFSmoother.AddAndSmooth(host, b.time, aggSF)
+
+		a.sh2.AddValueCounterS(b.time, format.BuiltinMetricMetaSrcAgentSampleFactor, []int32{0, 1: host.I}, []string{"", host.S}, srcSFSmooth, 1)
+		a.sh2.AddValueCounterS(b.time, format.BuiltinMetricMetaAggAgentSampleFactor, []int32{0, 1: host.I}, []string{"", host.S}, aggSFSmooth, 1)
+
+		// Linear dependency over smoothed signals without per-tick mean normalization.
+		f := 1 + 0.1*(srcSFSmooth-1) - 100*(aggSFSmooth-1)
+		f = min(10000, max(0.5, f))
+		w := size * f
+		weights[host] = w
+		weightSum += w
+	}
+	for lh, resp := range b.contributors3 {
+		host := b.contributorsHost[lh]
+		budget := int64(float64(configR.ReceiveSampleBudget) * weights[host] / weightSum)
+		if budget > 0 {
+			resp.SetSampleBudget(budget)
+			a.sh2.AddValueCounterS(b.time, format.BuiltinMetricMetaSrcReceivedSampleBudget, []int32{0, 1: host.I}, []string{"", host.S}, float64(budget), 1)
+		}
+		b.contributors3[lh] = resp
 	}
 }
 
@@ -1016,8 +1068,12 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			time:                        nowUnix - uint32(configR.ShortWindow),
 			contributors:                map[rpc.LongpollHandle]struct{}{},
 			contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+			contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+			agentRequestSize:            map[data_model.TagUnion]float64{},
+			agentSampleFactor:           map[data_model.TagUnion]float64{},
+			agentMetrics:                map[data_model.TagUnion]map[int32]struct{}{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -1026,8 +1082,12 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
 			contributors:                map[rpc.LongpollHandle]struct{}{},
 			contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+			contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+			agentRequestSize:            map[data_model.TagUnion]float64{},
+			agentSampleFactor:           map[data_model.TagUnion]float64{},
+			agentMetrics:                map[data_model.TagUnion]map[int32]struct{}{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -1098,6 +1158,13 @@ func (a *Aggregator) goTicker() {
 		if len(readyBuckets) != 0 && readyBuckets[0].time >= historicWindow {
 			oldestTime := readyBuckets[0].time - historicWindow
 			a.estimator.GarbageCollect(oldestTime)
+			a.configMu.RLock()
+			dynSample := a.configR.EnableDynamicSampleFactor
+			a.configMu.RUnlock()
+			if dynSample {
+				a.srcSFSmoother.GarbageCollect(oldestTime)
+				a.aggSFSmoother.GarbageCollect(oldestTime)
+			}
 		}
 	}
 }

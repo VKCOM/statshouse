@@ -291,8 +291,12 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					time:                        args.Time,
 					contributors:                map[rpc.LongpollHandle]struct{}{},
 					contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+					contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+					agentRequestSize:            map[data_model.TagUnion]float64{},
+					agentSampleFactor:           map[data_model.TagUnion]float64{},
+					agentMetrics:                map[data_model.TagUnion]map[int32]struct{}{},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -346,6 +350,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 
 	lockedShard := -1
 	var newKeys []data_model.EstimatorMetricHash
+	allMetrics := map[int32]struct{}{}
 	usedMetrics := map[int32]struct{}{}
 	measurementIntKeys := 0
 	measurementStringKeys := 0
@@ -568,6 +573,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 			usedMetrics[k.Metric] = struct{}{}
 		}
+		allMetrics[k.Metric] = struct{}{}
 	}
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
@@ -585,6 +591,11 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
 	}
 
+	var sumSapling float64
+	for _, v := range bucket.SampleFactors {
+		sumSapling += float64(v.Value)
+	}
+
 	aggBucket.mu.Lock()
 
 	if aggBucket.usedMetrics == nil {
@@ -599,8 +610,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
 	if errHijack == nil {                          // must be always, because we wait for all inserts finish before calling server.Shutdown()
 		aggBucket.contributors3[lh] = resp // must be under bucket lock
+		aggBucket.contributorsHost[lh] = hostTag
 	}
 	compressedSize := len(hctx.Request)
+	if configR.EnableDynamicSampleFactor && args.Header.ComponentTag == format.TagValueIDComponentAgent {
+		if aggBucket.agentMetrics[hostTag] == nil {
+			aggBucket.agentMetrics[hostTag] = map[int32]struct{}{}
+		}
+		for item := range allMetrics {
+			aggBucket.agentMetrics[hostTag][item] = struct{}{}
+		}
+		aggBucket.agentSampleFactor[hostTag] += sumSapling
+		aggBucket.agentRequestSize[hostTag] += float64(compressedSize)
+	}
 
 	aggBucket.mu.Unlock()
 

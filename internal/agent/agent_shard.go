@@ -66,6 +66,9 @@ type (
 		cond                    *sync.Cond
 
 		HistoricOutOfWindowDropped atomic.Int64
+
+		// sample budget from SendSourceBucket3Response.sample_budget; updated only when EnableBudgetFromAgg
+		SampleBudgetFromAgg int64 // under mu
 	}
 
 	BuiltInItemValue struct {
