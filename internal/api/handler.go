@@ -2180,8 +2180,6 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 						res.ReceiveErrors = sumSeries(d.Values, 0)
 					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
-						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
 			}
@@ -2733,8 +2731,6 @@ func (h *requestHandler) buildSeriesResponse(s ...seriesResponse) *SeriesRespons
 						res.ReceiveErrors = sumSeries(d.Values, 0)
 					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
-						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
 			}

@@ -203,10 +203,10 @@ const (
 	TagValueIDAggMappingCreatedStatusOK                    = 1
 	TagValueIDAggMappingCreatedStatusCreated               = 2
 	TagValueIDAggMappingCreatedStatusFlood                 = 3
-	TagValueIDAggMappingCreatedStatusErrorPMC              = 4
+	TagValueIDAggMappingCreatedStatusErrorRPCFailed        = 4
 	TagValueIDAggMappingCreatedStatusErrorInvariant        = 5
 	TagValueIDAggMappingCreatedStatusErrorNotAskedToCreate = 6
-	TagValueIDAggMappingCreatedStatusErrorInvalidValue     = 7
+	TagValueIDAggMappingCreatedStatusErrorInvalidString    = 7
 
 	TagValueIDAggMappingCreatedConveyorOld = 1
 	TagValueIDAggMappingCreatedConveyorNew = 2

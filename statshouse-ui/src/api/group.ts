@@ -24,7 +24,7 @@ export type GroupInfo = {
   name: string;
   version?: number;
   update_time?: number;
-  weight: number;
+  weight?: number;
   disable?: boolean;
   shard_keys?: string;
 };
@@ -43,7 +43,7 @@ export type ApiGroupPost = {
   group: {
     group_id?: number;
     name: string;
-    weight: number;
+    weight?: number;
     version?: number;
     disable?: boolean;
     shard_keys?: string;
@@ -52,7 +52,7 @@ export type ApiGroupPost = {
 export type ApiGroupPut = {
   group: {
     name: string;
-    weight: number;
+    weight?: number;
     shard_keys?: string;
   };
 };

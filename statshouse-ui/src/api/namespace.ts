@@ -23,7 +23,7 @@ export type Namespace = {
   version?: number;
   update_time?: number;
   delete_time?: number;
-  weight: number;
+  weight?: number;
   disable?: boolean;
   shard_nums?: string;
 };
@@ -36,7 +36,7 @@ export type ApiNamespacePost = {
   namespace: {
     namespace_id?: number;
     name: string;
-    weight: number;
+    weigh?: number;
     version?: number;
     disable?: boolean;
     shard_nums?: string;
@@ -45,7 +45,7 @@ export type ApiNamespacePost = {
 export type ApiNamespacePut = {
   namespace: {
     name: string;
-    weight: number;
+    weight?: number;
     shard_nums?: string;
   };
 };
