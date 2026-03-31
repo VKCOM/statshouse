@@ -776,7 +776,13 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 }
 
 func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
+	// returns 1 if the mapping was decoded and replaced, else 0
 	if hostArg.AsInt32 != 0 {
+		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
+		if !presentInReplacementMappings {
+			return 0, nil
+		}
+
 		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
 		if ok {
 			hostArg.AsString = replacement
