@@ -751,20 +751,20 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 	buf = rowbinary.AppendFloat64(buf, row.sum)
 	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
 
-	// host columns may contain underlying int values which should be interpreted as mappings
-	stringifiedMinHost, err := a.replaceHostMappingIfNeeded(&row.min_host.ArgMinMaxStringFloat32)
-	if err != nil {
-		return nil, tagsStringified, fmt.Errorf("failed to replace min_host mapping: %w", err)
-	}
-	stringifiedMaxHost, err := a.replaceHostMappingIfNeeded(&row.max_host.ArgMinMaxStringFloat32)
-	if err != nil {
-		return nil, tagsStringified, fmt.Errorf("failed to replace max_host mapping: %w", err)
-	}
-	stringifiedMaxCountHost, err := a.replaceHostMappingIfNeeded(&row.max_count_host.ArgMinMaxStringFloat32)
-	if err != nil {
-		return nil, tagsStringified, fmt.Errorf("failed to replace max_count_host mapping: %w", err)
-	}
-	tagsStringified += stringifiedMinHost + stringifiedMaxHost + stringifiedMaxCountHost
+	//// host columns may contain underlying int values which should be interpreted as mappings
+	//stringifiedMinHost, err := a.replaceHostMappingIfNeeded(&row.min_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace min_host mapping: %w", err)
+	//}
+	//stringifiedMaxHost, err := a.replaceHostMappingIfNeeded(&row.max_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_host mapping: %w", err)
+	//}
+	//stringifiedMaxCountHost, err := a.replaceHostMappingIfNeeded(&row.max_count_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_count_host mapping: %w", err)
+	//}
+	//tagsStringified += stringifiedMinHost + stringifiedMaxHost + stringifiedMaxCountHost
 
 	buf = row.min_host.MarshallAppend(buf)
 	buf = row.max_host.MarshallAppend(buf)
@@ -775,22 +775,22 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 	return buf, tagsStringified, nil
 }
 
-func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
-	// returns 1 if the mapping was decoded and replaced, else 0
-	if hostArg.AsInt32 != 0 {
-		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
-		if !presentInReplacementMappings {
-			return 0, nil
-		}
-
-		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
-		if ok {
-			hostArg.AsString = replacement
-			hostArg.AsInt32 = 0
-			return 1, nil
-		} else {
-			return 0, fmt.Errorf("failed to map host value to string: int32 not found in mappings storage %d", hostArg.AsInt32)
-		}
-	}
-	return 0, nil
-}
+//func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
+//	// returns 1 if the mapping was decoded and replaced, else 0
+//	if hostArg.AsInt32 != 0 {
+//		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
+//		if !presentInReplacementMappings {
+//			return 0, nil
+//		}
+//
+//		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
+//		if ok {
+//			hostArg.AsString = replacement
+//			hostArg.AsInt32 = 0
+//			return 1, nil
+//		} else {
+//			return 0, fmt.Errorf("failed to map host value to string: int32 not found in mappings storage %d", hostArg.AsInt32)
+//		}
+//	}
+//	return 0, nil
+//}
