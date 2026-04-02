@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2025 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,50 +11,50 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
-	"strings"
-
-	"github.com/VKCOM/tl/pkg/rpc"
+	"time"
 )
 
 var (
 	// Build* заполняются при сборке go build -ldflags
-	time                string
-	machine             string
-	commit              string
-	commitTag           uint32
-	commitTimestamp     string
-	version             string
-	number              string
-	trustedSubnetGroups string
+	buildTimestamp  string
+	machine         string
+	commit          string
+	commitTag       uint32
+	commitTimestamp string
+	version         string
+	number          string
+	branchName      string
+	name            string
+
+	info string // combination of above
 
 	appName               string
 	commitTimestampUint32 uint32
-	trustedSubnetGroupsS  [][]string
+	commitTimeFormatted   string
+
+	buildTimeFormatted   string
+	buildTimestampUint32 uint32
+
+	trustedSubnetGroups string
 )
 
 func Time() string {
-	if time == "" {
-		return "?"
-	}
-	return time
+	return buildTimeFormatted
+}
+
+func Timestamp() uint32 {
+	return buildTimestampUint32
 }
 
 func Machine() string {
-	if machine == "" {
-		return "?"
-	}
 	return machine
 }
 
 func Commit() string {
-	if commit == "" {
-		return "?"
-	}
 	return commit
 }
 
@@ -68,93 +68,102 @@ func CommitTimestamp() uint32 {
 	return commitTimestampUint32
 }
 
+func CommitTime() string {
+	return commitTimeFormatted
+}
+
 func Version() string {
-	if version == "" {
-		return "?"
-	}
 	return version
 }
 
 func Number() string {
-	if number == "" {
-		return "?"
-	}
 	return number
 }
 
+func Name() string {
+	return name
+}
+
+func BranchName() string {
+	return branchName
+}
+
 func Info() string {
-	return fmt.Sprintf("%s compiled at %s by %s after %s on %s build %s", appName, Time(), runtime.Version(), Version(), Machine(), Number())
+	return info
 }
 
 func init() {
 	appName = path.Base(os.Args[0])
 	ts, _ := strconv.ParseUint(commitTimestamp, 10, 32)
 	commitTimestampUint32 = uint32(ts)
+	commitTimeFormatted = formatTime(ts)
+
 	if commitTagRaw, _ := hex.DecodeString(commit); len(commitTagRaw) >= 4 {
 		commitTag = binary.BigEndian.Uint32(commitTagRaw[:])
 	}
-	parseTrustedSubnetGroups()
+
+	if buildTimestamp != "" {
+		ts, _ = strconv.ParseUint(buildTimestamp, 10, 32)
+		buildTimestampUint32 = uint32(ts)
+		buildTimeFormatted = formatTime(ts)
+	}
+
+	info = fmt.Sprintf("%s compiled at %s by %s after %s on %s build %s", appName, buildTimeFormatted, runtime.Version(), version, machine, number)
 }
 
-func AppName() string { // TODO - remember during build
+func formatTime(t uint64) string {
+	return time.Unix(int64(t), 0).Format("2006-01-02T15:04:05-0700")
+}
+
+func AppName() string { // TODO - remember during build?
 	return appName
 }
 
-func FlagParseShowVersionHelpWithTail() {
+func FlagParseShowVersionHelpWithTail(set *flag.FlagSet, args []string) {
 	help := false
-	version := false
-	flag.BoolVar(&help, `h`, false, `show this help`)
-	flag.BoolVar(&help, `help`, false, `show this help`)
-	flag.BoolVar(&version, `v`, false, `show version`)
-	flag.BoolVar(&version, `version`, false, `show version`)
+	ver := false
+	set.BoolVar(&help, "h", false, "show this help")
+	set.BoolVar(&help, "help", false, "show this help")
+	set.BoolVar(&ver, "v", false, "show version")
+	set.BoolVar(&ver, "version", false, "show version")
 
-	flag.Parse()
+	err := set.Parse(args)
+	if err != nil {
+		os.Exit(2) // enforce ExitOnError policy
+	}
 
-	if version {
-		_, _ = fmt.Printf("%s\n", Info())
+	if ver {
+		_, _ = fmt.Fprintf(os.Stderr, "%s\n", Info())
 		os.Exit(0)
 	}
 	if help {
-		_, _ = fmt.Printf("Usage of %s:\n", AppName())
-		flag.PrintDefaults()
+		if set.Usage != nil {
+			set.Usage()
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "Usage of %s:\n", set.Name())
+			set.PrintDefaults()
+		}
 		os.Exit(0)
+	}
+}
+
+func FlagSetParseShowVersionHelp(set *flag.FlagSet, args []string) {
+	FlagParseShowVersionHelpWithTail(set, args)
+	if len(set.Args()) != 0 {
+		_, _ = fmt.Fprintf(os.Stderr, "Unexpected command line argument - %q, check command line for typos\n", set.Args()[0])
+		os.Exit(1)
 	}
 }
 
 // Fatals if additional parameters passed. Protection against 'kittenhosue ch-addr=x -c=y' when dash is forgotten
 func FlagParseShowVersionHelp() {
-	FlagParseShowVersionHelpWithTail()
-	if len(flag.Args()) != 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "Unexpected command line argument - %q, check command line for typos\n", flag.Args()[0])
-		os.Exit(1)
-	}
+	FlagSetParseShowVersionHelp(flag.CommandLine, os.Args[1:])
 }
 
-func parseTrustedSubnetGroups() {
-	if len(trustedSubnetGroups) == 0 {
-		return
+// use ';' or ',' to override non-empty list with an empty list
+func TrustedSubnetGroups(_default string) string {
+	if trustedSubnetGroups != "" {
+		return trustedSubnetGroups
 	}
-	for _, group := range strings.Split(trustedSubnetGroups, ";") {
-		var s []string
-		for _, addr := range strings.Split(group, ",") {
-			t := strings.TrimSpace(addr)
-			if len(t) != 0 {
-				s = append(s, t)
-			}
-		}
-		if len(s) != 0 {
-			trustedSubnetGroupsS = append(trustedSubnetGroupsS, s)
-		}
-	}
-	_, errs := rpc.ParseTrustedSubnets(trustedSubnetGroupsS)
-	if len(errs) != 0 {
-		for _, err := range errs {
-			log.Printf("failed to parse trusted subnet: %q", err)
-		}
-		os.Exit(1)
-	}
-}
-
-func TrustedSubnetGroups() [][]string {
-	return trustedSubnetGroupsS
+	return _default
 }

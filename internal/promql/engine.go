@@ -1406,7 +1406,7 @@ func (ev *evaluator) newWindow(v []float64, s bool) window {
 
 func (ev *evaluator) reportStat(timeEnd time.Time) {
 	tags := statshouse.Tags{
-		1: srvfunc.HostnameForStatshouse(),
+		1: srvfunc.Hostname(),
 	}
 	r := ev.t.End - ev.t.Start
 	x := 2
