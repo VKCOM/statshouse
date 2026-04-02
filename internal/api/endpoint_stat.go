@@ -113,7 +113,7 @@ func (es *endpointStat) report(code int, metric string) {
 		3:  es.method,
 		4:  es.dataFormat,
 		5:  es.lane,
-		6:  srvfunc.HostnameForStatshouse(),
+		6:  srvfunc.Hostname(),
 		7:  es.tokenName,
 		8:  strconv.Itoa(code),
 		9:  es.metric,
@@ -147,7 +147,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 		c.Value(
 			format.BuiltinMetricMetaAPIBRS.Name,
 			statshouse.Tags{
-				1: srvfunc.HostnameForStatshouse(),
+				1: srvfunc.Hostname(),
 			},
 			float64(brs.Count()))
 	}
@@ -179,11 +179,11 @@ func ChSelectMetricDuration(duration time.Duration, metric *format.MetricMetaVal
 }
 
 func ChSelectActiveQueries(client *statshouse.Client, versionTag string, tagLane int, generalCount int64, shardCounts []int64) {
-	fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse()})
+	fastHardware := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.Hostname()})
 	fastHardware.Value(float64(generalCount))
 
 	for i, count := range shardCounts {
-		shardMetric := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.HostnameForStatshouse(), 5: strconv.Itoa(i + 1)})
+		shardMetric := client.MetricRef(format.BuiltinMetricMetaAPIActiveQueries.Name, statshouse.Tags{2: versionTag, 3: strconv.Itoa(tagLane), 4: srvfunc.Hostname(), 5: strconv.Itoa(i + 1)})
 		shardMetric.Value(float64(count))
 	}
 }
@@ -196,7 +196,7 @@ func ChRateLimit(client *statshouse.Client, versionTag string, stats []chutil.Ra
 			4: strconv.FormatUint(stat.InflightWeight, 10),
 			5: strconv.Itoa(stat.ShardKey),
 			6: strconv.Itoa(stat.ReplicaKey),
-			7: srvfunc.HostnameForStatshouse()})
+			7: srvfunc.Hostname()})
 		metric.Value(float64(stat.InflightCnt))
 	}
 }
@@ -209,7 +209,7 @@ func ChRequestsMetric(shard int, aggHost string, table string, errCode int, ok b
 	statshouse.Count(
 		format.BuiltinMetricMetaApiChRequests.Name,
 		statshouse.Tags{
-			1: srvfunc.HostnameForStatshouse(),
+			1: srvfunc.Hostname(),
 			2: strconv.Itoa(shard),
 			3: aggHost,
 			4: table,

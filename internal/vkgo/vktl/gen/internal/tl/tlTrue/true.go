@@ -57,11 +57,11 @@ func (item True) String() string {
 }
 
 func (item *True) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *True) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *True) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -79,15 +79,14 @@ func (item *True) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.Jso
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *True) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *True) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *True) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *True) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *True) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -97,7 +96,8 @@ func (item *True) MarshalJSON() ([]byte, error) {
 }
 
 func (item *True) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("true", err.Error())
 	}
 	return nil
@@ -118,18 +118,18 @@ func (item *True) InternalWriteTL2(w []byte, sizes []int, optimizeEmpty bool) ([
 	return w, sizes, 1
 }
 
-func (item *True) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *True) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -151,7 +151,7 @@ func (item *True) InternalReadTL2(r []byte) (_ []byte, err error) {
 	r = r[currentSize:]
 
 	var block byte
-	if currentR, err = basictl.ByteReadTL2(currentR, &block); err != nil {
+	if currentR, err = basictl.ByteRead(currentR, &block); err != nil {
 		return currentR, err
 	}
 	// read No of constructor
@@ -168,6 +168,6 @@ func (item *True) InternalReadTL2(r []byte) (_ []byte, err error) {
 	return r, nil
 }
 
-func (item *True) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *True) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

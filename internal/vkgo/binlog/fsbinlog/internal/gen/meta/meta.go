@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/internal/metainternal"
 )
 
-func SchemaGenerator() string { return "v1.3.31" }
+func SchemaGenerator() string { return "v1.4.4" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }

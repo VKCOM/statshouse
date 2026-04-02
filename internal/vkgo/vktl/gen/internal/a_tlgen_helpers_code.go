@@ -294,6 +294,31 @@ func Json2ReadStringBytes(in *jlexer.Lexer, dst *[]byte) error {
 	return nil
 }
 
+func Json2ReadByte(in *jlexer.Lexer, dst *byte) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseUint(src, 10, 8)
+		if err != nil {
+			return err
+		}
+		*dst = byte(value)
+	case jlexer.TokenNumber:
+		*dst = in.Uint8()
+	default:
+		return errors.New("invalid json for byte")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
+	return nil
+}
+
 func Json2ReadUint32(in *jlexer.Lexer, dst *uint32) error {
 	if in == nil {
 		*dst = 0
@@ -362,6 +387,31 @@ func Json2ReadInt64(in *jlexer.Lexer, dst *int64) error {
 		*dst = in.Int64()
 	default:
 		return errors.New("invalid json for int64")
+	}
+	if !in.Ok() {
+		return in.Error()
+	}
+	return nil
+}
+
+func Json2ReadUint64(in *jlexer.Lexer, dst *uint64) error {
+	if in == nil {
+		*dst = 0
+		return nil
+	}
+
+	switch in.CurrentToken() {
+	case jlexer.TokenString:
+		src := in.UnsafeString()
+		value, err := strconv.ParseUint(src, 10, 64)
+		if err != nil {
+			return err
+		}
+		*dst = value
+	case jlexer.TokenNumber:
+		*dst = in.Uint64()
+	default:
+		return errors.New("invalid json for uint64")
 	}
 	if !in.Ok() {
 		return in.Error()

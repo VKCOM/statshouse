@@ -269,7 +269,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	host := srvfunc.HostnameForStatshouse()
+	host := srvfunc.Hostname()
 	log.Println("[debug] opening db and reread binlog")
 	db, err := metadata.OpenDB(argv.dbPath, metadata.Options{
 		Host:         host,
@@ -297,7 +297,7 @@ func run() error {
 		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
 		4:                       fmt.Sprint(build.CommitTag()),
 		6:                       fmt.Sprint(build.CommitTimestamp()),
-		7:                       srvfunc.HostnameForStatshouse(),
+		7:                       srvfunc.Hostname(),
 		statshouse.StringTopTag: build.Commit(),
 	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
@@ -340,7 +340,7 @@ func run() error {
 		rpc.ServerWithLogf(log.Printf),
 		// meta is accessible via RPC proxy, so needs some timeout for long poll contexts clean up
 		rpc.ServerWithDefaultResponseTimeout(5*time.Minute),
-		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups())),
+		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups("")))),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
 		metrics.ServerWithMetrics,
 	)

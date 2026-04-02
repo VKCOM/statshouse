@@ -619,11 +619,11 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		configListener:        cl,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
-		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferBytesFree:       statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "2"}),
-		bufferPoolBytesAlloc:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse(), 2: "1"}),
-		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}),
+		bufferBytesAlloc:      statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.Hostname(), 2: "2"}),
+		bufferBytesFree:       statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.Hostname(), 2: "2"}),
+		bufferPoolBytesAlloc:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesAlloc.Name, statshouse.Tags{1: srvfunc.Hostname(), 2: "1"}),
+		bufferPoolBytesFree:   statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesFree.Name, statshouse.Tags{1: srvfunc.Hostname(), 2: "1"}),
+		bufferPoolBytesTotal:  statshouse.GetMetricRef(format.BuiltinMetricMetaAPIBufferBytesTotal.Name, statshouse.Tags{1: srvfunc.Hostname()}),
 	}
 	h.cache2 = newCache2(h, cfg.CacheChunkSize, loadPoints)
 	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, loadPoint, time.Now)
@@ -683,16 +683,16 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 			vmSize = float64(st.Size)
 			vmRSS = float64(st.Res)
 		}
-		client.Value(format.BuiltinMetricMetaApiVmSize.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmSize)
-		client.Value(format.BuiltinMetricMetaApiVmRSS.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, vmRSS)
+		client.Value(format.BuiltinMetricMetaApiVmSize.Name, statshouse.Tags{1: srvfunc.Hostname()}, vmSize)
+		client.Value(format.BuiltinMetricMetaApiVmRSS.Name, statshouse.Tags{1: srvfunc.Hostname()}, vmRSS)
 		client.Value(format.BuiltinMetricMetaUsageMemory.Name, statshouse.Tags{1: strconv.Itoa(format.TagValueIDComponentAPI)}, vmRSS)
 
 		var memStats runtime.MemStats
 		runtime.ReadMemStats(&memStats)
-		client.Value(format.BuiltinMetricMetaApiHeapAlloc.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapAlloc))
-		client.Value(format.BuiltinMetricMetaApiHeapSys.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapSys))
-		client.Value(format.BuiltinMetricMetaApiHeapIdle.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapIdle))
-		client.Value(format.BuiltinMetricMetaApiHeapInuse.Name, statshouse.Tags{1: srvfunc.HostnameForStatshouse()}, float64(memStats.HeapInuse))
+		client.Value(format.BuiltinMetricMetaApiHeapAlloc.Name, statshouse.Tags{1: srvfunc.Hostname()}, float64(memStats.HeapAlloc))
+		client.Value(format.BuiltinMetricMetaApiHeapSys.Name, statshouse.Tags{1: srvfunc.Hostname()}, float64(memStats.HeapSys))
+		client.Value(format.BuiltinMetricMetaApiHeapIdle.Name, statshouse.Tags{1: srvfunc.Hostname()}, float64(memStats.HeapIdle))
+		client.Value(format.BuiltinMetricMetaApiHeapInuse.Name, statshouse.Tags{1: srvfunc.Hostname()}, float64(memStats.HeapInuse))
 
 		writeActiveQuieries := func(ch *chutil.ClickHouse, versionTag string) {
 			if ch != nil {
