@@ -76,7 +76,10 @@ export type SeriesResponse = {
   sampling_factor_agg: number;
   receive_errors: number;
   receive_warnings: number;
-  mapping_errors: number;
+  /**
+   * @deprecated параметр утратил смысл
+   */
+  mapping_errors?: number;
   promql: string;
   __debug_queries: string[];
   promqltestfailed?: boolean;

@@ -13,7 +13,6 @@ const badgesSelector = (r?: ApiBadges) => ({
   receiveWarnings: r?.data?.receive_warnings,
   samplingFactorSrc: r?.data?.sampling_factor_src,
   samplingFactorAgg: r?.data?.sampling_factor_agg,
-  mappingFloodEvents: r?.data?.mapping_errors,
 });
 const defaultPlot = getNewMetric();
 
@@ -33,10 +32,8 @@ export function useMetricBadges(
       receiveWarnings: queryData.data?.receiveWarnings ?? 0,
       samplingFactorSrc: queryData.data?.samplingFactorSrc ?? 1,
       samplingFactorAgg: queryData.data?.samplingFactorAgg ?? 1,
-      mappingFloodEvents: queryData.data?.mappingFloodEvents ?? 0,
     }),
     [
-      queryData.data?.mappingFloodEvents,
       queryData.data?.receiveErrors,
       queryData.data?.receiveWarnings,
       queryData.data?.samplingFactorAgg,

@@ -31,7 +31,6 @@ export function getEmptyPlotData(): PlotData {
     receiveWarnings: 0,
     samplingFactorSrc: 0,
     samplingFactorAgg: 0,
-    mappingFloodEvents: 0,
     legendValueWidth: 0,
     legendMaxDotSpaceWidth: 0,
     legendNameWidth: 0,

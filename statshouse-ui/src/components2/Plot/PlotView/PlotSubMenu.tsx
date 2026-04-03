@@ -28,8 +28,14 @@ export const PlotSubMenu = memo(function PlotSubMenu({ className }: PlotSubMenuP
   const { plot } = useWidgetPlotContext();
   const { timeRange, timeShifts, variables } = useStatsHouseShallow(selectorStore);
   const metricName = useMetricName(true);
-  const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, mappingFloodEvents, isLoading } =
-    useMetricBadges(plot, timeRange, timeShifts, variables, true, 1);
+  const { receiveErrors, receiveWarnings, samplingFactorSrc, samplingFactorAgg, isLoading } = useMetricBadges(
+    plot,
+    timeRange,
+    timeShifts,
+    variables,
+    true,
+    1
+  );
 
   const linkCSV = useLinkCSV2(plot.id);
   return (
@@ -113,29 +119,6 @@ export const PlotSubMenu = memo(function PlotSubMenu({ className }: PlotSubMenuP
         >
           <small>Cardinality</small>
         </Link>
-      </li>
-      <li className="nav-item">
-        {mappingFloodEvents > 0.5 ? (
-          <Link
-            className="nav-link p-0 me-4"
-            target="_blank"
-            to={{
-              search: `?s=__agg_mapping_created&qw=count&f=${timeRange.from}&t=${timeRange.urlTo}&qf=key4-${metricName}&qb=key5&qf=key5~created`,
-            }}
-          >
-            <small className="badge bg-danger">Mapping errors: {formatSI(mappingFloodEvents)}</small>
-          </Link>
-        ) : (
-          <Link
-            className="nav-link p-0 me-4"
-            target="_blank"
-            to={{
-              search: `?s=__agg_mapping_created&qw=count&f=${timeRange.from}&t=${timeRange.urlTo}&qf=key4-${metricName}&qb=key5`,
-            }}
-          >
-            <small>Mapping status</small>
-          </Link>
-        )}
       </li>
       <li className="nav-item">
         <Link className="nav-link p-0 me-4" to={linkCSV} download target="_blank">
