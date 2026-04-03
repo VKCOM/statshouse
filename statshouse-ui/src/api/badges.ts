@@ -27,7 +27,10 @@ export type BadgesResponse = {
   sampling_factor_agg: number;
   receive_errors: number;
   receive_warnings: number;
-  mapping_errors: number;
+  /**
+   * @deprecated параметр утратил смысл
+   */
+  mapping_errors?: number;
 };
 
 export async function apiBadgesFetch(params: ApiQueryGet, keyRequest?: unknown) {

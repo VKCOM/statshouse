@@ -23,7 +23,10 @@ export interface queryResult {
   readonly receive_warnings: number;
   readonly sampling_factor_src: number;
   readonly sampling_factor_agg: number;
-  readonly mapping_errors: number;
+  /**
+   * @deprecated параметр утратил смысл
+   */
+  readonly mapping_errors?: number;
   readonly promqltestfailed?: boolean; // only dev param
   readonly promql: string;
   readonly metric: MetricMetaValue | null;
