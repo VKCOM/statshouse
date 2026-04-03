@@ -14,12 +14,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/compress"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type ShardReplica struct {
@@ -71,6 +72,14 @@ func (s *ShardReplica) sendSourceBucket3Compressed(ctx context.Context, cbd comp
 		OriginalSize:   originalSize,
 		CompressedData: string(compressedData), // unsafe.String(unsafe.SliceData(compressedData), len(compressedData)), // we either convert to string here, or convert mappings in response to string there, this is less dangerous because 100% local
 	}
+	var demandRows []tlstatshouse.MetricBudget
+	for metricID, rows := range cbd.receiveMetrics {
+		demandRows = append(demandRows, tlstatshouse.MetricBudget{
+			MetricId: metricID,
+			Budget:   rows,
+		})
+	}
+	args.SetDemandMetricRows(demandRows)
 	if sendMoreBytes > 0 {
 		if sendMoreBytes > data_model.MaxSendMoreData {
 			sendMoreBytes = data_model.MaxSendMoreData

@@ -20,11 +20,12 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/compress"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func bool2int(b bool) int { // freaking golang clowns
@@ -291,8 +292,10 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					time:                        args.Time,
 					contributors:                map[rpc.LongpollHandle]struct{}{},
 					contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
+					contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+					demandMetricRows:            map[int32]map[data_model.TagUnion]int64{},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -346,6 +349,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 
 	lockedShard := -1
 	var newKeys []data_model.EstimatorMetricHash
+	allMetrics := map[int32]struct{}{}
 	usedMetrics := map[int32]struct{}{}
 	measurementIntKeys := 0
 	measurementStringKeys := 0
@@ -568,6 +572,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 			usedMetrics[k.Metric] = struct{}{}
 		}
+		allMetrics[k.Metric] = struct{}{}
 	}
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
@@ -585,6 +590,11 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
 	}
 
+	var sumSapling float64
+	for _, v := range bucket.SampleFactors {
+		sumSapling += float64(v.Value)
+	}
+
 	aggBucket.mu.Lock()
 
 	if aggBucket.usedMetrics == nil {
@@ -599,8 +609,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
 	if errHijack == nil {                          // must be always, because we wait for all inserts finish before calling server.Shutdown()
 		aggBucket.contributors3[lh] = resp // must be under bucket lock
+		aggBucket.contributorsHost[lh] = hostTag
 	}
 	compressedSize := len(hctx.Request)
+	if configR.EnableDynamicSampleFactor && args.Header.ComponentTag == format.TagValueIDComponentAgent {
+		for _, v := range args.DemandMetricRows {
+			byHost, ok := aggBucket.demandMetricRows[v.MetricId]
+			if !ok {
+				byHost = map[data_model.TagUnion]int64{}
+				aggBucket.demandMetricRows[v.MetricId] = byHost
+			}
+			byHost[hostTag] += v.Budget
+		}
+	}
 
 	aggBucket.mu.Unlock()
 

@@ -21,6 +21,7 @@ type Config struct {
 	AggregatorAddresses []string
 	// Sampling Algorithm
 	SampleBudget         int // for all shards, in bytes
+	MinSampleBudget      int
 	OverrideSampleBudget int
 	ShardSampleBudget    map[int]int // pre shard overrides, if not set buget is equal to SampleBudget
 	HistoricWindow       uint
@@ -55,6 +56,7 @@ type Config struct {
 
 	AutoCreate           bool
 	DisableNoSampleAgent bool
+	EnableBudgetFromAgg  bool
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
@@ -85,6 +87,8 @@ func DefaultConfig() Config {
 		RemoteWritePath:              "/write",
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
+		EnableBudgetFromAgg:          false,
+		MinSampleBudget:              2000,
 		HardwareMetricResolution:     5,
 		HardwareSlowMetricResolution: 15,
 	}
@@ -145,6 +149,8 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
+	f.BoolVar(&c.EnableBudgetFromAgg, "enable-budget-from-agg", d.EnableBudgetFromAgg, "Apply per-host receive sample budget from aggregator responses (pair with aggregator enable-dynamic-sample-factor).")
+	f.IntVar(&c.MinSampleBudget, "min-sample-budget", d.MinSampleBudget, "Minimum byte budget for the fallback/remain sampling pass after subtracting per-metric budgets (0 = no extra floor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
@@ -209,6 +215,9 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if format.AllowedResolution(c.HardwareSlowMetricResolution) != c.HardwareSlowMetricResolution {
 		return fmt.Errorf("--hardware-slow-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", c.HardwareSlowMetricResolution)
+	}
+	if c.MinSampleBudget < 0 {
+		return fmt.Errorf("--min-sample-budget (%d) must be >= 0", c.MinSampleBudget)
 	}
 
 	return nil

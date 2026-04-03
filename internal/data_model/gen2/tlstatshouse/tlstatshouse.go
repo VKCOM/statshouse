@@ -52,6 +52,7 @@ type (
 	MappingBytes                      = internal.StatshouseMappingBytes
 	Metric                            = internal.StatshouseMetric
 	MetricBytes                       = internal.StatshouseMetricBytes
+	MetricBudget                      = internal.StatshouseMetricBudget
 	MultiItem                         = internal.StatshouseMultiItem
 	MultiItemBytes                    = internal.StatshouseMultiItemBytes
 	MultiValue                        = internal.StatshouseMultiValue
@@ -81,6 +82,7 @@ type (
 	VectorMappingBytes                = internal.VectorStatshouseMappingBytes
 	VectorMetric                      = internal.VectorStatshouseMetric
 	VectorMetricBytes                 = internal.VectorStatshouseMetricBytes
+	VectorMetricBudget                = internal.VectorStatshouseMetricBudget
 	VectorMultiItem                   = internal.VectorStatshouseMultiItem
 	VectorMultiItemBytes              = internal.VectorStatshouseMultiItemBytes
 	VectorPromTarget                  = internal.VectorStatshousePromTarget

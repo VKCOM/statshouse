@@ -10,16 +10,18 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/compress"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 // If clients want less jitter (most want), they should send data quickly after end of calendar second.
@@ -114,20 +116,26 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
+	var receiveMetrics map[int32]int64
+	receiveMetrics, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
-	cbd := compressedBucketData{time: bucket.Time, data: compressed}
+	cbd := compressedBucketData{
+		time:           bucket.Time,
+		data:           compressed,
+		receiveMetrics: receiveMetrics,
+	}
 	s.sendToSenders(cbd)
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (map[int32]int64, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
 	config := s.config
+	metricBudgetsFromAgg := s.metricBudgetsFromAgg
 	s.mu.Unlock()
 
 	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
@@ -165,19 +173,12 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 		sb.Metrics = append(sb.Metrics, item)
 	}
-
-	sampler := data_model.NewSampler(data_model.SamplerConfig{
-		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
-		SampleKeepSingle:     config.SampleKeepSingle,
-		DisableNoSampleAgent: config.DisableNoSampleAgent,
-		SampleNamespaces:     config.SampleNamespaces,
-		SampleGroups:         config.SampleGroups,
-		SampleKeys:           config.SampleKeys,
-		Meta:                 s.agent.metricStorage,
-		Rand:                 rnd,
-		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
-		SamplerBuffers:       buffers,
-	})
+	var (
+		receiveMetrics = map[int32]int64{}
+		budgetMetrics  = map[int32][]data_model.SamplingMultiItemPair{}
+		remainMetrics  []data_model.SamplingMultiItemPair
+		sampleFactors  []tlstatshouse.SampleFactor
+	)
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization, outside budget, size tracked below in format.TagValueIDSizeSampleFactors
@@ -205,14 +206,31 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
 		}
-		sampler.Add(data_model.SamplingMultiItemPair{
+		pair := data_model.SamplingMultiItemPair{
 			Item:        item,
 			WhaleWeight: whaleWeight,
 			Size:        sz,
 			MetricID:    accountMetric,
-		})
+		}
+		if budget := metricBudgetsFromAgg[accountMetric]; config.EnableBudgetFromAgg && budget > 0 {
+			budgetMetrics[accountMetric] = append(budgetMetrics[accountMetric], pair)
+		} else {
+			remainMetrics = append(remainMetrics, pair)
+		}
+		receiveMetrics[accountMetric]++
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
+
+	budgetSum := int64(0)
+	sampleMetricCount := 0
+	for metricID, pairs := range budgetMetrics {
+		budget := metricBudgetsFromAgg[metricID]
+		budgetSum += budget
+		buf, cnt, sf := s.sampleMetrics(config, pairs, budget, bucket.Time, buffers, keepF, rnd)
+		buffers = buf
+		sampleMetricCount += cnt
+		sampleFactors = append(sampleFactors, sf...)
+	}
 	var remainingBudget int64
 	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
 		remainingBudget = int64(budget)
@@ -223,28 +241,21 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}
-	sampler.Run(remainingBudget)
-	for _, v := range sampler.MetricGroups {
-		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
-			&v.SumSizeKeep)
-		// discard bytes
-		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
-			&v.SumSizeDiscard)
-		// budget
-		s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
-			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
-			v.Budget(), 1)
-	}
+	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
+
+	buf, cnt, sf := s.sampleMetrics(config, remainMetrics, remainingBudget, bucket.Time, buffers, keepF, rnd)
+	buffers = buf
+	sampleMetricCount += cnt
+	sampleFactors = append(sampleFactors, sf...)
+
 	// report budget used
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
 		[]int32{0, s.agent.componentTag},
-		float64(remainingBudget), 1)
+		float64(budgetSum+remainingBudget), 1)
 	// metric count
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
 		[]int32{0, s.agent.componentTag},
-		float64(sampler.MetricCount), 1)
+		float64(sampleMetricCount), 1)
 
 	// Add size metrics
 	for i := 0; i != 2; i++ {
@@ -260,7 +271,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
-	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
+	sort.Slice(sampleFactors, func(i, j int) bool { return sampleFactors[i].Metric < sampleFactors[j].Metric })
+	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
@@ -271,7 +283,48 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
 
-	return sampler.SamplerBuffers, scratch
+	return receiveMetrics, scratch
+}
+
+func (s *Shard) sampleMetrics(
+	config Config,
+	pairs []data_model.SamplingMultiItemPair,
+	budget int64,
+	ts uint32,
+	buffers data_model.SamplerBuffers,
+	keepF func(v *data_model.MultiItem, ts uint32, sampling int),
+	rnd *rand.Rand) (
+	data_model.SamplerBuffers, int, []tlstatshouse.SampleFactor,
+) {
+	sampler := data_model.NewSampler(data_model.SamplerConfig{
+		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
+		SampleKeepSingle:     config.SampleKeepSingle,
+		DisableNoSampleAgent: config.DisableNoSampleAgent,
+		SampleNamespaces:     config.SampleNamespaces,
+		SampleGroups:         config.SampleGroups,
+		SampleKeys:           config.SampleKeys,
+		Meta:                 s.agent.metricStorage,
+		Rand:                 rnd,
+		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
+		SamplerBuffers:       buffers,
+	})
+	for _, pair := range pairs {
+		sampler.Add(pair)
+	}
+	sampler.Run(budget)
+	buffers = sampler.SamplerBuffers
+	for _, v := range sampler.MetricGroups {
+		s.agent.MergeItemValue(ts, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeKeep)
+		s.agent.MergeItemValue(ts, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeDiscard)
+		s.agent.AddValueCounter(ts, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+			v.Budget(), 1)
+	}
+	return buffers, sampler.MetricCount, sampler.SampleFactors
 }
 
 func (s *Shard) sendToSenders(cbd compressedBucketData) {
@@ -328,6 +381,15 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 	if len(respV3.Warning) != 0 {
 		s.agent.logF("Send Warning: %s, moving bucket %d to historic conveyor for shard %d",
 			respV3.Warning, cbd.time, s.ShardKey)
+	}
+	if respV3.IsSetMetricBudgets() {
+		s.mu.Lock()
+		if s.config.EnableBudgetFromAgg {
+			for _, item := range respV3.MetricBudgets {
+				s.metricBudgetsFromAgg[item.MetricId] = item.Budget
+			}
+		}
+		s.mu.Unlock()
 	}
 	if !respV3.IsSetDiscard() {
 		shardReplica.stats.recentSendKeep.Add(1)
@@ -427,6 +489,15 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		// we choose to use bucket time here, because we do not map new strings for historic buckets
 		// at the moment of sending, if they were not mapped at the moment of saving
 		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
+		if respV3.IsSetMetricBudgets() {
+			s.mu.Lock()
+			if s.config.EnableBudgetFromAgg {
+				for _, item := range respV3.MetricBudgets {
+					s.metricBudgetsFromAgg[item.MetricId] = item.Budget
+				}
+			}
+			s.mu.Unlock()
+		}
 		if !respV3.IsSetDiscard() {
 			shardReplica.stats.historicSendKeep.Add(1)
 			select {

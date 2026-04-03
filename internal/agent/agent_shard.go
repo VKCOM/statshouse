@@ -66,6 +66,9 @@ type (
 		cond                    *sync.Cond
 
 		HistoricOutOfWindowDropped atomic.Int64
+
+		// budget for metrics from SendSourceBucket3Response
+		metricBudgetsFromAgg map[int32]int64
 	}
 
 	BuiltInItemValue struct {
@@ -76,9 +79,10 @@ type (
 	}
 
 	compressedBucketData struct {
-		id   int64 // in disk queue, or 0 if working without disk
-		time uint32
-		data []byte // first 4 bytes are uncompressed size, rest is compressed data
+		id             int64 // in disk queue, or 0 if working without disk
+		time           uint32
+		data           []byte // first 4 bytes are uncompressed size, rest is compressed data
+		receiveMetrics map[int32]int64
 	}
 )
 

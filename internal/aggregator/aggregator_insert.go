@@ -479,9 +479,9 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	if shardInsertBuget, ok := configR.ShardInsertBudget[int(a.shardKey)]; ok {
 		insertBudget = shardInsertBuget
 	}
-	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(insertBudget*numContributors)
-	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
+	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
+	remainingBudget := configR.MinInsertBudget + int64(insertBudget*numContributors)
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
 		sk := samplingStatKey{v.NamespaceID, v.GroupID}

@@ -13,10 +13,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 // ConfigChangeNotifier notify getConfigResult3Locked if ConfigAggregatorRemote.ClusterShardsAddrs was updated
@@ -27,8 +28,10 @@ type ConfigChangeNotifier struct {
 
 type ConfigAggregatorRemote struct {
 	ShortWindow               int
-	InsertBudget              int         // for single replica, in bytes per contributor, when many contributors
+	InsertBudget              int // for single replica, in bytes per contributor, when many contributors
+	MinInsertBudget           int64
 	ShardInsertBudget         map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	ReceiveSampleBudget       int         // total pre-aggregator receive budget per shard, in bytes per second
 	StringTopCountInsert      int
 	SampleNamespaces          bool
 	SampleGroups              bool
@@ -43,6 +46,7 @@ type ConfigAggregatorRemote struct {
 	MigrationDelaySec         int // delay in seconds between migration steps
 	ClusterShardsAddrs        []string
 	EnableMappingStorage      bool
+	EnableDynamicSampleFactor bool
 
 	RQLiteAddrs string // comma-separated list
 
@@ -96,6 +100,8 @@ func DefaultConfigAggregator() ConfigAggregator {
 		RemoteInitial: ConfigAggregatorRemote{
 			ShortWindow:               data_model.MaxShortWindow,
 			InsertBudget:              400,
+			MinInsertBudget:           data_model.InsertBudgetFixed,
+			ReceiveSampleBudget:       800,
 			StringTopCountInsert:      20,
 			SampleNamespaces:          true,
 			SampleGroups:              true,
@@ -176,6 +182,8 @@ func (c *ConfigAggregatorRemote) setMigrationV3DisabledShards(param string) erro
 func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.ShortWindow, "short-window", d.ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
+	f.Int64Var(&c.MinInsertBudget, "min-insert-budget", d.MinInsertBudget, "Should put average insert budget here. If CH freezes, we lose contributors, budget falls, so sample factor extremely rises.")
+	f.IntVar(&c.ReceiveSampleBudget, "receive-sample-budget", d.ReceiveSampleBudget, "Total per-shard pre-aggregator receive budget, in bytes per second, to be divided between active contributors.")
 	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 	if !legacyVerb {
@@ -207,6 +215,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
+
+		f.BoolVar(&c.EnableDynamicSampleFactor, "enable-dynamic-sample-factor", d.EnableDynamicSampleFactor, "Enable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }
@@ -262,6 +272,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	}
 	if c.InsertBudget < 1 {
 		return fmt.Errorf("insert-budget (%d) must be >= 1", c.InsertBudget)
+	}
+	if c.MinInsertBudget < 1 {
+		return fmt.Errorf("min-insert-budget (%d) must be >= 1", c.MinInsertBudget)
 	}
 	if c.StringTopCountInsert < data_model.MinStringTopInsert {
 		return fmt.Errorf("--string-top-insert (%d) must be >= %d", c.StringTopCountInsert, data_model.MinStringTopInsert)
