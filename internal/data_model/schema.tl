@@ -8,6 +8,7 @@
 ---types---
 
 statshouse.sampleFactor metric:int value:float = statshouse.SampleFactor;
+statshouse.metricBudget metric_id:int budget:long = statshouse.MetricBudget;
 
 statshouse.ingestionStatus2 env:int metric:int value:float = statshouse.IngestionStatus2;
 
@@ -159,7 +160,7 @@ statshouse.shutdownInfo#4124cf9c
 statshouse.sendSourceBucket3Response#0e177acc
     field_mask: #
     discard: field_mask.0?true // agent should discard bucket, either they were inserted successfully or they can never be inserted
-    sample_budget: field_mask.1?long
+    metric_budgets: field_mask.1?(vector statshouse.metricBudget)
     warning: string // if !empty, aggregator wants this in client log
     mappings: (vector statshouse.mapping)
 = statshouse.SendSourceBucket3Response;
@@ -195,6 +196,7 @@ statshouse.sendSourceBucket3Response#0e177acc
     time:#
     historic:fields_mask.0?true
     spare:fields_mask.1?true
+    demand_metric_rows:fields_mask.2?(vector statshouse.metricBudget)
     // build stats
     build_commit:string
     build_commit_ts:#

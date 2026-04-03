@@ -22,6 +22,7 @@ type StatshouseSendSourceBucket3 struct {
 	Time       uint32
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
+	DemandMetricRows []StatshouseMetricBudget // Conditional: item.FieldsMask.2
 	// build stats
 	BuildCommit   string
 	BuildCommitTs uint32
@@ -53,10 +54,23 @@ func (item *StatshouseSendSourceBucket3) SetSpare(v bool) {
 }
 func (item *StatshouseSendSourceBucket3) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *StatshouseSendSourceBucket3) SetDemandMetricRows(v []StatshouseMetricBudget) {
+	item.DemandMetricRows = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket3) ClearDemandMetricRows() {
+	item.DemandMetricRows = item.DemandMetricRows[:0]
+	item.FieldsMask &^= 1 << 2
+}
+func (item *StatshouseSendSourceBucket3) IsSetDemandMetricRows() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
+
 func (item *StatshouseSendSourceBucket3) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.Time = 0
+	item.DemandMetricRows = item.DemandMetricRows[:0]
 	item.BuildCommit = ""
 	item.BuildCommitTs = 0
 	item.OriginalSize = 0
@@ -65,9 +79,14 @@ func (item *StatshouseSendSourceBucket3) Reset() {
 }
 
 func (item *StatshouseSendSourceBucket3) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000111)
 	item.Header.FillRandom(rg, item.FieldsMask)
 	item.Time = basictl.RandomUint(rg)
+	if item.FieldsMask&(1<<2) != 0 {
+		BuiltinVectorStatshouseMetricBudgetFillRandom(rg, &item.DemandMetricRows)
+	} else {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
+	}
 	item.BuildCommit = basictl.RandomString(rg)
 	item.BuildCommitTs = basictl.RandomUint(rg)
 	item.OriginalSize = basictl.RandomUint(rg)
@@ -84,6 +103,13 @@ func (item *StatshouseSendSourceBucket3) ReadTL1(w []byte) (_ []byte, err error)
 	}
 	if w, err = basictl.NatRead(w, &item.Time); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = BuiltinVectorStatshouseMetricBudgetReadTL1(w, &item.DemandMetricRows); err != nil {
+			return w, err
+		}
+	} else {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
 	}
 	if w, err = basictl.StringRead(w, &item.BuildCommit); err != nil {
 		return w, err
@@ -108,6 +134,9 @@ func (item *StatshouseSendSourceBucket3) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = item.Header.WriteTL1(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = BuiltinVectorStatshouseMetricBudgetWriteTL1(w, item.DemandMetricRows)
+	}
 	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
@@ -217,6 +246,7 @@ func (item *StatshouseSendSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadC
 	var trueTypeHistoricValue bool
 	var propSparePresented bool
 	var trueTypeSpareValue bool
+	var propDemandMetricRowsPresented bool
 	var propBuildCommitPresented bool
 	var propBuildCommitTsPresented bool
 	var propOriginalSizePresented bool
@@ -270,6 +300,14 @@ func (item *StatshouseSendSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadC
 				}
 				propSparePresented = true
 				if err := Json2ReadBool(in, &trueTypeSpareValue); err != nil {
+					return err
+				}
+			case "demand_metric_rows":
+				if propDemandMetricRowsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "demand_metric_rows")
+				}
+				propDemandMetricRowsPresented = true
+				if err := BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx, in, &item.DemandMetricRows); err != nil {
 					return err
 				}
 			case "build_commit":
@@ -328,6 +366,9 @@ func (item *StatshouseSendSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadC
 	if !propTimePresented {
 		item.Time = 0
 	}
+	if !propDemandMetricRowsPresented {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
+	}
 	if !propBuildCommitPresented {
 		item.BuildCommit = ""
 	}
@@ -348,6 +389,9 @@ func (item *StatshouseSendSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadC
 	}
 	if trueTypeSpareValue {
 		item.FieldsMask |= 1 << 1
+	}
+	if propDemandMetricRowsPresented {
+		item.FieldsMask |= 1 << 2
 	}
 	if propHistoricPresented && !trueTypeHistoricValue && (item.FieldsMask&(1<<0) != 0) {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3", "field 'historic' is explicitly set to false, but corresponding fieldmask item.FieldsMask bit 0 is 1")
@@ -404,6 +448,11 @@ func (item *StatshouseSendSourceBucket3) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"spare":true`...)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"demand_metric_rows":`...)
+		w = BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx, w, item.DemandMetricRows)
 	}
 	backupIndexBuildCommit := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -471,6 +520,7 @@ type StatshouseSendSourceBucket3Bytes struct {
 	Time       uint32
 	// Historic (TrueType) // Conditional: item.FieldsMask.0
 	// Spare (TrueType) // Conditional: item.FieldsMask.1
+	DemandMetricRows []StatshouseMetricBudget // Conditional: item.FieldsMask.2
 	// build stats
 	BuildCommit   []byte
 	BuildCommitTs uint32
@@ -504,10 +554,23 @@ func (item *StatshouseSendSourceBucket3Bytes) SetSpare(v bool) {
 }
 func (item *StatshouseSendSourceBucket3Bytes) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
 
+func (item *StatshouseSendSourceBucket3Bytes) SetDemandMetricRows(v []StatshouseMetricBudget) {
+	item.DemandMetricRows = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket3Bytes) ClearDemandMetricRows() {
+	item.DemandMetricRows = item.DemandMetricRows[:0]
+	item.FieldsMask &^= 1 << 2
+}
+func (item *StatshouseSendSourceBucket3Bytes) IsSetDemandMetricRows() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
+
 func (item *StatshouseSendSourceBucket3Bytes) Reset() {
 	item.FieldsMask = 0
 	item.Header.Reset()
 	item.Time = 0
+	item.DemandMetricRows = item.DemandMetricRows[:0]
 	item.BuildCommit = item.BuildCommit[:0]
 	item.BuildCommitTs = 0
 	item.OriginalSize = 0
@@ -516,9 +579,14 @@ func (item *StatshouseSendSourceBucket3Bytes) Reset() {
 }
 
 func (item *StatshouseSendSourceBucket3Bytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000011)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11110000000000000000000000000111)
 	item.Header.FillRandom(rg, item.FieldsMask)
 	item.Time = basictl.RandomUint(rg)
+	if item.FieldsMask&(1<<2) != 0 {
+		BuiltinVectorStatshouseMetricBudgetFillRandom(rg, &item.DemandMetricRows)
+	} else {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
+	}
 	item.BuildCommit = basictl.RandomStringBytes(rg)
 	item.BuildCommitTs = basictl.RandomUint(rg)
 	item.OriginalSize = basictl.RandomUint(rg)
@@ -535,6 +603,13 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadTL1(w []byte) (_ []byte, err e
 	}
 	if w, err = basictl.NatRead(w, &item.Time); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = BuiltinVectorStatshouseMetricBudgetReadTL1(w, &item.DemandMetricRows); err != nil {
+			return w, err
+		}
+	} else {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
 	}
 	if w, err = basictl.StringReadBytes(w, &item.BuildCommit); err != nil {
 		return w, err
@@ -559,6 +634,9 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = item.Header.WriteTL1(w, item.FieldsMask)
 	w = basictl.NatWrite(w, item.Time)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = BuiltinVectorStatshouseMetricBudgetWriteTL1(w, item.DemandMetricRows)
+	}
 	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.NatWrite(w, item.BuildCommitTs)
 	w = basictl.NatWrite(w, item.OriginalSize)
@@ -668,6 +746,7 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSON
 	var trueTypeHistoricValue bool
 	var propSparePresented bool
 	var trueTypeSpareValue bool
+	var propDemandMetricRowsPresented bool
 	var propBuildCommitPresented bool
 	var propBuildCommitTsPresented bool
 	var propOriginalSizePresented bool
@@ -721,6 +800,14 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSON
 				}
 				propSparePresented = true
 				if err := Json2ReadBool(in, &trueTypeSpareValue); err != nil {
+					return err
+				}
+			case "demand_metric_rows":
+				if propDemandMetricRowsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3", "demand_metric_rows")
+				}
+				propDemandMetricRowsPresented = true
+				if err := BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx, in, &item.DemandMetricRows); err != nil {
 					return err
 				}
 			case "build_commit":
@@ -779,6 +866,9 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSON
 	if !propTimePresented {
 		item.Time = 0
 	}
+	if !propDemandMetricRowsPresented {
+		item.DemandMetricRows = item.DemandMetricRows[:0]
+	}
 	if !propBuildCommitPresented {
 		item.BuildCommit = item.BuildCommit[:0]
 	}
@@ -799,6 +889,9 @@ func (item *StatshouseSendSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSON
 	}
 	if trueTypeSpareValue {
 		item.FieldsMask |= 1 << 1
+	}
+	if propDemandMetricRowsPresented {
+		item.FieldsMask |= 1 << 2
 	}
 	if propHistoricPresented && !trueTypeHistoricValue && (item.FieldsMask&(1<<0) != 0) {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3", "field 'historic' is explicitly set to false, but corresponding fieldmask item.FieldsMask bit 0 is 1")
@@ -855,6 +948,11 @@ func (item *StatshouseSendSourceBucket3Bytes) WriteJSONOpt(tctx *basictl.JSONWri
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"spare":true`...)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"demand_metric_rows":`...)
+		w = BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx, w, item.DemandMetricRows)
 	}
 	backupIndexBuildCommit := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

@@ -6,14 +6,21 @@
 
 package data_model
 
-import "sync"
+import (
+	"sync"
+)
 
 type smootherStat struct {
 	sum   float64
 	count float64
 }
 
-const smootherWindow = 600 // actually, we never want to change it
+type SmootherKey struct {
+	A string
+	B string
+}
+
+const smootherWindow = 120 // actually, we never want to change it
 
 // Smoother SignalSmoother stores short rolling statistics and returns a smoothed value
 // using two overlapping windows (base + half-shifted).
@@ -24,39 +31,39 @@ const smootherWindow = 600 // actually, we never want to change it
 type Smoother struct {
 	mu sync.Mutex
 
-	main map[uint32]map[TagUnion]smootherStat
-	half map[uint32]map[TagUnion]smootherStat
+	main map[uint32]map[SmootherKey]smootherStat
+	half map[uint32]map[SmootherKey]smootherStat
 }
 
 func (s *Smoother) Init() {
-	s.main = map[uint32]map[TagUnion]smootherStat{}
-	s.half = map[uint32]map[TagUnion]smootherStat{}
+	s.main = map[uint32]map[SmootherKey]smootherStat{}
+	s.half = map[uint32]map[SmootherKey]smootherStat{}
 }
 
-func updateSmootherStat(m map[TagUnion]smootherStat, key TagUnion, value float64) {
+func updateSmootherStat(m map[SmootherKey]smootherStat, key SmootherKey, value float64) {
 	st := m[key]
 	st.sum += value
 	st.count++
 	m[key] = st
 }
 
-func (s *Smoother) createWindowsLocked(ts uint32) (map[TagUnion]smootherStat, map[TagUnion]smootherStat) {
+func (s *Smoother) createWindowsLocked(ts uint32) (map[SmootherKey]smootherStat, map[SmootherKey]smootherStat) {
 	tp := ts / smootherWindow
 	m, ok := s.main[tp]
 	if !ok {
-		m = map[TagUnion]smootherStat{}
+		m = map[SmootherKey]smootherStat{}
 		s.main[tp] = m
 	}
 	htp := (ts + smootherWindow/2) / smootherWindow
 	h, ok := s.half[htp]
 	if !ok {
-		h = map[TagUnion]smootherStat{}
+		h = map[SmootherKey]smootherStat{}
 		s.half[htp] = h
 	}
 	return m, h
 }
 
-func (s *Smoother) AddAndSmooth(key TagUnion, ts uint32, value float64) float64 {
+func (s *Smoother) AddAndSmoothKey(key SmootherKey, ts uint32, value float64) float64 {
 	value = max(value, 1)
 
 	s.mu.Lock()

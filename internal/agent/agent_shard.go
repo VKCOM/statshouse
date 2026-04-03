@@ -67,8 +67,8 @@ type (
 
 		HistoricOutOfWindowDropped atomic.Int64
 
-		// sample budget from SendSourceBucket3Response.sample_budget; updated only when EnableBudgetFromAgg
-		SampleBudgetFromAgg int64 // under mu
+		// budget for metrics from SendSourceBucket3Response
+		metricBudgetsFromAgg map[int32]int64
 	}
 
 	BuiltInItemValue struct {
@@ -79,9 +79,10 @@ type (
 	}
 
 	compressedBucketData struct {
-		id   int64 // in disk queue, or 0 if working without disk
-		time uint32
-		data []byte // first 4 bytes are uncompressed size, rest is compressed data
+		id             int64 // in disk queue, or 0 if working without disk
+		time           uint32
+		data           []byte // first 4 bytes are uncompressed size, rest is compressed data
+		receiveMetrics map[int32]int64
 	}
 )
 

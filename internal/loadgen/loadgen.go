@@ -27,6 +27,7 @@ func RunClientLoad() {
 		}
 		baseCard = card
 	}
+	baseCard = 200
 	ctx := makeInterruptibleContext()
 	apiClient := api.NewClient("http://127.0.0.1:10888", "loadgen")
 	sh := statshouse.NewClient(log.Printf, "tcp", statshouse.DefaultAddr, "")
@@ -72,13 +73,13 @@ func RunClientLoad() {
 	log.Print("Running load on agent via StatsHouse client")
 	// 10 writes per resolution period
 	for _, res1Slice := range res1Slices {
-		go g.goRun(ctx, 100*time.Millisecond, res1Slice)
+		go g.goRun(ctx, 1000*time.Millisecond, res1Slice)
 	}
 	for _, res15Slice := range res15Slices {
-		go g.goRun(ctx, 1500*time.Millisecond, res15Slice)
+		go g.goRun(ctx, 15000*time.Millisecond, res15Slice)
 	}
 	for _, res60Slice := range res60Slices {
-		go g.goRun(ctx, 6000*time.Millisecond, res60Slice)
+		go g.goRun(ctx, 60000*time.Millisecond, res60Slice)
 	}
 
 	<-ctx.Done()

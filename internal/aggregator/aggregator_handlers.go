@@ -20,11 +20,12 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/compress"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func bool2int(b bool) int { // freaking golang clowns
@@ -294,9 +295,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-					agentRequestSize:            map[data_model.TagUnion]float64{},
-					agentSampleFactor:           map[data_model.TagUnion]float64{},
-					agentMetrics:                map[data_model.TagUnion]map[int32]struct{}{},
+					demandMetricRows:            map[int32]map[data_model.TagUnion]int64{},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -614,14 +613,14 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	compressedSize := len(hctx.Request)
 	if configR.EnableDynamicSampleFactor && args.Header.ComponentTag == format.TagValueIDComponentAgent {
-		if aggBucket.agentMetrics[hostTag] == nil {
-			aggBucket.agentMetrics[hostTag] = map[int32]struct{}{}
+		for _, v := range args.DemandMetricRows {
+			byHost, ok := aggBucket.demandMetricRows[v.MetricId]
+			if !ok {
+				byHost = map[data_model.TagUnion]int64{}
+				aggBucket.demandMetricRows[v.MetricId] = byHost
+			}
+			byHost[hostTag] += v.Budget
 		}
-		for item := range allMetrics {
-			aggBucket.agentMetrics[hostTag][item] = struct{}{}
-		}
-		aggBucket.agentSampleFactor[hostTag] += sumSapling
-		aggBucket.agentRequestSize[hostTag] += float64(compressedSize)
 	}
 
 	aggBucket.mu.Unlock()

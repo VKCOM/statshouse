@@ -322,7 +322,7 @@ type insertStats struct {
 }
 
 func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, buffers data_model.SamplerBuffers,
-	rnd *rand.Rand, res []byte) ([]byte, data_model.SamplerBuffers, map[int32]float64, insertStats, time.Duration) {
+	rnd *rand.Rand, res []byte) ([]byte, data_model.SamplerBuffers, insertStats, time.Duration) {
 	startTime := time.Now()
 	recentTs := buckets[0].time // by convention first bucket is recent all others are historic
 	historicTag := int32(format.TagValueIDConveyorRecent)
@@ -355,7 +355,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	metricCache := makeMetricCache(a.metricStorage)
 	usedTimestamps := map[uint32]struct{}{}
 	usedBufferTimestamps := map[uint32]struct{}{}
-	aggSampleFactor := make(map[int32]float64)
 
 	insertItem := func(item *data_model.MultiItem, sf float64, bucketTs uint32) { // lambda is convenient here
 		is := insertSize{}
@@ -414,7 +413,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		SampleKeys:       configR.SampleKeys,
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
-			aggSampleFactor[metricID] += sf
 			key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingFactor, [format.MaxTags]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
 			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHostTag.I, metricCache)
@@ -481,9 +479,9 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	if shardInsertBuget, ok := configR.ShardInsertBudget[int(a.shardKey)]; ok {
 		insertBudget = shardInsertBuget
 	}
-	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(insertBudget*numContributors)
-	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
+	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
+	remainingBudget := configR.MinInsertBudget + int64(insertBudget*numContributors)
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
 		sk := samplingStatKey{v.NamespaceID, v.GroupID}
@@ -519,7 +517,7 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
 		res = appendBufferedValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, metricCache)
 	}
-	return res, sampler.SamplerBuffers, aggSampleFactor, stats, time.Since(startTime)
+	return res, sampler.SamplerBuffers, stats, time.Since(startTime)
 }
 
 func makeHTTPClient() *http.Client {
