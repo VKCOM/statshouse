@@ -273,6 +273,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	if c.InsertBudget < 1 {
 		return fmt.Errorf("insert-budget (%d) must be >= 1", c.InsertBudget)
 	}
+	if c.ReceiveSampleBudget < 1 {
+		return fmt.Errorf("receive-sample-budget (%d) must be >= 1", c.ReceiveSampleBudget)
+	}
 	if c.MinInsertBudget < 1 {
 		return fmt.Errorf("min-insert-budget (%d) must be >= 1", c.MinInsertBudget)
 	}

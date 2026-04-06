@@ -116,26 +116,23 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	var receiveMetrics map[int32]int64
-	receiveMetrics, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
+	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
 	cbd := compressedBucketData{
-		time:           bucket.Time,
-		data:           compressed,
-		receiveMetrics: receiveMetrics,
+		time: bucket.Time,
+		data: compressed,
 	}
 	s.sendToSenders(cbd)
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (map[int32]int64, []byte) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
 	config := s.config
-	metricBudgetsFromAgg := s.metricBudgetsFromAgg
 	s.mu.Unlock()
 
 	keepF := func(v *data_model.MultiItem, _ uint32, sampling int) {
@@ -174,11 +171,18 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		sb.Metrics = append(sb.Metrics, item)
 	}
 	var (
-		receiveMetrics = map[int32]int64{}
-		budgetMetrics  = map[int32][]data_model.SamplingMultiItemPair{}
-		remainMetrics  []data_model.SamplingMultiItemPair
-		sampleFactors  []tlstatshouse.SampleFactor
+		orgMetricSize = map[int32]uint32{}
+		budgetMetrics = map[int32][]data_model.SamplingMultiItemPair{}
+		remainMetrics []data_model.SamplingMultiItemPair
+		sampleFactors []tlstatshouse.SampleFactor
 	)
+	sampleFactorF := func(metricID int32, sf float64) {
+		sampleFactors = append(sampleFactors, tlstatshouse.SampleFactor{
+			Metric:       metricID,
+			Value:        float32(sf),
+			OriginalSize: orgMetricSize[metricID],
+		})
+	}
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization, outside budget, size tracked below in format.TagValueIDSizeSampleFactors
@@ -212,24 +216,53 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			Size:        sz,
 			MetricID:    accountMetric,
 		}
-		if budget := metricBudgetsFromAgg[accountMetric]; config.EnableBudgetFromAgg && budget > 0 {
+		if budget := s.metricBudgetsFromAgg.Get(accountMetric); config.EnableBudgetFromAgg && budget > 0 {
 			budgetMetrics[accountMetric] = append(budgetMetrics[accountMetric], pair)
 		} else {
 			remainMetrics = append(remainMetrics, pair)
 		}
-		receiveMetrics[accountMetric]++
+		orgMetricSize[accountMetric] += uint32(sz)
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 
 	budgetSum := int64(0)
 	sampleMetricCount := 0
 	for metricID, pairs := range budgetMetrics {
-		budget := metricBudgetsFromAgg[metricID]
+		budget := int64(s.metricBudgetsFromAgg.Get(metricID))
 		budgetSum += budget
-		buf, cnt, sf := s.sampleMetrics(config, pairs, budget, bucket.Time, buffers, keepF, rnd)
-		buffers = buf
-		sampleMetricCount += cnt
-		sampleFactors = append(sampleFactors, sf...)
+
+		sampler := data_model.NewSampler(data_model.SamplerConfig{
+			ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
+			SampleKeepSingle:     config.SampleKeepSingle,
+			DisableNoSampleAgent: config.DisableNoSampleAgent,
+			SampleNamespaces:     false,
+			SampleGroups:         false,
+			SampleKeys:           config.SampleKeys,
+			Meta:                 s.agent.metricStorage,
+			Rand:                 rnd,
+			KeepF:                func(v *data_model.MultiItem, ts uint32, _ uint32) { keepF(v, ts, 0) },
+			SampleFactorF:        sampleFactorF,
+			SamplerBuffers:       buffers,
+		})
+		for _, pair := range pairs {
+			sampler.Add(pair)
+		}
+		sampler.Run(budget)
+		buffers = sampler.SamplerBuffers
+		sampleMetricCount += sampler.MetricCount
+		sampleFactors = append(sampleFactors, sampler.SampleFactors...)
+
+		for _, v := range sampler.MetricGroups {
+			s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+				[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+				&v.SumSizeKeep)
+			s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+				[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+				&v.SumSizeDiscard)
+			s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+				[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+				v.Budget(), 1)
+		}
 	}
 	var remainingBudget int64
 	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
@@ -243,10 +276,38 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	}
 	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
 
-	buf, cnt, sf := s.sampleMetrics(config, remainMetrics, remainingBudget, bucket.Time, buffers, keepF, rnd)
-	buffers = buf
-	sampleMetricCount += cnt
-	sampleFactors = append(sampleFactors, sf...)
+	sampler := data_model.NewSampler(data_model.SamplerConfig{
+		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
+		SampleKeepSingle:     config.SampleKeepSingle,
+		DisableNoSampleAgent: config.DisableNoSampleAgent,
+		SampleNamespaces:     config.SampleNamespaces,
+		SampleGroups:         config.SampleGroups,
+		SampleKeys:           config.SampleKeys,
+		Meta:                 s.agent.metricStorage,
+		Rand:                 rnd,
+		KeepF:                func(v *data_model.MultiItem, ts uint32, _ uint32) { keepF(v, ts, 0) },
+		SampleFactorF:        sampleFactorF,
+		SamplerBuffers:       buffers,
+	})
+	for _, pair := range remainMetrics {
+		sampler.Add(pair)
+	}
+	sampler.Run(remainingBudget)
+	buffers = sampler.SamplerBuffers
+	sampleMetricCount += sampler.MetricCount
+	sampleFactors = append(sampleFactors, sampler.SampleFactors...)
+
+	for _, v := range sampler.MetricGroups {
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeKeep)
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeDiscard)
+		s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+			v.Budget(), 1)
+	}
 
 	// report budget used
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
@@ -283,48 +344,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
 
-	return receiveMetrics, scratch
-}
-
-func (s *Shard) sampleMetrics(
-	config Config,
-	pairs []data_model.SamplingMultiItemPair,
-	budget int64,
-	ts uint32,
-	buffers data_model.SamplerBuffers,
-	keepF func(v *data_model.MultiItem, ts uint32, sampling int),
-	rnd *rand.Rand) (
-	data_model.SamplerBuffers, int, []tlstatshouse.SampleFactor,
-) {
-	sampler := data_model.NewSampler(data_model.SamplerConfig{
-		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
-		SampleKeepSingle:     config.SampleKeepSingle,
-		DisableNoSampleAgent: config.DisableNoSampleAgent,
-		SampleNamespaces:     config.SampleNamespaces,
-		SampleGroups:         config.SampleGroups,
-		SampleKeys:           config.SampleKeys,
-		Meta:                 s.agent.metricStorage,
-		Rand:                 rnd,
-		KeepF:                func(v *data_model.MultiItem, ts uint32) { keepF(v, ts, 0) },
-		SamplerBuffers:       buffers,
-	})
-	for _, pair := range pairs {
-		sampler.Add(pair)
-	}
-	sampler.Run(budget)
-	buffers = sampler.SamplerBuffers
-	for _, v := range sampler.MetricGroups {
-		s.agent.MergeItemValue(ts, format.BuiltinMetricMetaSrcSamplingSizeBytes,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
-			&v.SumSizeKeep)
-		s.agent.MergeItemValue(ts, format.BuiltinMetricMetaSrcSamplingSizeBytes,
-			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
-			&v.SumSizeDiscard)
-		s.agent.AddValueCounter(ts, format.BuiltinMetricMetaSrcSamplingGroupBudget,
-			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
-			v.Budget(), 1)
-	}
-	return buffers, sampler.MetricCount, sampler.SampleFactors
+	return buffers, scratch
 }
 
 func (s *Shard) sendToSenders(cbd compressedBucketData) {
@@ -384,10 +404,9 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 	}
 	if respV3.IsSetMetricBudgets() {
 		s.mu.Lock()
-		if s.config.EnableBudgetFromAgg {
-			for _, item := range respV3.MetricBudgets {
-				s.metricBudgetsFromAgg[item.MetricId] = item.Budget
-			}
+		s.metricBudgetsFromAgg.Apply(time.Now())
+		for _, budget := range respV3.MetricBudgets {
+			s.metricBudgetsFromAgg.MergeMax(budget.MetricId, float64(budget.Budget))
 		}
 		s.mu.Unlock()
 	}
@@ -491,10 +510,9 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
 		if respV3.IsSetMetricBudgets() {
 			s.mu.Lock()
-			if s.config.EnableBudgetFromAgg {
-				for _, item := range respV3.MetricBudgets {
-					s.metricBudgetsFromAgg[item.MetricId] = item.Budget
-				}
+			s.metricBudgetsFromAgg.Apply(time.Now())
+			for _, budget := range respV3.MetricBudgets {
+				s.metricBudgetsFromAgg.MergeMax(budget.MetricId, float64(budget.Budget))
 			}
 			s.mu.Unlock()
 		}

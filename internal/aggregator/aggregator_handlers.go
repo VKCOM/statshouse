@@ -295,7 +295,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 					contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-					demandMetricRows:            map[int32]map[data_model.TagUnion]int64{},
+					originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
 				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
@@ -613,13 +613,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	compressedSize := len(hctx.Request)
 	if configR.EnableDynamicSampleFactor && args.Header.ComponentTag == format.TagValueIDComponentAgent {
-		for _, v := range args.DemandMetricRows {
-			byHost, ok := aggBucket.demandMetricRows[v.MetricId]
+		for _, v := range bucket.SampleFactors {
+			byHost, ok := aggBucket.originalMetricSize[v.Metric]
 			if !ok {
-				byHost = map[data_model.TagUnion]int64{}
-				aggBucket.demandMetricRows[v.MetricId] = byHost
+				byHost = map[data_model.TagUnion]uint32{}
+				aggBucket.originalMetricSize[v.Metric] = byHost
 			}
-			byHost[hostTag] += v.Budget
+			byHost[hostTag] += v.OriginalSize
 		}
 	}
 
@@ -737,6 +737,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// They all simply go to merge shard 0 independent of their tags.
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	for _, v := range bucket.SampleFactors {
+		if v.Value <= 0 {
+			continue
+		}
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
 		// Counter will be +1 for each agent who sent bucket for this second, so millions.
 		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaAgentSamplingFactor,

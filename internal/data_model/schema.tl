@@ -7,7 +7,7 @@
 
 ---types---
 
-statshouse.sampleFactor metric:int value:float = statshouse.SampleFactor;
+statshouse.sampleFactor {fields_mask:#} metric:int value:float original_size:fields_mask.0?# = statshouse.SampleFactor fields_mask;
 statshouse.metricBudget metric_id:int budget:long = statshouse.MetricBudget;
 
 statshouse.ingestionStatus2 env:int metric:int value:float = statshouse.IngestionStatus2;
@@ -62,9 +62,9 @@ statshouse.multiItem#0c803e07
 statshouse.sourceBucket3#16c4dd7b
     fields_mask: #
     // TODO: check how it is used and maybe change to a new version
-    metrics: (vector (statshouse.multiItem)) // must be sorted by metric (but for now order is not used)
-    sample_factors: (vector statshouse.sampleFactor) // We need as compact representation as possible.
-    ingestion_status_ok2: (vector statshouse.ingestionStatus2) // We need as compact representation as possible.
+    metrics: vector<statshouse.multiItem> // must be sorted by metric (but for now order is not used)
+    sample_factors: vector<statshouse.sampleFactor<fields_mask>> // We need as compact representation as possible.
+    ingestion_status_ok2: vector<statshouse.ingestionStatus2> // We need as compact representation as possible.
   = statshouse.SourceBucket3;
 
 // TODO - remove ttl_nanosec
@@ -160,9 +160,9 @@ statshouse.shutdownInfo#4124cf9c
 statshouse.sendSourceBucket3Response#0e177acc
     field_mask: #
     discard: field_mask.0?true // agent should discard bucket, either they were inserted successfully or they can never be inserted
-    metric_budgets: field_mask.1?(vector statshouse.metricBudget)
     warning: string // if !empty, aggregator wants this in client log
     mappings: (vector statshouse.mapping)
+    metric_budgets: field_mask.1?(vector statshouse.metricBudget)
 = statshouse.SendSourceBucket3Response;
 
 ---functions---
@@ -196,7 +196,6 @@ statshouse.sendSourceBucket3Response#0e177acc
     time:#
     historic:fields_mask.0?true
     spare:fields_mask.1?true
-    demand_metric_rows:fields_mask.2?(vector statshouse.metricBudget)
     // build stats
     build_commit:string
     build_commit_ts:#

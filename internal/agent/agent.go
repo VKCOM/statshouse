@@ -262,7 +262,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGrou
 			rng:                  rnd,
 			CurrentTime:          nowUnix,
 			SendTime:             nowUnix - 2, // accept previous seconds at the start of the agent
-			metricBudgetsFromAgg: make(map[int32]int64),
+			metricBudgetsFromAgg: data_model.NewExpDecay(config.BudgetDecayHalfLife),
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
@@ -513,6 +513,7 @@ func (s *Agent) updateRemoteConfig() {
 		shard.config = config
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
+		shard.metricBudgetsFromAgg.SetHalfLife(config.BudgetDecayHalfLife)
 		shard.mu.Unlock()
 	}
 	for _, shardReplica := range s.ShardReplicas {

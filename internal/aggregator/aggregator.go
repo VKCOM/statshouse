@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,7 +61,7 @@ type (
 		contributorsHost   map[rpc.LongpollHandle]data_model.TagUnion                    // Protected by mu
 		historicHosts      [2][2]map[data_model.TagUnion]int64                           // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue                                    // [role][route] Not recorded for keep-alive, protected by aggregator mutex
-		demandMetricRows   map[int32]map[data_model.TagUnion]int64
+		originalMetricSize map[int32]map[data_model.TagUnion]uint32
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
@@ -68,6 +69,10 @@ type (
 		sendMu sync.RWMutex // Used to wait for all aggregating clients to finish before sending
 
 		contributorsSimulatedErrors map[rpc.LongpollHandle]struct{} // put into most future bucket, so receive error after >7 seconds
+	}
+	hostBudgetCache struct {
+		bucketTime uint32
+		budgets    []tlstatshouse.MetricBudget
 	}
 	Aggregator struct {
 		h                 tlstatshouse.Handler
@@ -96,6 +101,9 @@ type (
 
 		estimator data_model.Estimator
 		smoother  data_model.Smoother
+
+		hostBudgetCacheMu sync.RWMutex
+		hostBudgetCache   map[data_model.TagUnion]hostBudgetCache
 
 		// we potentially have 100+ buckets with 20000+ contributors each,
 		// so we have to maintain a sum of waiting hosts if we want accurate and fast metric.
@@ -252,6 +260,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		cancelInsertsCtx:            cancelInsertCtx,
 		cancelInsertsFunc:           cancelInsertFunc,
 		bucketsToSend:               make(chan *aggregatorBucket),
+		hostBudgetCache:             map[data_model.TagUnion]hostBudgetCache{},
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
@@ -772,10 +781,14 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 	var buffers data_model.SamplerBuffers
 	var aggBuckets []*aggregatorBucket
 	var bodyStorage []byte
+	var hostBudgets = map[data_model.TagUnion][]tlstatshouse.MetricBudget{}
 
 	for aggBucket := range bucketsToSend {
 		aggBuckets = aggBuckets[:0]
 		bodyStorage = bodyStorage[:0]
+		for host := range hostBudgets {
+			hostBudgets[host] = hostBudgets[host][:0]
+		}
 
 		a.configMu.RLock()
 		configR := a.configR
@@ -797,6 +810,11 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
 		a.estimator.ReportHourCardinality(rnd, aggBucket.time, &aggBucket.shards[0].MultiItemMap, aggBucket.usedMetrics, a.aggregatorHostTag, a.shardKey, a.replicaKey)
+
+		aggBucket.mu.Lock()
+		a.calcHostMetricBudgets(configR, aggBucket, hostBudgets)
+		aggBucket.mu.Unlock()
+		a.mergeHostBudgetCache(configR, aggBucket.time, hostBudgets)
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -912,10 +930,10 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
-			hostMetricBudgets := a.calcHostMetricBudgets(configR, b)
 			for lh, resp := range b.contributors3 {
 				host := b.contributorsHost[lh]
-				if metricBudgets := hostMetricBudgets[host]; metricBudgets != nil {
+				a.hostBudgetCacheMu.RLock()
+				if metricBudgets := a.hostBudgetCache[host].budgets; metricBudgets != nil {
 					resp.SetMetricBudgets(metricBudgets)
 				}
 				var ssb3 tlstatshouse.SendSourceBucket3 // Dummy
@@ -923,14 +941,18 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					resp.Warning = sendErr.Error()
 				}
 				resp.SetDiscard(sendErr == nil)
-				if hctx, _ := lh.FinishLongpoll(); hctx != nil {
+				hctx, _ := lh.FinishLongpoll()
+				if hctx != nil {
 					hctx.Response, _ = ssb3.WriteResultTL1(hctx.Response, resp)
+				}
+				a.hostBudgetCacheMu.RUnlock()
+				if hctx != nil {
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once
-			clear(b.demandMetricRows)
+			clear(b.originalMetricSize)
 			clear(b.contributorsHost)
 			historicHosts := b.historicHosts
 			b.mu.Unlock()
@@ -985,79 +1007,85 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 	}
 }
 
-func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *aggregatorBucket) map[data_model.TagUnion][]tlstatshouse.MetricBudget {
-	if !configR.EnableDynamicSampleFactor {
-		return nil
+func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *aggregatorBucket, metricHostBudget map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	if !configR.EnableDynamicSampleFactor || len(b.originalMetricSize) == 0 {
+		return
 	}
 	totalBudget := int64(configR.ReceiveSampleBudget)
-	var (
-		weightedTotal      = float64(1)
-		metricRows         = make(map[int32]float64, len(b.demandMetricRows))
-		metricWeightedRows = make(map[int32]float64, len(b.demandMetricRows))
-		metricHostRows     = make(map[int32]map[data_model.TagUnion]float64, len(b.demandMetricRows))
-	)
-	for metricID, hostRows := range b.demandMetricRows {
-		if metricID < 0 {
-			continue // builtins are not split per metric budget
+	keepF := func(key data_model.Key, quota uint32) {
+		host := data_model.TagUnion{I: key.Tags[1], S: key.STags[1]}
+		if originalSize, ok := b.originalMetricSize[key.Metric][host]; ok && originalSize <= quota {
+			quota *= 2 // We encourage good metrics that fully fit in quota
 		}
-		var smoothTotal = float64(1)
-		smoothHostRows := make(map[data_model.TagUnion]float64, len(hostRows))
-		for host, rows := range hostRows {
+		metricHostBudget[host] = append(metricHostBudget[host], tlstatshouse.MetricBudget{
+			MetricId: key.Metric,
+			Budget:   int64(quota),
+		})
+	}
+	s := data_model.NewSampler(data_model.SamplerConfig{
+		Meta:             a.metricStorage,
+		SampleNamespaces: configR.SampleNamespaces,
+		SampleGroups:     configR.SampleGroups,
+		SampleKeys:       false,
+		Rand:             rand.New(),
+		SampleF:          data_model.SampleQuota,
+		KeepF:            func(item *data_model.MultiItem, _ uint32, quota uint32) { keepF(item.Key, quota) },
+	})
+	for metricID, hostSize := range b.originalMetricSize {
+		smoothHost := make(map[data_model.TagUnion]float64, len(hostSize))
+		for host, sz := range hostSize {
 			smoothed := a.smoother.AddAndSmoothKey(data_model.SmootherKey{
 				A: fmt.Sprint(int(metricID)),
 				B: fmt.Sprintf("S:%s,I:%d", host.S, host.I),
-			}, b.time, float64(rows))
-			smoothTotal += smoothed
-			smoothHostRows[host] = smoothed
+			}, b.time, float64(sz))
+			smoothHost[host] = smoothed
 		}
-		weightedRows := smoothTotal * a.getMetricWeight(metricID)
-		metricWeightedRows[metricID] = weightedRows
-		metricHostRows[metricID] = smoothHostRows
-		metricRows[metricID] = smoothTotal
-		weightedTotal += weightedRows
-	}
-	metricBudget := make(map[int32]int64, len(b.demandMetricRows))
-	for metricID, rows := range metricWeightedRows {
-		metricBudget[metricID] = int64(float64(totalBudget) * rows / weightedTotal)
-	}
-	metricHostBudget := make(map[data_model.TagUnion][]tlstatshouse.MetricBudget, len(b.contributorsHost))
-	for metricID, budget := range metricBudget {
-		totalRows := metricRows[metricID]
-		hostRows := metricHostRows[metricID]
-		for host, rows := range hostRows {
-			hostBudget := float64(budget) * rows / totalRows
-			metricHostBudget[host] = append(metricHostBudget[host], tlstatshouse.MetricBudget{
-				MetricId: metricID,
-				Budget:   int64(hostBudget),
+		for host, sz := range smoothHost {
+			var key data_model.Key
+			key.Metric = metricID
+			key.SetTagUnion(1, host)
+			s.Add(data_model.SamplingMultiItemPair{
+				Item:     &data_model.MultiItem{Key: key},
+				Size:     int(max(1, math.Round(sz))),
+				MetricID: metricID,
+				BucketTs: b.time,
 			})
 		}
 	}
-	return metricHostBudget
+	s.Run(totalBudget)
 }
 
-func (a *Aggregator) getMetricWeight(metricID int32) float64 {
-	m := a.metricStorage.GetMetaMetric(metricID)
-	if m == nil {
-		return 1
+func (a *Aggregator) mergeHostBudgetCache(configR ConfigAggregatorRemote, bucketTime uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	if !configR.EnableDynamicSampleFactor || len(hostMetricBudgets) == 0 {
+		return
 	}
-	mWeight := max(float64(m.EffectiveWeight), 1)
+	a.hostBudgetCacheMu.Lock()
+	defer a.hostBudgetCacheMu.Unlock()
+	for host, budgets := range hostMetricBudgets {
+		if len(budgets) == 0 {
+			continue
+		}
+		if prev, ok := a.hostBudgetCache[host]; ok && prev.bucketTime >= bucketTime {
+			continue
+		}
+		cache := a.hostBudgetCache[host]
+		cache.bucketTime = bucketTime
+		cache.budgets = cache.budgets[:0]
+		for _, budget := range budgets {
+			cache.budgets = append(cache.budgets, budget)
+		}
+		a.hostBudgetCache[host] = cache
+	}
+}
 
-	var gWeight float64
-	if m.GroupID != 0 {
-		if group := a.metricStorage.GetGroup(m.GroupID); group != nil {
-			gWeight = float64(group.EffectiveWeight)
+func (a *Aggregator) garbageCollectHostBudgetCache(oldestBucketTime uint32) {
+	a.hostBudgetCacheMu.Lock()
+	defer a.hostBudgetCacheMu.Unlock()
+	for host, item := range a.hostBudgetCache {
+		if item.bucketTime < oldestBucketTime {
+			delete(a.hostBudgetCache, host)
 		}
 	}
-	gWeight = max(gWeight, 1)
-
-	var nWeight float64
-	if m.NamespaceID != 0 {
-		if namespace := a.metricStorage.GetNamespace(m.NamespaceID); namespace != nil {
-			nWeight = float64(namespace.EffectiveWeight)
-		}
-	}
-	nWeight = max(nWeight, 1)
-	return mWeight * gWeight * nWeight
 }
 
 // returns bucket with exclusive ownership requiring no locks to access
@@ -1117,7 +1145,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-			demandMetricRows:            map[int32]map[data_model.TagUnion]int64{},
+			originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -1129,7 +1157,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 			contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
 			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-			demandMetricRows:            map[int32]map[data_model.TagUnion]int64{},
+			originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -1201,6 +1229,7 @@ func (a *Aggregator) goTicker() {
 			oldestTime := readyBuckets[0].time - historicWindow
 			a.estimator.GarbageCollect(oldestTime)
 			a.smoother.GarbageCollect(oldestTime)
+			a.garbageCollectHostBudgetCache(oldestTime)
 		}
 	}
 }

@@ -210,7 +210,6 @@ func init() {
 	metainternal.SetGlobalFactoryCreateForObject("statshouse.metricBudget", func() metainternal.Object { return new(internal.StatshouseMetricBudget) })
 	metainternal.SetGlobalFactoryCreateForObject("statshouse.multiItem", func() metainternal.Object { return new(internal.StatshouseMultiItem) })
 	metainternal.SetGlobalFactoryCreateForObject("statshouse.putTagMappingBootstrapResult", func() metainternal.Object { return new(internal.StatshousePutTagMappingBootstrapResult) })
-	metainternal.SetGlobalFactoryCreateForObject("statshouse.sampleFactor", func() metainternal.Object { return new(internal.StatshouseSampleFactor) })
 	metainternal.SetGlobalFactoryCreateForFunction("statshouse.sendKeepAlive2", func() metainternal.Function { return new(internal.StatshouseSendKeepAlive2) }, nil)
 	metainternal.SetGlobalFactoryCreateForFunction("statshouse.sendKeepAlive3", func() metainternal.Function { return new(internal.StatshouseSendKeepAlive3) }, nil)
 	metainternal.SetGlobalFactoryCreateForFunction("statshouse.sendSourceBucket3", func() metainternal.Function { return new(internal.StatshouseSendSourceBucket3) }, nil)

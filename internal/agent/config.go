@@ -57,6 +57,7 @@ type Config struct {
 	AutoCreate           bool
 	DisableNoSampleAgent bool
 	EnableBudgetFromAgg  bool
+	BudgetDecayHalfLife  time.Duration
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
@@ -88,6 +89,7 @@ func DefaultConfig() Config {
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
 		EnableBudgetFromAgg:          false,
+		BudgetDecayHalfLife:          data_model.ExpDecayHalfLife,
 		MinSampleBudget:              2000,
 		HardwareMetricResolution:     5,
 		HardwareSlowMetricResolution: 15,
@@ -150,6 +152,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
 	f.BoolVar(&c.EnableBudgetFromAgg, "enable-budget-from-agg", d.EnableBudgetFromAgg, "Apply per-host receive sample budget from aggregator responses (pair with aggregator enable-dynamic-sample-factor).")
+	f.DurationVar(&c.BudgetDecayHalfLife, "budget-decay-half-life", d.BudgetDecayHalfLife, "Half-life for per-metric budgets from aggregator (exponential decay).")
 	f.IntVar(&c.MinSampleBudget, "min-sample-budget", d.MinSampleBudget, "Minimum byte budget for the fallback/remain sampling pass after subtracting per-metric budgets (0 = no extra floor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
@@ -218,6 +221,9 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if c.MinSampleBudget < 0 {
 		return fmt.Errorf("--min-sample-budget (%d) must be >= 0", c.MinSampleBudget)
+	}
+	if c.BudgetDecayHalfLife <= 0 {
+		return fmt.Errorf("--budget-decay-half-life (%s) must be > 0", c.BudgetDecayHalfLife)
 	}
 
 	return nil

@@ -11,9 +11,10 @@ import (
 	"sort"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 const maxFairKeyLen = 3
@@ -62,12 +63,15 @@ type (
 		SampleFactorF func(int32, float64)
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(*MultiItem, uint32)
+		KeepF    func(*MultiItem, uint32, uint32)
 		DiscardF func(*MultiItem, uint32)
 
 		// Unit tests support
 		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
 		SelectF func([]SamplingMultiItemPair, float64, *rand.Rand) int
+
+		// Default SampleRows for metric sampling. SampleQuota for sample src original size
+		SampleF SampleF
 
 		SamplerBuffers
 	}
@@ -98,6 +102,13 @@ type (
 		MetricGroups  []samplerGroup
 		SampleFactors []tlstatshouse.SampleFactor
 	}
+
+	SampleF func(*sampler, samplerGroup)
+)
+
+var (
+	SampleRows  SampleF = func(s *sampler, g samplerGroup) { s.sample(g) }
+	SampleQuota SampleF = func(s *sampler, g samplerGroup) { s.sampleQuota(g) }
 )
 
 var missingMetricMeta = format.MetricMetaValue{
@@ -126,6 +137,9 @@ func NewSampler(c SamplerConfig) sampler {
 	}
 	if c.SelectF == nil {
 		c.SelectF = selectRandom
+	}
+	if c.SampleF == nil {
+		c.SampleF = SampleRows
 	}
 	return sampler{
 		timeStart:     time.Now(),
@@ -314,7 +328,7 @@ func (h *sampler) run(g samplerGroup) {
 			s[i].budgetDenom = 1
 			h.run(s[i])
 		} else {
-			h.sample(s[i])
+			h.SampleF(h, s[i])
 		}
 	}
 }
@@ -328,7 +342,7 @@ func (g samplerGroup) keep(h *sampler) {
 func (p *SamplingMultiItemPair) keep(sf float64, h *sampler) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.KeepF != nil {
-		h.KeepF(p.Item, p.BucketTs)
+		h.KeepF(p.Item, p.BucketTs, uint32(p.Size))
 	}
 	h.currentGroup.SumSizeKeep.AddValue(float64(p.Size))
 }
@@ -391,6 +405,28 @@ func (h *sampler) sample(g samplerGroup) {
 	}
 }
 
+func (h *sampler) sampleQuota(g samplerGroup) {
+	if len(g.items) == 0 {
+		return
+	}
+	timeStart := time.Now()
+	defer func() { h.timeSampling += time.Since(timeStart) }()
+
+	sumSize := int64(0)
+	for _, item := range g.items {
+		sumSize += int64(item.Size)
+	}
+	for i := range g.items {
+		quota := int(g.budget * int64(g.items[i].Size) / sumSize)
+		g.items[i].Size = quota
+		if quota < 1 {
+			g.items[i].discard(math.MaxFloat32, h)
+			continue
+		}
+		g.items[i].keep(1, h)
+	}
+}
+
 func (h *sampler) setCurrentGroup(g samplerGroup) {
 	if h.currentGroup.depth != 0 {
 		h.MetricGroups = append(h.MetricGroups, h.currentGroup)
@@ -402,16 +438,17 @@ func (h *sampler) setCurrentGroup(g samplerGroup) {
 }
 
 func (h *sampler) setCurrentMetric(metricID int32) {
+	var sf float64
 	if h.currentMetricSFCount > 0 {
-		sf := h.currentMetricSFSum / h.currentMetricSFCount // AVG
-		if h.SampleFactorF != nil {
-			h.SampleFactorF(h.currentMetricID, sf)
-		} else {
-			h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-				Metric: h.currentMetricID,
-				Value:  float32(sf),
-			})
-		}
+		sf = h.currentMetricSFSum / h.currentMetricSFCount // AVG
+	}
+	if h.SampleFactorF != nil {
+		h.SampleFactorF(h.currentMetricID, sf)
+	} else if h.currentMetricSFCount > 0 {
+		h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
+			Metric: h.currentMetricID,
+			Value:  float32(sf),
+		})
 	}
 	h.currentMetricID = metricID
 	h.currentMetricSFSum = 0
