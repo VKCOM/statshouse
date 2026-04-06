@@ -591,6 +591,109 @@ func parseV3Row(reader *bufio.Reader, row *v3Row) error {
 	return nil
 }
 
+func parseV3RowOptimized(reader *bufio.Reader, row *v3Row) (err error) {
+	if err = ReadUInt8(reader, &row.index_type); err != nil {
+		return err
+	}
+	if err = ReadInt32(reader, &row.metric); err != nil {
+		return err
+	}
+	if err = ReadUInt32(reader, &row.pre_tag); err != nil {
+		return err
+	}
+	if err = readString(reader, &row.pre_stag); err != nil {
+		return err
+	}
+	if err = ReadUInt32(reader, &row.time); err != nil {
+		return err
+	}
+
+	for i := 0; i < 48; i++ {
+		if err = ReadInt32(reader, &row.tags[i]); err != nil {
+			return err
+		}
+		if err = readString(reader, &row.stags[i]); err != nil {
+			return err
+		}
+	}
+
+	if err = ReadFloat64(reader, &row.count); err != nil {
+		return err
+	}
+	if err = ReadFloat64(reader, &row.min); err != nil {
+		return err
+	}
+	if err = ReadFloat64(reader, &row.max); err != nil {
+		return err
+	}
+	if err = ReadFloat64(reader, &row.max_count); err != nil {
+		return err
+	}
+	if err = ReadFloat64(reader, &row.sum); err != nil {
+		return err
+	}
+	if err = ReadFloat64(reader, &row.sumsquare); err != nil {
+		return err
+	}
+
+	buf := make([]byte, 6, 128)
+	if buf, err = row.min_host.ReadFrom(reader, buf); err != nil {
+		return err
+	}
+
+	if buf, err = row.max_host.ReadFrom(reader, buf); err != nil {
+		return err
+	}
+
+	if buf, err = row.max_count_host.ReadFrom(reader, buf); err != nil {
+		return err
+	}
+	if err := row.percentiles.ReadFrom(reader); err != nil {
+		return err
+	}
+	if err := row.uniq_state.ReadFrom(reader); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ReadUInt8(r io.Reader, dst *uint8) error {
+	bs := make([]byte, 1)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = bs[0]
+	return nil
+}
+
+func ReadUInt32(r io.Reader, dst *uint32) error {
+	bs := make([]byte, 4)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = binary.LittleEndian.Uint32(bs)
+	return nil
+}
+
+func ReadInt32(r io.Reader, dst *int32) error {
+	bs := make([]byte, 4)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = int32(binary.LittleEndian.Uint32(bs))
+	return nil
+}
+
+func ReadFloat64(r io.Reader, dst *float64) error {
+	bs := make([]byte, 8)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = math.Float64frombits(binary.LittleEndian.Uint64(bs))
+	return nil
+}
+
 func readString(reader *bufio.Reader, dst *string) error {
 	n, err := binary.ReadUvarint(reader)
 	if err != nil {
@@ -635,7 +738,7 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 	var v3row v3Row
 
 	for {
-		if parseErr := parseV3Row(reader, &v3row); parseErr != nil {
+		if parseErr := parseV3RowOptimized(reader, &v3row); parseErr != nil {
 			if errors.Is(parseErr, io.EOF) {
 				// End of input, we're done
 				log.Printf("[migration_v3] Reached EOF after processing %d rows", rowsProcessed)
