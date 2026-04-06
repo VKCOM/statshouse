@@ -349,7 +349,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 
 	lockedShard := -1
 	var newKeys []data_model.EstimatorMetricHash
-	allMetrics := map[int32]struct{}{}
 	usedMetrics := map[int32]struct{}{}
 	measurementIntKeys := 0
 	measurementStringKeys := 0
@@ -572,7 +571,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 			usedMetrics[k.Metric] = struct{}{}
 		}
-		allMetrics[k.Metric] = struct{}{}
 	}
 	if lockedShard != -1 {
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
@@ -588,11 +586,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits = a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
 	} else {
 		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
-	}
-
-	var sumSapling float64
-	for _, v := range bucket.SampleFactors {
-		sumSapling += float64(v.Value)
 	}
 
 	aggBucket.mu.Lock()
