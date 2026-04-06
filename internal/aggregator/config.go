@@ -46,7 +46,7 @@ type ConfigAggregatorRemote struct {
 	MigrationDelaySec         int // delay in seconds between migration steps
 	ClusterShardsAddrs        []string
 	EnableMappingStorage      bool
-	EnableDynamicSampleFactor bool
+	EnableReceiveSampleBudget bool
 
 	RQLiteAddrs string // comma-separated list
 
@@ -216,7 +216,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 
-		f.BoolVar(&c.EnableDynamicSampleFactor, "enable-dynamic-sample-factor", d.EnableDynamicSampleFactor, "Enable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
+		f.BoolVar(&c.EnableReceiveSampleBudget, "enable-receive-sample-budget", d.EnableReceiveSampleBudget, "Enable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }

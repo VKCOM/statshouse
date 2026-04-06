@@ -212,19 +212,18 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
 		}
-		pair := data_model.SamplingMultiItemPair{
+		sampler.Add(data_model.SamplingMultiItemPair{
 			Item:        item,
 			WhaleWeight: whaleWeight,
 			Size:        sz,
 			MetricID:    accountMetric,
-		}
+		})
 		if config.EnableBudgetFromAgg {
 			if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
 				budgetScratch[accountMetric] = budget
 			}
 		}
 		orgMetricSize[accountMetric] += uint32(sz)
-		sampler.Add(pair)
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 

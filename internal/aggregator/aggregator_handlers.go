@@ -612,7 +612,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		aggBucket.contributorsHost[lh] = hostTag
 	}
 	compressedSize := len(hctx.Request)
-	if configR.EnableDynamicSampleFactor && args.Header.ComponentTag == format.TagValueIDComponentAgent {
+	if configR.EnableReceiveSampleBudget && args.Header.ComponentTag == format.TagValueIDComponentAgent {
 		for _, v := range bucket.SampleFactors {
 			byHost, ok := aggBucket.originalMetricSize[v.Metric]
 			if !ok {

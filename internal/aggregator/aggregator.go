@@ -814,7 +814,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		aggBucket.mu.Lock()
 		a.calcHostMetricBudgets(configR, aggBucket, hostBudgets)
 		aggBucket.mu.Unlock()
-		a.mergeHostBudgetCache(configR, aggBucket.time, hostBudgets)
+		a.mergeHostBudgetCache(aggBucket.time, hostBudgets)
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -1008,7 +1008,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 }
 
 func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *aggregatorBucket, metricHostBudget map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
-	if !configR.EnableDynamicSampleFactor || len(b.originalMetricSize) == 0 {
+	if len(b.originalMetricSize) == 0 {
 		return
 	}
 	totalBudget := int64(configR.ReceiveSampleBudget)
@@ -1055,8 +1055,8 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 	s.Run(totalBudget)
 }
 
-func (a *Aggregator) mergeHostBudgetCache(configR ConfigAggregatorRemote, bucketTime uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
-	if !configR.EnableDynamicSampleFactor || len(hostMetricBudgets) == 0 {
+func (a *Aggregator) mergeHostBudgetCache(bucketTime uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	if len(hostMetricBudgets) == 0 {
 		return
 	}
 	a.hostBudgetCacheMu.Lock()
