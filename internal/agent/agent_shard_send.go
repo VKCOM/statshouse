@@ -245,7 +245,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
 
 	sampler.Run(remainingBudget)
-	buffers = sampler.SamplerBuffers
 
 	for _, v := range sampler.MetricGroups {
 		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
