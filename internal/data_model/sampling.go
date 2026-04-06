@@ -72,6 +72,8 @@ type (
 
 		// Default SampleRows for metric sampling. SampleQuota for sample src original size
 		SampleF SampleF
+		// Optional per-metric budgets; Run() applies per-metric per-budget groups
+		MetricBudgets map[int32]int64
 
 		SamplerBuffers
 	}
@@ -234,7 +236,44 @@ func (h *sampler) Run(budget int64) {
 	h.currentMetricID = h.items[0].MetricID
 	// run sampling
 	h.timeBudgeting = time.Now()
-	h.run(h.currentGroup)
+	if len(h.MetricBudgets) != 0 {
+		remainItems := h.items[:0]
+		for i, j := 0, 1; i < len(h.items); i, j = j, j+1 {
+			metricID := h.items[i].MetricID
+			for j < len(h.items) && h.items[j].MetricID == metricID {
+				j++
+			}
+			if metricBudget := h.MetricBudgets[metricID]; metricBudget > 0 {
+				if metricID != h.currentMetricID {
+					h.setCurrentMetric(metricID)
+				}
+				h.setCurrentGroup(samplerGroup{
+					NamespaceID: format.BuiltinNamespaceIDDefault,
+					GroupID:     format.BuiltinGroupIDDefault,
+					items:       h.items[i:j],
+					budget:      metricBudget,
+				})
+				h.run(h.currentGroup)
+			} else {
+				remainItems = append(remainItems, h.items[i:j]...)
+			}
+		}
+		if len(remainItems) != 0 {
+			metricID := remainItems[0].MetricID
+			if metricID != h.currentMetricID {
+				h.setCurrentMetric(metricID)
+			}
+			h.setCurrentGroup(samplerGroup{
+				NamespaceID: format.BuiltinNamespaceIDDefault,
+				GroupID:     format.BuiltinGroupIDDefault,
+				items:       remainItems,
+				budget:      budget,
+			})
+			h.run(h.currentGroup)
+		}
+	} else {
+		h.run(h.currentGroup)
+	}
 	// finalize "MetricGroups"
 	h.MetricGroups = append(h.MetricGroups, h.currentGroup)
 	if h.sumSizeKeepBuiltin.Count() > 0 {
