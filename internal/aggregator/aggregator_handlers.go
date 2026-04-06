@@ -737,7 +737,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// They all simply go to merge shard 0 independent of their tags.
 	s := aggBucket.lockShard(&lockedShard, 0, &measurementLocks)
 	for _, v := range bucket.SampleFactors {
-		if v.Value <= 0 {
+		if v.Value < 1 {
 			continue
 		}
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data

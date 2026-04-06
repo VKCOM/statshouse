@@ -413,6 +413,9 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		SampleKeys:       configR.SampleKeys,
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
+			if sf < 1 {
+				return
+			}
 			key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingFactor, [format.MaxTags]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
 			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHostTag.I, metricCache)

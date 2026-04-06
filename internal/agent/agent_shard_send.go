@@ -100,22 +100,23 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	var scratch []byte
+	var budgetScratch = map[int32]int64{}
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
-		scratch = s.preProcess(bucket, scratch, rng)
+		scratch = s.preProcess(bucket, scratch, budgetScratch, rng)
 		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]int64, rng *rand.Rand) []byte {
 	var buffers data_model.SamplerBuffers
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, rng)
+	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
@@ -127,7 +128,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch map[int32]int64, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
@@ -169,11 +170,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 		sb.Metrics = append(sb.Metrics, item)
 	}
-	var (
-		budgetSum     = int64(0)
-		orgMetricSize = map[int32]uint32{}
-		metricBudgets = map[int32]int64{}
-	)
+	clear(budgetScratch)
+	orgMetricSize := map[int32]uint32{}
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
 		SampleKeepSingle:     config.SampleKeepSingle,
@@ -184,7 +182,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		Meta:                 s.agent.metricStorage,
 		Rand:                 rnd,
 		KeepF:                func(v *data_model.MultiItem, ts uint32, _ uint32) { keepF(v, ts, 0) },
-		MetricBudgets:        metricBudgets,
+		MetricBudgets:        budgetScratch,
 		SamplerBuffers:       buffers,
 	})
 	for _, item := range bucket.MultiItems {
@@ -222,8 +220,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		}
 		if config.EnableBudgetFromAgg {
 			if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
-				metricBudgets[accountMetric] = budget
-				budgetSum += budget
+				budgetScratch[accountMetric] = budget
 			}
 		}
 		orgMetricSize[accountMetric] += uint32(sz)
@@ -240,6 +237,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	}
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
+	}
+
+	budgetSum := int64(0)
+	for _, budget := range budgetScratch {
+		budgetSum += budget
 	}
 	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
 

@@ -485,8 +485,9 @@ func (h *sampler) setCurrentMetric(metricID int32) {
 		h.SampleFactorF(h.currentMetricID, sf)
 	} else if h.currentMetricSFCount > 0 {
 		h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-			Metric: h.currentMetricID,
-			Value:  float32(sf),
+			Metric:       h.currentMetricID,
+			Value:        float32(sf),
+			OriginalSize: uint32(h.MetricBudgets[h.currentMetricID]),
 		})
 	}
 	h.currentMetricID = metricID
