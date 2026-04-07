@@ -586,7 +586,7 @@ func parseV3RowOptimized(reader *bufio.Reader, row *v3Row) (err error) {
 		return err
 	}
 
-	if buf, err = row.max_count_host.ReadFrom(reader, buf); err != nil {
+	if _, err = row.max_count_host.ReadFrom(reader, buf); err != nil {
 		return err
 	}
 	if err := row.percentiles.ReadFrom(reader); err != nil {
