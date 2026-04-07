@@ -264,7 +264,7 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
 	config := DefaultConfig()
-	config.SampleBudget = 40_000
+	config.SampleBudget = 100_000
 	config.MinSampleBudget = 4000
 	config.EnableBudgetFromAgg = true
 	agent := makeAgent(config, nowUnix)

@@ -1071,9 +1071,7 @@ func (a *Aggregator) mergeHostBudgetCache(bucketTime uint32, hostMetricBudgets m
 		cache := a.hostBudgetCache[host]
 		cache.bucketTime = bucketTime
 		cache.budgets = cache.budgets[:0]
-		for _, budget := range budgets {
-			cache.budgets = append(cache.budgets, budget)
-		}
+		cache.budgets = append(cache.budgets, budgets...)
 		a.hostBudgetCache[host] = cache
 	}
 }
