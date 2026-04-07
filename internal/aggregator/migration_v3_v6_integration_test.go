@@ -778,6 +778,8 @@ func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
 func TestV3ParsingCompatibility(t *testing.T) {
 	rows := createV3TestData()
 	for i, originalRow := range rows {
+		// we get the original row buffer using write -> read -> write,
+		// because uniq_state isn't preserved during write->read operation, but it is (supposed to be) idempotent
 		origBuf := make([]byte, 0, 4086)
 		origBuf = appendV3RowBinary(origBuf, originalRow)
 		origReader := bufio.NewReader(bytes.NewReader(origBuf))
@@ -828,9 +830,6 @@ func requireEqualRowBytes(origRow *v3Row, rowRegular *v3Row, rowOptimzed *v3Row)
 			return fmt.Errorf("%d-th byte mismatch between regular and original row:: %d != %d", i, buf1[i], buf2[i])
 		}
 		if buf1[i] != buf3[i] {
-			return fmt.Errorf("%d-th byte mismatch between optimized and original row: %d != %d", i, buf1[i], buf2[i])
-		}
-		if buf2[i] != buf3[i] {
 			return fmt.Errorf("%d-th byte mismatch between optimized and original row: %d != %d", i, buf1[i], buf2[i])
 		}
 	}
