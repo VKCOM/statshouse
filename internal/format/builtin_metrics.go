@@ -2643,7 +2643,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2677,7 +2677,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2869,6 +2869,7 @@ var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 			TagValueIDMigrationSourceV2:   "v2",
 			TagValueIDMigrationSourceV1:   "v1",
 			TagValueIDMigrationSourceStop: "stop",
+			TagValueIDMigrationSourceV3:   "v3",
 		}),
 	}},
 }
