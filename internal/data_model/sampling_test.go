@@ -7,11 +7,12 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
+
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 func TestSampling(t *testing.T) {
@@ -33,7 +34,7 @@ func TestSampling(t *testing.T) {
 		var keepSumSize int64
 		m := make(map[int32]*metricInfo)
 		s := NewSampler(SamplerConfig{
-			KeepF: func(item *MultiItem, _ uint32) {
+			KeepF: func(item *MultiItem, _ uint32, _ uint32) {
 				keepN++
 				keepSumSize += int64(samplingTestSizeOf(item))
 				stat := m[item.Key.Metric]
@@ -165,7 +166,7 @@ func TestNoSamplingWhenFitBudget(t *testing.T) {
 		b.generateSeriesCount(t, samplingTestSpec{maxSeriesCount: 256, maxMetricCount: 256})
 		var (
 			s = NewSampler(SamplerConfig{
-				KeepF: func(item *MultiItem, _ uint32) {
+				KeepF: func(item *MultiItem, _ uint32, _ uint32) {
 					b.DeleteMultiItem(&item.Key)
 				},
 				DiscardF: func(mi *MultiItem, _ uint32) {
@@ -185,7 +186,7 @@ func TestNormalDistributionPreserved(t *testing.T) {
 			b     = newSamplingTestBucket()
 			r     = rand.New()
 			statM = make(map[Key]*samplingTestStat, len(b.MultiItems))
-			keepF = func(item *MultiItem, _ uint32) {
+			keepF = func(item *MultiItem, _, _ uint32) {
 				var s *samplingTestStat
 				if s = statM[item.Key]; s == nil {
 					s = &samplingTestStat{}
@@ -205,6 +206,223 @@ func TestNormalDistributionPreserved(t *testing.T) {
 			s := v.stdDev()
 			require.Greater(t, s, 0.)
 			require.Less(t, s, 2.)
+		}
+	})
+}
+
+func TestSamplingQuotaSingleMetric(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		miMap := MultiItemMap{}
+		n := rapid.IntRange(3, 60).Draw(t, "series count")
+		sizes := make([]int, n)
+		var sumSize int64
+		for i := 1; i <= n; i++ {
+			k := Key{Metric: 1, Tags: [format.MaxTags]int32{int32(i)}}
+			mi, _ := miMap.GetOrCreateMultiItem(&k, nil, nil)
+			mi.Tail.Value.AddValueCounter(0, 1)
+			sz := samplingTestSizeOf(mi)
+			sizes[i-1] = sz
+			sumSize += int64(sz)
+		}
+		budget := rapid.Int64Range(0, sumSize*3).Draw(t, "budget")
+		var keepN, discardN int
+		var keptArgSum int64
+		s := NewSampler(SamplerConfig{
+			SampleF: SampleQuota,
+			KeepF: func(item *MultiItem, _ uint32, q uint32) {
+				keepN++
+				keptArgSum += int64(q)
+				require.Equal(t, 1., item.SF)
+			},
+			DiscardF: func(item *MultiItem, _ uint32) {
+				discardN++
+				require.Equal(t, float64(math.MaxFloat32), item.SF)
+			},
+		})
+		rnd := rand.New()
+		for _, item := range miMap.MultiItems {
+			s.Add(SamplingMultiItemPair{
+				Item:        item,
+				WhaleWeight: item.FinishStringTop(rnd, 20),
+				Size:        samplingTestSizeOf(item),
+				MetricID:    item.Key.Metric,
+			})
+		}
+		s.Run(budget)
+		require.Equal(t, n, keepN+discardN)
+		require.Empty(t, s.SampleFactors, "quota mode does not accumulate row sample factors")
+		if budget >= sumSize {
+			require.Zero(t, discardN)
+			require.Equal(t, sumSize, keptArgSum, "no sampling: KeepF size arg is original TL size")
+			return
+		}
+		var wantQuotaSum int64
+		for _, sz := range sizes {
+			wantQuotaSum += int64(int(int64(budget) * int64(sz) / sumSize))
+		}
+		require.Equal(t, wantQuotaSum, keptArgSum)
+		require.LessOrEqual(t, keptArgSum, budget)
+	})
+}
+
+func TestSamplingQuotaManyMetrics(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		b := newSamplingTestBucket()
+		b.generateSeriesSize(t, samplingTestSpec{
+			maxMetricCount: rapid.IntRange(1, 64).Draw(t, "max metric count"),
+			minMetricSize:  rapid.IntRange(28, 256).Draw(t, "min metric size"),
+			maxMetricSize:  rapid.IntRange(512, 1024).Draw(t, "max metric size"),
+		})
+		var keepN, discardN int
+		s := NewSampler(SamplerConfig{
+			SampleF: SampleQuota,
+			KeepF: func(item *MultiItem, _ uint32, q uint32) {
+				keepN++
+				require.Equal(t, 1., item.SF)
+				require.NotZero(t, q)
+			},
+			DiscardF: func(item *MultiItem, _ uint32) {
+				discardN++
+				require.Equal(t, float64(math.MaxFloat32), item.SF)
+			},
+		})
+		rnd := rand.New()
+		for _, item := range b.MultiItems {
+			s.Add(SamplingMultiItemPair{
+				Item:        item,
+				WhaleWeight: item.FinishStringTop(rnd, 20),
+				Size:        samplingTestSizeOf(item),
+				MetricID:    item.Key.Metric,
+			})
+		}
+		budget := rapid.Int64Range(0, b.sumSize*2).Draw(t, "budget")
+		s.Run(budget)
+		require.Equal(t, len(b.MultiItems), keepN+discardN)
+		if b.sumSize <= budget {
+			require.Zero(t, discardN)
+		}
+		require.Empty(t, s.SampleFactors)
+	})
+}
+
+func TestMetricBudgetsDedicatedPassesBudget(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		miMap := MultiItemMap{}
+		n1 := rapid.IntRange(10, 48).Draw(t, "series count for metric 1")
+		n2 := rapid.IntRange(10, 48).Draw(t, "series count for metric 2")
+		sum1 := samplingTestFillCounterSeries(&miMap, 1, n1)
+		sum2 := samplingTestFillCounterSeries(&miMap, 2, n2)
+		require.Greater(t, sum1, int64(1))
+		dedicated := rapid.Int64Range(1, sum1-1).Draw(t, "dedicated budget for metric 1")
+		rnd := rand.New()
+		var keepSumM1, keptM2, discardedM2 int64
+		s := NewSampler(SamplerConfig{
+			MetricBudgets: map[int32]int64{1: dedicated},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				return int(float64(len(s)) / sf)
+			},
+			RoundF: func(sf float64, _ *rand.Rand) float64 { return math.Floor(sf) },
+			KeepF: func(item *MultiItem, _ uint32, sz uint32) {
+				if item.Key.Metric == 1 {
+					keepSumM1 += int64(sz)
+				}
+				if item.Key.Metric == 2 {
+					keptM2++
+				}
+			},
+			DiscardF: func(item *MultiItem, _ uint32) {
+				if item.Key.Metric == 2 {
+					discardedM2++
+				}
+			},
+		})
+		for _, item := range miMap.MultiItems {
+			s.Add(SamplingMultiItemPair{
+				Item:        item,
+				WhaleWeight: item.FinishStringTop(rnd, 20),
+				Size:        samplingTestSizeOf(item),
+				MetricID:    item.Key.Metric,
+			})
+		}
+		s.Run(sum2)
+		require.LessOrEqual(t, keepSumM1, dedicated)
+		require.Equal(t, int64(n2), keptM2)
+		require.Zero(t, discardedM2)
+	})
+}
+
+func TestMetricBudgetsSampleFactorOriginalSize(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		metricID := rapid.Int32Range(100, 4096).Draw(t, "metric id")
+		n := rapid.IntRange(20, 80).Draw(t, "series count")
+		miMap := MultiItemMap{}
+		sumSize := samplingTestFillCounterSeries(&miMap, metricID, n)
+		dedicated := rapid.Int64Range(1, sumSize-1).Draw(t, "dedicated budget")
+		rnd := rand.New()
+		s := NewSampler(SamplerConfig{
+			MetricBudgets: map[int32]int64{metricID: dedicated},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				return int(float64(len(s)) / sf)
+			},
+			RoundF: func(sf float64, _ *rand.Rand) float64 { return math.Floor(sf) },
+		})
+		for _, item := range miMap.MultiItems {
+			s.Add(SamplingMultiItemPair{
+				Item:        item,
+				WhaleWeight: item.FinishStringTop(rnd, 20),
+				Size:        samplingTestSizeOf(item),
+				MetricID:    item.Key.Metric,
+			})
+		}
+		remainderBudget := rapid.Int64Range(sumSize, sumSize*4).Draw(t, "remainder budget (unused when single metric)")
+		s.Run(remainderBudget)
+		var found bool
+		for _, sf := range s.SampleFactors {
+			if sf.Metric != metricID {
+				continue
+			}
+			require.False(t, found, "duplicate sample factor for metric")
+			found = true
+			require.Less(t, float32(1), sf.Value)
+			require.Equal(t, uint32(dedicated), sf.OriginalSize)
+		}
+		require.True(t, found, "expected sample factor for metric with dedicated budget")
+	})
+}
+
+func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		b := newSamplingTestBucket()
+		b.generateSeriesCount(t, samplingTestSpec{
+			minMetricCount: 1,
+			maxMetricCount: rapid.IntRange(1, 32).Draw(t, "metric count"),
+			minSeriesCount: 4,
+			maxSeriesCount: rapid.IntRange(4, 24).Draw(t, "series per metric"),
+		})
+		require.Greater(t, b.sumSize, int64(1))
+		ghostMetric := rapid.Int32Range(1_000_000, 2_000_000).Draw(t, "ghost metric id in MetricBudgets")
+		ghostBudget := rapid.Int64Range(1, 1024).Draw(t, "ghost dedicated budget")
+		maxGlobal := b.sumSize - 1
+		globalBudget := rapid.Int64Range(1, maxGlobal).Draw(t, "global remainder budget")
+		rnd := rand.New()
+		s := NewSampler(SamplerConfig{
+			MetricBudgets: map[int32]int64{ghostMetric: ghostBudget},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				return int(float64(len(s)) / sf)
+			},
+		})
+		for _, item := range b.MultiItems {
+			s.Add(SamplingMultiItemPair{
+				Item:        item,
+				WhaleWeight: item.FinishStringTop(rnd, 20),
+				Size:        samplingTestSizeOf(item),
+				MetricID:    item.Key.Metric,
+			})
+		}
+		s.Run(globalBudget)
+		require.NotEmpty(t, s.SampleFactors)
+		for _, sf := range s.SampleFactors {
+			require.Equal(t, uint32(0), sf.OriginalSize)
 		}
 	})
 }
@@ -245,7 +463,7 @@ func TestFairKeySampling(t *testing.T) {
 				require.Equal(t, sf, math.Floor(sf))
 				return int(float64(len(s)) / sf)
 			},
-			KeepF: func(item *MultiItem, u uint32) {
+			KeepF: func(item *MultiItem, u, _ uint32) {
 				keepCount[item.Key]++
 			},
 		})
@@ -326,12 +544,12 @@ func TestCompareSampleFactors(t *testing.T) {
 			sampleBudget:       rapid.IntRange(20, 20+sumSize*2).Draw(t, "max metric count"),
 		}
 		sizeSum := map[int]int{}
-		config.KeepF = func(mi *MultiItem, _ uint32) {
+		config.KeepF = func(mi *MultiItem, _, _ uint32) {
 			sizeSum[int(mi.Key.Metric)] += samplingTestSizeOf(mi)
 		}
 		sf := sampleBucket(&bucket, config)
 		sizeSumLegacy := map[int]int{}
-		config.KeepF = func(mi *MultiItem, _ uint32) {
+		config.KeepF = func(mi *MultiItem, _, _ uint32) {
 			sizeSumLegacy[int(mi.Key.Metric)] += samplingTestSizeOf(mi)
 		}
 		sfLegacy := sampleBucketLegacy(&bucket, config)
@@ -469,6 +687,17 @@ func (b *samplingTestBucket) run(s *sampler, budget int64) {
 
 func samplingTestSizeOf(mi *MultiItem) int {
 	return mi.Key.TLSizeEstimate(mi.Key.Timestamp) + mi.TLSizeEstimate()
+}
+
+func samplingTestFillCounterSeries(m *MultiItemMap, metricID int32, n int) int64 {
+	var sum int64
+	for i := 1; i <= n; i++ {
+		k := Key{Metric: metricID, Tags: [format.MaxTags]int32{int32(i)}}
+		mi, _ := m.GetOrCreateMultiItem(&k, nil, nil)
+		mi.Tail.Value.AddValueCounter(0, 1)
+		sum += int64(samplingTestSizeOf(mi))
+	}
+	return sum
 }
 
 type samplingTestStat struct {
@@ -642,7 +871,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 		// Keep all elements in bucket
 		if config.KeepF != nil {
 			for _, v := range samplingMetric.items {
-				config.KeepF(v.Item, bucket.Time)
+				config.KeepF(v.Item, bucket.Time, 0)
 			}
 		}
 	}
@@ -651,7 +880,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 		if samplingMetric.noSampleAgent {
 			if config.KeepF != nil {
 				for _, v := range samplingMetric.items {
-					config.KeepF(v.Item, bucket.Time)
+					config.KeepF(v.Item, bucket.Time, 0)
 				}
 			}
 			continue
@@ -679,7 +908,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 			// Keep all whale elements in bucket
 			if config.KeepF != nil {
 				for _, v := range samplingMetric.items[:whalesAllowed] {
-					config.KeepF(v.Item, bucket.Time)
+					config.KeepF(v.Item, bucket.Time, 0)
 				}
 			}
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
@@ -689,7 +918,7 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) []tlstats
 		for _, v := range samplingMetric.items[:pos] {
 			v.Item.SF = sf // communicate selected factor to next step of processing
 			if config.KeepF != nil {
-				config.KeepF(v.Item, bucket.Time)
+				config.KeepF(v.Item, bucket.Time, 0)
 			}
 		}
 		for _, v := range samplingMetric.items[pos:] {
