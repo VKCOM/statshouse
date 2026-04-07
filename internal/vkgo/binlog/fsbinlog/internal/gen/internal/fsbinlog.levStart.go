@@ -82,11 +82,11 @@ func (item FsbinlogLevStart) String() string {
 }
 
 func (item *FsbinlogLevStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *FsbinlogLevStart) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *FsbinlogLevStart) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propSchemaIdPresented bool
 	var propExtraBytesPresented bool
 	var propSplitModPresented bool
@@ -170,15 +170,14 @@ func (item *FsbinlogLevStart) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *FsbinlogLevStart) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *FsbinlogLevStart) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *FsbinlogLevStart) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *FsbinlogLevStart) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *FsbinlogLevStart) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexSchemaId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -223,7 +222,8 @@ func (item *FsbinlogLevStart) MarshalJSON() ([]byte, error) {
 }
 
 func (item *FsbinlogLevStart) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("fsbinlog.levStart", err.Error())
 	}
 	return nil

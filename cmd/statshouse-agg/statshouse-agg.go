@@ -22,8 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
-
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/aggregator"
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -35,6 +33,9 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
+	"github.com/VKCOM/tl/pkg/rpc"
+	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
+
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
@@ -177,7 +178,7 @@ func mainAggregator() int {
 	// we ignore error because cache can be damaged
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.RemoteInitial.MappingCacheSize, argv.RemoteInitial.MappingCacheTTL)
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, v3MigratorMappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()), argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, v3MigratorMappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))), argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
@@ -299,7 +300,7 @@ func parseCommandLine() error {
 		argv.listenAddr = ":" + argv.listenAddr // convert to addr
 	}
 	if argv.customHostName == "" {
-		argv.customHostName = srvfunc.HostnameForStatshouse()
+		argv.customHostName = srvfunc.Hostname()
 		log.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
 	}
 	if argv.KHPasswordFile != "" {

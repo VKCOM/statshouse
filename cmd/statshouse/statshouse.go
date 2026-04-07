@@ -226,7 +226,7 @@ func run() int {
 	main.agent, err = agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
-		argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()),
+		argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))),
 		argv.Config,
 		argv.customHostName,
 		format.TagValueIDComponentAgent,
@@ -359,7 +359,7 @@ func run() int {
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
-		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups())),
+		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups("")))),
 		rpc.ServerWithSyncHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: main.receiversUDP, receiverRPC: receiverRPC, sh2: main.agent, journal: journalFast}.handleStats),
 		metrics.ServerWithMetrics,
@@ -569,7 +569,7 @@ func argvCreateClient() (rpc.Client, string) {
 		rpc.ClientWithProtocolVersion(1),
 		rpc.ClientWithLogf(logErr.Printf),
 		rpc.ClientWithCryptoKey(cryptoKey),
-		rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()))), cryptoKey
+		rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))))), cryptoKey
 }
 
 func parseCommandLine() (int, error) {
@@ -661,7 +661,7 @@ func parseCommandLine() (int, error) {
 			argv.maxCores = 1 + argv.coresUDP*3/2
 		}
 		if argv.customHostName == "" {
-			argv.customHostName = srvfunc.HostnameForStatshouse()
+			argv.customHostName = srvfunc.Hostname()
 			logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
 		}
 		if argv.pprofHTTP {

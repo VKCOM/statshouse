@@ -138,7 +138,7 @@ func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err 
 	return r, nil
 }
 
-func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
+func BuiltinVectorStringReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -167,10 +167,9 @@ func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStringWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStringWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
+func BuiltinVectorStringWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -302,7 +301,7 @@ func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte,
 	return r, nil
 }
 
-func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
+func BuiltinVectorStringBytesReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -331,10 +330,9 @@ func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStringBytesWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStringBytesWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
+func BuiltinVectorStringBytesWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -238,7 +238,7 @@ func (ms *MappingsStorage) Save() (bool, error) {
 	if ms.sh2 != nil {
 		ms.sh2.AddValueCounter(0, format.BuiltinMetricMappingStoragePending, []int32{0, ms.component}, float64(allSize), 1)
 	} else {
-		statshouse.Value(format.BuiltinMetricMappingStoragePending.Name, statshouse.Tags{1: strconv.Itoa(int(ms.component)), 2: srvfunc.HostnameForStatshouse()}, float64(allSize))
+		statshouse.Value(format.BuiltinMetricMappingStoragePending.Name, statshouse.Tags{1: strconv.Itoa(int(ms.component)), 2: srvfunc.Hostname()}, float64(allSize))
 	}
 	if err != nil {
 		return false, err
@@ -359,12 +359,12 @@ func (ms *MappingsStorage) updateMappings() error {
 	} else {
 		statshouse.Value(format.BuiltinMetricMappingStorageVersion.Name, statshouse.Tags{
 			1: strconv.Itoa(int(ms.component)),
-			2: srvfunc.HostnameForStatshouse(),
+			2: srvfunc.Hostname(),
 			3: strconv.Itoa(format.TagValueIDMappingStorageVersionCurrent),
 		}, float64(newCurV))
 		statshouse.Value(format.BuiltinMetricMappingStorageVersion.Name, statshouse.Tags{
 			1: strconv.Itoa(int(ms.component)),
-			2: srvfunc.HostnameForStatshouse(),
+			2: srvfunc.Hostname(),
 			3: strconv.Itoa(format.TagValueIDMappingStorageVersionLastKnown),
 		}, float64(newLastV))
 	}

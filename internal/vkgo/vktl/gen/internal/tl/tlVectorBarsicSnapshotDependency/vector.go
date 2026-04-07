@@ -67,29 +67,28 @@ func (item VectorBarsicSnapshotDependency) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *VectorBarsicSnapshotDependency) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+func (item *VectorBarsicSnapshotDependency) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSONGeneral(jctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotDependency) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *VectorBarsicSnapshotDependency) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotDependency) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *VectorBarsicSnapshotDependency) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(tctx, w, *item.ptr())
+func (item *VectorBarsicSnapshotDependency) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(jctx, w, *item.ptr())
 	return w
 }
 func (item *VectorBarsicSnapshotDependency) MarshalJSON() ([]byte, error) {
@@ -97,13 +96,14 @@ func (item *VectorBarsicSnapshotDependency) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorBarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
 }
 
-func (item *VectorBarsicSnapshotDependency) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *VectorBarsicSnapshotDependency) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(internal.ErrorTL2SerializersNotGenerated("vector"))
 }
 
@@ -111,7 +111,7 @@ func (item *VectorBarsicSnapshotDependency) InternalReadTL2(r []byte) (_ []byte,
 	return r, internal.ErrorTL2SerializersNotGenerated("vector")
 }
 
-func (item *VectorBarsicSnapshotDependency) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *VectorBarsicSnapshotDependency) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }
 
@@ -165,29 +165,28 @@ func (item VectorBarsicSnapshotDependencyBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorBarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *VectorBarsicSnapshotDependencyBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+func (item *VectorBarsicSnapshotDependencyBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSONGeneral(jctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *VectorBarsicSnapshotDependencyBytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(tctx, w, *item.ptr())
+func (item *VectorBarsicSnapshotDependencyBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
+	w = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(jctx, w, *item.ptr())
 	return w
 }
 func (item *VectorBarsicSnapshotDependencyBytes) MarshalJSON() ([]byte, error) {
@@ -195,13 +194,14 @@ func (item *VectorBarsicSnapshotDependencyBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorBarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
 }
 
-func (item *VectorBarsicSnapshotDependencyBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *VectorBarsicSnapshotDependencyBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(internal.ErrorTL2SerializersNotGenerated("vector"))
 }
 
@@ -209,6 +209,6 @@ func (item *VectorBarsicSnapshotDependencyBytes) InternalReadTL2(r []byte) (_ []
 	return r, internal.ErrorTL2SerializersNotGenerated("vector")
 }
 
-func (item *VectorBarsicSnapshotDependencyBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *VectorBarsicSnapshotDependencyBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

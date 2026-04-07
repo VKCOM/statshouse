@@ -58,7 +58,7 @@ func BuiltinVectorBarsicSnapshotExternalFileInternalReadTL2(r []byte, vec *[]tlB
 	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile")
 }
 
-func BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) error {
+func BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -72,7 +72,7 @@ func BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx *basictl.JSONRe
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -87,14 +87,13 @@ func BuiltinVectorBarsicSnapshotExternalFileReadJSONGeneral(tctx *basictl.JSONRe
 }
 
 func BuiltinVectorBarsicSnapshotExternalFileWriteJSON(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) []byte {
+func BuiltinVectorBarsicSnapshotExternalFileWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFile) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -141,7 +140,7 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesInternalReadTL2(r []byte, vec *
 	return r, internal.ErrorTL2SerializersNotGenerated("[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes")
 }
 
-func BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) error {
+func BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -155,7 +154,7 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx *basictl.J
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -170,14 +169,13 @@ func BuiltinVectorBarsicSnapshotExternalFileBytesReadJSONGeneral(tctx *basictl.J
 }
 
 func BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSON(w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) []byte {
+func BuiltinVectorBarsicSnapshotExternalFileBytesWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []tlBarsicSnapshotExternalFile.BarsicSnapshotExternalFileBytes) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }

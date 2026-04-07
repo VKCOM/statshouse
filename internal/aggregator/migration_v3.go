@@ -210,6 +210,13 @@ func (a *Aggregator) loadMigrationData() error {
 
 func (a *Aggregator) isRelevantMetric(metricID int32) bool {
 	// assumes the metric is relevant unless possible to determine that it's not
+	if metricID < 0 {
+		// builtin metrics are relevant if they're supported now (present in `format.BuiltinMetrics`)
+		// otherwise we skip them
+		m := format.BuiltinMetrics[metricID]
+		return m != nil
+	}
+
 	if a.metricStorage == nil {
 		return true
 	}
@@ -730,7 +737,7 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 	if metricId < 0 {
 		m = format.BuiltinMetrics[metricId]
 		if m == nil {
-			return fmt.Errorf("unexpected negative metricId: %d (not present in builtin metrics list)", metricId)
+			return fmt.Errorf("unsupported negative metricId: %d (not present in builtin metrics list). shouldn't be migrated", metricId)
 		}
 	} else {
 		m = a.metricStorage.GetMetaMetric(metricId)

@@ -59,7 +59,10 @@ export type PlotData = {
   receiveWarnings: number;
   samplingFactorSrc: number;
   samplingFactorAgg: number;
-  mappingFloodEvents: number;
+  /**
+   * @deprecated параметр утратил смысл
+   */
+  mappingFloodEvents?: number;
   legendValueWidth: number;
   legendMaxDotSpaceWidth: number;
   legendNameWidth: number;

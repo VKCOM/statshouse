@@ -326,7 +326,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	tags := [2][2]statshouse.NamedTags{
 		{ // default mode
 			statshouse.NamedTags{
-				{"1", srvfunc.HostnameForStatshouse()},
+				{"1", srvfunc.Hostname()},
 				{"2"},  // default mode
 				{"3"},  // miss
 				{"4"},  // step
@@ -334,7 +334,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 				{"_s"}, // user name
 			},
 			statshouse.NamedTags{
-				{"1", srvfunc.HostnameForStatshouse()},
+				{"1", srvfunc.Hostname()},
 				{"2"},      // default mode
 				{"3", "1"}, // hit
 				{"4"},      // step
@@ -344,7 +344,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 		},
 		{ // play mode
 			statshouse.NamedTags{
-				{"1", srvfunc.HostnameForStatshouse()},
+				{"1", srvfunc.Hostname()},
 				{"2", "1"}, // play mode
 				{"3"},      // miss
 				{"4"},      // step
@@ -352,7 +352,7 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 				{"_s"},     // user name
 			},
 			statshouse.NamedTags{
-				{"1", srvfunc.HostnameForStatshouse()},
+				{"1", srvfunc.Hostname()},
 				{"2", "1"}, // play mode
 				{"3", "1"}, // hit
 				{"4"},      // step
@@ -810,7 +810,7 @@ func (c *cache2LoaderChunk) copy(l *cache2Loader, info *cache2UpdateInfo) {
 	// update runtime info and send metrics
 	bucket, mode := l.bucket, 0
 	tags := statshouse.NamedTags{
-		{"1", srvfunc.HostnameForStatshouse()},
+		{"1", srvfunc.Hostname()},
 		{"2", "0"}, // mode
 		{"4", l.shard.stepS},
 		{"5", getStatTokenName(bucket.fau)},

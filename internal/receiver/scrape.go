@@ -210,7 +210,7 @@ func newScraper(h Handler, t scrapeTarget) *scraper {
 	req.Header.Add("Accept", "application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
 	req.Header.Set("User-Agent", "statshouse")
 	// build instance tag value
-	instance := srvfunc.HostnameForStatshouse()
+	instance := srvfunc.Hostname()
 	if port := req.URL.Port(); port != "" {
 		instance += ":" + port
 	} else {
