@@ -780,37 +780,57 @@ func TestV3ParsingCompatibility(t *testing.T) {
 	for i, originalRow := range rows {
 		origBuf := make([]byte, 0, 4086)
 		origBuf = appendV3RowBinary(origBuf, originalRow)
-		reader1 := bufio.NewReader(bytes.NewReader(origBuf))
-		reader2 := bufio.NewReader(bytes.NewReader(origBuf))
+		origReader := bufio.NewReader(bytes.NewReader(origBuf))
+
+		origProcessedRow := v3Row{}
+		if err := parseV3RowWithBinary(origReader, &origProcessedRow); err != nil {
+			require.NoError(t, err, "regular v3 row parsing failed for row %d", i)
+		}
+
+		origProcessedBuf := make([]byte, 0, 4086)
+		origProcessedBuf = appendV3RowBinary(origBuf, &origProcessedRow)
+		reader1 := bufio.NewReader(bytes.NewReader(origProcessedBuf))
+		reader2 := bufio.NewReader(bytes.NewReader(origProcessedBuf))
 
 		rowRegularParsed := v3Row{}
 		rowOptimizedParsed := v3Row{}
 
 		if err := parseV3RowWithBinary(reader1, &rowRegularParsed); err != nil {
-			require.NoError(t, err, "regular v3 row parsing failed for row %d", i)
+			require.NoError(t, err, "binary v3 row parsing failed for row %d", i)
 		}
 		if err := parseV3RowOptimized(reader2, &rowOptimizedParsed); err != nil {
 			require.NoError(t, err, "optimized v3 row parsing failed for row %d", i)
 		}
 
-		if err := requireEqualRowBytes(&rowRegularParsed, &rowOptimizedParsed); err != nil {
+		if err := requireEqualRowBytes(&origProcessedRow, &rowRegularParsed, &rowOptimizedParsed); err != nil {
 			t.Fatalf("Optimized row parsing doesn't match the original method using rowbinary: %s", err)
 		}
 	}
 }
 
-func requireEqualRowBytes(rowRegular *v3Row, rowOptimzed *v3Row) error {
+func requireEqualRowBytes(origRow *v3Row, rowRegular *v3Row, rowOptimzed *v3Row) error {
 	buf1 := make([]byte, 0, 4086)
 	buf2 := make([]byte, 0, 4086)
-	buf1 = appendV3RowBinary(buf1, rowRegular)
-	buf2 = appendV3RowBinary(buf2, rowOptimzed)
+	buf3 := make([]byte, 0, 4086)
+	buf1 = appendV3RowBinary(buf1, origRow)
+	buf2 = appendV3RowBinary(buf2, rowRegular)
+	buf3 = appendV3RowBinary(buf3, rowOptimzed)
 
 	if len(buf1) != len(buf2) {
-		return fmt.Errorf("length mismatch between regular and optimized row: %d != %d", len(buf1), len(buf2))
+		return fmt.Errorf("length mismatch between regular and original row: %d != %d", len(buf1), len(buf2))
+	}
+	if len(buf1) != len(buf3) {
+		return fmt.Errorf("length mismatch between optimized and original row: %d != %d", len(buf1), len(buf2))
 	}
 
 	for i := 0; i < len(buf1); i++ {
 		if buf1[i] != buf2[i] {
+			return fmt.Errorf("%d-th byte mismatch between regular and original row:: %d != %d", i, buf1[i], buf2[i])
+		}
+		if buf1[i] != buf3[i] {
+			return fmt.Errorf("%d-th byte mismatch between optimized and original row: %d != %d", i, buf1[i], buf2[i])
+		}
+		if buf2[i] != buf3[i] {
 			return fmt.Errorf("%d-th byte mismatch between optimized and original row: %d != %d", i, buf1[i], buf2[i])
 		}
 	}
