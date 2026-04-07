@@ -709,7 +709,73 @@ func cleanUpV3MigrationTables(t *testing.T) error {
 	return nil
 }
 
-func TestParse(t *testing.T) {
+func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
+	if err := binary.Read(reader, binary.LittleEndian, &row.index_type); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.pre_tag); err != nil {
+		return err
+	}
+	if err := readString(reader, &row.pre_stag); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
+		return err
+	}
+
+	for i := 0; i < 48; i++ {
+		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
+			return err
+		}
+		if err := readString(reader, &row.stags[i]); err != nil {
+			return err
+		}
+	}
+
+	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.max_count); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
+		return err
+	}
+
+	if _, err := row.min_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+
+	if _, err := row.max_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+
+	if _, err := row.max_count_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+	if err := row.percentiles.ReadFrom(reader); err != nil {
+		return err
+	}
+	if err := row.uniq_state.ReadFrom(reader); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestV3ParsingCompatibility(t *testing.T) {
 	rows := createV3TestData()
 	for i, originalRow := range rows {
 		origBuf := make([]byte, 0, 4086)
@@ -720,7 +786,7 @@ func TestParse(t *testing.T) {
 		rowRegularParsed := v3Row{}
 		rowOptimizedParsed := v3Row{}
 
-		if err := parseV3Row(reader1, &rowRegularParsed); err != nil {
+		if err := parseV3RowWithBinary(reader1, &rowRegularParsed); err != nil {
 			require.NoError(t, err, "regular v3 row parsing failed for row %d", i)
 		}
 		if err := parseV3RowOptimized(reader2, &rowOptimizedParsed); err != nil {
