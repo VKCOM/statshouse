@@ -64,29 +64,28 @@ func (item VectorLong) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *VectorLong) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	if err := tlBuiltinVectorLong.BuiltinVectorLongReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+func (item *VectorLong) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+	if err := tlBuiltinVectorLong.BuiltinVectorLongReadJSONGeneral(jctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorLong) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *VectorLong) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *VectorLong) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *VectorLong) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	w = tlBuiltinVectorLong.BuiltinVectorLongWriteJSONOpt(tctx, w, *item.ptr())
+func (item *VectorLong) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
+	w = tlBuiltinVectorLong.BuiltinVectorLongWriteJSONOpt(jctx, w, *item.ptr())
 	return w
 }
 func (item *VectorLong) MarshalJSON() ([]byte, error) {
@@ -94,16 +93,17 @@ func (item *VectorLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorLong) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
 }
 
-func (item *VectorLong) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *VectorLong) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	var sz int
 	var currentSize int
@@ -113,8 +113,8 @@ func (item *VectorLong) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte 
 
 	internal.Unused(currentSize)
 	internal.Unused(sz)
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -126,6 +126,6 @@ func (item *VectorLong) InternalReadTL2(r []byte) (_ []byte, err error) {
 	return r, nil
 }
 
-func (item *VectorLong) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *VectorLong) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

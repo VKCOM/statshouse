@@ -26,6 +26,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
@@ -118,7 +119,7 @@ func mainIngressProxy() int {
 	ctx, cancel := context.WithCancel(context.Background())
 	exit := make(chan error, 1)
 	go func() {
-		exit <- RunIngressProxy(ctx, argv.ConfigIngressProxy, aesPwd, mappingsCache, argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()))
+		exit <- RunIngressProxy(ctx, argv.ConfigIngressProxy, aesPwd, mappingsCache, argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))))
 	}()
 	signalC := make(chan os.Signal, 1)
 	signal.Notify(signalC, syscall.SIGINT, syscall.SIGUSR1)
@@ -185,7 +186,7 @@ func parseCommandLine() error {
 	build.FlagParseShowVersionHelp()
 
 	if argv.customHostName == "" {
-		argv.customHostName = srvfunc.HostnameForStatshouse()
+		argv.customHostName = srvfunc.Hostname()
 		log.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
 	}
 	switch dummyConveyor {

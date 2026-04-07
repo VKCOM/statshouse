@@ -210,6 +210,13 @@ func (a *Aggregator) loadMigrationData() error {
 
 func (a *Aggregator) isRelevantMetric(metricID int32) bool {
 	// assumes the metric is relevant unless possible to determine that it's not
+	if metricID < 0 {
+		// builtin metrics are relevant if they're supported now (present in `format.BuiltinMetrics`)
+		// otherwise we skip them
+		m := format.BuiltinMetrics[metricID]
+		return m != nil
+	}
+
 	if a.metricStorage == nil {
 		return true
 	}
@@ -665,14 +672,17 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 			if err != nil {
 				// shouldn't happen
 				log.Printf("[migration_v3] Failed to load tag rawness for metric %d: %v", v3row.metric, err)
-				return rowsProcessed, tagsStringified, fmt.Errorf("[migration_v3] Failed to load tag rawness for metric %d: %w", v3row.metric, err)
+				return rowsProcessed, tagsStringified, fmt.Errorf("failed to load tag rawness for metric %d: %w", v3row.metric, err)
 			}
 			rawness = a.migrationV3Data.isRawTagOfMetric[v3row.metric]
 		}
 
 		rowData = rowData[:0]
 		var stringified int
-		rowData, stringified = a.encodeV3Row(rowData, &v3row, rawness)
+		rowData, stringified, err = a.encodeV3Row(rowData, &v3row, rawness)
+		if err != nil {
+			return rowsProcessed, tagsStringified, fmt.Errorf("failed to encode v3 row: %w", err)
+		}
 
 		if _, writeErr := output.Write(rowData); writeErr != nil {
 			log.Printf("[migration_v3] Write error after processing %d rows: %v", rowsProcessed, writeErr)
@@ -686,9 +696,17 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 }
 
 func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
-	m := a.metricStorage.GetMetaMetric(metricId)
-	if m == nil {
-		return fmt.Errorf("metric meta not found in storage: id=%d", metricId)
+	var m *format.MetricMetaValue
+	if metricId < 0 {
+		m = format.BuiltinMetrics[metricId]
+		if m == nil {
+			return fmt.Errorf("unsupported negative metricId: %d (not present in builtin metrics list). shouldn't be migrated", metricId)
+		}
+	} else {
+		m = a.metricStorage.GetMetaMetric(metricId)
+		if m == nil {
+			return fmt.Errorf("metric meta not found in storage: id=%d", metricId)
+		}
 	}
 
 	if len(m.Tags) > 48 {
@@ -709,7 +727,7 @@ func (a *Aggregator) loadMetricTagRawness(metricId int32) error {
 	return nil
 }
 
-func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ []byte, tagsStringified int) {
+func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ []byte, tagsStringified int, err error) {
 	buf = rowbinary.AppendUint8(buf, row.index_type)
 	buf = rowbinary.AppendInt32(buf, row.metric)
 	buf = rowbinary.AppendUint32(buf, row.pre_tag)
@@ -723,8 +741,7 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 		if ok && isRawByTag != nil && !isRawByTag[i] {
 			stag, ok = a.migrationV3Data.mappingsStorage.GetString(tag)
 			if !ok {
-				log.Printf("[migration_v3] Tag %d has to be replaced, but not found in mappings storage", tag)
-				stag = ""
+				return nil, tagsStringified, fmt.Errorf("tag %d has to be replaced, but not found in mappings storage", tag)
 			} else {
 				tag = 0
 				tagsStringified += 1
@@ -741,11 +758,46 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 	buf = rowbinary.AppendFloat64(buf, row.sum)
 	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
 
+	//// host columns may contain underlying int values which should be interpreted as mappings
+	//stringifiedMinHost, err := a.replaceHostMappingIfNeeded(&row.min_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace min_host mapping: %w", err)
+	//}
+	//stringifiedMaxHost, err := a.replaceHostMappingIfNeeded(&row.max_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_host mapping: %w", err)
+	//}
+	//stringifiedMaxCountHost, err := a.replaceHostMappingIfNeeded(&row.max_count_host.ArgMinMaxStringFloat32)
+	//if err != nil {
+	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_count_host mapping: %w", err)
+	//}
+	//tagsStringified += stringifiedMinHost + stringifiedMaxHost + stringifiedMaxCountHost
+
 	buf = row.min_host.MarshallAppend(buf)
 	buf = row.max_host.MarshallAppend(buf)
 	buf = row.max_count_host.MarshallAppend(buf)
 	buf = row.percentiles.MarshallAppend(buf, 1)
 	buf = row.uniq_state.MarshallAppend(buf)
 
-	return buf, tagsStringified
+	return buf, tagsStringified, nil
 }
+
+//func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
+//	// returns 1 if the mapping was decoded and replaced, else 0
+//	if hostArg.AsInt32 != 0 {
+//		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
+//		if !presentInReplacementMappings {
+//			return 0, nil
+//		}
+//
+//		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
+//		if ok {
+//			hostArg.AsString = replacement
+//			hostArg.AsInt32 = 0
+//			return 1, nil
+//		} else {
+//			return 0, fmt.Errorf("failed to map host value to string: int32 not found in mappings storage %d", hostArg.AsInt32)
+//		}
+//	}
+//	return 0, nil
+//}

@@ -127,7 +127,7 @@ func (t *cache2Trim) sendEvent(event, reason string, sizeInBytes int) {
 	statshouse.Value(
 		"statshouse_api_cache_trim",
 		statshouse.Tags{
-			1: srvfunc.HostnameForStatshouse(),
+			1: srvfunc.Hostname(),
 			2: event,
 			3: reason,
 		},

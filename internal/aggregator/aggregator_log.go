@@ -25,7 +25,7 @@ func (a *Aggregator) appendInternalLogLocked(typ string, key0 string, key1 strin
 	binary.LittleEndian.PutUint32(tmp[0:], nowUnix)
 
 	a.internalLog = append(a.internalLog, tmp[:]...)
-	a.internalLog = rowbinary.AppendString(a.internalLog, srvfunc.HostnameForStatshouse())
+	a.internalLog = rowbinary.AppendString(a.internalLog, srvfunc.Hostname())
 	a.internalLog = rowbinary.AppendString(a.internalLog, typ)
 	a.internalLog = rowbinary.AppendString(a.internalLog, key0)
 	a.internalLog = rowbinary.AppendString(a.internalLog, key1)

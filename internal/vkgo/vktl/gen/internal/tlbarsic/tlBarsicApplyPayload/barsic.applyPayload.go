@@ -106,21 +106,19 @@ func (item *BarsicApplyPayload) WriteResultTL1(w []byte, ret tlTrue.True) (_ []b
 	return w, nil
 }
 
-func (item *BarsicApplyPayload) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *BarsicApplyPayload) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayload) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *BarsicApplyPayload) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *BarsicApplyPayload) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -130,18 +128,18 @@ func (item *BarsicApplyPayload) FillRandomResultTL1(rg *basictl.RandGenerator, w
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicApplyPayload) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -160,7 +158,7 @@ func (item *BarsicApplyPayload) ReadResultTL2WriteResultJSON(tctx *basictl.TL2Re
 	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
-func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
@@ -169,11 +167,11 @@ func (item BarsicApplyPayload) String() string {
 }
 
 func (item *BarsicApplyPayload) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *BarsicApplyPayload) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *BarsicApplyPayload) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propCommitASAPPresented bool
 	var trueTypeCommitASAPValue bool
@@ -265,15 +263,14 @@ func (item *BarsicApplyPayload) ReadJSONGeneral(tctx *basictl.JSONReadContext, i
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicApplyPayload) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *BarsicApplyPayload) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *BarsicApplyPayload) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *BarsicApplyPayload) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *BarsicApplyPayload) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -312,17 +309,18 @@ func (item *BarsicApplyPayload) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicApplyPayload) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil
 }
 
-func (item *BarsicApplyPayload) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *BarsicApplyPayload) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload"))
 }
 
-func (item *BarsicApplyPayload) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *BarsicApplyPayload) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
@@ -416,21 +414,19 @@ func (item *BarsicApplyPayloadBytes) WriteResultTL1(w []byte, ret tlTrue.True) (
 	return w, nil
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *BarsicApplyPayloadBytes) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *BarsicApplyPayloadBytes) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -440,18 +436,18 @@ func (item *BarsicApplyPayloadBytes) FillRandomResultTL1(rg *basictl.RandGenerat
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -470,7 +466,7 @@ func (item *BarsicApplyPayloadBytes) ReadResultTL2WriteResultJSON(tctx *basictl.
 	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }
 
@@ -479,11 +475,11 @@ func (item BarsicApplyPayloadBytes) String() string {
 }
 
 func (item *BarsicApplyPayloadBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *BarsicApplyPayloadBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propCommitASAPPresented bool
 	var trueTypeCommitASAPValue bool
@@ -575,15 +571,14 @@ func (item *BarsicApplyPayloadBytes) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *BarsicApplyPayloadBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *BarsicApplyPayloadBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *BarsicApplyPayloadBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *BarsicApplyPayloadBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -622,16 +617,17 @@ func (item *BarsicApplyPayloadBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicApplyPayloadBytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil
 }
 
-func (item *BarsicApplyPayloadBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *BarsicApplyPayloadBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload"))
 }
 
-func (item *BarsicApplyPayloadBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, internal.ErrorTL2SerializersNotGenerated("barsic.applyPayload")
 }

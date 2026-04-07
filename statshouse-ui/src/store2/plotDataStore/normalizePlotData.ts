@@ -267,7 +267,6 @@ export function normalizePlotData(
     plotData.receiveWarnings = response.receive_warnings;
     plotData.samplingFactorSrc = response.sampling_factor_src;
     plotData.samplingFactorAgg = response.sampling_factor_agg;
-    plotData.mappingFloodEvents = response.mapping_errors;
   };
 }
 

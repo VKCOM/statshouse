@@ -193,7 +193,7 @@ func run() int {
 	c := rpc.NewClient(
 		// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
 		rpc.ClientWithLogf(log.Printf),
-		rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups())))
+		rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups("")))))
 	defer func() { _ = c.Close() }()
 
 	var mappingFiles []*os.File
@@ -283,7 +283,7 @@ func run() int {
 		argv.showInvisible,
 		chV2,
 		&tlmetadata.Client{
-			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(rpcCryptoKey), rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups()))),
+			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(rpcCryptoKey), rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))))),
 			Network: argv.metadataNet,
 			Address: argv.metadataAddr,
 			ActorID: argv.metadataActorID,
@@ -405,7 +405,7 @@ func run() int {
 		2:                       fmt.Sprint(format.TagValueIDHeartbeatEventStart),
 		4:                       fmt.Sprint(build.CommitTag()),
 		6:                       fmt.Sprint(build.CommitTimestamp()),
-		7:                       srvfunc.HostnameForStatshouse(),
+		7:                       srvfunc.Hostname(),
 		statshouse.StringTopTag: build.Commit(),
 	}
 	statshouse.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, 0)
@@ -424,7 +424,7 @@ func run() int {
 			hijackListener.AddConnection(conn)
 		}),
 		rpc.ServerWithLogf(log.Printf),
-		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(build.TrustedSubnetGroups())),
+		rpc.ServerWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups("")))),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys),
 		metrics.ServerWithMetrics,

@@ -28,19 +28,19 @@ type Object interface {
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
-	ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error
+	ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error
 	// like MarshalJSON, but appends to w and returns it
 	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
-	WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
+	WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) ([]byte, error)
 }
 
 type Function interface {
 	Object
 
-	// tctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
-	// pass empty basictl.JSONWriteContext{} if you do not know which options you need
-	ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
-	ReadResultJSONWriteResultTL1(r []byte, w []byte) ([]byte, []byte, error)                                 // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+	// jctx is for options controlling transcoding short-long version during Long ID and legacyTypeNames->newTypeNames transition
+	// pass nil if you do not know which options you need
+	ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
+	ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) ([]byte, []byte, error)  // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
 
 }
 
@@ -174,7 +174,7 @@ func (item *TLItemImpl) WriteTL1BoxedGeneral(w []byte) ([]byte, error) {
 func (item TLItemImpl) String() string {
 	return string(item.WriteJSON(nil))
 }
-func (item *TLItemImpl) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *TLItemImpl) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	in.Delim('{')
 	if !in.Ok() {
 		return in.Error()
@@ -188,7 +188,7 @@ func (item *TLItemImpl) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 	}
 	return nil
 }
-func (item *TLItemImpl) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+func (item *TLItemImpl) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
 	return item.WriteJSON(w), nil
 }
 func (item *TLItemImpl) WriteJSON(w []byte) []byte {
@@ -199,16 +199,16 @@ func (item *TLItemImpl) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil), nil
 }
 func (item *TLItemImpl) UnmarshalJSON(b []byte) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: true}
-	if err := item.ReadJSONGeneral(&tctx, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON(item.Name, err.Error())
 	}
 	return nil
 }
-func (item *TLItemImpl) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+func (item *TLItemImpl) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) ([]byte, error) {
 	return r, nil
 }
-func (item *TLItemImpl) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *TLItemImpl) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	return w
 }
 

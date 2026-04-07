@@ -233,7 +233,7 @@ export const PlotLegend = memo(function PlotLegend({
                     </td>
                     {maxHost && (
                       <td className={css.maxHost}>
-                        {!!seriesTimeShift && seriesTimeShift[index - 1] <= 0 && !!l.values?.rawValue && (
+                        {!!seriesTimeShift && seriesTimeShift[index - 1] <= 0 && l.values?.rawValue != null && (
                           <PlotLegendMaxHost
                             seriesIdx={index - 1}
                             idx={l.noFocus ? undefined : l.values?.idx}
