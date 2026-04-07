@@ -171,7 +171,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		sb.Metrics = append(sb.Metrics, item)
 	}
 	clear(budgetScratch)
-	orgMetricSize := map[int32]uint32{}
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
 		SampleKeepSingle:     config.SampleKeepSingle,
@@ -219,11 +218,12 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			MetricID:    accountMetric,
 		})
 		if config.EnableBudgetFromAgg {
-			if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
-				budgetScratch[accountMetric] = budget
+			if _, ok := budgetScratch[accountMetric]; !ok {
+				if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
+					budgetScratch[accountMetric] = budget
+				}
 			}
 		}
-		orgMetricSize[accountMetric] += uint32(sz)
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 
