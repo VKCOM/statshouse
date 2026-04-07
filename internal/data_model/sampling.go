@@ -128,7 +128,7 @@ func NewSampler(c SamplerConfig) sampler {
 	c.MetricGroups = c.MetricGroups[:0]
 	c.SampleFactors = c.SampleFactors[:0]
 	// partition functions
-	if c.MetricBudgets != nil {
+	if c.MetricBudgets != nil && len(c.MetricBudgets) > 0 {
 		c.partF = append(c.partF, partitionByBudget)
 	}
 	if c.SampleNamespaces {
