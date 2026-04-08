@@ -62,6 +62,7 @@ type (
 		historicHosts      [2][2]map[data_model.TagUnion]int64                           // [role][route] Protected by mu
 		contributorsMetric [2][2]data_model.ItemValue                                    // [role][route] Not recorded for keep-alive, protected by aggregator mutex
 		originalMetricSize map[int32]map[data_model.TagUnion]uint32
+		oldAgentSize       uint64
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
@@ -951,6 +952,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 					hctx.SendLongpollResponse(sendErr)
 				}
 			}
+			b.oldAgentSize = 0
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once
 			clear(b.originalMetricSize)
@@ -1012,7 +1014,7 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 	if len(b.originalMetricSize) == 0 {
 		return
 	}
-	totalBudget := int64(configR.ReceiveSampleBudget)
+	totalBudget := max(int64(configR.ReceiveSampleBudget)-int64(b.oldAgentSize), 1)
 	keepF := func(key data_model.Key, quota uint32) {
 		host := data_model.TagUnion{I: key.Tags[1], S: key.STags[1]}
 		if originalSize, ok := b.originalMetricSize[key.Metric][host]; ok && originalSize <= quota {
