@@ -27,6 +27,7 @@ type Config struct {
 	HistoricWindow       uint
 	MaxHistoricDiskSize  int64 // for all shards, in bytes
 	SampleKeepSingle     bool
+	SampleBudgets        bool
 	SampleNamespaces     bool
 	SampleGroups         bool
 	SampleKeys           bool
@@ -56,7 +57,6 @@ type Config struct {
 
 	AutoCreate           bool
 	DisableNoSampleAgent bool
-	EnableBudgetFromAgg  bool
 	BudgetDecayHalfLife  time.Duration
 
 	HardwareMetricResolution     int
@@ -68,6 +68,7 @@ func DefaultConfig() Config {
 		SampleBudget:                     150000,
 		HistoricWindow:                   6 * 3600, // TODO - after V3 tables dropped, change to 24 hours
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
+		SampleBudgets:                    false,
 		SampleNamespaces:                 false,
 		SampleGroups:                     false,
 		SampleKeys:                       false,
@@ -88,7 +89,6 @@ func DefaultConfig() Config {
 		RemoteWritePath:              "/write",
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
-		EnableBudgetFromAgg:          false,
 		BudgetDecayHalfLife:          data_model.ExpDecayHalfLife,
 		MinSampleBudget:              2000,
 		HardwareMetricResolution:     5,
@@ -151,10 +151,10 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
-	f.BoolVar(&c.EnableBudgetFromAgg, "enable-budget-from-agg", d.EnableBudgetFromAgg, "Apply per-host receive sample budget from aggregator responses (pair with aggregator enable-dynamic-sample-factor).")
 	f.DurationVar(&c.BudgetDecayHalfLife, "budget-decay-half-life", d.BudgetDecayHalfLife, "Half-life for per-metric budgets from aggregator (exponential decay).")
 	f.IntVar(&c.MinSampleBudget, "min-sample-budget", d.MinSampleBudget, "Minimum byte budget for the fallback/remain sampling pass after subtracting per-metric budgets (0 = no extra floor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
+	f.BoolVar(&c.SampleBudgets, "sample-budgets", d.SampleBudgets, "Statshouse will use per-host receive sample budget from aggregator for sampling.")
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")

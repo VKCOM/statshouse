@@ -438,12 +438,10 @@ func (h *sampler) sampleQuota(g samplerGroup) {
 	timeStart := time.Now()
 	defer func() { h.timeSampling += time.Since(timeStart) }()
 
-	sumSize := int64(0)
-	for _, item := range g.items {
-		sumSize += int64(item.Size)
-	}
+	sfDenom := g.budgetDenom * g.sumSize
 	for i := range g.items {
-		quota := int(g.budget * int64(g.items[i].Size) / sumSize)
+		sfNum := g.budget * int64(g.items[i].Size)
+		quota := int(h.RoundF(float64(sfNum)/float64(sfDenom), h.Rand))
 		g.items[i].Size = quota
 		if quota < 1 {
 			g.items[i].discard(math.MaxFloat32, h)

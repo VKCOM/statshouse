@@ -27,26 +27,26 @@ type ConfigChangeNotifier struct {
 }
 
 type ConfigAggregatorRemote struct {
-	ShortWindow               int
-	InsertBudget              int // for single replica, in bytes per contributor, when many contributors
-	MinInsertBudget           int64
-	ShardInsertBudget         map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
-	ReceiveSampleBudget       int         // total pre-aggregator receive budget per shard, in bytes per second
-	StringTopCountInsert      int
-	SampleNamespaces          bool
-	SampleGroups              bool
-	SampleKeys                bool
-	DenyOldAgents             bool
-	V3InsertSettings          string
-	MappingCacheSize          int64
-	MappingCacheTTL           int
-	BufferedInsertAgeSec      int    // age in seconds of data that should be sent to buffer table
-	MigrationTimeRange        string // format: "{begin timestamp}-{end timestamp}"
-	MigrationV3DisabledShards map[int32]struct{}
-	MigrationDelaySec         int // delay in seconds between migration steps
-	ClusterShardsAddrs        []string
-	EnableMappingStorage      bool
-	EnableReceiveSampleBudget bool
+	ShortWindow                int
+	InsertBudget               int // for single replica, in bytes per contributor, when many contributors
+	MinInsertBudget            int64
+	ShardInsertBudget          map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
+	ReceiveSampleBudget        int         // total pre-aggregator receive budget per shard, in bytes per second
+	StringTopCountInsert       int
+	SampleNamespaces           bool
+	SampleGroups               bool
+	SampleKeys                 bool
+	DenyOldAgents              bool
+	V3InsertSettings           string
+	MappingCacheSize           int64
+	MappingCacheTTL            int
+	BufferedInsertAgeSec       int    // age in seconds of data that should be sent to buffer table
+	MigrationTimeRange         string // format: "{begin timestamp}-{end timestamp}"
+	MigrationV3DisabledShards  map[int32]struct{}
+	MigrationDelaySec          int // delay in seconds between migration steps
+	ClusterShardsAddrs         []string
+	EnableMappingStorage       bool
+	DisableReceiveSampleBudget bool
 
 	RQLiteAddrs string // comma-separated list
 
@@ -215,8 +215,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
-
-		f.BoolVar(&c.EnableReceiveSampleBudget, "enable-receive-sample-budget", d.EnableReceiveSampleBudget, "Enable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
+		f.BoolVar(&c.DisableReceiveSampleBudget, "disable-receive-sample-budget", d.DisableReceiveSampleBudget, "Disable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }

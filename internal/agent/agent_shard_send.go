@@ -175,7 +175,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
 		SampleKeepSingle:     config.SampleKeepSingle,
 		DisableNoSampleAgent: config.DisableNoSampleAgent,
-		SampleBudgets:        config.EnableBudgetFromAgg,
+		SampleBudgets:        config.SampleBudgets,
 		SampleNamespaces:     config.SampleNamespaces,
 		SampleGroups:         config.SampleGroups,
 		SampleKeys:           config.SampleKeys,
@@ -218,7 +218,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			Size:        sz,
 			MetricID:    accountMetric,
 		})
-		if config.EnableBudgetFromAgg {
+		if config.SampleBudgets {
 			if _, ok := budgetScratch[accountMetric]; !ok {
 				if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
 					budgetScratch[accountMetric] = budget

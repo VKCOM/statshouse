@@ -813,6 +813,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		aggBucket.mu.Lock()
 		a.calcHostMetricBudgets(configR, aggBucket, hostBudgets)
+		a.reportHostMetricBudgets(aggBucket.time, aggBucket.originalMetricSize, hostBudgets)
 		aggBucket.mu.Unlock()
 		a.mergeHostBudgetCache(aggBucket.time, hostBudgets)
 
@@ -1053,6 +1054,37 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 		}
 	}
 	s.Run(totalBudget)
+}
+
+func (a *Aggregator) reportHostMetricBudgets(ts uint32, originalMetricSize map[int32]map[data_model.TagUnion]uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	for _, byHost := range originalMetricSize {
+		for host, originalSize := range byHost {
+			a.sh2.AddValueCounterHostAERAS(
+				ts,
+				format.BuiltinMetricMetaAggReceiveSrcOriginalSize,
+				[]int32{0, host.I},
+				[]string{"", host.S},
+				float64(originalSize),
+				1,
+				data_model.TagUnion{},
+				data_model.AgentEnvRouteArch{},
+			)
+		}
+	}
+	for host, budgets := range hostMetricBudgets {
+		for _, budget := range budgets {
+			a.sh2.AddValueCounterHostAERAS(
+				ts,
+				format.BuiltinMetricMetaAggSendSrcBudget,
+				[]int32{0, host.I},
+				[]string{"", host.S},
+				float64(budget.Budget),
+				1,
+				data_model.TagUnion{},
+				data_model.AgentEnvRouteArch{},
+			)
+		}
+	}
 }
 
 func (a *Aggregator) mergeHostBudgetCache(bucketTime uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {

@@ -3099,3 +3099,33 @@ var BuiltinMetricMetaHeartbeatVersionIngress = &MetricMetaValue{
 		Description: "arg_other",
 	}},
 }
+
+var BuiltinMetricMetaAggReceiveSrcOriginalSize = &MetricMetaValue{
+	Name:                    "__agg_receive_src_original_size",
+	Kind:                    MetricKindValue,
+	Description:             "Total original size reported by agents before budget split, per agent host.",
+	MetricType:              MetricByte,
+	Resolution:              60,
+	NoSampleAgent:           true, // bounded by #contributors
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Name: "agent_host",
+	}},
+}
+
+var BuiltinMetricMetaAggSendSrcBudget = &MetricMetaValue{
+	Name:                    "__agg_send_src_budget",
+	Kind:                    MetricKindValue,
+	Description:             "Total receive budget allocated by aggregator for each agent host.",
+	MetricType:              MetricByte,
+	Resolution:              60,
+	NoSampleAgent:           true, // bounded by #contributors
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Name: "agent_host",
+	}},
+}
