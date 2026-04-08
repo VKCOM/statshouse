@@ -532,60 +532,61 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 
 }
 
-func parseV3Row(reader *bufio.Reader, row *v3Row) error {
-	if err := binary.Read(reader, binary.LittleEndian, &row.index_type); err != nil {
+func parseV3RowOptimized(reader *bufio.Reader, row *v3Row) (err error) {
+	if err = ReadUInt8(reader, &row.index_type); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
+	if err = ReadInt32(reader, &row.metric); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.pre_tag); err != nil {
+	if err = ReadUInt32(reader, &row.pre_tag); err != nil {
 		return err
 	}
-	if err := readString(reader, &row.pre_stag); err != nil {
+	if err = readString(reader, &row.pre_stag); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
+	if err = ReadUInt32(reader, &row.time); err != nil {
 		return err
 	}
 
 	for i := 0; i < 48; i++ {
-		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
+		if err = ReadInt32(reader, &row.tags[i]); err != nil {
 			return err
 		}
-		if err := readString(reader, &row.stags[i]); err != nil {
+		if err = readString(reader, &row.stags[i]); err != nil {
 			return err
 		}
 	}
 
-	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
+	if err = ReadFloat64(reader, &row.count); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
+	if err = ReadFloat64(reader, &row.min); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
+	if err = ReadFloat64(reader, &row.max); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.max_count); err != nil {
+	if err = ReadFloat64(reader, &row.max_count); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
+	if err = ReadFloat64(reader, &row.sum); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
-		return err
-	}
-
-	if _, err := row.min_host.ReadFrom(reader, nil); err != nil {
+	if err = ReadFloat64(reader, &row.sumsquare); err != nil {
 		return err
 	}
 
-	if _, err := row.max_host.ReadFrom(reader, nil); err != nil {
+	buf := make([]byte, 6, 128)
+	if buf, err = row.min_host.ReadFrom(reader, buf); err != nil {
 		return err
 	}
 
-	if _, err := row.max_count_host.ReadFrom(reader, nil); err != nil {
+	if buf, err = row.max_host.ReadFrom(reader, buf); err != nil {
+		return err
+	}
+
+	if _, err = row.max_count_host.ReadFrom(reader, buf); err != nil {
 		return err
 	}
 	if err := row.percentiles.ReadFrom(reader); err != nil {
@@ -595,6 +596,42 @@ func parseV3Row(reader *bufio.Reader, row *v3Row) error {
 		return err
 	}
 
+	return nil
+}
+
+func ReadUInt8(r io.Reader, dst *uint8) error {
+	bs := make([]byte, 1)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = bs[0]
+	return nil
+}
+
+func ReadUInt32(r io.Reader, dst *uint32) error {
+	bs := make([]byte, 4)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = binary.LittleEndian.Uint32(bs)
+	return nil
+}
+
+func ReadInt32(r io.Reader, dst *int32) error {
+	bs := make([]byte, 4)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = int32(binary.LittleEndian.Uint32(bs))
+	return nil
+}
+
+func ReadFloat64(r io.Reader, dst *float64) error {
+	bs := make([]byte, 8)
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	*dst = math.Float64frombits(binary.LittleEndian.Uint64(bs))
 	return nil
 }
 
@@ -642,7 +679,7 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 	var v3row v3Row
 
 	for {
-		if parseErr := parseV3Row(reader, &v3row); parseErr != nil {
+		if parseErr := parseV3RowOptimized(reader, &v3row); parseErr != nil {
 			if errors.Is(parseErr, io.EOF) {
 				// End of input, we're done
 				log.Printf("[migration_v3] Reached EOF after processing %d rows", rowsProcessed)
@@ -759,19 +796,19 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 	buf = rowbinary.AppendFloat64(buf, row.sumsquare)
 
 	//// host columns may contain underlying int values which should be interpreted as mappings
-	//stringifiedMinHost, err := a.replaceHostMappingIfNeeded(&row.min_host.ArgMinMaxStringFloat32)
-	//if err != nil {
-	//	return nil, tagsStringified, fmt.Errorf("failed to replace min_host mapping: %w", err)
-	//}
-	//stringifiedMaxHost, err := a.replaceHostMappingIfNeeded(&row.max_host.ArgMinMaxStringFloat32)
-	//if err != nil {
-	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_host mapping: %w", err)
-	//}
-	//stringifiedMaxCountHost, err := a.replaceHostMappingIfNeeded(&row.max_count_host.ArgMinMaxStringFloat32)
-	//if err != nil {
-	//	return nil, tagsStringified, fmt.Errorf("failed to replace max_count_host mapping: %w", err)
-	//}
-	//tagsStringified += stringifiedMinHost + stringifiedMaxHost + stringifiedMaxCountHost
+	stringifiedMinHost, err := a.replaceHostMappingIfNeeded(&row.min_host.ArgMinMaxStringFloat32)
+	if err != nil {
+		return nil, tagsStringified, fmt.Errorf("failed to replace min_host mapping: %w", err)
+	}
+	stringifiedMaxHost, err := a.replaceHostMappingIfNeeded(&row.max_host.ArgMinMaxStringFloat32)
+	if err != nil {
+		return nil, tagsStringified, fmt.Errorf("failed to replace max_host mapping: %w", err)
+	}
+	stringifiedMaxCountHost, err := a.replaceHostMappingIfNeeded(&row.max_count_host.ArgMinMaxStringFloat32)
+	if err != nil {
+		return nil, tagsStringified, fmt.Errorf("failed to replace max_count_host mapping: %w", err)
+	}
+	tagsStringified += stringifiedMinHost + stringifiedMaxHost + stringifiedMaxCountHost
 
 	buf = row.min_host.MarshallAppend(buf)
 	buf = row.max_host.MarshallAppend(buf)
@@ -782,22 +819,22 @@ func (a *Aggregator) encodeV3Row(buf []byte, row *v3Row, isRawByTag []bool) (_ [
 	return buf, tagsStringified, nil
 }
 
-//func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
-//	// returns 1 if the mapping was decoded and replaced, else 0
-//	if hostArg.AsInt32 != 0 {
-//		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
-//		if !presentInReplacementMappings {
-//			return 0, nil
-//		}
-//
-//		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
-//		if ok {
-//			hostArg.AsString = replacement
-//			hostArg.AsInt32 = 0
-//			return 1, nil
-//		} else {
-//			return 0, fmt.Errorf("failed to map host value to string: int32 not found in mappings storage %d", hostArg.AsInt32)
-//		}
-//	}
-//	return 0, nil
-//}
+func (a *Aggregator) replaceHostMappingIfNeeded(hostArg *data_model.ArgMinMaxStringFloat32) (int, error) {
+	// returns 1 if the mapping was decoded and replaced, else 0
+	if hostArg.AsInt32 != 0 {
+		_, presentInReplacementMappings := a.migrationV3Data.replacementMappings[hostArg.AsInt32]
+		if !presentInReplacementMappings {
+			return 0, nil
+		}
+
+		replacement, ok := a.migrationV3Data.mappingsStorage.GetString(hostArg.AsInt32)
+		if ok {
+			hostArg.AsString = replacement
+			hostArg.AsInt32 = 0
+			return 1, nil
+		} else {
+			return 0, fmt.Errorf("failed to map host value to string: int32 not found in mappings storage %d", hostArg.AsInt32)
+		}
+	}
+	return 0, nil
+}

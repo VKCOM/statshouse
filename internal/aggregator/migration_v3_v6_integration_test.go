@@ -10,6 +10,7 @@ package aggregator
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -65,7 +66,7 @@ func prepareAggregator(CHAddr string) {
 		KHPassword: "secret",
 		KHUser:     "default",
 	}
-	config := NewDefaultMigrationConfigV3()
+	config := NewDefaultMigrationConfigV3("cache/aggregator")
 
 	agg = &Aggregator{
 		migrationConfigV3: config,
@@ -705,5 +706,114 @@ func cleanUpV3MigrationTables(t *testing.T) error {
 	if err != nil {
 		return fmt.Errorf("failed to close V6 table clear response: %w", err)
 	}
+	return nil
+}
+
+func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
+	if err := binary.Read(reader, binary.LittleEndian, &row.index_type); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.metric); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.pre_tag); err != nil {
+		return err
+	}
+	if err := readString(reader, &row.pre_stag); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
+		return err
+	}
+
+	for i := 0; i < 48; i++ {
+		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
+			return err
+		}
+		if err := readString(reader, &row.stags[i]); err != nil {
+			return err
+		}
+	}
+
+	if err := binary.Read(reader, binary.LittleEndian, &row.count); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.min); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.max); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.max_count); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.sum); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &row.sumsquare); err != nil {
+		return err
+	}
+
+	if _, err := row.min_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+
+	if _, err := row.max_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+
+	if _, err := row.max_count_host.ReadFrom(reader, nil); err != nil {
+		return err
+	}
+	if err := row.percentiles.ReadFrom(reader); err != nil {
+		return err
+	}
+	if err := row.uniq_state.ReadFrom(reader); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestV3ParsingCompatibility(t *testing.T) {
+	rows := createV3TestData()
+	for i, originalRow := range rows {
+		origBuf := make([]byte, 0, 4086)
+		origBuf = appendV3RowBinary(origBuf, originalRow)
+		reader1 := bufio.NewReader(bytes.NewReader(origBuf))
+		reader2 := bufio.NewReader(bytes.NewReader(origBuf))
+
+		rowRegularParsed := v3Row{}
+		rowOptimizedParsed := v3Row{}
+
+		if err := parseV3RowWithBinary(reader1, &rowRegularParsed); err != nil {
+			require.NoError(t, err, "regular v3 row parsing failed for row %d", i)
+		}
+		if err := parseV3RowOptimized(reader2, &rowOptimizedParsed); err != nil {
+			require.NoError(t, err, "optimized v3 row parsing failed for row %d", i)
+		}
+
+		if err := requireEqualRowBytes(&rowRegularParsed, &rowOptimizedParsed); err != nil {
+			t.Fatalf("Optimized row parsing doesn't match the original method using rowbinary: %s", err)
+		}
+	}
+}
+
+func requireEqualRowBytes(rowRegular *v3Row, rowOptimzed *v3Row) error {
+	buf1 := make([]byte, 0, 4086)
+	buf2 := make([]byte, 0, 4086)
+	buf1 = appendV3RowBinary(buf1, rowRegular)
+	buf2 = appendV3RowBinary(buf2, rowOptimzed)
+
+	if len(buf1) != len(buf2) {
+		return fmt.Errorf("length mismatch between regular and optimized row: %d != %d", len(buf1), len(buf2))
+	}
+
+	for i := 0; i < len(buf1); i++ {
+		if buf1[i] != buf2[i] {
+			return fmt.Errorf("%d-th byte mismatch between optimized and original row: %d != %d", i, buf1[i], buf2[i])
+		}
+	}
+
 	return nil
 }
