@@ -316,7 +316,7 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	config := DefaultConfig()
 	config.SampleBudget = 100_000
 	config.MinSampleBudget = 4000
-	config.EnableBudgetFromAgg = true
+	config.SampleBudgets = true
 	config.SampleNamespaces = true
 	config.SampleGroups = true
 	agent := makeAgent(config, nowUnix)
