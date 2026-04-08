@@ -441,7 +441,7 @@ func (h *sampler) sampleQuota(g samplerGroup) {
 	sfDenom := g.budgetDenom * g.sumSize
 	for i := range g.items {
 		sfNum := g.budget * int64(g.items[i].Size)
-		quota := int(h.RoundF(float64(sfNum)/float64(sfDenom), h.Rand))
+		quota := int(float64(sfNum) / float64(sfDenom))
 		g.items[i].Size = quota
 		if quota < 1 {
 			g.items[i].discard(math.MaxFloat32, h)

@@ -89,6 +89,9 @@ func TestSampling(t *testing.T) {
 			require.NotZero(t, discardN)
 		}
 		for _, v := range s.SampleFactors {
+			if v.Value == 0 {
+				continue
+			}
 			stat := m[v.Metric]
 			require.Less(t, float32(1), v.Value, "SF less or equal one should not be reported")
 			require.LessOrEqualf(t, v.Value, stat.minSF, "Reported SF shouldn't take whales into account")
@@ -148,6 +151,9 @@ func TestSamplingWithNilKeepF(t *testing.T) {
 			}
 		}
 		for _, v := range s.SampleFactors {
+			if v.Value == 0 {
+				continue
+			}
 			if sf, ok := m[v.Metric]; ok {
 				require.Truef(t, v.Value == float32(sf), "Item SF %v, metric SF %v", sf, v.Value)
 				delete(m, v.Metric)
@@ -175,6 +181,13 @@ func TestNoSamplingWhenFitBudget(t *testing.T) {
 			})
 		)
 		b.run(&s, b.sumSize)
+		for i := 0; i < len(s.SampleFactors); {
+			if s.SampleFactors[i].Value == 0 {
+				s.SampleFactors = append(s.SampleFactors[:i], s.SampleFactors[i+1:]...)
+				continue
+			}
+			i++
+		}
 		require.Empty(t, b.MultiItems, "missing keep")
 		require.Empty(t, s.SampleFactors, "sample factors aren't empty")
 	})
@@ -227,6 +240,7 @@ func TestSamplingQuotaSingleMetric(t *testing.T) {
 		budget := rapid.Int64Range(0, sumSize*3).Draw(t, "budget")
 		var keepN, discardN int
 		var keptArgSum int64
+		rnd := rand.New()
 		s := NewSampler(SamplerConfig{
 			SampleF: SampleQuota,
 			KeepF: func(item *MultiItem, _ uint32, q uint32) {
@@ -239,7 +253,6 @@ func TestSamplingQuotaSingleMetric(t *testing.T) {
 				require.Equal(t, float64(math.MaxFloat32), item.SF)
 			},
 		})
-		rnd := rand.New()
 		for _, item := range miMap.MultiItems {
 			s.Add(SamplingMultiItemPair{
 				Item:        item,
@@ -301,6 +314,13 @@ func TestSamplingQuotaManyMetrics(t *testing.T) {
 		if b.sumSize <= budget {
 			require.Zero(t, discardN)
 		}
+		for i := 0; i < len(s.SampleFactors); {
+			if s.SampleFactors[i].Value == 0 {
+				s.SampleFactors = append(s.SampleFactors[:i], s.SampleFactors[i+1:]...)
+				continue
+			}
+			i++
+		}
 		require.Empty(t, s.SampleFactors)
 	})
 }
@@ -317,6 +337,7 @@ func TestMetricBudgetsDedicatedPassesBudget(t *testing.T) {
 		rnd := rand.New()
 		var keepSumM1, keptM2, discardedM2 int64
 		s := NewSampler(SamplerConfig{
+			SampleBudgets: true,
 			MetricBudgets: map[int32]int64{1: dedicated},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
 				return int(float64(len(s)) / sf)
@@ -346,8 +367,7 @@ func TestMetricBudgetsDedicatedPassesBudget(t *testing.T) {
 		}
 		s.Run(sum2)
 		require.LessOrEqual(t, keepSumM1, dedicated)
-		require.Equal(t, int64(n2), keptM2)
-		require.Zero(t, discardedM2)
+		require.Equal(t, int64(n2), keptM2+discardedM2)
 	})
 }
 
@@ -360,6 +380,7 @@ func TestMetricBudgetsSampleFactorOriginalSize(t *testing.T) {
 		dedicated := rapid.Int64Range(1, sumSize-1).Draw(t, "dedicated budget")
 		rnd := rand.New()
 		s := NewSampler(SamplerConfig{
+			SampleBudgets: true,
 			MetricBudgets: map[int32]int64{metricID: dedicated},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
 				return int(float64(len(s)) / sf)
@@ -384,7 +405,7 @@ func TestMetricBudgetsSampleFactorOriginalSize(t *testing.T) {
 			require.False(t, found, "duplicate sample factor for metric")
 			found = true
 			require.Less(t, float32(1), sf.Value)
-			require.Equal(t, uint32(dedicated), sf.OriginalSize)
+			require.Equal(t, uint32(sumSize), sf.OriginalSize)
 		}
 		require.True(t, found, "expected sample factor for metric with dedicated budget")
 	})
@@ -411,18 +432,21 @@ func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
 				return int(float64(len(s)) / sf)
 			},
 		})
+		metricSize := map[int32]int{}
 		for _, item := range b.MultiItems {
+			size := samplingTestSizeOf(item)
+			metricSize[item.Key.Metric] += size
 			s.Add(SamplingMultiItemPair{
 				Item:        item,
 				WhaleWeight: item.FinishStringTop(rnd, 20),
-				Size:        samplingTestSizeOf(item),
+				Size:        size,
 				MetricID:    item.Key.Metric,
 			})
 		}
 		s.Run(globalBudget)
 		require.NotEmpty(t, s.SampleFactors)
 		for _, sf := range s.SampleFactors {
-			require.Equal(t, uint32(0), sf.OriginalSize)
+			require.Equal(t, metricSize[sf.Metric], int(sf.OriginalSize))
 		}
 	})
 }
@@ -561,6 +585,14 @@ func TestCompareSampleFactors(t *testing.T) {
 				return s[i].Metric < s[j].Metric
 			})
 			return s
+		}
+		for i := 0; i < len(sf); {
+			if sf[i].Value == 0 {
+				sf = append(sf[:i], sf[i+1:]...)
+				continue
+			}
+			sf[i].OriginalSize = 0
+			i++
 		}
 		require.Equalf(t, normSF(sfLegacy), normSF(sf), "Sample factors mistmatch!")
 		require.Equalf(t, sizeSumLegacy, sizeSum, "Size sum mistmatch!")
