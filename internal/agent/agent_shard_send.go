@@ -175,6 +175,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
 		SampleKeepSingle:     config.SampleKeepSingle,
 		DisableNoSampleAgent: config.DisableNoSampleAgent,
+		SampleBudgets:        config.EnableBudgetFromAgg,
 		SampleNamespaces:     config.SampleNamespaces,
 		SampleGroups:         config.SampleGroups,
 		SampleKeys:           config.SampleKeys,
@@ -283,7 +284,10 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
-	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
+	for _, sf := range sampler.SampleFactors {
+		sf.SetOriginalSize(sf.OriginalSize, &sb.FieldsMask)
+		sb.SampleFactors = append(sb.SampleFactors, sf)
+	}
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}

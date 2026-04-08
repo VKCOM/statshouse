@@ -52,6 +52,7 @@ type (
 		ModeAgent            bool
 		SampleKeepSingle     bool
 		DisableNoSampleAgent bool // disables "noSampleAgent" option above
+		SampleBudgets        bool
 		SampleNamespaces     bool
 		SampleGroups         bool
 		SampleKeys           bool
@@ -128,7 +129,7 @@ func NewSampler(c SamplerConfig) sampler {
 	c.MetricGroups = c.MetricGroups[:0]
 	c.SampleFactors = c.SampleFactors[:0]
 	// partition functions
-	if c.MetricBudgets != nil && len(c.MetricBudgets) > 0 {
+	if c.SampleBudgets {
 		c.partF = append(c.partF, partitionByBudget)
 	}
 	if c.SampleNamespaces {
@@ -317,10 +318,12 @@ func (h *sampler) run(g samplerGroup) {
 		}
 		if s[i].MetricID == 0 {
 			h.setCurrentGroup(s[i])
-		} else if s[i].MetricID == h.currentMetricID {
-			h.currentMetricOrgSize = s[i].sumSize
-		} else {
+		} else if s[i].MetricID != h.currentMetricID {
 			h.setCurrentMetric(s[i].MetricID)
+			if !s[i].noSampleAgent {
+				h.currentMetricSFCount++
+				h.currentMetricOrgSize = s[i].sumSize
+			}
 		}
 		s[i].keep(h)
 		if !s[i].fixedBudget {
@@ -341,7 +344,7 @@ func (h *sampler) run(g samplerGroup) {
 		} else if s[i].depth == len(h.partF) && s[i].MetricID != h.currentMetricID {
 			h.setCurrentMetric(s[i].MetricID)
 		}
-		if s[i].noSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent {
+		if s[i].noSampleAgent {
 			s[i].keep(h)
 		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
 			if !s[i].fixedBudget {
@@ -461,18 +464,17 @@ func (h *sampler) setCurrentGroup(g samplerGroup) {
 }
 
 func (h *sampler) setCurrentMetric(metricID int32) {
-	var sf = float64(1)
 	if h.currentMetricSFCount > 0 {
-		sf = h.currentMetricSFSum / h.currentMetricSFCount // AVG
-	}
-	if h.SampleFactorF != nil {
-		h.SampleFactorF(h.currentMetricID, sf)
-	} else if h.currentMetricSFCount > 0 {
-		h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-			Metric:       h.currentMetricID,
-			Value:        float32(sf),
-			OriginalSize: uint32(h.currentMetricOrgSize),
-		})
+		sf := h.currentMetricSFSum / h.currentMetricSFCount // AVG
+		if h.SampleFactorF != nil {
+			h.SampleFactorF(h.currentMetricID, sf)
+		} else {
+			h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
+				Metric:       h.currentMetricID,
+				Value:        float32(sf),
+				OriginalSize: uint32(h.currentMetricOrgSize),
+			})
+		}
 	}
 	h.currentMetricID = metricID
 	h.currentMetricSFSum = 0
@@ -495,7 +497,7 @@ func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			fixedBudget:   true,
 			budgetDenom:   1,
 			weight:        1,
-			noSampleAgent: items[0].metric.NoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
 			sumSize:       sumSize,
 			items:         items,
 		}
@@ -612,7 +614,7 @@ func partitionByMetric(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        items[0].metric.EffectiveWeight,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,
@@ -650,7 +652,7 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,
