@@ -1035,21 +1035,19 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 		KeepF:            func(item *data_model.MultiItem, _ uint32, quota uint32) { keepF(item.Key, quota) },
 	})
 	for metricID, hostSize := range b.originalMetricSize {
-		smoothHost := make(map[data_model.TagUnion]float64, len(hostSize))
 		for host, sz := range hostSize {
 			smoothed := a.smoother.AddAndSmoothKey(data_model.SmootherKey{
 				A: fmt.Sprint(int(metricID)),
 				B: fmt.Sprintf("S:%s,I:%d", host.S, host.I),
 			}, b.time, float64(sz))
-			smoothHost[host] = smoothed
-		}
-		for host, sz := range smoothHost {
+			b.originalMetricSize[metricID][host] = uint32(smoothed) // for metric
+
 			var key data_model.Key
 			key.Metric = metricID
 			key.SetTagUnion(1, host)
 			s.Add(data_model.SamplingMultiItemPair{
 				Item:     &data_model.MultiItem{Key: key},
-				Size:     int(max(1, math.Round(sz))),
+				Size:     int(max(1, math.Round(smoothed))),
 				MetricID: metricID,
 				BucketTs: b.time,
 			})
@@ -1059,33 +1057,40 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 }
 
 func (a *Aggregator) reportHostMetricBudgets(ts uint32, originalMetricSize map[int32]map[data_model.TagUnion]uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	if !a.smoother.ShouldReport(ts) {
+		return
+	}
+	var hostSumSize = map[data_model.TagUnion]int64{}
 	for _, byHost := range originalMetricSize {
 		for host, originalSize := range byHost {
-			a.sh2.AddValueCounterHostAERAS(
-				ts,
-				format.BuiltinMetricMetaAggReceiveSrcOriginalSize,
-				[]int32{0, host.I},
-				[]string{"", host.S},
-				float64(originalSize),
-				1,
-				data_model.TagUnion{},
-				data_model.AgentEnvRouteArch{},
-			)
+			hostSumSize[host] += int64(originalSize)
 		}
 	}
 	for host, budgets := range hostMetricBudgets {
+		var sum int64
 		for _, budget := range budgets {
-			a.sh2.AddValueCounterHostAERAS(
-				ts,
-				format.BuiltinMetricMetaAggSendSrcBudget,
-				[]int32{0, host.I},
-				[]string{"", host.S},
-				float64(budget.Budget),
-				1,
-				data_model.TagUnion{},
-				data_model.AgentEnvRouteArch{},
-			)
+			sum += budget.Budget
 		}
+		a.sh2.AddValueCounterHostAERAS(
+			ts,
+			format.BuiltinMetricMetaAggReceiveSrcOriginalSize,
+			[]int32{0, host.I},
+			[]string{"", host.S},
+			float64(hostSumSize[host]),
+			1,
+			data_model.TagUnion{},
+			data_model.AgentEnvRouteArch{},
+		)
+		a.sh2.AddValueCounterHostAERAS(
+			ts,
+			format.BuiltinMetricMetaAggSendSrcBudget,
+			[]int32{0, host.I},
+			[]string{"", host.S},
+			float64(sum),
+			1,
+			data_model.TagUnion{},
+			data_model.AgentEnvRouteArch{},
+		)
 	}
 }
 

@@ -21,6 +21,7 @@ type SmootherKey struct {
 }
 
 const smootherWindow = 120 // actually, we never want to change it
+const smootherReportInterval = 30
 
 // Smoother SignalSmoother stores short rolling statistics and returns a smoothed value
 // using two overlapping windows (base + half-shifted).
@@ -29,35 +30,39 @@ const smootherWindow = 120 // actually, we never want to change it
 // 1. damping of per-tick noise
 // 2. reasonable reactivity to load changes
 type Smoother struct {
-	mu sync.Mutex
+	mu           sync.Mutex
+	lastReportTs uint32
 
-	main map[uint32]map[SmootherKey]smootherStat
-	half map[uint32]map[SmootherKey]smootherStat
+	main map[uint32]map[SmootherKey]*smootherStat
+	half map[uint32]map[SmootherKey]*smootherStat
 }
 
 func (s *Smoother) Init() {
-	s.main = map[uint32]map[SmootherKey]smootherStat{}
-	s.half = map[uint32]map[SmootherKey]smootherStat{}
+	s.main = map[uint32]map[SmootherKey]*smootherStat{}
+	s.half = map[uint32]map[SmootherKey]*smootherStat{}
 }
 
-func updateSmootherStat(m map[SmootherKey]smootherStat, key SmootherKey, value float64) {
-	st := m[key]
+func updateSmootherStat(m map[SmootherKey]*smootherStat, key SmootherKey, value float64) {
+	st, ok := m[key]
+	if !ok {
+		st = &smootherStat{}
+		m[key] = st
+	}
 	st.sum += value
 	st.count++
-	m[key] = st
 }
 
-func (s *Smoother) createWindowsLocked(ts uint32) (map[SmootherKey]smootherStat, map[SmootherKey]smootherStat) {
+func (s *Smoother) createWindowsLocked(ts uint32) (map[SmootherKey]*smootherStat, map[SmootherKey]*smootherStat) {
 	tp := ts / smootherWindow
 	m, ok := s.main[tp]
 	if !ok {
-		m = map[SmootherKey]smootherStat{}
+		m = map[SmootherKey]*smootherStat{}
 		s.main[tp] = m
 	}
 	htp := (ts + smootherWindow/2) / smootherWindow
 	h, ok := s.half[htp]
 	if !ok {
-		h = map[SmootherKey]smootherStat{}
+		h = map[SmootherKey]*smootherStat{}
 		s.half[htp] = h
 	}
 	return m, h
@@ -108,4 +113,14 @@ func (s *Smoother) GarbageCollect(oldestTs uint32) {
 			delete(s.half, k)
 		}
 	}
+}
+
+func (s *Smoother) ShouldReport(ts uint32) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ts < s.lastReportTs+smootherReportInterval {
+		return false
+	}
+	s.lastReportTs = ts
+	return true
 }
