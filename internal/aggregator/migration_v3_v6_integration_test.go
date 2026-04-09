@@ -709,6 +709,20 @@ func cleanUpV3MigrationTables(t *testing.T) error {
 	return nil
 }
 
+func readStringOld(reader *bufio.Reader, dst *string) error {
+	n, err := binary.ReadUvarint(reader)
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, n)
+	_, err = io.ReadFull(reader, buf)
+	if err != nil {
+		return err
+	}
+	*dst = string(buf)
+	return nil
+}
+
 func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
 	if err := binary.Read(reader, binary.LittleEndian, &row.index_type); err != nil {
 		return err
@@ -719,7 +733,7 @@ func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
 	if err := binary.Read(reader, binary.LittleEndian, &row.pre_tag); err != nil {
 		return err
 	}
-	if err := readString(reader, &row.pre_stag); err != nil {
+	if err := readStringOld(reader, &row.pre_stag); err != nil {
 		return err
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &row.time); err != nil {
@@ -730,7 +744,7 @@ func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
 		if err := binary.Read(reader, binary.LittleEndian, &row.tags[i]); err != nil {
 			return err
 		}
-		if err := readString(reader, &row.stags[i]); err != nil {
+		if err := readStringOld(reader, &row.stags[i]); err != nil {
 			return err
 		}
 	}
@@ -777,6 +791,7 @@ func parseV3RowWithBinary(reader *bufio.Reader, row *v3Row) error {
 
 func TestV3ParsingCompatibility(t *testing.T) {
 	rows := createV3TestData()
+	scratch := make([]byte, 4096)
 	for i, originalRow := range rows {
 		origBuf := make([]byte, 0, 4086)
 		origBuf = appendV3RowBinary(origBuf, originalRow)
@@ -789,7 +804,9 @@ func TestV3ParsingCompatibility(t *testing.T) {
 		if err := parseV3RowWithBinary(reader1, &rowRegularParsed); err != nil {
 			require.NoError(t, err, "regular v3 row parsing failed for row %d", i)
 		}
-		if err := parseV3RowOptimized(reader2, &rowOptimizedParsed); err != nil {
+		scratch = scratch[:0]
+		var err error
+		if scratch, err = parseV3RowOptimized(reader2, scratch, &rowOptimizedParsed); err != nil {
 			require.NoError(t, err, "optimized v3 row parsing failed for row %d", i)
 		}
 
