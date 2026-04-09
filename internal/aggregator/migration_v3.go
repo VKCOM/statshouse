@@ -539,121 +539,121 @@ func (a *Aggregator) migrateSingleStepV3(ts time.Time, httpClient *http.Client) 
 
 }
 
-func parseV3RowOptimized(reader *bufio.Reader, row *v3Row) (err error) {
-	if err = ReadUInt8(reader, &row.index_type); err != nil {
-		return err
+func parseV3RowOptimized(reader *bufio.Reader, scratch []byte, row *v3Row) ([]byte, error) {
+	var err error
+	if scratch, err = ReadUInt8(reader, scratch, &row.index_type); err != nil {
+		return scratch, err
 	}
-	if err = ReadInt32(reader, &row.metric); err != nil {
-		return err
+	if scratch, err = ReadInt32(reader, scratch, &row.metric); err != nil {
+		return scratch, err
 	}
-	if err = ReadUInt32(reader, &row.pre_tag); err != nil {
-		return err
+	if scratch, err = ReadUInt32(reader, scratch, &row.pre_tag); err != nil {
+		return scratch, err
 	}
-	if err = readString(reader, &row.pre_stag); err != nil {
-		return err
+	if scratch, err = readString(reader, scratch, &row.pre_stag); err != nil {
+		return scratch, err
 	}
-	if err = ReadUInt32(reader, &row.time); err != nil {
-		return err
+	if scratch, err = ReadUInt32(reader, scratch, &row.time); err != nil {
+		return scratch, err
 	}
 
 	for i := 0; i < 48; i++ {
-		if err = ReadInt32(reader, &row.tags[i]); err != nil {
-			return err
+		if scratch, err = ReadInt32(reader, scratch, &row.tags[i]); err != nil {
+			return scratch, err
 		}
-		if err = readString(reader, &row.stags[i]); err != nil {
-			return err
+		if scratch, err = readString(reader, scratch, &row.stags[i]); err != nil {
+			return scratch, err
 		}
 	}
 
-	if err = ReadFloat64(reader, &row.count); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.count); err != nil {
+		return scratch, err
 	}
-	if err = ReadFloat64(reader, &row.min); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.min); err != nil {
+		return scratch, err
 	}
-	if err = ReadFloat64(reader, &row.max); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.max); err != nil {
+		return scratch, err
 	}
-	if err = ReadFloat64(reader, &row.max_count); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.max_count); err != nil {
+		return scratch, err
 	}
-	if err = ReadFloat64(reader, &row.sum); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.sum); err != nil {
+		return scratch, err
 	}
-	if err = ReadFloat64(reader, &row.sumsquare); err != nil {
-		return err
-	}
-
-	buf := make([]byte, 6, 128)
-	if buf, err = row.min_host.ReadFrom(reader, buf); err != nil {
-		return err
+	if scratch, err = ReadFloat64(reader, scratch, &row.sumsquare); err != nil {
+		return scratch, err
 	}
 
-	if buf, err = row.max_host.ReadFrom(reader, buf); err != nil {
-		return err
+	if scratch, err = row.min_host.ReadFrom(reader, scratch); err != nil {
+		return scratch, err
 	}
 
-	if _, err = row.max_count_host.ReadFrom(reader, buf); err != nil {
-		return err
+	if scratch, err = row.max_host.ReadFrom(reader, scratch); err != nil {
+		return scratch, err
+	}
+
+	if scratch, err = row.max_count_host.ReadFrom(reader, scratch); err != nil {
+		return scratch, err
 	}
 	if err := row.percentiles.ReadFrom(reader); err != nil {
-		return err
+		return scratch, err
 	}
 	if err := row.uniq_state.ReadFrom(reader); err != nil {
-		return err
+		return scratch, err
 	}
 
-	return nil
+	return scratch, nil
 }
 
-func ReadUInt8(r io.Reader, dst *uint8) error {
-	bs := make([]byte, 1)
-	if _, err := io.ReadFull(r, bs); err != nil {
-		return err
+func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
+	buf = slices.Grow(buf, 1)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return buf, err
 	}
-	*dst = bs[0]
-	return nil
+	*dst = buf[0]
+	return buf, nil
 }
 
-func ReadUInt32(r io.Reader, dst *uint32) error {
-	bs := make([]byte, 4)
-	if _, err := io.ReadFull(r, bs); err != nil {
-		return err
+func ReadUInt32(r io.Reader, buf []byte, dst *uint32) ([]byte, error) {
+	buf = slices.Grow(buf, 4)
+	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+		return buf, err
 	}
-	*dst = binary.LittleEndian.Uint32(bs)
-	return nil
+	*dst = binary.LittleEndian.Uint32(buf[:4])
+	return buf, nil
 }
 
-func ReadInt32(r io.Reader, dst *int32) error {
-	bs := make([]byte, 4)
-	if _, err := io.ReadFull(r, bs); err != nil {
-		return err
+func ReadInt32(r io.Reader, buf []byte, dst *int32) ([]byte, error) {
+	buf = slices.Grow(buf, 4)
+	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+		return buf, err
 	}
-	*dst = int32(binary.LittleEndian.Uint32(bs))
-	return nil
+	*dst = int32(binary.LittleEndian.Uint32(buf[:4]))
+	return buf, nil
 }
 
-func ReadFloat64(r io.Reader, dst *float64) error {
-	bs := make([]byte, 8)
-	if _, err := io.ReadFull(r, bs); err != nil {
-		return err
+func ReadFloat64(r io.Reader, buf []byte, dst *float64) ([]byte, error) {
+	buf = slices.Grow(buf, 8)
+	if _, err := io.ReadFull(r, buf[:8]); err != nil {
+		return buf, err
 	}
-	*dst = math.Float64frombits(binary.LittleEndian.Uint64(bs))
-	return nil
+	*dst = math.Float64frombits(binary.LittleEndian.Uint64(buf[:8]))
+	return buf, nil
 }
 
-func readString(reader *bufio.Reader, dst *string) error {
+func readString(reader *bufio.Reader, buf []byte, dst *string) ([]byte, error) {
 	n, err := binary.ReadUvarint(reader)
 	if err != nil {
-		return err
+		return buf, err
 	}
-	buf := make([]byte, n)
-	_, err = io.ReadFull(reader, buf)
+	buf = slices.Grow(buf, int(n))
+	_, err = io.ReadFull(reader, buf[:n])
 	if err != nil {
-		return err
+		return buf, err
 	}
-	*dst = string(buf)
-	return nil
+	*dst = string(buf[:n])
+	return buf, nil
 }
 
 func (a *Aggregator) executeV3Query(query string, isSelect bool, body []byte, httpClient *http.Client) (io.ReadCloser, error) {
@@ -686,7 +686,9 @@ func (a *Aggregator) convertV3Response(v3Data io.Reader, output io.Writer, ts ti
 	var v3row v3Row
 
 	for {
-		if parseErr := parseV3RowOptimized(reader, &v3row); parseErr != nil {
+		rowData = rowData[:0]
+		var parseErr error
+		if rowData, parseErr = parseV3RowOptimized(reader, rowData, &v3row); parseErr != nil {
 			if errors.Is(parseErr, io.EOF) {
 				// End of input, we're done
 				log.Printf("[migration_v3] Reached EOF after processing %d rows", rowsProcessed)
