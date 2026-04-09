@@ -607,7 +607,7 @@ func parseV3RowOptimized(reader *bufio.Reader, scratch []byte, row *v3Row) ([]by
 }
 
 func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
-	buf = slices.Grow(buf, 1)
+	buf = slices.Grow(buf, 1)[:1]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
 	}
@@ -616,29 +616,29 @@ func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
 }
 
 func ReadUInt32(r io.Reader, buf []byte, dst *uint32) ([]byte, error) {
-	buf = slices.Grow(buf, 4)
-	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+	buf = slices.Grow(buf, 4)[:4]
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
 	}
-	*dst = binary.LittleEndian.Uint32(buf[:4])
+	*dst = binary.LittleEndian.Uint32(buf)
 	return buf, nil
 }
 
 func ReadInt32(r io.Reader, buf []byte, dst *int32) ([]byte, error) {
-	buf = slices.Grow(buf, 4)
-	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+	buf = slices.Grow(buf, 4)[:4]
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
 	}
-	*dst = int32(binary.LittleEndian.Uint32(buf[:4]))
+	*dst = int32(binary.LittleEndian.Uint32(buf))
 	return buf, nil
 }
 
 func ReadFloat64(r io.Reader, buf []byte, dst *float64) ([]byte, error) {
-	buf = slices.Grow(buf, 8)
-	if _, err := io.ReadFull(r, buf[:8]); err != nil {
+	buf = slices.Grow(buf, 8)[:8]
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
 	}
-	*dst = math.Float64frombits(binary.LittleEndian.Uint64(buf[:8]))
+	*dst = math.Float64frombits(binary.LittleEndian.Uint64(buf))
 	return buf, nil
 }
 
@@ -647,12 +647,12 @@ func readString(reader *bufio.Reader, buf []byte, dst *string) ([]byte, error) {
 	if err != nil {
 		return buf, err
 	}
-	buf = slices.Grow(buf, int(n))
-	_, err = io.ReadFull(reader, buf[:n])
+	buf = slices.Grow(buf, int(n))[:n]
+	_, err = io.ReadFull(reader, buf)
 	if err != nil {
 		return buf, err
 	}
-	*dst = string(buf[:n])
+	*dst = string(buf)
 	return buf, nil
 }
 
