@@ -2854,7 +2854,7 @@ const BuiltinMetricIDMigrationLog = -141
 
 var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 	Name:                    "__migration_log",
-	Kind:                    MetricKindCounter,
+	Kind:                    MetricKindValue,
 	Description:             "Number of rows migrated in successful migration step",
 	NoSampleAgent:           true, // because we need to know exact number of migrated rows
 	BuiltinAllowedToReceive: false,
