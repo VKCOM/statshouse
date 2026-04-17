@@ -17,14 +17,15 @@ const ExpDecayHalfLife = 10 * time.Second
 type ExpDecay struct {
 	halfLife    time.Duration
 	lastDecayAt time.Time
-	values      map[int32]float64
+	values      map[int32]uint32
 	mu          sync.RWMutex
 }
 
-func NewExpDecay(halfLife time.Duration) *ExpDecay {
-	return &ExpDecay{
-		halfLife: halfLife,
-		values:   make(map[int32]float64),
+func NewExpDecay(halfLife time.Duration) ExpDecay {
+	return ExpDecay{
+		halfLife:    halfLife,
+		lastDecayAt: time.Now(),
+		values:      make(map[int32]uint32),
 	}
 }
 
@@ -37,43 +38,39 @@ func (d *ExpDecay) SetHalfLife(halfLife time.Duration) {
 func (d *ExpDecay) Apply(now time.Time) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if len(d.values) == 0 {
-		d.lastDecayAt = now
-		return
-	}
-	if d.lastDecayAt.IsZero() {
-		d.lastDecayAt = now
-		return
-	}
 	elapsed := now.Sub(d.lastDecayAt)
+	d.lastDecayAt = now
 	if elapsed <= 0 {
 		return
 	}
 	factor := math.Exp2(-float64(elapsed) / float64(d.halfLife))
 	for key, value := range d.values {
-		value *= factor
+		value = uint32(math.Ceil(float64(value) * factor))
 		if value < 1 {
 			delete(d.values, key)
 			continue
 		}
 		d.values[key] = value
 	}
-	d.lastDecayAt = now
 }
 
-func (d *ExpDecay) Get(key int32) float64 {
+func (d *ExpDecay) Get(dst map[int32]uint32) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	return d.values[key]
+	for key, value := range d.values {
+		dst[key] = value
+	}
 }
 
-func (d *ExpDecay) MergeMax(key int32, value float64) {
+func (d *ExpDecay) MergeMax(f func(func(k int32, v uint32))) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	v := max(d.values[key], value)
-	if v < 1 {
-		delete(d.values, key)
-		return
-	}
-	d.values[key] = v
+	f(func(k int32, v uint32) {
+		vmax := max(d.values[k], v)
+		if vmax < 1 {
+			delete(d.values, k)
+			return
+		}
+		d.values[k] = vmax
+	})
 }

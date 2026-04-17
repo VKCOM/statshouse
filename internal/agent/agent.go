@@ -735,6 +735,9 @@ func (s *Agent) goFlushIteration(now time.Time) {
 			s.beforeFlushBucketFunc(s, s.beforeFlushTime)
 		}
 		s.beforeFlushTime = nowUnix
+		for _, shard := range s.Shards {
+			shard.metricBudgetsFromAgg.Apply(now)
+		}
 	}
 	for _, shard := range s.Shards {
 		gap, sendTime := shard.flushBuckets(now)

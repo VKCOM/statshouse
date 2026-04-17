@@ -100,7 +100,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	var scratch []byte
-	var budgetScratch = map[int32]int64{}
+	var budgetScratch = map[int32]uint32{}
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
 		scratch = s.preProcess(bucket, scratch, budgetScratch, rng)
@@ -109,7 +109,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]int64, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]uint32, rng *rand.Rand) []byte {
 	var buffers data_model.SamplerBuffers
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
@@ -128,7 +128,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, bud
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch map[int32]int64, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch map[int32]uint32, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
@@ -171,6 +171,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		sb.Metrics = append(sb.Metrics, item)
 	}
 	clear(budgetScratch)
+	s.metricBudgetsFromAgg.Get(budgetScratch)
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
 		SampleKeepSingle:     config.SampleKeepSingle,
@@ -182,7 +183,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		Meta:                 s.agent.metricStorage,
 		Rand:                 rnd,
 		KeepF:                func(v *data_model.MultiItem, ts uint32, _ uint32) { keepF(v, ts, 0) },
-		MetricBudgets:        budgetScratch,
 		SamplerBuffers:       buffers,
 	})
 	for _, item := range bucket.MultiItems {
@@ -217,14 +217,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			WhaleWeight: whaleWeight,
 			Size:        sz,
 			MetricID:    accountMetric,
+			Budget:      budgetScratch[accountMetric],
 		})
-		if config.SampleBudgets {
-			if _, ok := budgetScratch[accountMetric]; !ok {
-				if budget := int64(s.metricBudgetsFromAgg.Get(accountMetric)); budget > 0 {
-					budgetScratch[accountMetric] = budget
-				}
-			}
-		}
 	}
 	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
 
@@ -241,7 +235,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 	budgetSum := int64(0)
 	for _, budget := range budgetScratch {
-		budgetSum += budget
+		budgetSum += int64(budget)
 	}
 	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
 
@@ -284,10 +278,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
-	for _, sf := range sampler.SampleFactors {
-		sf.SetOriginalSize(sf.OriginalSize, &sb.FieldsMask)
-		sb.SampleFactors = append(sb.SampleFactors, sf)
-	}
+	sb.SetHaveOriginalSize(true)
+	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
@@ -357,12 +349,11 @@ func (s *Shard) sendRecent(cancelCtx context.Context, cbd compressedBucketData, 
 			respV3.Warning, cbd.time, s.ShardKey)
 	}
 	if respV3.IsSetMetricBudgets() {
-		s.mu.Lock()
-		s.metricBudgetsFromAgg.Apply(time.Now())
-		for _, budget := range respV3.MetricBudgets {
-			s.metricBudgetsFromAgg.MergeMax(budget.MetricId, float64(budget.Budget))
-		}
-		s.mu.Unlock()
+		s.metricBudgetsFromAgg.MergeMax(func(f func(k int32, v uint32)) {
+			for _, budget := range respV3.MetricBudgets {
+				f(budget.MetricId, budget.Budget)
+			}
+		})
 	}
 	if !respV3.IsSetDiscard() {
 		shardReplica.stats.recentSendKeep.Add(1)
@@ -463,12 +454,11 @@ func (s *Shard) sendHistoric(cancelCtx context.Context, cbd compressedBucketData
 		// at the moment of sending, if they were not mapped at the moment of saving
 		s.agent.mappingsCache.AddValues(cbd.time, respV3.Mappings)
 		if respV3.IsSetMetricBudgets() {
-			s.mu.Lock()
-			s.metricBudgetsFromAgg.Apply(time.Now())
-			for _, budget := range respV3.MetricBudgets {
-				s.metricBudgetsFromAgg.MergeMax(budget.MetricId, float64(budget.Budget))
-			}
-			s.mu.Unlock()
+			s.metricBudgetsFromAgg.MergeMax(func(f func(k int32, v uint32)) {
+				for _, budget := range respV3.MetricBudgets {
+					f(budget.MetricId, budget.Budget)
+				}
+			})
 		}
 		if !respV3.IsSetDiscard() {
 			shardReplica.stats.historicSendKeep.Add(1)

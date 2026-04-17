@@ -98,11 +98,11 @@ func BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx *basictl.JSONWriteCont
 
 type StatshouseMetricBudget struct {
 	MetricId int32
-	Budget   int64
+	Budget   uint32
 }
 
 func (StatshouseMetricBudget) TLName() string { return "statshouse.metricBudget" }
-func (StatshouseMetricBudget) TLTag() uint32  { return 0xe12c4233 }
+func (StatshouseMetricBudget) TLTag() uint32  { return 0x2d07264e }
 
 func (item *StatshouseMetricBudget) Reset() {
 	item.MetricId = 0
@@ -111,14 +111,14 @@ func (item *StatshouseMetricBudget) Reset() {
 
 func (item *StatshouseMetricBudget) FillRandom(rg *basictl.RandGenerator) {
 	item.MetricId = basictl.RandomInt(rg)
-	item.Budget = basictl.RandomLong(rg)
+	item.Budget = basictl.RandomUint(rg)
 }
 
 func (item *StatshouseMetricBudget) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.MetricId); err != nil {
 		return w, err
 	}
-	return basictl.LongRead(w, &item.Budget)
+	return basictl.NatRead(w, &item.Budget)
 }
 
 func (item *StatshouseMetricBudget) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -127,12 +127,12 @@ func (item *StatshouseMetricBudget) WriteTL1General(w []byte) (_ []byte, err err
 
 func (item *StatshouseMetricBudget) WriteTL1(w []byte) []byte {
 	w = basictl.IntWrite(w, item.MetricId)
-	w = basictl.LongWrite(w, item.Budget)
+	w = basictl.NatWrite(w, item.Budget)
 	return w
 }
 
 func (item *StatshouseMetricBudget) ReadTL1Boxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0xe12c4233); err != nil {
+	if w, err = basictl.NatReadExactTag(w, 0x2d07264e); err != nil {
 		return w, err
 	}
 	return item.ReadTL1(w)
@@ -143,7 +143,7 @@ func (item *StatshouseMetricBudget) WriteTL1BoxedGeneral(w []byte) (_ []byte, er
 }
 
 func (item *StatshouseMetricBudget) WriteTL1Boxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0xe12c4233)
+	w = basictl.NatWrite(w, 0x2d07264e)
 	return item.WriteTL1(w)
 }
 
@@ -181,7 +181,7 @@ func (item *StatshouseMetricBudget) ReadJSONGeneral(tctx *basictl.JSONReadContex
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metricBudget", "budget")
 				}
 				propBudgetPresented = true
-				if err := Json2ReadInt64(in, &item.Budget); err != nil {
+				if err := Json2ReadUint32(in, &item.Budget); err != nil {
 					return err
 				}
 			default:
@@ -224,7 +224,7 @@ func (item *StatshouseMetricBudget) WriteJSONOpt(tctx *basictl.JSONWriteContext,
 	backupIndexBudget := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"budget":`...)
-	w = basictl.JSONWriteInt64(w, item.Budget)
+	w = basictl.JSONWriteUint32(w, item.Budget)
 	if !(item.Budget != 0) {
 		w = w[:backupIndexBudget]
 	}

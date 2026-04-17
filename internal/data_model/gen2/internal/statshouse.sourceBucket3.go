@@ -16,6 +16,7 @@ var _ = basictl.NatWrite
 type StatshouseSourceBucket3 struct {
 	FieldsMask uint32
 	// TODO: check how it is used and maybe change to a new version
+	// HaveOriginalSize (TrueType) // Conditional: item.FieldsMask.0
 	// must be sorted by metric (but for now order is not used)
 	Metrics []StatshouseMultiItem
 	// We need as compact representation as possible.
@@ -26,6 +27,15 @@ type StatshouseSourceBucket3 struct {
 
 func (StatshouseSourceBucket3) TLName() string { return "statshouse.sourceBucket3" }
 func (StatshouseSourceBucket3) TLTag() uint32  { return 0x16c4dd7b }
+
+func (item *StatshouseSourceBucket3) SetHaveOriginalSize(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 0
+	} else {
+		item.FieldsMask &^= 1 << 0
+	}
+}
+func (item *StatshouseSourceBucket3) IsSetHaveOriginalSize() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseSourceBucket3) Reset() {
 	item.FieldsMask = 0
@@ -93,6 +103,8 @@ func (item *StatshouseSourceBucket3) ReadJSON(legacyTypeNames bool, in *basictl.
 
 func (item *StatshouseSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
+	var propHaveOriginalSizePresented bool
+	var trueTypeHaveOriginalSizeValue bool
 	var propMetricsPresented bool
 	var propSampleFactorsPresented bool
 	var rawSampleFactors []byte
@@ -112,6 +124,14 @@ func (item *StatshouseSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadConte
 				}
 				propFieldsMaskPresented = true
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+			case "have_original_size":
+				if propHaveOriginalSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket3", "have_original_size")
+				}
+				propHaveOriginalSizePresented = true
+				if err := Json2ReadBool(in, &trueTypeHaveOriginalSizeValue); err != nil {
 					return err
 				}
 			case "metrics":
@@ -158,6 +178,12 @@ func (item *StatshouseSourceBucket3) ReadJSONGeneral(tctx *basictl.JSONReadConte
 	if !propIngestionStatusOk2Presented {
 		item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
 	}
+	if trueTypeHaveOriginalSizeValue {
+		item.FieldsMask |= 1 << 0
+	}
+	if propHaveOriginalSizePresented && !trueTypeHaveOriginalSizeValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sourceBucket3", "field 'have_original_size' is explicitly set to false, but corresponding fieldmask item.FieldsMask bit 0 is 1")
+	}
 	if propSampleFactorsPresented {
 		inSampleFactors := &basictl.JsonLexer{Data: rawSampleFactors}
 		if err := BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx, inSampleFactors, &item.SampleFactors, item.FieldsMask); err != nil {
@@ -189,6 +215,10 @@ func (item *StatshouseSourceBucket3) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"have_original_size":true`...)
 	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -236,6 +266,7 @@ func (item *StatshouseSourceBucket3) ReadTL2(r []byte, ctx *basictl.TL2ReadConte
 type StatshouseSourceBucket3Bytes struct {
 	FieldsMask uint32
 	// TODO: check how it is used and maybe change to a new version
+	// HaveOriginalSize (TrueType) // Conditional: item.FieldsMask.0
 	// must be sorted by metric (but for now order is not used)
 	Metrics []StatshouseMultiItemBytes
 	// We need as compact representation as possible.
@@ -246,6 +277,17 @@ type StatshouseSourceBucket3Bytes struct {
 
 func (StatshouseSourceBucket3Bytes) TLName() string { return "statshouse.sourceBucket3" }
 func (StatshouseSourceBucket3Bytes) TLTag() uint32  { return 0x16c4dd7b }
+
+func (item *StatshouseSourceBucket3Bytes) SetHaveOriginalSize(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 0
+	} else {
+		item.FieldsMask &^= 1 << 0
+	}
+}
+func (item *StatshouseSourceBucket3Bytes) IsSetHaveOriginalSize() bool {
+	return item.FieldsMask&(1<<0) != 0
+}
 
 func (item *StatshouseSourceBucket3Bytes) Reset() {
 	item.FieldsMask = 0
@@ -313,6 +355,8 @@ func (item *StatshouseSourceBucket3Bytes) ReadJSON(legacyTypeNames bool, in *bas
 
 func (item *StatshouseSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
+	var propHaveOriginalSizePresented bool
+	var trueTypeHaveOriginalSizeValue bool
 	var propMetricsPresented bool
 	var propSampleFactorsPresented bool
 	var rawSampleFactors []byte
@@ -332,6 +376,14 @@ func (item *StatshouseSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSONRead
 				}
 				propFieldsMaskPresented = true
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+			case "have_original_size":
+				if propHaveOriginalSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket3", "have_original_size")
+				}
+				propHaveOriginalSizePresented = true
+				if err := Json2ReadBool(in, &trueTypeHaveOriginalSizeValue); err != nil {
 					return err
 				}
 			case "metrics":
@@ -378,6 +430,12 @@ func (item *StatshouseSourceBucket3Bytes) ReadJSONGeneral(tctx *basictl.JSONRead
 	if !propIngestionStatusOk2Presented {
 		item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
 	}
+	if trueTypeHaveOriginalSizeValue {
+		item.FieldsMask |= 1 << 0
+	}
+	if propHaveOriginalSizePresented && !trueTypeHaveOriginalSizeValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouse.sourceBucket3", "field 'have_original_size' is explicitly set to false, but corresponding fieldmask item.FieldsMask bit 0 is 1")
+	}
 	if propSampleFactorsPresented {
 		inSampleFactors := &basictl.JsonLexer{Data: rawSampleFactors}
 		if err := BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx, inSampleFactors, &item.SampleFactors, item.FieldsMask); err != nil {
@@ -409,6 +467,10 @@ func (item *StatshouseSourceBucket3Bytes) WriteJSONOpt(tctx *basictl.JSONWriteCo
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"have_original_size":true`...)
 	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

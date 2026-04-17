@@ -283,7 +283,7 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
 	buffers := data_model.SamplerBuffers{}
-	budgetScratch := make(map[int32]int64, metricN)
+	budgetScratch := make(map[int32]uint32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -330,14 +330,16 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	const itemN = 8_192
 
 	keys, items := makeBenchmarkSampleItems(nowUnix, itemN, namespaceN, groupN, metricN)
-	for metric := int32(1); metric <= metricN; metric++ {
-		shard.metricBudgetsFromAgg.MergeMax(metric, 64)
-	}
+	shard.metricBudgetsFromAgg.MergeMax(func(f func(k int32, v uint32)) {
+		for metric := int32(1); metric <= metricN; metric++ {
+			f(metric, 64)
+		}
+	})
 
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
 	buffers := data_model.SamplerBuffers{}
-	budgetScratch := make(map[int32]int64, metricN)
+	budgetScratch := make(map[int32]uint32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 

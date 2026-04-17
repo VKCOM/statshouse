@@ -338,7 +338,6 @@ func TestMetricBudgetsDedicatedPassesBudget(t *testing.T) {
 		var keepSumM1, keptM2, discardedM2 int64
 		s := NewSampler(SamplerConfig{
 			SampleBudgets: true,
-			MetricBudgets: map[int32]int64{1: dedicated},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
 				return int(float64(len(s)) / sf)
 			},
@@ -363,6 +362,7 @@ func TestMetricBudgetsDedicatedPassesBudget(t *testing.T) {
 				WhaleWeight: item.FinishStringTop(rnd, 20),
 				Size:        samplingTestSizeOf(item),
 				MetricID:    item.Key.Metric,
+				Budget:      uint32(dedicated),
 			})
 		}
 		s.Run(sum2)
@@ -381,18 +381,22 @@ func TestMetricBudgetsSampleFactorOriginalSize(t *testing.T) {
 		rnd := rand.New()
 		s := NewSampler(SamplerConfig{
 			SampleBudgets: true,
-			MetricBudgets: map[int32]int64{metricID: dedicated},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
 				return int(float64(len(s)) / sf)
 			},
 			RoundF: func(sf float64, _ *rand.Rand) float64 { return math.Floor(sf) },
 		})
 		for _, item := range miMap.MultiItems {
+			budget := uint32(0)
+			if item.Key.Metric == metricID {
+				budget = uint32(dedicated)
+			}
 			s.Add(SamplingMultiItemPair{
 				Item:        item,
 				WhaleWeight: item.FinishStringTop(rnd, 20),
 				Size:        samplingTestSizeOf(item),
 				MetricID:    item.Key.Metric,
+				Budget:      budget,
 			})
 		}
 		remainderBudget := rapid.Int64Range(sumSize, sumSize*4).Draw(t, "remainder budget (unused when single metric)")
@@ -427,13 +431,16 @@ func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
 		globalBudget := rapid.Int64Range(1, maxGlobal).Draw(t, "global remainder budget")
 		rnd := rand.New()
 		s := NewSampler(SamplerConfig{
-			MetricBudgets: map[int32]int64{ghostMetric: ghostBudget},
 			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
 				return int(float64(len(s)) / sf)
 			},
 		})
 		metricSize := map[int32]int{}
 		for _, item := range b.MultiItems {
+			budget := uint32(0)
+			if item.Key.Metric == ghostMetric {
+				budget = uint32(ghostBudget)
+			}
 			size := samplingTestSizeOf(item)
 			metricSize[item.Key.Metric] += size
 			s.Add(SamplingMultiItemPair{
@@ -441,6 +448,7 @@ func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
 				WhaleWeight: item.FinishStringTop(rnd, 20),
 				Size:        size,
 				MetricID:    item.Key.Metric,
+				Budget:      budget,
 			})
 		}
 		s.Run(globalBudget)

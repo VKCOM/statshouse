@@ -291,8 +291,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 				aggBucket = &aggregatorBucket{
 					time:                        args.Time,
 					contributors:                map[rpc.LongpollHandle]struct{}{},
-					contributors3:               map[rpc.LongpollHandle]tlstatshouse.SendSourceBucket3Response{},
-					contributorsHost:            map[rpc.LongpollHandle]data_model.TagUnion{},
+					contributors3:               map[rpc.LongpollHandle]contributor{},
 					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
 					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 					originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
@@ -601,14 +600,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	lh, errHijack := hctx.StartLongpoll(aggBucket) // must be under bucket lock
 	if errHijack == nil {                          // must be always, because we wait for all inserts finish before calling server.Shutdown()
-		aggBucket.contributors3[lh] = resp // must be under bucket lock
-		aggBucket.contributorsHost[lh] = hostTag
+		aggBucket.contributors3[lh] = contributor{ // must be under bucket lock
+			host: hostTag,
+			resp: resp,
+		}
 	}
 	compressedSize := len(hctx.Request)
-	if !configR.DisableReceiveSampleBudget && args.Header.ComponentTag == format.TagValueIDComponentAgent && !args.IsSetHistoric() && !args.IsSetSpare() {
-		if !(len(bucket.SampleFactors) > 0 && bucket.SampleFactors[0].IsSetOriginalSize(bucket.FieldsMask)) {
-			aggBucket.oldAgentSize += uint64(args.OriginalSize)
-		}
+	if !configR.DisableReceiveSampleBudget && bucket.IsSetHaveOriginalSize() && args.Header.ComponentTag == format.TagValueIDComponentAgent && !args.IsSetHistoric() && !args.IsSetSpare() {
 		for _, v := range bucket.SampleFactors {
 			byHost, ok := aggBucket.originalMetricSize[v.Metric]
 			if !ok {
@@ -822,7 +820,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 		return err
 	}
 	if version3 {
-		aggBucket.contributors3[lh] = tlstatshouse.SendSourceBucket3Response{} // must be under bucket lock
+		aggBucket.contributors3[lh] = contributor{} // must be under bucket lock
 	} else {
 		aggBucket.contributors[lh] = struct{}{} // must be under bucket lock
 	}

@@ -367,7 +367,7 @@ func init() {
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "statshouse.metric", Tag: 0x3325d884, HaTL1: true})
 	metainternal.FillObject(
-		&metainternal.TLItemImpl{Name: "statshouse.metricBudget", Tag: 0xe12c4233, HaTL1: true})
+		&metainternal.TLItemImpl{Name: "statshouse.metricBudget", Tag: 0x2d07264e, HaTL1: true})
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "statshouse.multiItem", Tag: 0x0c803e07, HaTL1: true})
 	metainternal.FillObject(

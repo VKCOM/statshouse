@@ -66,7 +66,7 @@ type (
 		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
-		SF               float64 // set when Marshalling/Sampling. Becomes quota slice when SampleQuota()
+		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
 	}
 

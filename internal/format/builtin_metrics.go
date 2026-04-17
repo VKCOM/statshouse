@@ -2643,7 +2643,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2677,7 +2677,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -3104,29 +3104,31 @@ var BuiltinMetricMetaHeartbeatVersionIngress = &MetricMetaValue{
 var BuiltinMetricMetaAggReceiveSrcOriginalSize = &MetricMetaValue{
 	Name:                    "__agg_receive_src_original_size",
 	Kind:                    MetricKindValue,
-	Description:             "Total original size reported by agents before budget split, per agent host.",
+	Description:             "Total original size reported by agents before budget split, per metric.",
 	MetricType:              MetricByte,
 	Resolution:              60,
-	NoSampleAgent:           true, // bounded by #contributors
+	NoSampleAgent:           true, // bounded by metrics
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
-		Name: "agent_host",
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
 	}},
 }
 
 var BuiltinMetricMetaAggSendSrcBudget = &MetricMetaValue{
 	Name:                    "__agg_send_src_budget",
 	Kind:                    MetricKindValue,
-	Description:             "Total receive budget allocated by aggregator for each agent host.",
+	Description:             "Total receive budget allocated by aggregator for each metric.",
 	MetricType:              MetricByte,
 	Resolution:              60,
-	NoSampleAgent:           true, // bounded by #contributors
+	NoSampleAgent:           true, // bounded by metrics
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
 	Tags: []MetricMetaTag{{
-		Name: "agent_host",
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
 	}},
 }

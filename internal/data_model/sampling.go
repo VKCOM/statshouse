@@ -26,12 +26,14 @@ type (
 		Size        int
 		MetricID    int32
 		BucketTs    uint32
+		Budget      uint32
 		metric      *format.MetricMetaValue
 		fairKey     [maxFairKeyLen]int32
 		fairKeyLen  int
 	}
 
 	samplerGroup struct { // either metric group, metric or fair key
+		FixedBudget    bool
 		NamespaceID    int32
 		GroupID        int32
 		MetricID       int32
@@ -43,7 +45,6 @@ type (
 		noSampleAgent  bool
 		weight         int64 // actually, effective weight
 		sumSize        int64
-		fixedBudget    bool
 		items          []SamplingMultiItemPair
 	}
 
@@ -62,24 +63,25 @@ type (
 		Rand *rand.Rand
 
 		// Called when sampling algorithm calculates metric sample factor
-		SampleFactorF func(int32, float64)
+		SampleFactorF func(metricID int32, sf float64)
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(*MultiItem, uint32, uint32)
-		DiscardF func(*MultiItem, uint32)
+		KeepF    func(v *MultiItem, ts uint32, quota uint32)
+		DiscardF func(v *MultiItem, ts uint32)
 
 		// Unit tests support
-		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
-		SelectF func([]SamplingMultiItemPair, float64, *rand.Rand) int
+		RoundF  func(budget float64, r *rand.Rand) float64 // rounds sample factor to an integer
+		SelectF func(items []SamplingMultiItemPair, sf float64, r *rand.Rand) int
 
 		// Default SampleRows for metric sampling. SampleQuota for sample src original size
 		SampleF SampleF
 		// Optional per-metric budgets; Run() applies per-metric per-budget groups
-		MetricBudgets map[int32]int64
+		//MetricBudgets map[int32]int64
 
 		SamplerBuffers
 	}
 
+	SampleF       func(*sampler, samplerGroup)
 	partitionFunc func(*sampler, samplerGroup) ([]samplerGroup, int64)
 
 	sampler struct {
@@ -107,14 +109,10 @@ type (
 		MetricGroups  []samplerGroup
 		SampleFactors []tlstatshouse.SampleFactor
 	}
-
-	SampleF func(*sampler, samplerGroup)
 )
 
-var (
-	SampleRows  SampleF = func(s *sampler, g samplerGroup) { s.sample(g) }
-	SampleQuota SampleF = func(s *sampler, g samplerGroup) { s.sampleQuota(g) }
-)
+func SampleRows(s *sampler, g samplerGroup)  { s.sample(g) }
+func SampleQuota(s *sampler, g samplerGroup) { s.sampleQuota(g) }
 
 var missingMetricMeta = format.MetricMetaValue{
 	GroupID:         format.BuiltinGroupIDMissing,
@@ -203,8 +201,8 @@ func (h *sampler) Run(budget int64) {
 	// partition by budget/namespace/group/metric/key
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
-		if (h.MetricBudgets[lhs.MetricID] > 0) != (h.MetricBudgets[rhs.MetricID] > 0) {
-			return h.MetricBudgets[lhs.MetricID] > 0
+		if a, b := lhs.Budget != 0, rhs.Budget != 0; a != b {
+			return a
 		}
 		if lhs.metric.NamespaceID != rhs.metric.NamespaceID {
 			return lhs.metric.NamespaceID < rhs.metric.NamespaceID
@@ -309,7 +307,7 @@ func (h *sampler) run(g samplerGroup) {
 	// groups smaller than the budget aren't sampled
 	i := 0
 	for ; i < len(s); i++ {
-		if !s[i].fixedBudget {
+		if !s[i].FixedBudget {
 			s[i].budget = g.budget * s[i].weight
 			s[i].budgetDenom = sumWeight
 		}
@@ -326,14 +324,14 @@ func (h *sampler) run(g samplerGroup) {
 			}
 		}
 		s[i].keep(h)
-		if !s[i].fixedBudget {
+		if !s[i].FixedBudget {
 			g.budget -= s[i].sumSize
 			sumWeight -= s[i].weight
 		}
 	}
 	// sample groups larger than budget
 	for ; i < len(s); i++ {
-		if !s[i].fixedBudget {
+		if !s[i].FixedBudget {
 			s[i].budget = g.budget * s[i].weight
 			s[i].budgetDenom = sumWeight
 		}
@@ -347,7 +345,7 @@ func (h *sampler) run(g samplerGroup) {
 		if s[i].noSampleAgent {
 			s[i].keep(h)
 		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
-			if !s[i].fixedBudget {
+			if !s[i].FixedBudget {
 				s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
 				s[i].budgetDenom = 1
 			}
@@ -485,14 +483,14 @@ func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
-	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize, budget int64) samplerGroup {
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64, budget uint32) samplerGroup {
 		return samplerGroup{
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,
 			depth:         len(h.partF),
-			budget:        budget,
-			fixedBudget:   true,
+			budget:        int64(budget),
+			FixedBudget:   true,
 			budgetDenom:   1,
 			weight:        1,
 			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
@@ -505,19 +503,18 @@ func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
 		if s[i].MetricID != s[j].MetricID {
-			budget := h.MetricBudgets[s[i].MetricID]
-			if budget <= 0 {
+			if s[i].Budget <= 0 {
 				break
 			}
-			v := newSamplerGroup(s[i:j], sumSize, budget)
+			v := newSamplerGroup(s[i:j], sumSize, s[i].Budget)
 			res = append(res, v)
 			i = j
 			sumSize = 0
 		}
 		sumSize += int64(s[j].Size)
 	}
-	if budget := h.MetricBudgets[s[i].MetricID]; budget > 0 {
-		v := newSamplerGroup(s[i:j], sumSize, budget)
+	if s[i].Budget > 0 {
+		v := newSamplerGroup(s[i:j], sumSize, s[i].Budget)
 		res = append(res, v)
 		return res, 1
 	}

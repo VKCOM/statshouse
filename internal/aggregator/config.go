@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VKCOM/tl/pkg/rpc"
 
@@ -47,6 +48,7 @@ type ConfigAggregatorRemote struct {
 	ClusterShardsAddrs         []string
 	EnableMappingStorage       bool
 	DisableReceiveSampleBudget bool
+	OriginalSizeDecayHalfLife  time.Duration
 
 	RQLiteAddrs string // comma-separated list
 
@@ -112,6 +114,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MigrationTimeRange:        "",                          // empty means migration disabled
 			MigrationV3DisabledShards: make(map[int32]struct{}, 1), // empty means no disabled shards
 			MigrationDelaySec:         30,                          // 30 seconds delay between migration steps
+			OriginalSizeDecayHalfLife: data_model.ExpDecayMetricsHalfLife,
 
 			configTagsMapper3: configTagsMapper3{
 				MaxUnknownTagsInBucket:    1024,
@@ -216,6 +219,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 		f.BoolVar(&c.DisableReceiveSampleBudget, "disable-receive-sample-budget", d.DisableReceiveSampleBudget, "Disable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
+		f.DurationVar(&c.OriginalSizeDecayHalfLife, "original-size-decay-half-life", d.OriginalSizeDecayHalfLife, "Half-life for per-metric original size from agent (exponential decay).")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }
@@ -283,6 +287,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	}
 	if c.MigrationDelaySec < 1 {
 		return fmt.Errorf("--migration-delay-sec (%d) must be >= 1", c.MigrationDelaySec)
+	}
+	if c.OriginalSizeDecayHalfLife <= 0 {
+		return fmt.Errorf("--original-size-decay-half-life (%s) must be > 0", c.OriginalSizeDecayHalfLife)
 	}
 
 	return nil
