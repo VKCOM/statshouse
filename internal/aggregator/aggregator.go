@@ -72,10 +72,6 @@ type (
 		host data_model.TagUnion
 		resp tlstatshouse.SendSourceBucket3Response
 	}
-	hostBudgetCache struct {
-		bucketTime uint32
-		budgets    []tlstatshouse.MetricBudget
-	}
 	Aggregator struct {
 		h                 tlstatshouse.Handler
 		recentBuckets     []*aggregatorBucket          // We collect into several buckets before sending
@@ -104,8 +100,8 @@ type (
 		estimator     data_model.Estimator
 		orgMetricSize data_model.ExpDecayMetrics
 
-		hostBudgetCacheMu sync.RWMutex // TODO
-		hostBudgetCache   map[data_model.TagUnion]hostBudgetCache
+		hostBudgetCacheMu sync.RWMutex
+		hostBudgetCache   map[data_model.TagUnion][]tlstatshouse.MetricBudget
 
 		// we potentially have 100+ buckets with 20000+ contributors each,
 		// so we have to maintain a sum of waiting hosts if we want accurate and fast metric.
@@ -262,7 +258,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		cancelInsertsCtx:            cancelInsertCtx,
 		cancelInsertsFunc:           cancelInsertFunc,
 		bucketsToSend:               make(chan *aggregatorBucket),
-		hostBudgetCache:             map[data_model.TagUnion]hostBudgetCache{},
+		hostBudgetCache:             map[data_model.TagUnion][]tlstatshouse.MetricBudget{},
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		config:                      config,
@@ -816,7 +812,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		aggBucket.mu.Lock()
 		a.calcHostMetricBudgets(configR, aggBucket, hostBudgets)
 		aggBucket.mu.Unlock()
-		a.mergeHostBudgetCache(aggBucket.time, hostBudgets)
+		a.mergeHostBudgetCache(hostBudgets)
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
@@ -925,7 +921,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		a.hostBudgetCacheMu.RLock()
 		for host, cache := range a.hostBudgetCache {
-			hostBudgets[host] = append(hostBudgets[host][:0], cache.budgets...)
+			hostBudgets[host] = append(hostBudgets[host][:0], cache...)
 		}
 		a.hostBudgetCacheMu.RUnlock()
 		a.reportHostMetricBudgets(aggBucket.time, hostBudgets)
@@ -1071,31 +1067,14 @@ func (a *Aggregator) reportHostMetricBudgets(ts uint32, hostMetricBudgets map[da
 	}
 }
 
-func (a *Aggregator) mergeHostBudgetCache(bucketTime uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+func (a *Aggregator) mergeHostBudgetCache(src map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
+	dst := make(map[data_model.TagUnion][]tlstatshouse.MetricBudget, len(src)) // alloc point
+	for k, v := range src {
+		dst[k] = append(dst[k], v...)
+	}
 	a.hostBudgetCacheMu.Lock()
 	defer a.hostBudgetCacheMu.Unlock()
-	for host, budgets := range hostMetricBudgets {
-		if len(budgets) == 0 {
-			continue
-		}
-		if prev, ok := a.hostBudgetCache[host]; ok && prev.bucketTime >= bucketTime {
-			continue
-		}
-		cache := a.hostBudgetCache[host]
-		cache.bucketTime = bucketTime
-		cache.budgets = append(cache.budgets[:0], budgets...)
-		a.hostBudgetCache[host] = cache
-	}
-}
-
-func (a *Aggregator) garbageCollectHostBudgetCache(oldestBucketTime uint32) {
-	a.hostBudgetCacheMu.Lock()
-	defer a.hostBudgetCacheMu.Unlock()
-	for host, item := range a.hostBudgetCache {
-		if item.bucketTime < oldestBucketTime {
-			delete(a.hostBudgetCache, host)
-		}
-	}
+	a.hostBudgetCache = dst
 }
 
 // returns bucket with exclusive ownership requiring no locks to access
@@ -1236,7 +1215,6 @@ func (a *Aggregator) goTicker() {
 		if len(readyBuckets) != 0 && readyBuckets[0].time >= historicWindow {
 			oldestTime := readyBuckets[0].time - historicWindow
 			a.estimator.GarbageCollect(oldestTime)
-			a.garbageCollectHostBudgetCache(oldestTime)
 		}
 		a.orgMetricSize.Apply(now, func(metricID int32, host data_model.TagUnion, size uint32) {
 			unix := now.Unix()
