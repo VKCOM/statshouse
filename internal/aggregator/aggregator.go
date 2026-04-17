@@ -102,7 +102,7 @@ type (
 		internalLog []byte // simply flushed every couple seconds
 
 		estimator     data_model.Estimator
-		orgMetricSize *data_model.ExpDecayMetrics
+		orgMetricSize data_model.ExpDecayMetrics
 
 		hostBudgetCacheMu sync.RWMutex // TODO
 		hostBudgetCache   map[data_model.TagUnion]hostBudgetCache

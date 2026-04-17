@@ -21,8 +21,8 @@ type ExpDecayMetrics struct {
 	mu                 sync.Mutex
 }
 
-func NewExpDecayMetrics(halfLife time.Duration) *ExpDecayMetrics {
-	return &ExpDecayMetrics{
+func NewExpDecayMetrics(halfLife time.Duration) ExpDecayMetrics {
+	return ExpDecayMetrics{
 		halfLife:           halfLife,
 		lastDecayAt:        time.Now(),
 		originalMetricSize: make(map[int32]map[TagUnion]uint32),
