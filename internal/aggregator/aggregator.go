@@ -951,7 +951,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 			}
 			clear(b.contributors)
 			clear(b.contributors3) // safeguard against sending more than once
-			for k, _ := range b.originalMetricSize {
+			for k := range b.originalMetricSize {
 				clear(b.originalMetricSize[k])
 			}
 			historicHosts := b.historicHosts
