@@ -18,8 +18,9 @@ type StatshouseSendSourceBucket3Response struct {
 	// agent should discard bucket, either they were inserted successfully or they can never be inserted
 	// Discard (TrueType) // Conditional: item.FieldMask.0
 	// if !empty, aggregator wants this in client log
-	Warning  string
-	Mappings []StatshouseMapping
+	Warning       string
+	Mappings      []StatshouseMapping
+	MetricBudgets []StatshouseMetricBudget // Conditional: item.FieldMask.1
 }
 
 func (StatshouseSendSourceBucket3Response) TLName() string {
@@ -38,16 +39,34 @@ func (item *StatshouseSendSourceBucket3Response) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
+func (item *StatshouseSendSourceBucket3Response) SetMetricBudgets(v []StatshouseMetricBudget) {
+	item.MetricBudgets = v
+	item.FieldMask |= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3Response) ClearMetricBudgets() {
+	item.MetricBudgets = item.MetricBudgets[:0]
+	item.FieldMask &^= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3Response) IsSetMetricBudgets() bool {
+	return item.FieldMask&(1<<1) != 0
+}
+
 func (item *StatshouseSendSourceBucket3Response) Reset() {
 	item.FieldMask = 0
 	item.Warning = ""
 	item.Mappings = item.Mappings[:0]
+	item.MetricBudgets = item.MetricBudgets[:0]
 }
 
 func (item *StatshouseSendSourceBucket3Response) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
 	item.Warning = basictl.RandomString(rg)
 	BuiltinVectorStatshouseMappingFillRandom(rg, &item.Mappings)
+	if item.FieldMask&(1<<1) != 0 {
+		BuiltinVectorStatshouseMetricBudgetFillRandom(rg, &item.MetricBudgets)
+	} else {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
 }
 
 func (item *StatshouseSendSourceBucket3Response) ReadTL1(w []byte) (_ []byte, err error) {
@@ -57,7 +76,17 @@ func (item *StatshouseSendSourceBucket3Response) ReadTL1(w []byte) (_ []byte, er
 	if w, err = basictl.StringRead(w, &item.Warning); err != nil {
 		return w, err
 	}
-	return BuiltinVectorStatshouseMappingReadTL1(w, &item.Mappings)
+	if w, err = BuiltinVectorStatshouseMappingReadTL1(w, &item.Mappings); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = BuiltinVectorStatshouseMetricBudgetReadTL1(w, &item.MetricBudgets); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
+	return w, nil
 }
 
 func (item *StatshouseSendSourceBucket3Response) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -68,6 +97,9 @@ func (item *StatshouseSendSourceBucket3Response) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.StringWrite(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingWriteTL1(w, item.Mappings)
+	if item.FieldMask&(1<<1) != 0 {
+		w = BuiltinVectorStatshouseMetricBudgetWriteTL1(w, item.MetricBudgets)
+	}
 	return w
 }
 
@@ -102,6 +134,7 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 	var trueTypeDiscardValue bool
 	var propWarningPresented bool
 	var propMappingsPresented bool
+	var propMetricBudgetsPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -143,6 +176,14 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
+			case "metric_budgets":
+				if propMetricBudgetsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "metric_budgets")
+				}
+				propMetricBudgetsPresented = true
+				if err := BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx, in, &item.MetricBudgets); err != nil {
+					return err
+				}
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket3Response", key)
 			}
@@ -162,8 +203,14 @@ func (item *StatshouseSendSourceBucket3Response) ReadJSONGeneral(tctx *basictl.J
 	if !propMappingsPresented {
 		item.Mappings = item.Mappings[:0]
 	}
+	if !propMetricBudgetsPresented {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
 	if trueTypeDiscardValue {
 		item.FieldMask |= 1 << 0
+	}
+	if propMetricBudgetsPresented {
+		item.FieldMask |= 1 << 1
 	}
 	if propDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "field 'discard' is explicitly set to false, but corresponding fieldmask item.FieldMask bit 0 is 1")
@@ -207,6 +254,11 @@ func (item *StatshouseSendSourceBucket3Response) WriteJSONOpt(tctx *basictl.JSON
 	if !(len(item.Mappings) != 0) {
 		w = w[:backupIndexMappings]
 	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_budgets":`...)
+		w = BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx, w, item.MetricBudgets)
+	}
 	return append(w, '}')
 }
 
@@ -234,8 +286,9 @@ type StatshouseSendSourceBucket3ResponseBytes struct {
 	// agent should discard bucket, either they were inserted successfully or they can never be inserted
 	// Discard (TrueType) // Conditional: item.FieldMask.0
 	// if !empty, aggregator wants this in client log
-	Warning  []byte
-	Mappings []StatshouseMappingBytes
+	Warning       []byte
+	Mappings      []StatshouseMappingBytes
+	MetricBudgets []StatshouseMetricBudget // Conditional: item.FieldMask.1
 }
 
 func (StatshouseSendSourceBucket3ResponseBytes) TLName() string {
@@ -254,16 +307,34 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) IsSetDiscard() bool {
 	return item.FieldMask&(1<<0) != 0
 }
 
+func (item *StatshouseSendSourceBucket3ResponseBytes) SetMetricBudgets(v []StatshouseMetricBudget) {
+	item.MetricBudgets = v
+	item.FieldMask |= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3ResponseBytes) ClearMetricBudgets() {
+	item.MetricBudgets = item.MetricBudgets[:0]
+	item.FieldMask &^= 1 << 1
+}
+func (item *StatshouseSendSourceBucket3ResponseBytes) IsSetMetricBudgets() bool {
+	return item.FieldMask&(1<<1) != 0
+}
+
 func (item *StatshouseSendSourceBucket3ResponseBytes) Reset() {
 	item.FieldMask = 0
 	item.Warning = item.Warning[:0]
 	item.Mappings = item.Mappings[:0]
+	item.MetricBudgets = item.MetricBudgets[:0]
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldMask = basictl.RandomFieldMask(rg, 0b1)
+	item.FieldMask = basictl.RandomFieldMask(rg, 0b11)
 	item.Warning = basictl.RandomStringBytes(rg)
 	BuiltinVectorStatshouseMappingBytesFillRandom(rg, &item.Mappings)
+	if item.FieldMask&(1<<1) != 0 {
+		BuiltinVectorStatshouseMetricBudgetFillRandom(rg, &item.MetricBudgets)
+	} else {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) ReadTL1(w []byte) (_ []byte, err error) {
@@ -273,7 +344,17 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadTL1(w []byte) (_ []byt
 	if w, err = basictl.StringReadBytes(w, &item.Warning); err != nil {
 		return w, err
 	}
-	return BuiltinVectorStatshouseMappingBytesReadTL1(w, &item.Mappings)
+	if w, err = BuiltinVectorStatshouseMappingBytesReadTL1(w, &item.Mappings); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = BuiltinVectorStatshouseMetricBudgetReadTL1(w, &item.MetricBudgets); err != nil {
+			return w, err
+		}
+	} else {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
+	return w, nil
 }
 
 func (item *StatshouseSendSourceBucket3ResponseBytes) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -284,6 +365,9 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteTL1(w []byte) []byte 
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.StringWriteBytes(w, item.Warning)
 	w = BuiltinVectorStatshouseMappingBytesWriteTL1(w, item.Mappings)
+	if item.FieldMask&(1<<1) != 0 {
+		w = BuiltinVectorStatshouseMetricBudgetWriteTL1(w, item.MetricBudgets)
+	}
 	return w
 }
 
@@ -318,6 +402,7 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 	var trueTypeDiscardValue bool
 	var propWarningPresented bool
 	var propMappingsPresented bool
+	var propMetricBudgetsPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -359,6 +444,14 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 				if err := BuiltinVectorStatshouseMappingBytesReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
 					return err
 				}
+			case "metric_budgets":
+				if propMetricBudgetsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sendSourceBucket3Response", "metric_budgets")
+				}
+				propMetricBudgetsPresented = true
+				if err := BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx, in, &item.MetricBudgets); err != nil {
+					return err
+				}
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sendSourceBucket3Response", key)
 			}
@@ -378,8 +471,14 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) ReadJSONGeneral(tctx *basi
 	if !propMappingsPresented {
 		item.Mappings = item.Mappings[:0]
 	}
+	if !propMetricBudgetsPresented {
+		item.MetricBudgets = item.MetricBudgets[:0]
+	}
 	if trueTypeDiscardValue {
 		item.FieldMask |= 1 << 0
+	}
+	if propMetricBudgetsPresented {
+		item.FieldMask |= 1 << 1
 	}
 	if propDiscardPresented && !trueTypeDiscardValue && (item.FieldMask&(1<<0) != 0) {
 		return ErrorInvalidJSON("statshouse.sendSourceBucket3Response", "field 'discard' is explicitly set to false, but corresponding fieldmask item.FieldMask bit 0 is 1")
@@ -422,6 +521,11 @@ func (item *StatshouseSendSourceBucket3ResponseBytes) WriteJSONOpt(tctx *basictl
 	w = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(tctx, w, item.Mappings)
 	if !(len(item.Mappings) != 0) {
 		w = w[:backupIndexMappings]
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metric_budgets":`...)
+		w = BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx, w, item.MetricBudgets)
 	}
 	return append(w, '}')
 }

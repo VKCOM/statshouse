@@ -28,13 +28,14 @@ import (
 
 	"github.com/VKCOM/statshouse-go"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/pcache"
 	"github.com/VKCOM/statshouse/internal/util"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/tl/pkg/rpc"
 
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
@@ -251,16 +252,17 @@ func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGrou
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(result.GetConfigResult.Addresses))))
 	for i := 0; i < len(result.GetConfigResult.Addresses)/3; i++ {
 		shard := &Shard{
-			config:              config,
-			agent:               result,
-			ShardNum:            i,
-			ShardKey:            int32(i) + 1,
-			timeSpreadDelta:     3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
-			BucketsToSend:       make(chan compressedBucketData),
-			BucketsToPreprocess: make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
-			rng:                 rnd,
-			CurrentTime:         nowUnix,
-			SendTime:            nowUnix - 2, // accept previous seconds at the start of the agent
+			config:               config,
+			agent:                result,
+			ShardNum:             i,
+			ShardKey:             int32(i) + 1,
+			timeSpreadDelta:      3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
+			BucketsToSend:        make(chan compressedBucketData),
+			BucketsToPreprocess:  make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
+			rng:                  rnd,
+			CurrentTime:          nowUnix,
+			SendTime:             nowUnix - 2, // accept previous seconds at the start of the agent
+			metricBudgetsFromAgg: data_model.NewExpDecay(config.BudgetDecayHalfLife),
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
@@ -511,6 +513,7 @@ func (s *Agent) updateRemoteConfig() {
 		shard.config = config
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
+		shard.metricBudgetsFromAgg.SetHalfLife(config.BudgetDecayHalfLife)
 		shard.mu.Unlock()
 	}
 	for _, shardReplica := range s.ShardReplicas {
@@ -732,6 +735,9 @@ func (s *Agent) goFlushIteration(now time.Time) {
 			s.beforeFlushBucketFunc(s, s.beforeFlushTime)
 		}
 		s.beforeFlushTime = nowUnix
+		for _, shard := range s.Shards {
+			shard.metricBudgetsFromAgg.Apply(now)
+		}
 	}
 	for _, shard := range s.Shards {
 		gap, sendTime := shard.flushBuckets(now)

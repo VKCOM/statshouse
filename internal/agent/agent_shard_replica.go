@@ -14,12 +14,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/compress"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type ShardReplica struct {

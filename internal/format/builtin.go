@@ -164,6 +164,8 @@ var (
 		BuiltinMetricIDIngestionStatusNoShard:   BuiltinMetricMetaIngestionStatusNoShard,
 		BuiltinMetricIDHeartbeatVersionAgent:    BuiltinMetricMetaHeartbeatVersionAgent,
 		BuiltinMetricIDHeartbeatVersionIngress:  BuiltinMetricMetaHeartbeatVersionIngress,
+		-151:                                    BuiltinMetricMetaAggReceiveSrcOriginalSize,
+		-152:                                    BuiltinMetricMetaAggSendSrcBudget,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly

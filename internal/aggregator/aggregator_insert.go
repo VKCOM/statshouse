@@ -413,11 +413,14 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		SampleKeys:       configR.SampleKeys,
 		Rand:             rnd,
 		SampleFactorF: func(metricID int32, sf float64) {
+			if sf < 1 {
+				return
+			}
 			key := a.aggKey(recentTs, format.BuiltinMetricIDAggSamplingFactor, [format.MaxTags]int32{0, 0, 0, 0, metricID, format.TagValueIDAggSamplingFactorReasonInsertSize})
 			res = appendBadge(rnd, res, key, data_model.SimpleItemValue(sf, 1, a.aggregatorHostTag), metricCache, usedTimestamps)
 			res = appendSimpleValueStat(rnd, res, key, sf, 1, a.aggregatorHostTag.I, metricCache)
 		},
-		KeepF:          func(item *data_model.MultiItem, bucketTs uint32) { insertItem(item, item.SF, bucketTs) },
+		KeepF:          func(item *data_model.MultiItem, bucketTs uint32, _ uint32) { insertItem(item, item.SF, bucketTs) },
 		SamplerBuffers: buffers,
 	})
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
@@ -479,9 +482,9 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	if shardInsertBuget, ok := configR.ShardInsertBudget[int(a.shardKey)]; ok {
 		insertBudget = shardInsertBuget
 	}
-	remainingBudget := int64(data_model.InsertBudgetFixed) + int64(insertBudget*numContributors)
-	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
+	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
+	remainingBudget := max(configR.MinInsertBudget, int64(data_model.InsertBudgetFixed)+int64(insertBudget*numContributors))
 	sampler.Run(remainingBudget)
 	for _, v := range sampler.MetricGroups {
 		sk := samplingStatKey{v.NamespaceID, v.GroupID}

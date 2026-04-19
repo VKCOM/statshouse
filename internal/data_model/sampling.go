@@ -11,9 +11,10 @@ import (
 	"sort"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 const maxFairKeyLen = 3
@@ -25,12 +26,14 @@ type (
 		Size        int
 		MetricID    int32
 		BucketTs    uint32
+		Budget      uint32
 		metric      *format.MetricMetaValue
 		fairKey     [maxFairKeyLen]int32
 		fairKeyLen  int
 	}
 
 	samplerGroup struct { // either metric group, metric or fair key
+		FixedBudget    bool
 		NamespaceID    int32
 		GroupID        int32
 		MetricID       int32
@@ -50,6 +53,7 @@ type (
 		ModeAgent            bool
 		SampleKeepSingle     bool
 		DisableNoSampleAgent bool // disables "noSampleAgent" option above
+		SampleBudgets        bool
 		SampleNamespaces     bool
 		SampleGroups         bool
 		SampleKeys           bool
@@ -59,19 +63,25 @@ type (
 		Rand *rand.Rand
 
 		// Called when sampling algorithm calculates metric sample factor
-		SampleFactorF func(int32, float64)
+		SampleFactorF func(metricID int32, sf float64)
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(*MultiItem, uint32)
-		DiscardF func(*MultiItem, uint32)
+		KeepF    func(v *MultiItem, ts uint32, quota uint32)
+		DiscardF func(v *MultiItem, ts uint32)
 
 		// Unit tests support
-		RoundF  func(float64, *rand.Rand) float64 // rounds sample factor to an integer
-		SelectF func([]SamplingMultiItemPair, float64, *rand.Rand) int
+		RoundF  func(budget float64, r *rand.Rand) float64 // rounds sample factor to an integer
+		SelectF func(items []SamplingMultiItemPair, sf float64, r *rand.Rand) int
+
+		// Default SampleRows for metric sampling. SampleQuota for sample src original size
+		SampleF SampleF
+		// Optional per-metric budgets; Run() applies per-metric per-budget groups
+		//MetricBudgets map[int32]int64
 
 		SamplerBuffers
 	}
 
+	SampleF       func(*sampler, samplerGroup)
 	partitionFunc func(*sampler, samplerGroup) ([]samplerGroup, int64)
 
 	sampler struct {
@@ -82,6 +92,7 @@ type (
 		currentMetricID      int32
 		currentMetricSFSum   float64
 		currentMetricSFCount float64
+		currentMetricOrgSize int64
 		MetricCount          int
 
 		timeStart      time.Time
@@ -100,6 +111,9 @@ type (
 	}
 )
 
+func SampleRows(s *sampler, g samplerGroup)  { s.sample(g) }
+func SampleQuota(s *sampler, g samplerGroup) { s.sampleQuota(g) }
+
 var missingMetricMeta = format.MetricMetaValue{
 	GroupID:         format.BuiltinGroupIDMissing,
 	NamespaceID:     format.BuiltinNamespaceIDMissing,
@@ -113,6 +127,9 @@ func NewSampler(c SamplerConfig) sampler {
 	c.MetricGroups = c.MetricGroups[:0]
 	c.SampleFactors = c.SampleFactors[:0]
 	// partition functions
+	if c.SampleBudgets {
+		c.partF = append(c.partF, partitionByBudget)
+	}
 	if c.SampleNamespaces {
 		c.partF = append(c.partF, partitionByNamespace)
 	}
@@ -126,6 +143,9 @@ func NewSampler(c SamplerConfig) sampler {
 	}
 	if c.SelectF == nil {
 		c.SelectF = selectRandom
+	}
+	if c.SampleF == nil {
+		c.SampleF = SampleRows
 	}
 	return sampler{
 		timeStart:     time.Now(),
@@ -178,9 +198,12 @@ func (h *sampler) Run(budget int64) {
 			h.items[i].fairKeyLen = n
 		}
 	}
-	// partition by namespace/group/metric/key
+	// partition by budget/namespace/group/metric/key
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
+		if a, b := lhs.Budget != 0, rhs.Budget != 0; a != b {
+			return a
+		}
 		if lhs.metric.NamespaceID != rhs.metric.NamespaceID {
 			return lhs.metric.NamespaceID < rhs.metric.NamespaceID
 		}
@@ -284,22 +307,34 @@ func (h *sampler) run(g samplerGroup) {
 	// groups smaller than the budget aren't sampled
 	i := 0
 	for ; i < len(s); i++ {
-		s[i].budget = g.budget * s[i].weight
-		s[i].budgetDenom = sumWeight
-		if s[i].budget < sumWeight*s[i].sumSize {
+		if !s[i].FixedBudget {
+			s[i].budget = g.budget * s[i].weight
+			s[i].budgetDenom = sumWeight
+		}
+		if s[i].budget < s[i].budgetDenom*s[i].sumSize {
 			break // SF > 1
 		}
 		if s[i].MetricID == 0 {
 			h.setCurrentGroup(s[i])
+		} else if s[i].MetricID != h.currentMetricID {
+			h.setCurrentMetric(s[i].MetricID)
+			if !s[i].noSampleAgent {
+				h.currentMetricSFCount++
+				h.currentMetricOrgSize = s[i].sumSize
+			}
 		}
 		s[i].keep(h)
-		g.budget -= s[i].sumSize
-		sumWeight -= s[i].weight
+		if !s[i].FixedBudget {
+			g.budget -= s[i].sumSize
+			sumWeight -= s[i].weight
+		}
 	}
 	// sample groups larger than budget
 	for ; i < len(s); i++ {
-		s[i].budget = g.budget * s[i].weight
-		s[i].budgetDenom = sumWeight
+		if !s[i].FixedBudget {
+			s[i].budget = g.budget * s[i].weight
+			s[i].budgetDenom = sumWeight
+		}
 		if s[i].depth < len(h.partF) {
 			if s[i].GroupID != 0 && s[i].MetricID == 0 {
 				h.setCurrentGroup(s[i])
@@ -307,14 +342,16 @@ func (h *sampler) run(g samplerGroup) {
 		} else if s[i].depth == len(h.partF) && s[i].MetricID != h.currentMetricID {
 			h.setCurrentMetric(s[i].MetricID)
 		}
-		if s[i].noSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent {
+		if s[i].noSampleAgent {
 			s[i].keep(h)
 		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
-			s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
-			s[i].budgetDenom = 1
+			if !s[i].FixedBudget {
+				s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
+				s[i].budgetDenom = 1
+			}
 			h.run(s[i])
 		} else {
-			h.sample(s[i])
+			h.SampleF(h, s[i])
 		}
 	}
 }
@@ -328,7 +365,7 @@ func (g samplerGroup) keep(h *sampler) {
 func (p *SamplingMultiItemPair) keep(sf float64, h *sampler) {
 	p.Item.SF = sf // communicate selected factor to next step of processing
 	if h.KeepF != nil {
-		h.KeepF(p.Item, p.BucketTs)
+		h.KeepF(p.Item, p.BucketTs, uint32(p.Size))
 	}
 	h.currentGroup.SumSizeKeep.AddValue(float64(p.Size))
 }
@@ -362,6 +399,7 @@ func (h *sampler) sample(g samplerGroup) {
 	sf := float64(sfNum) / float64(sfDenom)
 	h.currentMetricSFCount++
 	h.currentMetricSFSum += sf
+	h.currentMetricOrgSize += g.sumSize
 	// keep whales
 	items := g.items
 	// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
@@ -391,6 +429,26 @@ func (h *sampler) sample(g samplerGroup) {
 	}
 }
 
+func (h *sampler) sampleQuota(g samplerGroup) {
+	if len(g.items) == 0 {
+		return
+	}
+	timeStart := time.Now()
+	defer func() { h.timeSampling += time.Since(timeStart) }()
+
+	sfDenom := g.budgetDenom * g.sumSize
+	for i := range g.items {
+		sfNum := g.budget * int64(g.items[i].Size)
+		quota := int(float64(sfNum) / float64(sfDenom))
+		g.items[i].Size = quota
+		if quota < 1 {
+			g.items[i].discard(math.MaxFloat32, h)
+			continue
+		}
+		g.items[i].keep(1, h)
+	}
+}
+
 func (h *sampler) setCurrentGroup(g samplerGroup) {
 	if h.currentGroup.depth != 0 {
 		h.MetricGroups = append(h.MetricGroups, h.currentGroup)
@@ -408,14 +466,67 @@ func (h *sampler) setCurrentMetric(metricID int32) {
 			h.SampleFactorF(h.currentMetricID, sf)
 		} else {
 			h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-				Metric: h.currentMetricID,
-				Value:  float32(sf),
+				Metric:       h.currentMetricID,
+				Value:        float32(sf),
+				OriginalSize: uint32(h.currentMetricOrgSize),
 			})
 		}
 	}
 	h.currentMetricID = metricID
 	h.currentMetricSFSum = 0
 	h.currentMetricSFCount = 0
+	h.currentMetricOrgSize = 0
+}
+
+func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
+	s := g.items
+	if len(s) == 0 {
+		return nil, 0
+	}
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64, budget uint32) samplerGroup {
+		return samplerGroup{
+			NamespaceID:   items[0].metric.NamespaceID,
+			GroupID:       items[0].metric.GroupID,
+			MetricID:      items[0].MetricID,
+			depth:         len(h.partF),
+			budget:        int64(budget),
+			FixedBudget:   true,
+			budgetDenom:   1,
+			weight:        1,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
+			sumSize:       sumSize,
+			items:         items,
+		}
+	}
+	var res []samplerGroup
+	var i, j int
+	sumSize := int64(s[0].Size)
+	for j = 1; j < len(s); j++ {
+		if s[i].MetricID != s[j].MetricID {
+			if s[i].Budget <= 0 {
+				break
+			}
+			v := newSamplerGroup(s[i:j], sumSize, s[i].Budget)
+			res = append(res, v)
+			i = j
+			sumSize = 0
+		}
+		sumSize += int64(s[j].Size)
+	}
+	if s[i].Budget > 0 {
+		v := newSamplerGroup(s[i:j], sumSize, s[i].Budget)
+		res = append(res, v)
+		return res, 1
+	}
+	rGroups, rSumWeight := h.partF[g.depth+1](h, samplerGroup{
+		depth:       g.depth + 1,
+		NamespaceID: g.NamespaceID,
+		GroupID:     g.GroupID,
+		items:       s[i:],
+		budget:      g.budget,
+	})
+	res = append(res, rGroups...)
+	return res, rSumWeight
 }
 
 func partitionByNamespace(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
@@ -498,7 +609,7 @@ func partitionByMetric(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        items[0].metric.EffectiveWeight,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,
@@ -536,7 +647,7 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,

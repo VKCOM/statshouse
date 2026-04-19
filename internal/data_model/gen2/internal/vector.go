@@ -2227,6 +2227,105 @@ func (item *VectorStatshouseMetricBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadC
 }
 
 // Vector
+type VectorStatshouseMetricBudget []StatshouseMetricBudget
+
+func (item *VectorStatshouseMetricBudget) ptr() *[]StatshouseMetricBudget {
+	return (*[]StatshouseMetricBudget)(item)
+}
+
+func (VectorStatshouseMetricBudget) TLName() string { return "vector" }
+func (VectorStatshouseMetricBudget) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorStatshouseMetricBudget) Reset() {
+	*item.ptr() = (*item.ptr())[:0]
+}
+
+func (item *VectorStatshouseMetricBudget) FillRandom(rg *basictl.RandGenerator) {
+	BuiltinVectorStatshouseMetricBudgetFillRandom(rg, item.ptr())
+}
+
+func (item *VectorStatshouseMetricBudget) ReadTL1(w []byte) (_ []byte, err error) {
+	return BuiltinVectorStatshouseMetricBudgetReadTL1(w, item.ptr())
+}
+
+func (item *VectorStatshouseMetricBudget) WriteTL1General(w []byte) (_ []byte, err error) {
+	return item.WriteTL1(w), nil
+}
+
+func (item *VectorStatshouseMetricBudget) WriteTL1(w []byte) []byte {
+	w = BuiltinVectorStatshouseMetricBudgetWriteTL1(w, *item.ptr())
+	return w
+}
+
+func (item *VectorStatshouseMetricBudget) ReadTL1Boxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.ReadTL1(w)
+}
+
+func (item *VectorStatshouseMetricBudget) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
+	return item.WriteTL1Boxed(w), nil
+}
+
+func (item *VectorStatshouseMetricBudget) WriteTL1Boxed(w []byte) []byte {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.WriteTL1(w)
+}
+
+func (item VectorStatshouseMetricBudget) String() string {
+	return string(item.WriteJSON(nil))
+}
+func (item *VectorStatshouseMetricBudget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&tctx, in)
+}
+
+func (item *VectorStatshouseMetricBudget) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+	if err := BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+		return err
+	}
+	return nil
+}
+
+// This method is general version of WriteJSON, use it instead!
+func (item *VectorStatshouseMetricBudget) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w), nil
+}
+
+func (item *VectorStatshouseMetricBudget) WriteJSON(w []byte) []byte {
+	tctx := basictl.JSONWriteContext{}
+	return item.WriteJSONOpt(&tctx, w)
+}
+
+func (item *VectorStatshouseMetricBudget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+	w = BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx, w, *item.ptr())
+	return w
+}
+func (item *VectorStatshouseMetricBudget) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil), nil
+}
+
+func (item *VectorStatshouseMetricBudget) UnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
+func (item *VectorStatshouseMetricBudget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+	panic(ErrorTL2SerializersNotGenerated("vector"))
+}
+
+func (item *VectorStatshouseMetricBudget) InternalReadTL2(r []byte) (_ []byte, err error) {
+	return r, ErrorTL2SerializersNotGenerated("vector")
+}
+
+func (item *VectorStatshouseMetricBudget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+	return item.InternalReadTL2(r)
+}
+
+// Vector
 type VectorStatshouseMultiItem []StatshouseMultiItem
 
 func (item *VectorStatshouseMultiItem) ptr() *[]StatshouseMultiItem {
@@ -2584,77 +2683,51 @@ func (item *VectorStatshouseSampleFactor) Reset() {
 	*item.ptr() = (*item.ptr())[:0]
 }
 
-func (item *VectorStatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator) {
-	BuiltinVectorStatshouseSampleFactorFillRandom(rg, item.ptr())
+func (item *VectorStatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator, nat_t uint32) {
+	BuiltinVectorStatshouseSampleFactorFillRandom(rg, item.ptr(), nat_t)
 }
 
-func (item *VectorStatshouseSampleFactor) ReadTL1(w []byte) (_ []byte, err error) {
-	return BuiltinVectorStatshouseSampleFactorReadTL1(w, item.ptr())
+func (item *VectorStatshouseSampleFactor) ReadTL1(w []byte, nat_t uint32) (_ []byte, err error) {
+	return BuiltinVectorStatshouseSampleFactorReadTL1(w, item.ptr(), nat_t)
 }
 
-func (item *VectorStatshouseSampleFactor) WriteTL1General(w []byte) (_ []byte, err error) {
-	return item.WriteTL1(w), nil
-}
-
-func (item *VectorStatshouseSampleFactor) WriteTL1(w []byte) []byte {
-	w = BuiltinVectorStatshouseSampleFactorWriteTL1(w, *item.ptr())
+func (item *VectorStatshouseSampleFactor) WriteTL1(w []byte, nat_t uint32) []byte {
+	w = BuiltinVectorStatshouseSampleFactorWriteTL1(w, *item.ptr(), nat_t)
 	return w
 }
 
-func (item *VectorStatshouseSampleFactor) ReadTL1Boxed(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseSampleFactor) ReadTL1Boxed(w []byte, nat_t uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.ReadTL1(w)
+	return item.ReadTL1(w, nat_t)
 }
 
-func (item *VectorStatshouseSampleFactor) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteTL1Boxed(w), nil
-}
-
-func (item *VectorStatshouseSampleFactor) WriteTL1Boxed(w []byte) []byte {
+func (item *VectorStatshouseSampleFactor) WriteTL1Boxed(w []byte, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.WriteTL1(w)
+	return item.WriteTL1(w, nat_t)
 }
 
-func (item VectorStatshouseSampleFactor) String() string {
-	return string(item.WriteJSON(nil))
-}
-func (item *VectorStatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
-}
-
-func (item *VectorStatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	if err := BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+func (item *VectorStatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_t uint32) error {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx, in, item.ptr(), nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *VectorStatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *VectorStatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_t), nil
 }
 
-func (item *VectorStatshouseSampleFactor) WriteJSON(w []byte) []byte {
+func (item *VectorStatshouseSampleFactor) WriteJSON(w []byte, nat_t uint32) []byte {
 	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(&tctx, w, nat_t)
 }
 
-func (item *VectorStatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx, w, *item.ptr())
+func (item *VectorStatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_t uint32) []byte {
+	w = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx, w, *item.ptr(), nat_t)
 	return w
-}
-func (item *VectorStatshouseSampleFactor) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil), nil
-}
-
-func (item *VectorStatshouseSampleFactor) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
 }
 
 func (item *VectorStatshouseSampleFactor) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {

@@ -13,16 +13,16 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinVectorStatshouseSampleFactorFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseSampleFactor) {
+func BuiltinVectorStatshouseSampleFactorFillRandom(rg *basictl.RandGenerator, vec *[]StatshouseSampleFactor, nat_t uint32) {
 	rg.IncreaseDepth()
 	l := basictl.RandomSize(rg)
 	*vec = make([]StatshouseSampleFactor, l)
 	for i := range *vec {
-		(*vec)[i].FillRandom(rg)
+		(*vec)[i].FillRandom(rg, nat_t)
 	}
 	rg.DecreaseDepth()
 }
-func BuiltinVectorStatshouseSampleFactorReadTL1(w []byte, vec *[]StatshouseSampleFactor) (_ []byte, err error) {
+func BuiltinVectorStatshouseSampleFactorReadTL1(w []byte, vec *[]StatshouseSampleFactor, nat_t uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -36,17 +36,17 @@ func BuiltinVectorStatshouseSampleFactorReadTL1(w []byte, vec *[]StatshouseSampl
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if w, err = (*vec)[i].ReadTL1(w); err != nil {
+		if w, err = (*vec)[i].ReadTL1(w, nat_t); err != nil {
 			return w, err
 		}
 	}
 	return w, nil
 }
 
-func BuiltinVectorStatshouseSampleFactorWriteTL1(w []byte, vec []StatshouseSampleFactor) []byte {
+func BuiltinVectorStatshouseSampleFactorWriteTL1(w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		w = elem.WriteTL1(w)
+		w = elem.WriteTL1(w, nat_t)
 	}
 	return w
 }
@@ -55,7 +55,7 @@ func BuiltinVectorStatshouseSampleFactorInternalReadTL2(r []byte, vec *[]Statsho
 	return r, ErrorTL2SerializersNotGenerated("[]StatshouseSampleFactor")
 }
 
-func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor) error {
+func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadCo
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -83,82 +83,102 @@ func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadCo
 	return nil
 }
 
-func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor) []byte {
+func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
 	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(&tctx, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseSampleFactor) []byte {
+func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(tctx, w, nat_t)
 	}
 	return append(w, ']')
 }
 
 type StatshouseSampleFactor struct {
-	Metric int32
-	Value  float32
+	Metric       int32
+	Value        float32
+	OriginalSize uint32 // Conditional: nat_fields_mask.0
 }
 
 func (StatshouseSampleFactor) TLName() string { return "statshouse.sampleFactor" }
-func (StatshouseSampleFactor) TLTag() uint32  { return 0x9d6f80fe }
+func (StatshouseSampleFactor) TLTag() uint32  { return 0x64f00431 }
+
+func (item *StatshouseSampleFactor) SetOriginalSize(v uint32, nat_fields_mask *uint32) {
+	item.OriginalSize = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 0
+	}
+}
+func (item *StatshouseSampleFactor) ClearOriginalSize(nat_fields_mask *uint32) {
+	item.OriginalSize = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 0
+	}
+}
+func (item *StatshouseSampleFactor) IsSetOriginalSize(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<0) != 0
+}
 
 func (item *StatshouseSampleFactor) Reset() {
 	item.Metric = 0
 	item.Value = 0
+	item.OriginalSize = 0
 }
 
-func (item *StatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator) {
+func (item *StatshouseSampleFactor) FillRandom(rg *basictl.RandGenerator, nat_fields_mask uint32) {
 	item.Metric = basictl.RandomInt(rg)
 	item.Value = basictl.RandomFloat(rg)
+	if nat_fields_mask&(1<<0) != 0 {
+		item.OriginalSize = basictl.RandomUint(rg)
+	} else {
+		item.OriginalSize = 0
+	}
 }
 
-func (item *StatshouseSampleFactor) ReadTL1(w []byte) (_ []byte, err error) {
+func (item *StatshouseSampleFactor) ReadTL1(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Metric); err != nil {
 		return w, err
 	}
-	return basictl.FloatRead(w, &item.Value)
+	if w, err = basictl.FloatRead(w, &item.Value); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = basictl.NatRead(w, &item.OriginalSize); err != nil {
+			return w, err
+		}
+	} else {
+		item.OriginalSize = 0
+	}
+	return w, nil
 }
 
-func (item *StatshouseSampleFactor) WriteTL1General(w []byte) (_ []byte, err error) {
-	return item.WriteTL1(w), nil
-}
-
-func (item *StatshouseSampleFactor) WriteTL1(w []byte) []byte {
+func (item *StatshouseSampleFactor) WriteTL1(w []byte, nat_fields_mask uint32) []byte {
 	w = basictl.IntWrite(w, item.Metric)
 	w = basictl.FloatWrite(w, item.Value)
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.NatWrite(w, item.OriginalSize)
+	}
 	return w
 }
 
-func (item *StatshouseSampleFactor) ReadTL1Boxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x9d6f80fe); err != nil {
+func (item *StatshouseSampleFactor) ReadTL1Boxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x64f00431); err != nil {
 		return w, err
 	}
-	return item.ReadTL1(w)
+	return item.ReadTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseSampleFactor) WriteTL1BoxedGeneral(w []byte) (_ []byte, err error) {
-	return item.WriteTL1Boxed(w), nil
+func (item *StatshouseSampleFactor) WriteTL1Boxed(w []byte, nat_fields_mask uint32) []byte {
+	w = basictl.NatWrite(w, 0x64f00431)
+	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseSampleFactor) WriteTL1Boxed(w []byte) []byte {
-	w = basictl.NatWrite(w, 0x9d6f80fe)
-	return item.WriteTL1(w)
-}
-
-func (item StatshouseSampleFactor) String() string {
-	return string(item.WriteJSON(nil))
-}
-
-func (item *StatshouseSampleFactor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
-}
-
-func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propMetricPresented bool
 	var propValuePresented bool
+	var propOriginalSizePresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -184,6 +204,14 @@ func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContex
 				if err := Json2ReadFloat32(in, &item.Value); err != nil {
 					return err
 				}
+			case "original_size":
+				if propOriginalSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sampleFactor", "original_size")
+				}
+				propOriginalSizePresented = true
+				if err := Json2ReadUint32(in, &item.OriginalSize); err != nil {
+					return err
+				}
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.sampleFactor", key)
 			}
@@ -200,19 +228,27 @@ func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContex
 	if !propValuePresented {
 		item.Value = 0
 	}
+	if !propOriginalSizePresented {
+		item.OriginalSize = 0
+	}
+	if propOriginalSizePresented {
+		if nat_fields_mask&(1<<0) == 0 {
+			return ErrorInvalidJSON("statshouse.sampleFactor", "field 'original_size' is set, but will be ignored, because corresponding fieldmask nat_fields_mask bit 0 is 0")
+		}
+	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
 }
 
-func (item *StatshouseSampleFactor) WriteJSON(w []byte) []byte {
+func (item *StatshouseSampleFactor) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
 	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
 }
-func (item *StatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexMetric := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -228,18 +264,12 @@ func (item *StatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext,
 	if !(item.Value != 0) {
 		w = w[:backupIndexValue]
 	}
-	return append(w, '}')
-}
-
-func (item *StatshouseSampleFactor) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil), nil
-}
-
-func (item *StatshouseSampleFactor) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
-		return ErrorInvalidJSON("statshouse.sampleFactor", err.Error())
+	if nat_fields_mask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"original_size":`...)
+		w = basictl.JSONWriteUint32(w, item.OriginalSize)
 	}
-	return nil
+	return append(w, '}')
 }
 
 func (item *StatshouseSampleFactor) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {

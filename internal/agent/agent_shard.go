@@ -66,6 +66,9 @@ type (
 		cond                    *sync.Cond
 
 		HistoricOutOfWindowDropped atomic.Int64
+
+		// budget for metrics from SendSourceBucket3Response
+		metricBudgetsFromAgg data_model.ExpDecay
 	}
 
 	BuiltInItemValue struct {

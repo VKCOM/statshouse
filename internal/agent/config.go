@@ -21,11 +21,13 @@ type Config struct {
 	AggregatorAddresses []string
 	// Sampling Algorithm
 	SampleBudget         int // for all shards, in bytes
+	MinSampleBudget      int
 	OverrideSampleBudget int
 	ShardSampleBudget    map[int]int // pre shard overrides, if not set buget is equal to SampleBudget
 	HistoricWindow       uint
 	MaxHistoricDiskSize  int64 // for all shards, in bytes
 	SampleKeepSingle     bool
+	SampleBudgets        bool
 	SampleNamespaces     bool
 	SampleGroups         bool
 	SampleKeys           bool
@@ -55,6 +57,7 @@ type Config struct {
 
 	AutoCreate           bool
 	DisableNoSampleAgent bool
+	BudgetDecayHalfLife  time.Duration
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
@@ -65,6 +68,7 @@ func DefaultConfig() Config {
 		SampleBudget:                     150000,
 		HistoricWindow:                   6 * 3600, // TODO - after V3 tables dropped, change to 24 hours
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
+		SampleBudgets:                    false,
 		SampleNamespaces:                 false,
 		SampleGroups:                     false,
 		SampleKeys:                       false,
@@ -85,6 +89,8 @@ func DefaultConfig() Config {
 		RemoteWritePath:              "/write",
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
+		BudgetDecayHalfLife:          data_model.ExpDecayHalfLife,
+		MinSampleBudget:              2000,
 		HardwareMetricResolution:     5,
 		HardwareSlowMetricResolution: 15,
 	}
@@ -145,7 +151,10 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
+	f.DurationVar(&c.BudgetDecayHalfLife, "budget-decay-half-life", d.BudgetDecayHalfLife, "Half-life for per-metric budgets from aggregator (exponential decay).")
+	f.IntVar(&c.MinSampleBudget, "min-sample-budget", d.MinSampleBudget, "Minimum byte budget for the fallback/remain sampling pass after subtracting per-metric budgets (0 = no extra floor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
+	f.BoolVar(&c.SampleBudgets, "sample-budgets", d.SampleBudgets, "Statshouse will use per-host receive sample budget from aggregator for sampling.")
 	f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 	f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 	f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
@@ -209,6 +218,12 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if format.AllowedResolution(c.HardwareSlowMetricResolution) != c.HardwareSlowMetricResolution {
 		return fmt.Errorf("--hardware-slow-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", c.HardwareSlowMetricResolution)
+	}
+	if c.MinSampleBudget < 0 {
+		return fmt.Errorf("--min-sample-budget (%d) must be >= 0", c.MinSampleBudget)
+	}
+	if c.BudgetDecayHalfLife <= 0 {
+		return fmt.Errorf("--budget-decay-half-life (%s) must be > 0", c.BudgetDecayHalfLife)
 	}
 
 	return nil

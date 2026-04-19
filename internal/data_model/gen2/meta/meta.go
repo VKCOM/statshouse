@@ -367,11 +367,11 @@ func init() {
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "statshouse.metric", Tag: 0x3325d884, HaTL1: true})
 	metainternal.FillObject(
+		&metainternal.TLItemImpl{Name: "statshouse.metricBudget", Tag: 0x2d07264e, HaTL1: true})
+	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "statshouse.multiItem", Tag: 0x0c803e07, HaTL1: true})
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "statshouse.putTagMappingBootstrapResult", Tag: 0x486affde, HaTL1: true})
-	metainternal.FillObject(
-		&metainternal.TLItemImpl{Name: "statshouse.sampleFactor", Tag: 0x9d6f80fe, HaTL1: true})
 	metainternal.FillFunction(
 		&metainternal.TLItemImpl{Name: "statshouse.sendKeepAlive2", Tag: 0x4285ff53, HaTL1: true, Annotations: 0x10})
 	metainternal.FillFunction(
