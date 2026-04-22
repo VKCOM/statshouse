@@ -616,7 +616,7 @@ func parseV3RowOptimized(reader *bufio.Reader, scratch []byte, row *v3Row) ([]by
 	return scratch, nil
 }
 
-func ReadUInt8(r *bufio.Reader, buf []byte, dst *uint8) ([]byte, error) {
+func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
 	buf = slices.Grow(buf, 1)[:1]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -625,7 +625,7 @@ func ReadUInt8(r *bufio.Reader, buf []byte, dst *uint8) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadUInt32(r *bufio.Reader, buf []byte, dst *uint32) ([]byte, error) {
+func ReadUInt32(r io.Reader, buf []byte, dst *uint32) ([]byte, error) {
 	buf = slices.Grow(buf, 4)[:4]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -634,7 +634,7 @@ func ReadUInt32(r *bufio.Reader, buf []byte, dst *uint32) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadInt32(r *bufio.Reader, buf []byte, dst *int32) ([]byte, error) {
+func ReadInt32(r io.Reader, buf []byte, dst *int32) ([]byte, error) {
 	buf = slices.Grow(buf, 4)[:4]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -643,7 +643,7 @@ func ReadInt32(r *bufio.Reader, buf []byte, dst *int32) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadFloat64(r *bufio.Reader, buf []byte, dst *float64) ([]byte, error) {
+func ReadFloat64(r io.Reader, buf []byte, dst *float64) ([]byte, error) {
 	buf = slices.Grow(buf, 8)[:8]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -652,7 +652,7 @@ func ReadFloat64(r *bufio.Reader, buf []byte, dst *float64) ([]byte, error) {
 	return buf, nil
 }
 
-func readString(reader *bufio.Reader, buf []byte, dst *string) ([]byte, error) {
+func readString(reader *io.Reader, buf []byte, dst *string) ([]byte, error) {
 	n, err := binary.ReadUvarint(reader)
 	if err != nil {
 		return buf, err
