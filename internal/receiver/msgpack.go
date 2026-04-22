@@ -141,6 +141,13 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 				}
 			}
 			m.SetHistogram(value)
+		case "host":
+			var host []byte
+			host, buf, err = msgp.ReadStringAsBytes(buf, m.Host)
+			if err != nil {
+				return nil, msgp.WrapError(err, "host")
+			}
+			m.SetHost(host)
 		default:
 			buf, err = msgp.Skip(buf)
 			if err != nil {

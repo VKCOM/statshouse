@@ -16,12 +16,34 @@ import (
 
 func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeader, autoCreate *data_model.AutoCreate) {
 	s.mapAllTags(h, args.MetricBytes, autoCreate)
+	s.mapContributorHost(h, args.MetricBytes)
 	if h.IngestionStatus != 0 {
 		return
 	}
 	// validate values only if metric is valid
 	h.IngestionStatus = data_model.ValidateMetricData(args.MetricBytes)
 	h.ValuesChecked = true // not used in v3, just to avoid confusion
+}
+
+// mapContributorHost overrides HostTag used in min/max host calculations.
+// Unlike metric tags, this does not affect key tags and cardinality.
+func (s *Agent) mapContributorHost(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes) {
+	if !metric.IsSetHost() || len(metric.Host) == 0 || h.IngestionStatus != 0 {
+		return
+	}
+	validHost, err := format.AppendValidStringValue(metric.Host[:0], metric.Host)
+	if err != nil {
+		metric.Host = format.AppendHexStringValue(metric.Host[:0], metric.Host)
+		h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, format.HostTagIndex+format.TagIDShift, metric.Host)
+		return
+	}
+	metric.Host = validHost
+	id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), metric.Host)
+	if found {
+		h.HostTag = data_model.TagUnion{I: id}
+		return
+	}
+	h.HostTag = data_model.TagUnion{S: string(metric.Host)}
 }
 
 // mapAllTags processes all tags in a single pass, including environment tag

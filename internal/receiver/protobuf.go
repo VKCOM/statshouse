@@ -297,6 +297,14 @@ func protobufUnmarshalStatshouseMetric(buf []byte, m *tlstatshouse.MetricBytes) 
 			m.SetHistogram(m.Histogram)
 			continue
 		}
+		if f == 8 && t == 2 {
+			var host []byte
+			if buf, err = protoReadString(buf, &host); err != nil {
+				return buf, err
+			}
+			m.SetHost(host)
+			continue
+		}
 		if buf, err = protoSkipField(buf, f, t); err != nil {
 			return buf, err
 		}

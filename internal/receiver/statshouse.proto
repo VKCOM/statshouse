@@ -16,6 +16,7 @@ message Metric {
     repeated double     value     = 5;
     repeated int64      unique    = 6;
     repeated Centroid   histogram = 7;
+    string              host      = 8;  // contributor host for min/max/max_count host
 }
 
 message MetricBatch {
