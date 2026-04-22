@@ -27,6 +27,11 @@ var ABSENT_METRIC_IDS = []int32{168, 169, 170, 281, 282, 283, 284, 285, 286, 288
 const V3_PK_COLUMNS_STR = "index_type, metric, pre_tag, pre_stag, time, tag0, stag0, tag1, stag1, tag2, stag2, tag3, stag3, tag4, stag4, tag5, stag5, tag6, stag6, tag7, stag7, tag8, stag8, tag9, stag9, tag10, stag10, tag11, stag11, tag12, stag12, tag13, stag13, tag14, stag14, tag15, stag15, tag16, stag16, tag17, stag17, tag18, stag18, tag19, stag19, tag20, stag20, tag21, stag21, tag22, stag22, tag23, stag23, tag24, stag24, tag25, stag25, tag26, stag26, tag27, stag27, tag28, stag28, tag29, stag29, tag30, stag30, tag31, stag31, tag32, stag32, tag33, stag33, tag34, stag34, tag35, stag35, tag36, stag36, tag37, stag37, tag38, stag38, tag39, stag39, tag40, stag40, tag41, stag41, tag42, stag42, tag43, stag43, tag44, stag44, tag45, stag45, tag46, stag46, tag47, stag47"
 const V3_VALUE_COLUMNS_STR = "count, min, max, max_count, sum, sumsquare, min_host, max_host, max_count_host, percentiles, uniq_state"
 
+var SKIP_METRICS = []int32{
+	144155918, // members_cache 		- large onecloud metric (broken, unsupported)
+	144157406, // one_cloud_cloud_stat 	- large onecloud metric (broken, unsupported)
+}
+
 type MigrationConfigV3 struct {
 	SourceTableName             string        // Source table name (default: "statshouse_value_dist_1h")
 	TargetTableName             string        // Destination table name (default: "statshouse_v3_1h")
@@ -213,6 +218,11 @@ func (a *Aggregator) loadMigrationData() error {
 
 func (a *Aggregator) isRelevantMetric(metricID int32) bool {
 	// assumes the metric is relevant unless possible to determine that it's not
+
+	if slices.Contains(SKIP_METRICS, metricID) {
+		return false
+	}
+
 	if metricID < 0 {
 		// builtin metrics are relevant if they're supported now (present in `format.BuiltinMetrics`)
 		// otherwise we skip them
@@ -606,7 +616,7 @@ func parseV3RowOptimized(reader *bufio.Reader, scratch []byte, row *v3Row) ([]by
 	return scratch, nil
 }
 
-func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
+func ReadUInt8(r *bufio.Reader, buf []byte, dst *uint8) ([]byte, error) {
 	buf = slices.Grow(buf, 1)[:1]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -615,7 +625,7 @@ func ReadUInt8(r io.Reader, buf []byte, dst *uint8) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadUInt32(r io.Reader, buf []byte, dst *uint32) ([]byte, error) {
+func ReadUInt32(r *bufio.Reader, buf []byte, dst *uint32) ([]byte, error) {
 	buf = slices.Grow(buf, 4)[:4]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -624,7 +634,7 @@ func ReadUInt32(r io.Reader, buf []byte, dst *uint32) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadInt32(r io.Reader, buf []byte, dst *int32) ([]byte, error) {
+func ReadInt32(r *bufio.Reader, buf []byte, dst *int32) ([]byte, error) {
 	buf = slices.Grow(buf, 4)[:4]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
@@ -633,7 +643,7 @@ func ReadInt32(r io.Reader, buf []byte, dst *int32) ([]byte, error) {
 	return buf, nil
 }
 
-func ReadFloat64(r io.Reader, buf []byte, dst *float64) ([]byte, error) {
+func ReadFloat64(r *bufio.Reader, buf []byte, dst *float64) ([]byte, error) {
 	buf = slices.Grow(buf, 8)[:8]
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return buf, err
