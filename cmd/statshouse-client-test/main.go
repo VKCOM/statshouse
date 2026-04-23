@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,16 @@ type argv struct {
 	keepTemp  bool
 	zeroTime  bool
 	network   string
+}
+
+type renderData struct {
+	testData
+	StatsHouseAddr string
+}
+
+type scenario struct {
+	name           string
+	statsHouseAddr string
 }
 
 // Consider increasing UDP receive buffer size up to 16M:
@@ -61,25 +72,46 @@ func run(args argv) int {
 }
 
 func testClient(args argv, lib *library, data any, expected series, actualC chan series) int {
+	baseData, ok := data.(testData)
+	if !ok {
+		log.Fatalf("unexpected data type: %T", data)
+	}
 	var failCount int
 	for k, v := range testTemplates(lib) {
-		log.Printf("*** %s ***\n", k)
-		if err := runClient(args, lib, v, data); err != nil {
-			failCount += fail(err)
-			continue
-		}
-		select {
-		case actual := <-actualC:
-			if diff := compareSeries(expected, actual); !diff.empty() {
-				failCount += fail(diff.String())
-			} else {
-				log.Println("*** PASSED ***")
+		for _, s := range scenariosFor(args, v) {
+			log.Printf("*** %s [%s] ***\n", k, s.name)
+			if err := runClient(args, lib, v, renderData{
+				testData:       baseData,
+				StatsHouseAddr: s.statsHouseAddr,
+			}); err != nil {
+				failCount += fail(err)
+				continue
 			}
-		case <-time.After(100 * time.Millisecond):
-			failCount += fail("TIMEOUT")
+			select {
+			case actual := <-actualC:
+				if diff := compareSeries(expected, actual); !diff.empty() {
+					failCount += fail(diff.String())
+				} else {
+					log.Println("*** PASSED ***")
+				}
+			case <-time.After(100 * time.Millisecond):
+				failCount += fail("TIMEOUT")
+			}
 		}
 	}
 	return failCount
+}
+
+func scenariosFor(args argv, templateText string) []scenario {
+	base := []scenario{{name: "default", statsHouseAddr: "127.0.0.1:13337"}}
+	if args.network != "tcp" || !strings.Contains(templateText, "StatsHouseAddr") {
+		return base
+	}
+	return []scenario{
+		{name: "default", statsHouseAddr: "127.0.0.1:13337"},
+		{name: "multi-address", statsHouseAddr: "127.0.0.1:13337,127.0.0.1:13337"},
+		{name: "dns-localhost", statsHouseAddr: "localhost:13337"},
+	}
 }
 
 func testClientT[T any](args argv, data any, expected series, actualC chan series) int {

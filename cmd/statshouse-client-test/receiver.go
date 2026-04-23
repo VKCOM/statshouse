@@ -8,10 +8,11 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/receiver"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 type series map[tags]map[uint32]*value
@@ -107,8 +108,12 @@ func listen(args argv, ch chan series) (func(), error) {
 func (s series) addMetricBytes(b *tlstatshouse.MetricBytes) {
 	tags := tags{{"", string(b.Name)}}
 	for i := 0; i < len(b.Tags); i++ {
+		key := string(b.Tags[i].Key)
+		if key == "_h" {
+			continue
+		}
 		if len(b.Tags[i].Value) != 0 {
-			tags[i+1] = tag{string(b.Tags[i].Key), string(b.Tags[i].Value)}
+			tags[i+1] = tag{key, string(b.Tags[i].Value)}
 		}
 	}
 	sort.Slice(tags[:], func(i, j int) bool {
