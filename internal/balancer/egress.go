@@ -3,7 +3,6 @@ package balancer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net"
 	"strings"
