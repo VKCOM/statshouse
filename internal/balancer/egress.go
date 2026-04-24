@@ -247,7 +247,6 @@ loop:
 			break
 		}
 		if _, err = conn.Write(pkt); err != nil {
-			fmt.Println("write error:", err)
 			s.stats.writeErrors.Add(1)
 			_ = conn.Close()
 			conn = nil
