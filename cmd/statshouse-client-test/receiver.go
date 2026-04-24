@@ -39,7 +39,7 @@ func (handler) HandleParseError(pkt []byte, err error) {
 }
 
 func (handler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
-	return receiver.NotImplementedError
+	return receiver.ErrNotImplemented
 }
 
 func listen(args argv, ch chan series) (func(), error) {

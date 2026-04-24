@@ -59,7 +59,7 @@ func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 }
 
 func (w *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
-	return receiver.NotImplementedError
+	return receiver.ErrNotImplemented
 }
 
 func mainTestParser() int {
