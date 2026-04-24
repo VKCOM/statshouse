@@ -8,6 +8,7 @@ package receiver
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"go.uber.org/atomic"
@@ -30,7 +31,7 @@ const (
 	// protobuf (13337): 0x99, 0x68 (next one will be 0x9a, 0x9b, etc.)
 )
 
-var NotImplementedError = errors.New("not implemented")
+var NotImplementedError = fmt.Errorf("not implemented")
 
 type Handler interface {
 	HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error // if NotImplementedError will use HandleMetrics
