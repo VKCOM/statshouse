@@ -22,11 +22,13 @@ install -m 755 %{_topdir}/target/statshouse %{buildroot}/usr/share/engine/bin
 install -m 755 %{_topdir}/target/statshouse-metadata %{buildroot}/usr/share/engine/bin
 install -m 755 %{_topdir}/target/statshouse-igp %{buildroot}/usr/share/engine/bin
 install -m 755 %{_topdir}/target/statshouse-agg %{buildroot}/usr/share/engine/bin
+install -m 755 %{_topdir}/target/statshouse-balancer %{buildroot}/usr/share/engine/bin
 cp -a %{_topdir}/statshouse-ui/build/* %{buildroot}/usr/lib/statshouse-api/statshouse-ui/
 install -m 0644 %{_topdir}/cmd/statshouse-api/statshouse-api.service %{buildroot}/usr/lib/systemd/system/
 install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/
 install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-igp.service
 install -m 0644 %{_topdir}/cmd/statshouse/statshouse.service %{buildroot}/usr/lib/systemd/system/statshouse-agg.service
+install -m 0644 %{_topdir}/cmd/statshouse-balancer/statshouse-balancer.service %{buildroot}/usr/lib/systemd/system/
 
 ADDR="$STATSHOUSE_AGG_ADDR"; \
 if [ -z "$ADDR" ]; then \
@@ -73,3 +75,10 @@ Summary: Provides aggregator for StatsHouse.
 %files agg
 /usr/share/engine/bin/statshouse-agg
 /usr/lib/systemd/system/statshouse-agg.service
+
+%package balancer
+Summary: Provides lightweight metric balancer for StatsHouse.
+%description balancer
+%files balancer
+/usr/share/engine/bin/statshouse-balancer
+/usr/lib/systemd/system/statshouse-balancer.service

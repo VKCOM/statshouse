@@ -18,6 +18,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
+	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
 type worker struct {
@@ -134,4 +135,8 @@ func (w *worker) printMetric(cachedString string, m tlstatshouse.MetricBytes, h 
 			w.logPackets("Mapped metric (%s): %#s\n    %#v\n", cachedString, m, h)
 		}
 	}
+}
+
+func (w *worker) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
+	return receiver.NotImplementedError
 }

@@ -35,3 +35,8 @@ Package: statshouse-agg
 Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: statshouse-agg provides the Aggregator daemon of the StatsHouse monitoring system.
+
+Package: statshouse-balancer
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse-balancer provides a lightweight routing balancer for the StatsHouse monitoring system.

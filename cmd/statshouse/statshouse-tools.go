@@ -28,6 +28,8 @@ import (
 
 	"github.com/mailru/easyjson"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
@@ -37,7 +39,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/receiver"
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 func mainBenchmarks() int {
@@ -55,6 +56,10 @@ func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model
 
 func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 	log.Printf("Error parsing packet: %v\n", err)
+}
+
+func (w *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
+	return receiver.NotImplementedError
 }
 
 func mainTestParser() int {
