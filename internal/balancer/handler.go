@@ -164,9 +164,13 @@ func ensureHostTag(m *tlstatshouse.MetricBytes, hostTag []byte) {
 			return
 		}
 	}
+	appendMetricTag(m, hostTagKey, hostTag)
+}
+
+func appendMetricTag(m *tlstatshouse.MetricBytes, tag []byte, value []byte) {
 	m.Tags = append(m.Tags, tl.DictFieldStringStringBytes{
-		Key:   hostTagKey,
-		Value: hostTag,
+		Key:   tag,
+		Value: value,
 	})
 }
 
