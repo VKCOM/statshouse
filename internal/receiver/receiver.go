@@ -7,6 +7,7 @@
 package receiver
 
 import (
+	"errors"
 	"strings"
 
 	"go.uber.org/atomic"
@@ -29,7 +30,10 @@ const (
 	// protobuf (13337): 0x99, 0x68 (next one will be 0x9a, 0x9b, etc.)
 )
 
+var ErrNotImplemented = errors.New("not implemented")
+
 type Handler interface {
+	HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error // if ErrNotImplemented will use HandleMetrics
 	HandleMetrics(data_model.HandlerArgs) data_model.MappedMetricHeader
 	HandleParseError([]byte, error)
 }
@@ -50,6 +54,10 @@ func (c CallbackHandler) HandleParseError(pkt []byte, err error) {
 	if c.ParseError != nil {
 		c.ParseError(pkt, err)
 	}
+}
+
+func (c CallbackHandler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
+	return ErrNotImplemented
 }
 
 type parser struct {
@@ -240,6 +248,9 @@ func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *t
 		return false
 	}
 	u.statBatchesTotalOK.Inc()
+	if err := handler.HandleMetricsBatch(b, scratch); !errors.Is(err, ErrNotImplemented) {
+		return true // not use ingestion for batch
+	}
 	for i := range b.Metrics {
 		h := handler.HandleMetrics(data_model.HandlerArgs{
 			MetricBytes: &b.Metrics[i],

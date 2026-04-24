@@ -21,13 +21,13 @@ COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(
 COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 
 .PHONY: all build-go build-ui \
-	build-sh build-sh-api build-sh-api-noembed build-sh-metadata build-sh-grafana \
+	build-sh build-sh-api build-sh-api-noembed build-sh-metadata build-sh-grafana build-sh-balancer \
 	build-sh-ui build-grafana-ui
 
 all: build-ui build-go # order important
-build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-igp build-agg
+build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana build-sh-balancer build-igp build-agg
 build-ui: build-sh-ui build-grafana-ui
-build-main-daemons: build-sh build-sh-api build-sh-metadata build-igp build-agg
+build-main-daemons: build-sh build-sh-api build-sh-metadata build-sh-balancer build-igp build-agg
 
 # to build tools for running on adm512, disable cgo
 # CGO_ENABLED=0 go build ...
@@ -53,6 +53,9 @@ build-agg:
 
 build-sh-grafana:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-grafana-plugin ./cmd/statshouse-grafana-plugin
+
+build-sh-balancer:
+	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-balancer ./cmd/statshouse-balancer
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
