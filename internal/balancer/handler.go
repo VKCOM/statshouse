@@ -58,7 +58,7 @@ func newHandler(cfg HandlerConfig, e *Egress) *handler {
 		egress:         e,
 		connSem:        semaphore.NewWeighted(int64(cfg.QueueSize)),
 		pktRing:        newPktRing(cfg.QueueSize + 4),
-		reportInterval: 10 * time.Second,
+		reportInterval: 45 * time.Second,
 		stopReport:     make(chan struct{}),
 	}
 	go h.reportLoop()
