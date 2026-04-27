@@ -28,6 +28,7 @@ const V3_PK_COLUMNS_STR = "index_type, metric, pre_tag, pre_stag, time, tag0, st
 const V3_VALUE_COLUMNS_STR = "count, min, max, max_count, sum, sumsquare, min_host, max_host, max_count_host, percentiles, uniq_state"
 
 var SKIP_METRICS = []int32{
+	0,         // invalid metric number, present in v3 table in shard 1
 	144155918, // members_cache 		- large onecloud metric (broken, unsupported)
 	144157406, // one_cloud_cloud_stat 	- large onecloud metric (broken, unsupported)
 }
