@@ -7,11 +7,12 @@
 package agent
 
 import (
+	"go4.org/mem"
+
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"go4.org/mem"
 )
 
 func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeader, autoCreate *data_model.AutoCreate) {
@@ -70,6 +71,16 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		if tagMeta.Index != format.HostTagIndex { // This tag is not part of resolution hash, so not placed into OriginalTagValues
 			h.OriginalTagValues[tagMeta.Index] = v.Value
 		}
+	}
+	if !h.IsHKeySet && metric.IsSetHost() {
+		var tagValue data_model.TagUnion
+		id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), metric.Host)
+		if found {
+			tagValue.I = id
+		} else {
+			tagValue.S = string(metric.Host) // allocates on failed mapping only
+		}
+		h.SetTag(format.HostTagIndex, tagValue, 0)
 	}
 }
 

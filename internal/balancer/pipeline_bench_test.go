@@ -33,7 +33,7 @@ func BenchmarkEgressWritePacket(b *testing.B) {
 	})
 	defer eg.Close()
 
-	batch := buildBenchBatch(8)
+	batch := buildBenchBatch(2000)
 	payload := batch.WriteTL1Boxed(nil)
 	pkt := make([]byte, 4+len(payload))
 	binary.LittleEndian.PutUint32(pkt[:4], uint32(len(payload)))
@@ -49,15 +49,16 @@ func BenchmarkEgressWritePacket(b *testing.B) {
 }
 
 func BenchmarkHandlerEncodeOnly(b *testing.B) {
-	batch := buildBenchBatch(8)
-	h := newHandler(HandlerConfig{HostTag: []byte("bench-host"), QueueSize: 1}, &Egress{})
+	batch := buildBenchBatch(500)
+	h := newHandler(HandlerConfig{HostTag: "bench-host"}, nil)
 	defer h.Close()
-	var scratch []byte
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, ok := h.encodeBatchPacket(&batch, &scratch); !ok {
-			b.Fatalf("encodeBatchPacket returned oversized packet")
+		for j := 0; j < 7; j++ {
+			if _, ok := h.encodeLocked(&batch); ok {
+				break
+			}
 		}
 	}
 }

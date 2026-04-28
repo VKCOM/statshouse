@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -29,6 +30,7 @@ var argv struct {
 }
 
 func main() {
+	runtime.GOMAXPROCS(1)
 	parseFlags()
 	if argv.pprofListenAddr != "" {
 		go func() {
@@ -51,9 +53,7 @@ func main() {
 			Network:            "tcp",
 			DNSRefreshInterval: time.Duration(argv.dnsRefreshSeconds) * time.Second,
 		},
-		Handler: balancer.HandlerConfig{
-			QueueSize: argv.queueSize,
-		},
+		Handler: balancer.HandlerConfig{},
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -75,7 +75,7 @@ func main() {
 }
 
 func parseFlags() {
-	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13337", "comma-separated upstream agent tcp addresses or DNS names")
+	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13338,127.0.0.1:13338", "comma-separated upstream agent tcp addresses or DNS names")
 	flag.StringVar(&argv.hostName, "hostname", "", "override auto-detected host tag (_h)")
 	flag.StringVar(&argv.listenUDP4, "listen-udp4", ":13337", "udp4 listen address")
 	flag.StringVar(&argv.listenUDP6, "listen-udp6", "", "udp6 listen address")

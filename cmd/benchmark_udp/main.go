@@ -68,7 +68,7 @@ func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 	w.errors.Inc()
 }
 
-func (p *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, *[]byte) error {
+func (p *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
 	return receiver.ErrNotImplemented
 }
 
