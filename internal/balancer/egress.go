@@ -23,6 +23,7 @@ const (
 )
 
 var errWouldBlock = errors.New("would block")
+var errNoAddress = errors.New("no resolved upstream addresses")
 
 type EgressConfig struct {
 	Network            string
@@ -93,7 +94,7 @@ func NewEgress(cfg EgressConfig) *Egress {
 		closed:    make(chan struct{}),
 	}
 	go e.pool.runDNSRefresh(cfg, &e.stats)
-	time.Sleep(5 * time.Second) // time to connect
+	time.Sleep(2 * time.Second) // time to connect
 	return e
 }
 
@@ -250,7 +251,9 @@ loop:
 			lastDial = time.Now()
 			conn, err = s.reconnect()
 			if err != nil {
-				s.stats.reconnectErrors.Add(1)
+				if !errors.Is(err, errNoAddress) {
+					s.stats.reconnectErrors.Add(1)
+				}
 				continue
 			}
 		}
@@ -315,7 +318,7 @@ func (s *tcpSender) reconnect() (net.Conn, error) {
 	addr, ok := s.pool.pick()
 	s.poolMu.Unlock()
 	if !ok {
-		return nil, errors.New("no resolved upstream addresses")
+		return nil, errNoAddress
 	}
 	conn, err := (&net.Dialer{Timeout: s.cfg.DialTimeout}).Dial("tcp", addr)
 	if err != nil {

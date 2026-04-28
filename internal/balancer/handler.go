@@ -38,24 +38,21 @@ type handler struct {
 
 	parseErrs uint64
 
-	sendInterval   time.Duration
-	reportInterval time.Duration
-	stop           chan struct{}
+	sendInterval time.Duration
+	stop         chan struct{}
 }
 
 func newHandler(cfg HandlerConfig, e *Egress) *handler {
 	h := &handler{
-		cfg:            cfg,
-		egress:         e,
-		sendInterval:   4 * time.Second,
-		reportInterval: 45 * time.Second,
-		stop:           make(chan struct{}),
+		cfg:          cfg,
+		egress:       e,
+		sendInterval: 4 * time.Second,
+		stop:         make(chan struct{}),
 	}
 	for i := range h.ring {
 		h.ring[i] = make([]byte, pktHeadLen, pktFrameMax*2)
 	}
 	go h.sendLoop()
-	go h.reportLoop()
 	return h
 }
 
@@ -65,10 +62,6 @@ func (h *handler) Close() {
 
 	if h.egress != nil {
 		h.flushLocked(h.shiftRingLocked(-1))
-		es := h.egress.Stats()
-		log.Printf("balancer stats: fwd=%d drop=%d parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
-			es.ForwardedPackets, es.DroppedPackets, h.parseErrs,
-			es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 	}
 	close(h.stop)
 }
@@ -225,23 +218,6 @@ func (h *handler) sendLoop() {
 				}
 				h.flushLocked(h.shiftRingLocked(-1))
 			}()
-		}
-	}
-}
-
-func (h *handler) reportLoop() {
-	t := time.NewTicker(h.reportInterval)
-	defer t.Stop()
-	for {
-		select {
-		case <-h.stop:
-			return
-		case <-t.C:
-			hs := h.Stats()
-			es := h.egress.Stats()
-			log.Printf("balancer stats: fwd=%d drop=%d parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
-				es.ForwardedPackets, es.DroppedPackets, hs.ParseErrors,
-				es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 		}
 	}
 }

@@ -8,7 +8,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -25,12 +24,11 @@ var argv struct {
 	coresUDP          int
 	udpBufferSize     int
 	dnsRefreshSeconds int
-	queueSize         int
+	workerCount       int
 	pprofListenAddr   string
 }
 
 func main() {
-	runtime.GOMAXPROCS(1)
 	parseFlags()
 	if argv.pprofListenAddr != "" {
 		go func() {
@@ -48,6 +46,7 @@ func main() {
 		ListenUnixgram: argv.listenUnixgram,
 		ListenTCP:      argv.listenTCP,
 		CoresUDP:       argv.coresUDP,
+		WorkerCount:    argv.workerCount,
 		UDPBufferSize:  argv.udpBufferSize,
 		Egress: balancer.EgressConfig{
 			Network:            "tcp",
@@ -75,7 +74,7 @@ func main() {
 }
 
 func parseFlags() {
-	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13338,127.0.0.1:13338", "comma-separated upstream agent tcp addresses or DNS names")
+	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13338", "comma-separated upstream agent tcp addresses or DNS names")
 	flag.StringVar(&argv.hostName, "hostname", "", "override auto-detected host tag (_h)")
 	flag.StringVar(&argv.listenUDP4, "listen-udp4", ":13337", "udp4 listen address")
 	flag.StringVar(&argv.listenUDP6, "listen-udp6", "", "udp6 listen address")
@@ -84,7 +83,7 @@ func parseFlags() {
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.udpBufferSize, "buffer-size-udp", 16*1024*1024, "udp receive buffer size")
 	flag.IntVar(&argv.dnsRefreshSeconds, "dns-refresh-seconds", 60, "upstream dns refresh interval in seconds")
-	flag.IntVar(&argv.queueSize, "queue-size", 1, "bounded queue size for handler")
+	flag.IntVar(&argv.workerCount, "worker-count", 1, "balancer count as worker, for traffic boost (x2 count => x2 resources)")
 	flag.StringVar(&argv.pprofListenAddr, "pprof-listen", "", "pprof listen address (disabled when empty)")
 	flag.Parse()
 	if argv.coresUDP < 0 {
