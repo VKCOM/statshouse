@@ -121,7 +121,7 @@ func (h *handler) flushLocked(pkt []byte) {
 	if ok := h.egress.WritePacket(pkt); !ok {
 		// pkt not send, reuse to avoid bitting tail
 		prev := (h.ringI + len(h.ring) - 1) % pktRingLen
-		h.ring[prev], h.ring[h.ringI] = h.ring[prev], h.ring[h.ringI] // swap, not lose extra data
+		h.ring[prev], h.ring[h.ringI] = h.ring[h.ringI], h.ring[prev] // swap, not lose extra data
 		h.ringI = prev
 
 		h.lastSend = time.Now()
