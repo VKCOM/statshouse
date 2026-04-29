@@ -20,6 +20,7 @@ var argv struct {
 	listenUDP4        string
 	listenUDP6        string
 	listenUnixgram    string
+	listenUnix        string
 	listenTCP         string
 	coresUDP          int
 	udpBufferSize     int
@@ -67,6 +68,7 @@ func main() {
 		ListenUDP4:     argv.listenUDP4,
 		ListenUDP6:     argv.listenUDP6,
 		ListenUnixgram: argv.listenUnixgram,
+		ListenUnix:     argv.listenUnix,
 		ListenTCP:      argv.listenTCP,
 		CoresUDP:       argv.coresUDP,
 		WorkerCount:    argv.workerCount,
@@ -102,6 +104,7 @@ func parseFlags() {
 	flag.StringVar(&argv.listenUDP4, "listen-udp4", ":13337", "udp4 listen address")
 	flag.StringVar(&argv.listenUDP6, "listen-udp6", "", "udp6 listen address")
 	flag.StringVar(&argv.listenUnixgram, "listen-unixgram", "", "unixgram listen path")
+	flag.StringVar(&argv.listenUnix, "listen-unix", "", "unix stream listen path for raw TCP protocol")
 	flag.StringVar(&argv.listenTCP, "listen-tcp", ":13337", "shared tcp listen address for raw TCP, HTTP and RPC (agent-compatible)")
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.udpBufferSize, "buffer-size-udp", 16*1024*1024, "udp receive buffer size")

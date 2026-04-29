@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,8 +42,9 @@ type benchEnv struct {
 	upstreamLn net.Listener
 	upstreamWG sync.WaitGroup
 
-	tcpAddr string
-	udpAddr string
+	tcpAddr  string
+	udpAddr  string
+	unixAddr string
 }
 
 /*
@@ -49,6 +52,8 @@ BenchmarkBalancerIngress/udp
 BenchmarkBalancerIngress/udp-14         	  510726	      2340 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngress/tcp
 BenchmarkBalancerIngress/tcp-14         	  586720	      2300 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBalancerIngress/unix
+BenchmarkBalancerIngress/unix-14        	 1796196	       733.0 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngress/http
 BenchmarkBalancerIngress/http-14        	   30430	     39075 ns/op	    9314 B/op	      95 allocs/op
 BenchmarkBalancerIngress/rpc
@@ -94,6 +99,19 @@ func BenchmarkBalancerIngress(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if _, err := conn.Write(framed); err != nil {
 				b.Fatalf("write tcp frame: %v", err)
+			}
+		}
+	})
+
+	b.Run("unix", func(b *testing.B) {
+		conn := dialConn(b, "unix", env.unixAddr, "unix")
+		defer conn.Close()
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := conn.Write(framed); err != nil {
+				b.Fatalf("write unix frame: %v", err)
 			}
 		}
 	})
@@ -151,6 +169,8 @@ func BenchmarkBalancerIngress(b *testing.B) {
 BenchmarkBalancerIngressParallel/udp_parallel-14         	  754440	      1618 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngressParallel/tcp_parallel
 BenchmarkBalancerIngressParallel/tcp_parallel-14         	  763030	      5706 ns/op	       3 B/op	       0 allocs/op
+BenchmarkBalancerIngressParallel/unix_parallel
+BenchmarkBalancerIngressParallel/unix_parallel-14        	 1000000	      1200 ns/op	       1 B/op	       0 allocs/op
 BenchmarkBalancerIngressParallel/http_parallel
 BenchmarkBalancerIngressParallel/http_parallel-14        	   94917	     13483 ns/op	    8327 B/op	      95 allocs/op
 BenchmarkBalancerIngressParallel/rpc_parallel
@@ -188,19 +208,26 @@ func BenchmarkBalancerIngressParallel(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
-			conn, err := net.Dial("tcp", env.tcpAddr)
-			if err != nil {
-				b.Errorf("dial tcp: %v", err)
-				return
-			}
+			conn := dialPrefixedConn(b, "tcp", env.tcpAddr, "tcp")
 			defer conn.Close()
-			if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
-				b.Errorf("write tcp prefix: %v", err)
-				return
-			}
 			for pb.Next() {
 				if _, err := conn.Write(framed); err != nil {
 					b.Errorf("write tcp frame: %v", err)
+					return
+				}
+			}
+		})
+	})
+
+	b.Run("unix_parallel", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			conn := dialConn(b, "unix", env.unixAddr, "unix")
+			defer conn.Close()
+			for pb.Next() {
+				if _, err := conn.Write(framed); err != nil {
+					b.Errorf("write unix frame: %v", err)
 					return
 				}
 			}
@@ -277,6 +304,12 @@ BenchmarkBalancerMatrix/size_matrix/tcp_4096
 BenchmarkBalancerMatrix/size_matrix/tcp_4096-14         	  179566	      6957 ns/op	 587.00 MB/s	       2 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_32768
 BenchmarkBalancerMatrix/size_matrix/tcp_32768-14        	   22192	     53904 ns/op	 607.38 MB/s	      21 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/unix_256
+BenchmarkBalancerMatrix/size_matrix/unix_256-14         	 1626412	       747.0 ns/op	 326.63 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/unix_4096
+BenchmarkBalancerMatrix/size_matrix/unix_4096-14        	  155794	      7692 ns/op	 530.91 MB/s	       2 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/unix_32768
+BenchmarkBalancerMatrix/size_matrix/unix_32768-14       	   17059	     69837 ns/op	 468.81 MB/s	      23 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/mixed_traffic
 BenchmarkBalancerMatrix/mixed_traffic-14                	  211308	      5384 ns/op	     266 B/op	       2 allocs/op
 BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_1
@@ -332,6 +365,23 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					if _, err := conn.Write(framed); err != nil {
 						b.Fatalf("write tcp frame: %v", err)
+					}
+				}
+			})
+		}
+		for _, sz := range []int{256, 4096, 32768} {
+			sz := sz
+			b.Run("unix_"+strconv.Itoa(sz), func(b *testing.B) {
+				payload := buildTLPacketPayloadSized(sz)
+				framed := framePacket(payload)
+				conn := dialConn(b, "unix", env.unixAddr, "unix")
+				defer conn.Close()
+				b.SetBytes(int64(len(framed)))
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if _, err := conn.Write(framed); err != nil {
+						b.Fatalf("write unix frame: %v", err)
 					}
 				}
 			})
@@ -552,11 +602,13 @@ func newBenchEnv(tb testing.TB) *benchEnv {
 	}
 	port := mustFreeTCPPort(tb)
 	listen := "127.0.0.1:" + strconv.Itoa(port)
+	unixListen := filepath.Join(os.TempDir(), "shb-"+strconv.Itoa(os.Getpid())+"-"+strconv.FormatInt(time.Now().UnixNano(), 10)+".sock")
 
 	cfg := balancer.Config{
 		UpstreamAddr:   upstreamLn.Addr().String(),
 		ListenUDP4:     listen,
 		ListenTCP:      listen,
+		ListenUnix:     unixListen,
 		UDPBufferSize:  4 * 1024 * 1024,
 		CoresUDP:       1,
 		ListenUDP6:     "",
@@ -579,6 +631,7 @@ func newBenchEnv(tb testing.TB) *benchEnv {
 		upstreamLn: upstreamLn,
 		tcpAddr:    listen,
 		udpAddr:    listen,
+		unixAddr:   unixListen,
 	}
 
 	env.upstreamWG.Add(1)
@@ -596,11 +649,33 @@ func newBenchEnv(tb testing.TB) *benchEnv {
 	return env
 }
 
+func dialPrefixedConn(tb testing.TB, network, addr, label string) net.Conn {
+	tb.Helper()
+	conn := dialConn(tb, network, addr, label)
+	if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+		_ = conn.Close()
+		tb.Fatalf("write %s prefix: %v", label, err)
+	}
+	return conn
+}
+
+func dialConn(tb testing.TB, network, addr, label string) net.Conn {
+	tb.Helper()
+	conn, err := net.Dial(network, addr)
+	if err != nil {
+		tb.Fatalf("dial %s: %v", label, err)
+	}
+	return conn
+}
+
 func (e *benchEnv) Close(tb testing.TB) {
 	tb.Helper()
 	e.cancel()
 	_ = e.svc.Close()
 	_ = e.upstreamLn.Close()
+	if e.unixAddr != "" {
+		_ = os.Remove(e.unixAddr)
+	}
 	e.wg.Wait()
 	e.upstreamWG.Wait()
 }

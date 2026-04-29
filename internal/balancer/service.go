@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type Config struct {
 	ListenUDP4     string
 	ListenUDP6     string
 	ListenUnixgram string
+	ListenUnix     string
 	ListenTCP      string
 
 	UDPBufferSize int
@@ -40,6 +42,7 @@ type Service struct {
 
 	udpReceivers []*receiver.UDP
 	tcpReceiver  *receiver.TCP
+	unixReceiver *receiver.TCP
 	httpReceiver *receiver.HTTP
 	hijackTCP    *rpc.HijackListener
 	hijackHTTP   *rpc.HijackListener
@@ -98,6 +101,9 @@ func (s *Service) Close() error {
 	}
 	if s.tcpReceiver != nil {
 		closeErr = errors.Join(closeErr, s.tcpReceiver.Close())
+	}
+	if s.unixReceiver != nil {
+		closeErr = errors.Join(closeErr, s.unixReceiver.Close())
 	}
 	if s.hijackTCP != nil {
 		closeErr = errors.Join(closeErr, s.hijackTCP.Close())
@@ -165,6 +171,9 @@ func (s *Service) startUDP() error {
 }
 
 func (s *Service) startTCPStack() error {
+	if err := s.startUnixStream(); err != nil {
+		return err
+	}
 	if s.cfg.ListenTCP == "" {
 		return nil
 	}
@@ -212,6 +221,28 @@ func (s *Service) startTCPStack() error {
 		}
 	}()
 	log.Printf("listening udp/tcp/http/rpc on shared port %s", s.cfg.ListenTCP)
+	return nil
+}
+
+func (s *Service) startUnixStream() error {
+	if s.cfg.ListenUnix == "" {
+		return nil
+	}
+	s.unixReceiver = receiver.NewTCPReceiver(nil, nil)
+	_ = os.Remove(s.cfg.ListenUnix)
+	ln, err := net.Listen("unix", s.cfg.ListenUnix)
+	if err != nil {
+		return err
+	}
+	s.listeners = append(s.listeners, ln)
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		if err := s.unixReceiver.Serve(s.pool, ln); err != nil {
+			log.Printf("unix receiver failed: %v", err)
+		}
+	}()
+	log.Printf("listening unix on %s", s.cfg.ListenUnix)
 	return nil
 }
 
