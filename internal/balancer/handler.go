@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	pktRingLen   = 5 // 1 for handler, 2 for tcpSender[2], 2 for processing in tunnel
+	pktRingLen   = 4 // 2 (cur + next pkt) for handler, 2 for tcpSender[2]
 	pktHeadLen   = 4
 	pktBodyMax   = 65535
 	pktFrameMax  = pktHeadLen + pktBodyMax
@@ -82,7 +82,7 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 	defer h.mu.Unlock()
 
 	// we use field_mask instead of _h tag because:
-	// - no need for range tags
+	// - no need for range tags + zero allocs
 	// - append(tag[_h]) spoiled full batch data, reading was incorrect
 	// - in case when metric=20b, host=128b => 65535b raise to 490kb (lose traffic speed)
 	batch.SetHost(h.cfg.HostTag)
@@ -115,10 +115,15 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 }
 
 func (h *handler) flushLocked(pkt []byte) {
-	if len(pkt) == 0 {
+	if len(pkt) <= pktHeadLen {
 		return
 	}
 	if ok := h.egress.WritePacket(pkt); !ok {
+		// pkt not send, reuse to avoid bitting tail
+		prev := (h.ringI + len(h.ring) - 1) % pktRingLen
+		h.ring[prev], h.ring[h.ringI] = h.ring[prev], h.ring[h.ringI] // swap, not lose extra data
+		h.ringI = prev
+
 		h.lastSend = time.Now()
 		return
 	}
