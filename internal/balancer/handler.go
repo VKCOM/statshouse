@@ -24,7 +24,7 @@ type handlerStats struct {
 }
 
 type HandlerConfig struct {
-	HostTag string
+	HostTag []byte
 }
 
 type handler struct {
@@ -85,7 +85,7 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 	// - no need for range tags
 	// - append(tag[_h]) spoiled full batch data, reading was incorrect
 	// - in case when metric=20b, host=128b => 65535b raise to 490kb (lose traffic speed)
-	batch.SetHost([]byte(h.cfg.HostTag))
+	batch.SetHost(h.cfg.HostTag)
 	if size+len(h.cfg.HostTag) <= pktBodyMax {
 		if pkt, ok := h.encodeLocked(batch); ok {
 			h.flushLocked(pkt)

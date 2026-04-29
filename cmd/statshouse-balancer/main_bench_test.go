@@ -46,15 +46,15 @@ type benchEnv struct {
 
 /*
 BenchmarkBalancerIngress/udp
-BenchmarkBalancerIngress/udp-14         	  535232	      2358 ns/op	      16 B/op	       1 allocs/op
+BenchmarkBalancerIngress/udp-14         	  510726	      2340 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngress/tcp
-BenchmarkBalancerIngress/tcp-14         	  544560	      2238 ns/op	      16 B/op	       1 allocs/op
+BenchmarkBalancerIngress/tcp-14         	  586720	      2300 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngress/http
-BenchmarkBalancerIngress/http-14        	   30120	     38804 ns/op	    9132 B/op	      96 allocs/op
+BenchmarkBalancerIngress/http-14        	   30430	     39075 ns/op	    9314 B/op	      95 allocs/op
 BenchmarkBalancerIngress/rpc
-BenchmarkBalancerIngress/rpc-14         	   52509	     22517 ns/op	      20 B/op	       1 allocs/op
+BenchmarkBalancerIngress/rpc-14         	   53305	     22187 ns/op	       4 B/op	       0 allocs/op
 
-2026/04/28 23:32:33 balancer stats: fwd=1858 drop=0 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
+2026/04/28 23:32:33 balancer stats: fwd=1305 drop=0 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */
 func BenchmarkBalancerIngress(b *testing.B) {
 	env := newBenchEnv(b)
@@ -148,14 +148,13 @@ func BenchmarkBalancerIngress(b *testing.B) {
 }
 
 /*
-BenchmarkBalancerIngressParallel/udp_parallel
-BenchmarkBalancerIngressParallel/udp_parallel-14         	  764084	      1607 ns/op	       9 B/op	       0 allocs/op
+BenchmarkBalancerIngressParallel/udp_parallel-14         	  754440	      1618 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngressParallel/tcp_parallel
-BenchmarkBalancerIngressParallel/tcp_parallel-14         	  715502	      5300 ns/op	      19 B/op	       1 allocs/op
+BenchmarkBalancerIngressParallel/tcp_parallel-14         	  763030	      5706 ns/op	       3 B/op	       0 allocs/op
 BenchmarkBalancerIngressParallel/http_parallel
-BenchmarkBalancerIngressParallel/http_parallel-14        	   89264	     14040 ns/op	    8348 B/op	      96 allocs/op
+BenchmarkBalancerIngressParallel/http_parallel-14        	   94917	     13483 ns/op	    8327 B/op	      95 allocs/op
 BenchmarkBalancerIngressParallel/rpc_parallel
-BenchmarkBalancerIngressParallel/rpc_parallel-14         	   77694	     15792 ns/op	     130 B/op	       1 allocs/op
+BenchmarkBalancerIngressParallel/rpc_parallel-14         	   72444	     16507 ns/op	     122 B/op	       0 allocs/op
 
 2026/04/29 11:33:58 balancer stats: fwd=325 drop=1330 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */
@@ -267,28 +266,27 @@ func BenchmarkBalancerIngressParallel(b *testing.B) {
 
 /*
 BenchmarkBalancerMatrix/size_matrix/udp_256
-BenchmarkBalancerMatrix/size_matrix/udp_256-14 	  522808	      2285 ns/op	 105.04 MB/s	      81 B/op	       5 allocs/op
+BenchmarkBalancerMatrix/size_matrix/udp_256-14 	  503002	      2396 ns/op	 100.16 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/udp_4096
-BenchmarkBalancerMatrix/size_matrix/udp_4096-14         	  406222	      2659 ns/op	1534.14 MB/s	     380 B/op	      23 allocs/op
+BenchmarkBalancerMatrix/size_matrix/udp_4096-14         	  431659	      2641 ns/op	1545.14 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/udp_8192
-BenchmarkBalancerMatrix/size_matrix/udp_8192-14         	  459566	      2641 ns/op	3090.28 MB/s	     420 B/op	      25 allocs/op
+BenchmarkBalancerMatrix/size_matrix/udp_8192-14         	  450151	      2626 ns/op	3107.54 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_256
-BenchmarkBalancerMatrix/size_matrix/tcp_256-14          	  542650	      2342 ns/op	 104.20 MB/s	      81 B/op	       5 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_256-14          	  569742	      2437 ns/op	 100.11 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_4096
-BenchmarkBalancerMatrix/size_matrix/tcp_4096-14         	  157726	      7833 ns/op	 521.41 MB/s	    1381 B/op	      85 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_4096-14         	  179566	      6957 ns/op	 587.00 MB/s	       2 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_32768
-BenchmarkBalancerMatrix/size_matrix/tcp_32768-14        	   19376	     62202 ns/op	 526.35 MB/s	   11068 B/op	     682 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_32768-14        	   22192	     53904 ns/op	 607.38 MB/s	      21 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/mixed_traffic
-BenchmarkBalancerMatrix/mixed_traffic-14                	  199305	      5497 ns/op	     293 B/op	       3 allocs/op
-BenchmarkBalancerMatrix/scaling_tcp_parallelism
+BenchmarkBalancerMatrix/mixed_traffic-14                	  211308	      5384 ns/op	     266 B/op	       2 allocs/op
 BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_1
-BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_1-14  	  716604	      5479 ns/op	      19 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_1-14  	  650701	      5395 ns/op	       4 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_4
-BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_4-14  	  645045	      2687 ns/op	      40 B/op	       1 allocs/op
+BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_4-14  	  245596	      4244 ns/op	      39 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_16
-BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_16-14 	  343081	      3815 ns/op	     161 B/op	       1 allocs/op
+BenchmarkBalancerMatrix/scaling_tcp_parallelism/p_16-14 	  508548	      2534 ns/op	      78 B/op	       0 allocs/op
 
-2026/04/29 11:30:31 balancer stats: fwd=67923 drop=1076 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
+2026/04/29 12:06:23 balancer stats: fwd=65226 drop=1567 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */
 func BenchmarkBalancerMatrix(b *testing.B) {
 	env := newBenchEnv(b)
@@ -440,7 +438,7 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 /*
 go test ./cmd/statshouse-balancer -run '^$' -bench BenchmarkBalancerSubscribers -benchmem -benchtime=15s -count=2
 
-	15        1065872656 ns/op           0.00 MB/s            14.99 batches/s     9776 B/op         45 allocs/op
+	15        1065573839 ns/op           0.00 MB/s            14.06 batches/s     9357 B/op         30 allocs/op
 
 2026/04/28 23:36:27 balancer stats: fwd=2 drop=0 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */

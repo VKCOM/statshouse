@@ -53,7 +53,7 @@ type Service struct {
 func New(cfg Config) (*Service, error) {
 	cfg.fillDefaults()
 	hostTag := detectHostTag(cfg.HostName)
-	cfg.Handler.HostTag = hostTag
+	cfg.Handler.HostTag = []byte(hostTag)
 	cfg.Egress.Address = cfg.UpstreamAddr
 	cfg.Egress.HostTag = hostTag
 

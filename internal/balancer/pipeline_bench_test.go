@@ -50,7 +50,7 @@ func BenchmarkEgressWritePacket(b *testing.B) {
 
 func BenchmarkHandlerEncodeOnly(b *testing.B) {
 	batch := buildBenchBatch(500)
-	h := newHandler(HandlerConfig{HostTag: "bench-host"}, nil)
+	h := newHandler(HandlerConfig{HostTag: []byte("bench-host")}, nil)
 	defer h.Close()
 	b.ReportAllocs()
 	b.ResetTimer()
