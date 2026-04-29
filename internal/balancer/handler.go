@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	pktRingLen  = 3
-	pktHeadLen  = 4
-	pktBodyMax  = 65535
-	pktFrameMax = pktHeadLen + pktBodyMax
+	pktRingLen   = 5 // 1 for handler, 2 for tcpSender[2], 2 for processing in tunnel
+	pktHeadLen   = 4
+	pktBodyMax   = 65535
+	pktFrameMax  = pktHeadLen + pktBodyMax
+	sendInterval = 4 * time.Second // guaranteed send for small traffic
 )
 
 type handlerStats struct {
@@ -32,7 +33,7 @@ type handler struct {
 	mu     sync.Mutex
 
 	ringI    int
-	ring     [pktRingLen][]byte
+	ring     [pktRingLen][]byte // we don't know when prev pkt becomes free, so we can't make stack for L1 cache
 	scratch  tlstatshouse.AddMetricsBatchBytes
 	lastSend time.Time
 
@@ -46,7 +47,7 @@ func newHandler(cfg HandlerConfig, e *Egress) *handler {
 	h := &handler{
 		cfg:          cfg,
 		egress:       e,
-		sendInterval: 4 * time.Second,
+		sendInterval: sendInterval,
 		stop:         make(chan struct{}),
 	}
 	for i := range h.ring {
@@ -80,6 +81,10 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// we use field_mask instead of _h tag because:
+	// - no need for range tags
+	// - append(tag[_h]) spoiled full batch data, reading was incorrect
+	// - in case when metric=20b, host=128b => 65535b raise to 490kb (lose traffic speed)
 	batch.SetHost([]byte(h.cfg.HostTag))
 	if size+len(h.cfg.HostTag) <= pktBodyMax {
 		if pkt, ok := h.encodeLocked(batch); ok {
@@ -87,6 +92,8 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 		}
 		return nil
 	}
+	// For whales metrics we split batch until fit limit [pktFrameMax] or lose single super whale
+	// like O(log_2(n)) for whales
 	half := len(h.scratch.Metrics) / 2
 	s1 := &tlstatshouse.AddMetricsBatchBytes{
 		FieldsMask: h.scratch.FieldsMask,
@@ -125,12 +132,13 @@ func (h *handler) encodeLocked(batch *tlstatshouse.AddMetricsBatchBytes) ([]byte
 	}
 	offset, err := h.findOffsetLocked()
 	if offset > pktFrameMax {
-		h.ring[h.ringI] = append(h.ring[h.ringI][:pktHeadLen], h.ring[h.ringI][offset:]...) // skip invalid data
+		h.ring[h.ringI] = append(h.ring[h.ringI][:pktHeadLen], h.ring[h.ringI][offset:]...) // skip big data
 		if err != nil || len(h.scratch.Metrics) <= 1 {
+			// single superbig metric or invalid data
 			h.parseErrs++
 		}
 		// For whales metrics we split batch until fit limit [pktFrameMax] or lose single super whale
-		// O(log_2(n)) for whales
+		// like O(log_2(n)) for whales
 		half := len(h.scratch.Metrics) / 2
 		s1 := &tlstatshouse.AddMetricsBatchBytes{
 			FieldsMask: h.scratch.FieldsMask,

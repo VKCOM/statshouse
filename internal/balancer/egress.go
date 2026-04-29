@@ -131,11 +131,7 @@ func (e *Egress) WritePacket(pkt []byte) bool {
 	if len(pkt) == 0 {
 		return true
 	}
-	b := []byte{}
-	for _, t := range pkt {
-		b = append(b, t)
-	}
-	if err := e.pool.write(b); err != nil {
+	if err := e.pool.write(pkt); err != nil {
 		if errors.Is(err, errWouldBlock) {
 			e.stats.droppedPackets.Add(1)
 		}
@@ -238,7 +234,7 @@ func (s *tcpSender) sendLoop() {
 	var err error
 	var lastDial time.Time
 	m := s.getWriteErrM()
-	scratch := make([]byte, 102+len(s.cfg.HostTag))
+	scratch := make([]byte, 110+len(s.cfg.HostTag)) // seems enough
 loop:
 	for {
 		select {
@@ -251,7 +247,7 @@ loop:
 			lastDial = time.Now()
 			conn, err = s.reconnect()
 			if err != nil {
-				if !errors.Is(err, errNoAddress) {
+				if !errors.Is(err, errNoAddress) { // ignore secondary without address
 					s.stats.reconnectErrors.Add(1)
 				}
 				continue
