@@ -32,7 +32,6 @@ type handler struct {
 	mu     sync.Mutex
 
 	pkt      []byte
-	scratch  tlstatshouse.AddMetricsBatchBytes
 	lastSend time.Time
 
 	parseErrs uint64
