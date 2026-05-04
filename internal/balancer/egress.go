@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	bufferSize                = 50 * 1024 * 1024                // 50Mb
+	bufferLen                 = bufferSize / pktBodyMax / 2 / 2 // 2 workers with 2 slices
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
@@ -61,7 +63,6 @@ type Egress struct {
 type tcpPool struct {
 	primary   *tcpSender
 	secondary *tcpSender
-	routeMu   sync.Mutex
 	closed    chan struct{}
 }
 
@@ -73,7 +74,7 @@ type tcpSender struct {
 
 	poolMu sync.Mutex
 	pool   addressPool
-	q      chan []byte
+	buf    *pktBuffer
 
 	closeCh  chan struct{}
 	closeWg  sync.WaitGroup
@@ -85,12 +86,23 @@ type addressPool struct {
 	head  int
 }
 
+type pktBuffer struct {
+	mu     sync.Mutex
+	cond   *sync.Cond
+	closed bool
+	rm     int
+	ri     int
+	wi     int
+	r      [bufferLen][]byte
+	w      [bufferLen][]byte
+}
+
 func NewEgress(cfg EgressConfig) *Egress {
 	cfg.fillDefaults()
 	e := &Egress{cfg: cfg}
 	e.pool = &tcpPool{
-		primary:   newTCPSender(cfg, &e.stats, addressPool{}),
-		secondary: newTCPSender(cfg, &e.stats, addressPool{}),
+		primary:   newTCPSender(cfg, &e.stats, addressPool{}, newPktBuffer()),
+		secondary: newTCPSender(cfg, &e.stats, addressPool{}, newPktBuffer()),
 		closed:    make(chan struct{}),
 	}
 	go e.pool.runDNSRefresh(cfg, &e.stats)
@@ -113,12 +125,12 @@ func (cfg *EgressConfig) fillDefaults() {
 	}
 }
 
-func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool) *tcpSender {
+func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool, buf *pktBuffer) *tcpSender {
 	s := &tcpSender{
 		cfg:      cfg,
 		stats:    stats,
 		pool:     pool,
-		q:        make(chan []byte),
+		buf:      buf,
 		closeCh:  make(chan struct{}),
 		closeErr: make(chan error, 1),
 	}
@@ -127,24 +139,23 @@ func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool) 
 	return s
 }
 
-func (e *Egress) WritePacket(pkt []byte) bool {
-	if len(pkt) == 0 {
-		return true
-	}
-	if err := e.pool.write(pkt); err != nil {
+func (e *Egress) WritePacket(pkt []byte) []byte {
+	var err error
+	pkt, err = e.pool.write(pkt)
+	if err != nil {
 		if errors.Is(err, errWouldBlock) {
 			e.stats.droppedPackets.Add(1)
 		}
-		return false
+		return pkt
 	}
 	e.stats.forwardedPackets.Add(1)
-	return true
+	return pkt
 }
 
 func (e *Egress) Stats() EgressStats {
 	return EgressStats{
-		ForwardedPackets: e.stats.forwardedPackets.Load(),
-		DroppedPackets:   e.stats.droppedPackets.Load(),
+		ForwardedPackets: e.stats.forwardedPackets.Swap(0),
+		DroppedPackets:   e.stats.droppedPackets.Swap(0),
 		WriteErrors:      e.stats.writeErrors.Load(),
 		ReconnectErrors:  e.stats.reconnectErrors.Load(),
 		DNSRefreshErrors: e.stats.dnsRefreshErrors.Load(),
@@ -160,29 +171,20 @@ func (e *Egress) Close() error {
 	return err
 }
 
-func (p *tcpPool) write(pkt []byte) error {
+func (p *tcpPool) write(pkt []byte) ([]byte, error) {
 	select {
 	case <-p.closed:
-		return errWouldBlock
+		return pkt, errWouldBlock
 	default:
 	}
-
-	p.routeMu.Lock()
-	defer p.routeMu.Unlock()
-
-	if err := p.primary.write(pkt); err == nil {
-		return nil
-	} else if !errors.Is(err, errWouldBlock) {
-		return err
+	if pkt, ok := p.primary.buf.push(pkt); ok {
+		return pkt, nil
 	}
-	if err := p.secondary.write(pkt); err == nil {
-		p.primary, p.secondary = p.secondary, p.primary
-		return nil
-	} else if !errors.Is(err, errWouldBlock) {
-		return err
+	if pkt, ok := p.secondary.buf.push(pkt); ok {
+		return pkt, nil
 	}
 	p.primary.wouldBlockBytes.Add(int64(len(pkt)))
-	return errWouldBlock
+	return pkt, errWouldBlock
 }
 
 func (p *tcpPool) runDNSRefresh(cfg EgressConfig, stats *egressStatsAtomic) {
@@ -210,20 +212,9 @@ func (p *tcpPool) runDNSRefresh(cfg EgressConfig, stats *egressStatsAtomic) {
 	}
 }
 
-func (s *tcpSender) write(pkt []byte) error {
-	select {
-	case <-s.closeCh:
-		return errWouldBlock
-	case s.q <- pkt:
-		return nil
-	default:
-		return errWouldBlock
-	}
-}
-
 func (s *tcpSender) close() error {
 	close(s.closeCh)
-	close(s.q)
+	s.buf.close()
 	s.closeWg.Wait()
 	return <-s.closeErr
 }
@@ -233,6 +224,7 @@ func (s *tcpSender) sendLoop() {
 	var conn net.Conn
 	var err error
 	var lastDial time.Time
+	var bufs = make(net.Buffers, 0, bufferLen)
 	m := s.getWriteErrM()
 	scratch := make([]byte, 110+len(s.cfg.HostTag)) // seems enough
 loop:
@@ -253,11 +245,11 @@ loop:
 				continue
 			}
 		}
-		pkt, ok := <-s.q
-		if !ok {
-			break
-		}
-		if _, err = conn.Write(pkt); err != nil {
+		if err = s.buf.pop(func(pkts [][]byte) (int, error) {
+			bufs = append(bufs[:0], pkts...)
+			_, err := bufs.WriteTo(conn)
+			return len(bufs) - 1, err // not resend for last
+		}); err != nil {
 			s.stats.writeErrors.Add(1)
 			_ = conn.Close()
 			conn = nil
@@ -349,6 +341,71 @@ func (p *addressPool) pick() (string, bool) {
 	addr := p.addrs[p.head]
 	p.head = (p.head + 1) % len(p.addrs)
 	return addr, true
+}
+
+func newPktBuffer() *pktBuffer {
+	b := pktBuffer{
+		r: [bufferLen][]byte{},
+		w: [bufferLen][]byte{},
+	}
+	b.cond = sync.NewCond(&b.mu)
+	for i := 0; i < bufferLen; i++ {
+		b.r[i] = make([]byte, 0, pktFrameMax)
+		b.w[i] = make([]byte, 0, pktFrameMax)
+	}
+	return &b
+}
+
+func (b *pktBuffer) push(pkt []byte) ([]byte, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.wi >= bufferLen {
+		return pkt, false
+	}
+	var cur []byte
+	cur, b.w[b.wi] = b.w[b.wi], pkt // swap packets
+	b.wi++
+	b.cond.Signal()
+	return cur, true
+}
+
+func (b *pktBuffer) pop(f func(pkts [][]byte) (int, error)) error {
+	if b.ri >= b.rm {
+		b.swap()
+	}
+	if b.ri >= b.rm {
+		return nil
+	}
+	n, err := f(b.r[b.ri:b.rm])
+	if err != nil {
+		b.ri = b.rm - n
+		return err
+	}
+	b.ri = b.rm
+	b.swap()
+	return nil
+}
+
+func (b *pktBuffer) swap() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for b.wi < bufferLen*20/100 && !b.closed { // wait for 20% full
+		b.cond.Wait()
+	}
+	if b.closed {
+		return
+	}
+	b.rm = b.wi
+	b.wi = 0
+	b.ri = 0
+	b.r, b.w = b.w, b.r
+}
+
+func (b *pktBuffer) close() {
+	b.mu.Lock()
+	b.closed = true
+	b.mu.Unlock()
+	b.cond.Broadcast()
 }
 
 func resolveDialTargets(network, rawAddr string) ([]string, error) {

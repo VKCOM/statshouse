@@ -33,23 +33,13 @@ var argv struct {
 runtime.GOMAXPROCS(1)
 
 approx:
-1 worker | 1 upstream addrs: 1x127.0.0.1:13338
-1.77 pkt/s
-110 Kb/s
-0.2-0.4 CPU
-13 Mb RAM
+6000 pkt/s => 390 Mb/s
+RAM: 24Mb
+CPU: 50%
 
-1 worker | 2 upstream addrs: 2x127.0.0.1:13338
-2.8 pkt/s
-180 Kb/s
-0.3-0.7 CPU
-14 Mb RAM
-
-2 worker | 2 upstream addrs: 4x127.0.0.1:13338
-5 pkt/s
-330 Kb/s
-0.5-1 CPU
-18 Mb RAM
+16000 pkt/s => 1 Gb/s
+RAM: 65Mb
+CPU 93%
 */
 
 func main() {
@@ -99,7 +89,7 @@ func main() {
 }
 
 func parseFlags() {
-	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13338", "comma-separated upstream agent tcp addresses or DNS names")
+	flag.StringVar(&argv.upstreamAddr, "upstream-addr", "127.0.0.1:13338,127.0.0.1:13338", "comma-separated upstream agent tcp addresses or DNS names")
 	flag.StringVar(&argv.hostName, "hostname", "", "override auto-detected host tag (_h)")
 	flag.StringVar(&argv.listenUDP4, "listen-udp4", ":13337", "udp4 listen address")
 	flag.StringVar(&argv.listenUDP6, "listen-udp6", "", "udp6 listen address")

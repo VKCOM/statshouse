@@ -266,7 +266,7 @@ type handlerPool struct {
 
 func newHandlerPool(cfg Config) *handlerPool {
 	p := &handlerPool{
-		reportInterval: 45 * time.Second,
+		reportInterval: 3 * time.Second,
 		stop:           make(chan struct{}),
 	}
 	for i := 0; i < cfg.WorkerCount; i++ {
@@ -288,17 +288,21 @@ func (p *handlerPool) popHead() int {
 func (p *handlerPool) reportLoop() {
 	t := time.NewTicker(p.reportInterval)
 	defer t.Stop()
+	last := time.Now()
 	for {
 		select {
 		case <-p.stop:
 			return
 		case <-t.C:
-			p.logStats()
+			now := time.Now()
+			p.logStats(now, last)
+			last = now
 		}
 	}
 }
 
-func (p *handlerPool) logStats() {
+func (p *handlerPool) logStats(now, last time.Time) {
+	dif := uint64(now.Sub(last).Seconds())
 	hs, es := handlerStats{}, EgressStats{}
 	for i := 0; i < len(p.workers); i++ {
 		h := p.workers[i].Stats()
@@ -311,8 +315,8 @@ func (p *handlerPool) logStats() {
 		es.WriteErrors += s.WriteErrors
 		es.ReconnectErrors += s.ReconnectErrors
 	}
-	log.Printf("balancer stats: fwd=%d drop=%d parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
-		es.ForwardedPackets, es.DroppedPackets, hs.ParseErrors,
+	log.Printf("balancer stats: fwd=%d pkt/sec drop=%d pkt/sec parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
+		es.ForwardedPackets/dif, es.DroppedPackets/dif, hs.ParseErrors,
 		es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 }
 
@@ -323,7 +327,6 @@ func (p *handlerPool) close() error {
 		err = errors.Join(err, h.egress.Close())
 	}
 	close(p.stop)
-	p.logStats()
 	return err
 }
 

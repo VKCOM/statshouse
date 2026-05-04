@@ -12,11 +12,10 @@ import (
 )
 
 const (
-	pktRingLen   = 4 // 2 (cur + next pkt) for handler, 2 for tcpSender[2]
 	pktHeadLen   = 4
 	pktBodyMax   = 65535
 	pktFrameMax  = pktHeadLen + pktBodyMax
-	sendInterval = 4 * time.Second // guaranteed send for small traffic
+	sendInterval = 1 * time.Second // guaranteed send for small traffic
 )
 
 type handlerStats struct {
@@ -32,8 +31,7 @@ type handler struct {
 	egress *Egress
 	mu     sync.Mutex
 
-	ringI    int
-	ring     [pktRingLen][]byte // we don't know when prev pkt becomes free, so we can't make stack for L1 cache
+	pkt      []byte
 	scratch  tlstatshouse.AddMetricsBatchBytes
 	lastSend time.Time
 
@@ -48,10 +46,8 @@ func newHandler(cfg HandlerConfig, e *Egress) *handler {
 		cfg:          cfg,
 		egress:       e,
 		sendInterval: sendInterval,
+		pkt:          make([]byte, pktHeadLen, pktFrameMax),
 		stop:         make(chan struct{}),
-	}
-	for i := range h.ring {
-		h.ring[i] = make([]byte, pktHeadLen, pktFrameMax*2)
 	}
 	go h.sendLoop()
 	return h
@@ -62,7 +58,7 @@ func (h *handler) Close() {
 	defer h.mu.Unlock()
 
 	if h.egress != nil {
-		h.flushLocked(h.shiftRingLocked(-1))
+		h.flushLocked()
 	}
 	close(h.stop)
 }
@@ -86,118 +82,62 @@ func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, s
 	// - append(tag[_h]) spoiled full batch data, reading was incorrect
 	// - in case when metric=20b, host=128b => 65535b raise to 490kb (lose traffic speed)
 	batch.SetHost(h.cfg.HostTag)
-	if size+len(h.cfg.HostTag) <= pktBodyMax {
-		if pkt, ok := h.encodeLocked(batch); ok {
-			h.flushLocked(pkt)
+	estimateSize := size + len(h.cfg.HostTag) + 4 // 4 bytes for string len
+	if estimateSize <= pktBodyMax {
+		if len(h.pkt)+estimateSize > pktFrameMax {
+			h.flushLocked()
 		}
+		h.encodeLocked(batch)
 		return nil
 	}
-	// For whales metrics we split batch until fit limit [pktFrameMax] or lose single super whale
-	// like O(log_2(n)) for whales
-	half := len(h.scratch.Metrics) / 2
-	s1 := &tlstatshouse.AddMetricsBatchBytes{
-		FieldsMask: h.scratch.FieldsMask,
-		Host:       h.scratch.Host,
-		Metrics:    h.scratch.Metrics[:half],
-	}
-	s2 := &tlstatshouse.AddMetricsBatchBytes{
-		FieldsMask: h.scratch.FieldsMask,
-		Host:       h.scratch.Host,
-		Metrics:    h.scratch.Metrics[half:],
-	}
-	if pkt, ok := h.encodeLocked(s1); ok {
-		h.flushLocked(pkt)
-	}
-	if pkt, ok := h.encodeLocked(s2); ok {
-		h.flushLocked(pkt)
-	}
+	h.splitWhalesLocked(batch)
 	return nil
 }
 
-func (h *handler) flushLocked(pkt []byte) {
-	if len(pkt) <= pktHeadLen {
+func (h *handler) flushLocked() {
+	if len(h.pkt) <= pktHeadLen {
 		return
 	}
-	if ok := h.egress.WritePacket(pkt); !ok {
-		// pkt not send, reuse to avoid bitting tail
-		prev := (h.ringI + len(h.ring) - 1) % pktRingLen
-		h.ring[prev], h.ring[h.ringI] = h.ring[h.ringI], h.ring[prev] // swap, not lose extra data
-		h.ringI = prev
-
-		h.lastSend = time.Now()
-		return
-	}
+	binary.LittleEndian.PutUint32(h.pkt[:pktHeadLen], uint32(len(h.pkt)-pktHeadLen))
+	h.pkt = h.egress.WritePacket(h.pkt)[:pktHeadLen] // swap packet
 	h.lastSend = time.Now()
 }
 
-func (h *handler) encodeLocked(batch *tlstatshouse.AddMetricsBatchBytes) ([]byte, bool) {
-	h.ring[h.ringI] = batch.WriteTL1Boxed(h.ring[h.ringI])
-	if len(h.ring[h.ringI]) < pktFrameMax {
-		return nil, false
+func (h *handler) encodeLocked(batch *tlstatshouse.AddMetricsBatchBytes) {
+	was := len(h.pkt)
+	h.pkt = batch.WriteTL1Boxed(h.pkt)
+	if len(h.pkt) < pktFrameMax {
+		return
 	}
-	offset, err := h.findOffsetLocked()
-	if offset > pktFrameMax {
-		h.ring[h.ringI] = append(h.ring[h.ringI][:pktHeadLen], h.ring[h.ringI][offset:]...) // skip big data
-		if err != nil || len(h.scratch.Metrics) <= 1 {
-			// single superbig metric or invalid data
-			h.parseErrs++
-		}
-		// For whales metrics we split batch until fit limit [pktFrameMax] or lose single super whale
-		// like O(log_2(n)) for whales
-		half := len(h.scratch.Metrics) / 2
-		s1 := &tlstatshouse.AddMetricsBatchBytes{
-			FieldsMask: h.scratch.FieldsMask,
-			Host:       h.scratch.Host,
-			Metrics:    h.scratch.Metrics[:half],
-		}
-		s2 := &tlstatshouse.AddMetricsBatchBytes{
-			FieldsMask: h.scratch.FieldsMask,
-			Host:       h.scratch.Host,
-			Metrics:    h.scratch.Metrics[half:],
-		}
-		h.ring[h.ringI] = s1.WriteTL1Boxed(h.ring[h.ringI])
-		h.ring[h.ringI] = s2.WriteTL1Boxed(h.ring[h.ringI])
-		return nil, false
-	}
-	return h.shiftRingLocked(offset), true
+	// too big batch, rollback
+	h.pkt = h.pkt[:was]
+	h.splitWhalesLocked(batch) // recursion
 }
 
-func (h *handler) shiftRingLocked(offset int) []byte {
-	if offset == -1 {
-		offset = len(h.ring[h.ringI])
+func (h *handler) splitWhalesLocked(batch *tlstatshouse.AddMetricsBatchBytes) {
+	if len(batch.Metrics) <= 1 {
+		// we can't send 1 super whale
+		h.parseErrs++
+		return
 	}
-	pkt := h.ring[h.ringI][:offset]
-	binary.LittleEndian.PutUint32(pkt[:pktHeadLen], uint32(len(pkt[pktHeadLen:])))
-
-	nextI := (h.ringI + 1) % len(h.ring)
-	h.ring[nextI] = append(h.ring[nextI][:pktHeadLen], h.ring[h.ringI][offset:]...)
-	h.ring[h.ringI] = h.ring[h.ringI][:pktHeadLen]
-	h.ringI = nextI
-	return pkt
-}
-
-func (h *handler) findOffsetLocked() (int, error) {
-	var err error
-	offset := pktHeadLen
-	pkt := h.ring[h.ringI][pktHeadLen:]
-	was := len(pkt)
-	for len(pkt) > 0 {
-		pkt, err = h.scratch.ReadTL1Boxed(pkt)
-		if was-len(pkt) > pktBodyMax || err != nil {
-			break
-		}
-		offset = pktHeadLen + was - len(pkt)
+	// For whales metrics we split batch until fit limit [pktFrameMax] or lose single super whale
+	// like O(log_2(n)) for whales
+	half := len(batch.Metrics) / 2
+	s1 := &tlstatshouse.AddMetricsBatchBytes{
+		FieldsMask: batch.FieldsMask,
+		Host:       batch.Host,
+		Metrics:    batch.Metrics[:half],
 	}
-	if offset == pktHeadLen || err != nil {
-		// too big batch
-		pkt = h.ring[h.ringI][pktHeadLen:]
-		pkt, err = h.scratch.ReadTL1Boxed(pkt)
-		if err != nil {
-			return len(h.ring[h.ringI]), err
-		}
-		return len(h.ring[h.ringI]) - len(pkt), err
+	s2 := &tlstatshouse.AddMetricsBatchBytes{
+		FieldsMask: batch.FieldsMask,
+		Host:       batch.Host,
+		Metrics:    batch.Metrics[half:],
 	}
-	return offset, nil
+	// we don't know sizes, so flush it
+	h.flushLocked()
+	h.encodeLocked(s1)
+	h.flushLocked()
+	h.encodeLocked(s2)
 }
 
 func (h *handler) HandleParseError(_ []byte, err error) {
@@ -229,7 +169,7 @@ func (h *handler) sendLoop() {
 				if !h.lastSend.IsZero() && now.Sub(h.lastSend) < h.sendInterval {
 					return
 				}
-				h.flushLocked(h.shiftRingLocked(-1))
+				h.flushLocked()
 			}()
 		}
 	}
