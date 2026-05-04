@@ -190,6 +190,7 @@ type StatshouseMetric struct {
 	Unique []int64   // Conditional: item.FieldsMask.2
 	// value, count
 	Histogram [][2]float64 // Conditional: item.FieldsMask.3
+	Host      string       // Conditional: item.FieldsMask.5
 }
 
 func (StatshouseMetric) TLName() string { return "statshouse.metric" }
@@ -245,6 +246,16 @@ func (item *StatshouseMetric) ClearHistogram() {
 }
 func (item *StatshouseMetric) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
 
+func (item *StatshouseMetric) SetHost(v string) {
+	item.Host = v
+	item.FieldsMask |= 1 << 5
+}
+func (item *StatshouseMetric) ClearHost() {
+	item.Host = ""
+	item.FieldsMask &^= 1 << 5
+}
+func (item *StatshouseMetric) IsSetHost() bool { return item.FieldsMask&(1<<5) != 0 }
+
 func (item *StatshouseMetric) Reset() {
 	item.FieldsMask = 0
 	item.Name = ""
@@ -254,10 +265,11 @@ func (item *StatshouseMetric) Reset() {
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 	item.Histogram = item.Histogram[:0]
+	item.Host = ""
 }
 
 func (item *StatshouseMetric) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b111111)
 	item.Name = basictl.RandomString(rg)
 	BuiltinDictStringStringFillRandom(rg, &item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
@@ -284,6 +296,11 @@ func (item *StatshouseMetric) FillRandom(rg *basictl.RandGenerator) {
 		BuiltinVectorTupleDouble2FillRandom(rg, &item.Histogram)
 	} else {
 		item.Histogram = item.Histogram[:0]
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		item.Host = basictl.RandomString(rg)
+	} else {
+		item.Host = ""
 	}
 }
 
@@ -332,6 +349,13 @@ func (item *StatshouseMetric) ReadTL1(w []byte) (_ []byte, err error) {
 	} else {
 		item.Histogram = item.Histogram[:0]
 	}
+	if item.FieldsMask&(1<<5) != 0 {
+		if w, err = basictl.StringRead(w, &item.Host); err != nil {
+			return w, err
+		}
+	} else {
+		item.Host = ""
+	}
 	return w, nil
 }
 
@@ -357,6 +381,9 @@ func (item *StatshouseMetric) WriteTL1(w []byte) []byte {
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		w = BuiltinVectorTupleDouble2WriteTL1(w, item.Histogram)
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.StringWrite(w, item.Host)
 	}
 	return w
 }
@@ -395,6 +422,7 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 	var propValuePresented bool
 	var propUniquePresented bool
 	var propHistogramPresented bool
+	var propHostPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -468,6 +496,14 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 				if err := BuiltinVectorTupleDouble2ReadJSONGeneral(tctx, in, &item.Histogram); err != nil {
 					return err
 				}
+			case "host":
+				if propHostPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "host")
+				}
+				propHostPresented = true
+				if err := Json2ReadString(in, &item.Host); err != nil {
+					return err
+				}
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.metric", key)
 			}
@@ -502,6 +538,9 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 	if !propHistogramPresented {
 		item.Histogram = item.Histogram[:0]
 	}
+	if !propHostPresented {
+		item.Host = ""
+	}
 	if propCounterPresented {
 		item.FieldsMask |= 1 << 0
 	}
@@ -516,6 +555,9 @@ func (item *StatshouseMetric) ReadJSONGeneral(tctx *basictl.JSONReadContext, in 
 	}
 	if propHistogramPresented {
 		item.FieldsMask |= 1 << 3
+	}
+	if propHostPresented {
+		item.FieldsMask |= 1 << 5
 	}
 	return nil
 }
@@ -577,6 +619,11 @@ func (item *StatshouseMetric) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []b
 		w = append(w, `"histogram":`...)
 		w = BuiltinVectorTupleDouble2WriteJSONOpt(tctx, w, item.Histogram)
 	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"host":`...)
+		w = basictl.JSONWriteString(w, item.Host)
+	}
 	return append(w, '}')
 }
 
@@ -610,6 +657,7 @@ type StatshouseMetricBytes struct {
 	Unique []int64   // Conditional: item.FieldsMask.2
 	// value, count
 	Histogram [][2]float64 // Conditional: item.FieldsMask.3
+	Host      []byte       // Conditional: item.FieldsMask.5
 }
 
 func (StatshouseMetricBytes) TLName() string { return "statshouse.metric" }
@@ -665,6 +713,16 @@ func (item *StatshouseMetricBytes) ClearHistogram() {
 }
 func (item *StatshouseMetricBytes) IsSetHistogram() bool { return item.FieldsMask&(1<<3) != 0 }
 
+func (item *StatshouseMetricBytes) SetHost(v []byte) {
+	item.Host = v
+	item.FieldsMask |= 1 << 5
+}
+func (item *StatshouseMetricBytes) ClearHost() {
+	item.Host = item.Host[:0]
+	item.FieldsMask &^= 1 << 5
+}
+func (item *StatshouseMetricBytes) IsSetHost() bool { return item.FieldsMask&(1<<5) != 0 }
+
 func (item *StatshouseMetricBytes) Reset() {
 	item.FieldsMask = 0
 	item.Name = item.Name[:0]
@@ -674,10 +732,11 @@ func (item *StatshouseMetricBytes) Reset() {
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 	item.Histogram = item.Histogram[:0]
+	item.Host = item.Host[:0]
 }
 
 func (item *StatshouseMetricBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11111)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b111111)
 	item.Name = basictl.RandomStringBytes(rg)
 	BuiltinDictStringStringBytesFillRandom(rg, &item.Tags)
 	if item.FieldsMask&(1<<0) != 0 {
@@ -704,6 +763,11 @@ func (item *StatshouseMetricBytes) FillRandom(rg *basictl.RandGenerator) {
 		BuiltinVectorTupleDouble2FillRandom(rg, &item.Histogram)
 	} else {
 		item.Histogram = item.Histogram[:0]
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		item.Host = basictl.RandomStringBytes(rg)
+	} else {
+		item.Host = item.Host[:0]
 	}
 }
 
@@ -752,6 +816,13 @@ func (item *StatshouseMetricBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	} else {
 		item.Histogram = item.Histogram[:0]
 	}
+	if item.FieldsMask&(1<<5) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.Host); err != nil {
+			return w, err
+		}
+	} else {
+		item.Host = item.Host[:0]
+	}
 	return w, nil
 }
 
@@ -777,6 +848,9 @@ func (item *StatshouseMetricBytes) WriteTL1(w []byte) []byte {
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		w = BuiltinVectorTupleDouble2WriteTL1(w, item.Histogram)
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.StringWriteBytes(w, item.Host)
 	}
 	return w
 }
@@ -815,6 +889,7 @@ func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext
 	var propValuePresented bool
 	var propUniquePresented bool
 	var propHistogramPresented bool
+	var propHostPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -888,6 +963,14 @@ func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext
 				if err := BuiltinVectorTupleDouble2ReadJSONGeneral(tctx, in, &item.Histogram); err != nil {
 					return err
 				}
+			case "host":
+				if propHostPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.metric", "host")
+				}
+				propHostPresented = true
+				if err := Json2ReadStringBytes(in, &item.Host); err != nil {
+					return err
+				}
 			default:
 				return ErrorInvalidJSONExcessElement("statshouse.metric", key)
 			}
@@ -922,6 +1005,9 @@ func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext
 	if !propHistogramPresented {
 		item.Histogram = item.Histogram[:0]
 	}
+	if !propHostPresented {
+		item.Host = item.Host[:0]
+	}
 	if propCounterPresented {
 		item.FieldsMask |= 1 << 0
 	}
@@ -936,6 +1022,9 @@ func (item *StatshouseMetricBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext
 	}
 	if propHistogramPresented {
 		item.FieldsMask |= 1 << 3
+	}
+	if propHostPresented {
+		item.FieldsMask |= 1 << 5
 	}
 	return nil
 }
@@ -996,6 +1085,11 @@ func (item *StatshouseMetricBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"histogram":`...)
 		w = BuiltinVectorTupleDouble2WriteJSONOpt(tctx, w, item.Histogram)
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"host":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Host)
 	}
 	return append(w, '}')
 }

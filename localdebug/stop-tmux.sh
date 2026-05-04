@@ -32,6 +32,12 @@ if tmux list-windows -t "$SESSION_NAME" 2>/dev/null | grep -q "^4:"; then
   pkill statshouse-api
 fi
 
+if tmux list-windows -t "$SESSION_NAME" 2>/dev/null | grep -q "^6:"; then
+  echo "Stopping balancer (window 6)..."
+  tmux send-keys -t "$SESSION_NAME:6" C-c
+  sleep 2  # Brief wait for graceful shutdown
+fi
+
 # Then: agent (window 3) and aggregator (window 2)
 if tmux list-windows -t "$SESSION_NAME" 2>/dev/null | grep -q "^3:"; then
   echo "Stopping agent (window 3)..."

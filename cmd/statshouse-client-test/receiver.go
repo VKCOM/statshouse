@@ -38,6 +38,10 @@ func (handler) HandleParseError(pkt []byte, err error) {
 	log.Fatalln(pkt, err)
 }
 
+func (handler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
+	return receiver.ErrNotImplemented
+}
+
 func listen(args argv, ch chan series) (func(), error) {
 	var addr = ":13337"
 	var serve func(func(*tlstatshouse.MetricBytes)) error

@@ -15,25 +15,49 @@ var _ = basictl.NatWrite
 
 type StatshouseAddMetricsBatch struct {
 	FieldsMask uint32
+	Host       string // Conditional: item.FieldsMask.0
 	Metrics    []StatshouseMetric
 }
 
 func (StatshouseAddMetricsBatch) TLName() string { return "statshouse.addMetricsBatch" }
 func (StatshouseAddMetricsBatch) TLTag() uint32  { return 0x56580239 }
 
+func (item *StatshouseAddMetricsBatch) SetHost(v string) {
+	item.Host = v
+	item.FieldsMask |= 1 << 0
+}
+func (item *StatshouseAddMetricsBatch) ClearHost() {
+	item.Host = ""
+	item.FieldsMask &^= 1 << 0
+}
+func (item *StatshouseAddMetricsBatch) IsSetHost() bool { return item.FieldsMask&(1<<0) != 0 }
+
 func (item *StatshouseAddMetricsBatch) Reset() {
 	item.FieldsMask = 0
+	item.Host = ""
 	item.Metrics = item.Metrics[:0]
 }
 
 func (item *StatshouseAddMetricsBatch) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Host = basictl.RandomString(rg)
+	} else {
+		item.Host = ""
+	}
 	BuiltinVectorStatshouseMetricFillRandom(rg, &item.Metrics)
 }
 
 func (item *StatshouseAddMetricsBatch) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		if w, err = basictl.StringRead(w, &item.Host); err != nil {
+			return w, err
+		}
+	} else {
+		item.Host = ""
 	}
 	return BuiltinVectorStatshouseMetricReadTL1(w, &item.Metrics)
 }
@@ -44,6 +68,9 @@ func (item *StatshouseAddMetricsBatch) WriteTL1General(w []byte) (_ []byte, err 
 
 func (item *StatshouseAddMetricsBatch) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.StringWrite(w, item.Host)
+	}
 	w = BuiltinVectorStatshouseMetricWriteTL1(w, item.Metrics)
 	return w
 }
@@ -142,6 +169,7 @@ func (item *StatshouseAddMetricsBatch) ReadJSON(legacyTypeNames bool, in *basict
 
 func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
+	var propHostPresented bool
 	var propMetricsPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -158,6 +186,14 @@ func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(tctx *basictl.JSONReadCon
 				}
 				propFieldsMaskPresented = true
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+			case "host":
+				if propHostPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "host")
+				}
+				propHostPresented = true
+				if err := Json2ReadString(in, &item.Host); err != nil {
 					return err
 				}
 			case "metrics":
@@ -181,8 +217,14 @@ func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(tctx *basictl.JSONReadCon
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
+	if !propHostPresented {
+		item.Host = ""
+	}
 	if !propMetricsPresented {
 		item.Metrics = item.Metrics[:0]
+	}
+	if propHostPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
@@ -204,6 +246,11 @@ func (item *StatshouseAddMetricsBatch) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"host":`...)
+		w = basictl.JSONWriteString(w, item.Host)
 	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -236,25 +283,49 @@ func (item *StatshouseAddMetricsBatch) ReadTL2(r []byte, ctx *basictl.TL2ReadCon
 
 type StatshouseAddMetricsBatchBytes struct {
 	FieldsMask uint32
+	Host       []byte // Conditional: item.FieldsMask.0
 	Metrics    []StatshouseMetricBytes
 }
 
 func (StatshouseAddMetricsBatchBytes) TLName() string { return "statshouse.addMetricsBatch" }
 func (StatshouseAddMetricsBatchBytes) TLTag() uint32  { return 0x56580239 }
 
+func (item *StatshouseAddMetricsBatchBytes) SetHost(v []byte) {
+	item.Host = v
+	item.FieldsMask |= 1 << 0
+}
+func (item *StatshouseAddMetricsBatchBytes) ClearHost() {
+	item.Host = item.Host[:0]
+	item.FieldsMask &^= 1 << 0
+}
+func (item *StatshouseAddMetricsBatchBytes) IsSetHost() bool { return item.FieldsMask&(1<<0) != 0 }
+
 func (item *StatshouseAddMetricsBatchBytes) Reset() {
 	item.FieldsMask = 0
+	item.Host = item.Host[:0]
 	item.Metrics = item.Metrics[:0]
 }
 
 func (item *StatshouseAddMetricsBatchBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = basictl.RandomFieldMask(rg, 0b1)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.Host = basictl.RandomStringBytes(rg)
+	} else {
+		item.Host = item.Host[:0]
+	}
 	BuiltinVectorStatshouseMetricBytesFillRandom(rg, &item.Metrics)
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.Host); err != nil {
+			return w, err
+		}
+	} else {
+		item.Host = item.Host[:0]
 	}
 	return BuiltinVectorStatshouseMetricBytesReadTL1(w, &item.Metrics)
 }
@@ -265,6 +336,9 @@ func (item *StatshouseAddMetricsBatchBytes) WriteTL1General(w []byte) (_ []byte,
 
 func (item *StatshouseAddMetricsBatchBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.StringWriteBytes(w, item.Host)
+	}
 	w = BuiltinVectorStatshouseMetricBytesWriteTL1(w, item.Metrics)
 	return w
 }
@@ -363,6 +437,7 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSON(legacyTypeNames bool, in *b
 
 func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
+	var propHostPresented bool
 	var propMetricsPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -379,6 +454,14 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(tctx *basictl.JSONRe
 				}
 				propFieldsMaskPresented = true
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+			case "host":
+				if propHostPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "host")
+				}
+				propHostPresented = true
+				if err := Json2ReadStringBytes(in, &item.Host); err != nil {
 					return err
 				}
 			case "metrics":
@@ -402,8 +485,14 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(tctx *basictl.JSONRe
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
+	if !propHostPresented {
+		item.Host = item.Host[:0]
+	}
 	if !propMetricsPresented {
 		item.Metrics = item.Metrics[:0]
+	}
+	if propHostPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
@@ -425,6 +514,11 @@ func (item *StatshouseAddMetricsBatchBytes) WriteJSONOpt(tctx *basictl.JSONWrite
 	w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"host":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Host)
 	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)

@@ -44,7 +44,7 @@ docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
   -e BUILD_MACHINE="$(uname -n -m -r -s)" -e BUILD_VERSION="$UPSTREAM" \
   -e BUILD_COMMIT="$(git log --format="%H" -n 1)" -e BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)" \
   -e GOCACHE="/src/$GOCACHE" -e BUILD_TRUSTED_SUBNET_GROUPS -e BUILD_ID -e BUILD_TIME \
-  "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana build-igp build-agg
+  "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana build-sh-balancer build-igp build-agg
 
 # build debian package
 (cd build

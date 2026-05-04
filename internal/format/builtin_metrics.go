@@ -2509,6 +2509,7 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 			1: "golang",
 			2: "python",
 			3: "rust",
+			4: "php",
 		}),
 	}, {
 		Description: "cause",

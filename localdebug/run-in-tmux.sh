@@ -39,7 +39,7 @@ tmux send-keys -t "$SESSION_NAME:2" "./run-aggregator.sh" C-m
 
 # Window 3: Agent service
 tmux new-window -t "$SESSION_NAME:3" -n "agent" -k
-tmux send-keys -t "$SESSION_NAME:3" "./run-agent.sh" C-m
+tmux send-keys -t "$SESSION_NAME:3" "./run-agent.sh --p=:13338" C-m
 
 # Window 4: API service
 tmux new-window -t "$SESSION_NAME:4" -n "api" -k
@@ -49,6 +49,9 @@ tmux send-keys -t "$SESSION_NAME:4" "./run-api.sh" C-m
 tmux new-window -t "$SESSION_NAME:5" -n "loadgen" -k
 tmux send-keys -t "$SESSION_NAME:5" "cd .. && go run ./cmd/loadgen client" C-m
 
+# Window 6: Balancer service
+tmux new-window -t "$SESSION_NAME:6" -n "balancer" -k
+tmux send-keys -t "$SESSION_NAME:6" "./run-balancer.sh" C-m
 
 echo -n "Waiting for API" && until curl --output /dev/null --silent --head --fail http://localhost:10888/; do echo -n .; sleep 1; done
 
