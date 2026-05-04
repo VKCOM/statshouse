@@ -56,9 +56,8 @@ func BenchmarkHandlerEncodeOnly(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 7; j++ {
-			if _, ok := h.encodeLocked(&batch); ok {
-				break
-			}
+			h.pkt = h.pkt[:0]
+			h.encodeLocked(&batch)
 		}
 	}
 }
@@ -81,7 +80,8 @@ func waitForEgressReady(tb testing.TB, eg *Egress, pkt []byte) {
 	tb.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if eg.WritePacket(pkt) {
+		item := eg.WritePacket(pkt)
+		if len(item) != len(pkt) {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

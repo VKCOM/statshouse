@@ -37,19 +37,22 @@ type handler struct {
 
 	parseErrs uint64
 
-	sendInterval time.Duration
-	stop         chan struct{}
+	sendInterval   time.Duration
+	reportInterval time.Duration
+	stop           chan struct{}
 }
 
 func newHandler(cfg HandlerConfig, e *Egress) *handler {
 	h := &handler{
-		cfg:          cfg,
-		egress:       e,
-		sendInterval: sendInterval,
-		pkt:          make([]byte, pktHeadLen, pktFrameMax),
-		stop:         make(chan struct{}),
+		cfg:            cfg,
+		egress:         e,
+		sendInterval:   sendInterval,
+		reportInterval: 45 * time.Second,
+		pkt:            make([]byte, pktHeadLen, pktFrameMax),
+		stop:           make(chan struct{}),
 	}
 	go h.sendLoop()
+	go h.reportLoop()
 	return h
 }
 
@@ -59,6 +62,10 @@ func (h *handler) Close() {
 
 	if h.egress != nil {
 		h.flushLocked()
+		es := h.egress.Stats()
+		log.Printf("balancer stats: fwd=%d drop=%d parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
+			es.ForwardedPackets, es.DroppedPackets, h.parseErrs,
+			es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 	}
 	close(h.stop)
 }
@@ -171,6 +178,28 @@ func (h *handler) sendLoop() {
 				}
 				h.flushLocked()
 			}()
+		}
+	}
+}
+
+func (h *handler) reportLoop() {
+	t := time.NewTicker(h.reportInterval)
+	defer t.Stop()
+	last := time.Now()
+	for {
+		select {
+		case <-h.stop:
+			return
+		case <-t.C:
+			now := time.Now()
+			dif := uint64(now.Sub(last).Seconds())
+
+			hs := h.Stats()
+			es := h.egress.Stats()
+			log.Printf("balancer stats: fwd=%d pkt/sec drop=%d pkt/sec parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
+				es.ForwardedPackets/dif, es.DroppedPackets/dif, hs.ParseErrors,
+				es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
+			last = now
 		}
 	}
 }

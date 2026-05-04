@@ -25,7 +25,6 @@ var argv struct {
 	coresUDP          int
 	udpBufferSize     int
 	dnsRefreshSeconds int
-	workerCount       int
 	pprofListenAddr   string
 }
 
@@ -61,7 +60,6 @@ func main() {
 		ListenUnix:     argv.listenUnix,
 		ListenTCP:      argv.listenTCP,
 		CoresUDP:       argv.coresUDP,
-		WorkerCount:    argv.workerCount,
 		UDPBufferSize:  argv.udpBufferSize,
 		Egress: balancer.EgressConfig{
 			Network:            "tcp",
@@ -99,7 +97,6 @@ func parseFlags() {
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.udpBufferSize, "buffer-size-udp", 16*1024*1024, "udp receive buffer size")
 	flag.IntVar(&argv.dnsRefreshSeconds, "dns-refresh-seconds", 60, "upstream dns refresh interval in seconds")
-	flag.IntVar(&argv.workerCount, "worker-count", 1, "balancer count as worker, for traffic boost (x2 count => x2 resources)")
 	flag.StringVar(&argv.pprofListenAddr, "pprof-listen", "", "pprof listen address (disabled when empty)")
 	flag.Parse()
 	if argv.coresUDP < 0 {

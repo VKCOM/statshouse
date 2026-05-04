@@ -8,11 +8,9 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/VKCOM/tl/pkg/rpc"
 
-	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/receiver"
 )
@@ -29,7 +27,6 @@ type Config struct {
 
 	UDPBufferSize int
 	CoresUDP      int
-	WorkerCount   int
 
 	Handler HandlerConfig
 	Egress  EgressConfig
@@ -38,7 +35,7 @@ type Config struct {
 type Service struct {
 	cfg Config
 
-	pool *handlerPool
+	handler *handler
 
 	udpReceivers []*receiver.UDP
 	tcpReceiver  *receiver.TCP
@@ -59,10 +56,12 @@ func New(cfg Config) (*Service, error) {
 	cfg.Handler.HostTag = []byte(hostTag)
 	cfg.Egress.Address = cfg.UpstreamAddr
 	cfg.Egress.HostTag = hostTag
+	eg := NewEgress(cfg.Egress)
+	h := newHandler(cfg.Handler, eg)
 
 	s := &Service{
 		cfg:       cfg,
-		pool:      newHandlerPool(cfg),
+		handler:   h,
 		listeners: make([]net.Listener, 0, 3),
 	}
 	return s, nil
@@ -74,9 +73,6 @@ func (cfg *Config) fillDefaults() {
 	}
 	if cfg.CoresUDP < 0 {
 		cfg.CoresUDP = 0
-	}
-	if cfg.WorkerCount <= 0 {
-		cfg.WorkerCount = 1
 	}
 }
 
@@ -118,7 +114,8 @@ func (s *Service) Close() error {
 		s.rpcServer.Shutdown()
 	}
 	s.wg.Wait()
-	closeErr = errors.Join(closeErr, s.pool.close())
+	s.handler.Close()
+	closeErr = errors.Join(closeErr, s.handler.egress.Close())
 	return closeErr
 }
 
@@ -149,7 +146,7 @@ func (s *Service) startUDP() error {
 			s.wg.Add(1)
 			go func(rcv *receiver.UDP) {
 				defer s.wg.Done()
-				if err := rcv.Serve(s.pool); err != nil {
+				if err := rcv.Serve(s.handler); err != nil {
 					log.Printf("udp receiver (%s) failed: %v", network, err)
 				}
 			}(r)
@@ -193,19 +190,19 @@ func (s *Service) startTCPStack() error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.tcpReceiver.Serve(s.pool, s.hijackTCP); err != nil {
+		if err := s.tcpReceiver.Serve(s.handler, s.hijackTCP); err != nil {
 			log.Printf("tcp receiver failed: %v", err)
 		}
 	}()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.httpReceiver.Serve(s.pool, s.hijackHTTP); err != nil {
+		if err := s.httpReceiver.Serve(s.handler, s.hijackHTTP); err != nil {
 			log.Printf("http receiver failed: %v", err)
 		}
 	}()
 
-	receiverRPC := receiver.MakeRPCReceiver(nil, s.pool)
+	receiverRPC := receiver.MakeRPCReceiver(nil, s.handler)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
@@ -238,7 +235,7 @@ func (s *Service) startUnixStream() error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.unixReceiver.Serve(s.pool, ln); err != nil {
+		if err := s.unixReceiver.Serve(s.handler, ln); err != nil {
 			log.Printf("unix receiver failed: %v", err)
 		}
 	}()
@@ -253,94 +250,4 @@ func (s *Service) hijackConnection(conn *rpc.HijackConnection) {
 		return
 	}
 	s.hijackHTTP.AddConnection(conn)
-}
-
-// handlerPool not true workers, just roundrobin
-type handlerPool struct {
-	mu             sync.Mutex
-	head           int
-	workers        []*handler
-	reportInterval time.Duration
-	stop           chan struct{}
-}
-
-func newHandlerPool(cfg Config) *handlerPool {
-	p := &handlerPool{
-		reportInterval: 3 * time.Second,
-		stop:           make(chan struct{}),
-	}
-	for i := 0; i < cfg.WorkerCount; i++ {
-		eg := NewEgress(cfg.Egress)
-		p.workers = append(p.workers, newHandler(cfg.Handler, eg))
-	}
-	go p.reportLoop()
-	return p
-}
-
-func (p *handlerPool) popHead() int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	h := p.head
-	p.head = (p.head + 1) % len(p.workers)
-	return h
-}
-
-func (p *handlerPool) reportLoop() {
-	t := time.NewTicker(p.reportInterval)
-	defer t.Stop()
-	last := time.Now()
-	for {
-		select {
-		case <-p.stop:
-			return
-		case <-t.C:
-			now := time.Now()
-			p.logStats(now, last)
-			last = now
-		}
-	}
-}
-
-func (p *handlerPool) logStats(now, last time.Time) {
-	dif := uint64(now.Sub(last).Seconds())
-	hs, es := handlerStats{}, EgressStats{}
-	for i := 0; i < len(p.workers); i++ {
-		h := p.workers[i].Stats()
-		s := p.workers[i].egress.Stats()
-
-		hs.ParseErrors += h.ParseErrors
-		es.ForwardedPackets += s.ForwardedPackets
-		es.DroppedPackets += s.DroppedPackets
-		es.DNSRefreshErrors += s.DNSRefreshErrors
-		es.WriteErrors += s.WriteErrors
-		es.ReconnectErrors += s.ReconnectErrors
-	}
-	log.Printf("balancer stats: fwd=%d pkt/sec drop=%d pkt/sec parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
-		es.ForwardedPackets/dif, es.DroppedPackets/dif, hs.ParseErrors,
-		es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
-}
-
-func (p *handlerPool) close() error {
-	var err error
-	for _, h := range p.workers {
-		h.Close()
-		err = errors.Join(err, h.egress.Close())
-	}
-	close(p.stop)
-	return err
-}
-
-func (p *handlerPool) HandleMetricsBatch(bytes *tlstatshouse.AddMetricsBatchBytes, size int, scratch *[]byte) error {
-	h := p.popHead()
-	return p.workers[h].HandleMetricsBatch(bytes, size, scratch)
-}
-
-func (p *handlerPool) HandleMetrics(args data_model.HandlerArgs) data_model.MappedMetricHeader {
-	h := p.popHead()
-	return p.workers[h].HandleMetrics(args)
-}
-
-func (p *handlerPool) HandleParseError(bytes []byte, err error) {
-	h := p.popHead()
-	p.workers[h].HandleParseError(bytes, err)
 }
