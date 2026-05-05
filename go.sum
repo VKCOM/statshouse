@@ -64,8 +64,6 @@ github.com/ClickHouse/clickhouse-go/v2 v2.42.0/go.mod h1:riWnuo4YMVdajYll0q6FzRB
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/VKCOM/statshouse-go v0.5.16 h1:/NZl+gTj72I+/wX2n6CoxIiCGMByhgXq4K4/y3yZoUU=
-github.com/VKCOM/statshouse-go v0.5.16/go.mod h1:L0XvhgK+AqIKCcVlVArrLo7PNkgDrIyDl+VC29mq9Vs=
 github.com/VKCOM/statshouse-go v0.5.17 h1:uzES9If72ycJTGq8Uy9C93l7yW6k21YBj5vmO3lAfcY=
 github.com/VKCOM/statshouse-go v0.5.17/go.mod h1:L0XvhgK+AqIKCcVlVArrLo7PNkgDrIyDl+VC29mq9Vs=
 github.com/VKCOM/tl v1.4.6 h1:kuCKM7vLOSrHtjDOLuaoW464URchuII9DysbrPV7B8Y=
