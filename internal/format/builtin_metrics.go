@@ -2510,6 +2510,7 @@ var BuiltinMetricMetaClientWriteError = &MetricMetaValue{
 			2: "python",
 			3: "rust",
 			4: "php",
+			5: "cpp",
 		}),
 	}, {
 		Description: "cause",

@@ -109,6 +109,9 @@ func ts(name string, tags []tag) string {
 	b.WriteString(name)
 	b.WriteRune('{')
 	for _, tag := range tags {
+		if tag.K == "_h" {
+			continue
+		}
 		b.WriteString(tag.K)
 		b.WriteRune('=')
 		b.WriteString(tag.V)

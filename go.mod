@@ -5,7 +5,7 @@ go 1.24.11
 require (
 	github.com/ClickHouse/ch-go v0.69.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
-	github.com/VKCOM/statshouse-go v0.5.16
+	github.com/VKCOM/statshouse-go v0.5.17
 	github.com/VKCOM/tl v1.4.6
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/fsnotify/fsnotify v1.9.0
