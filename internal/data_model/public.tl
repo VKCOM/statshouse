@@ -8,7 +8,7 @@ statshouse.metric#3325d884 fields_mask:#
   value:     fields_mask.1?(vector double)
   unique:    fields_mask.2?(vector long)
   histogram: fields_mask.3?(vector (tuple double 2)) // value, count
-  host:      fields_mask.5?string
+  host:      fields_mask.5?string // temporary solution only for sh-balancer
   // value array is interpreted as histogram with count 1
 
   = statshouse.Metric;
