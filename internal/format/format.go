@@ -1107,6 +1107,12 @@ func ForceValidStringValue(src string) []byte {
 	return dst
 }
 
+// ForceValidStringValueBytes is like ForceValidStringValue, reuses the backing array.
+func ForceValidStringValueBytes(b []byte) []byte {
+	dst, _ := appendValidStringValue(b[:0], b, MaxStringLen, true)
+	return dst
+}
+
 func appendValidStringValue(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
 	// trim
 	src = bytes.TrimSpace(src) // packet is limited, so this will not be too slow
