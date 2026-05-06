@@ -18,7 +18,7 @@ import (
 const (
 	bufferSize                = 50 * 1024 * 1024                // 50Mb
 	bufferLen                 = bufferSize / pktBodyMax / 2 / 2 // 2 workers with 2 slices
-	swapWaitMax               = time.Second                     // cap wait for 20% batch in swap
+	swapWaitMax               = 1 * time.Second                 // cap wait for 20% batch in swap
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
