@@ -208,8 +208,8 @@ func detectHostTag(override string) string {
 		return override
 	}
 	host, err := os.Hostname()
-	if err != nil || host == "" {
-		return "unknown"
+	if err != nil {
+		return ""
 	}
 	return host
 }
