@@ -16,7 +16,7 @@ import (
 )
 
 func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeader, autoCreate *data_model.AutoCreate) {
-	s.mapAllTags(h, args.MetricBytes, autoCreate)
+	s.mapAllTags(h, args.MetricBytes, autoCreate, args.Host)
 	if h.IngestionStatus != 0 {
 		return
 	}
@@ -27,7 +27,7 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 
 // mapAllTags processes all tags in a single pass, including environment tag
 // unlike v2, it doesn't stop on the first invalid tag
-func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate) {
+func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate, host []byte) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
 		tagMeta, tagIDKey, validEvent := data_model.MapValidateTag(v, metric, h, autoCreate)
@@ -72,13 +72,13 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 			h.OriginalTagValues[tagMeta.Index] = v.Value
 		}
 	}
-	if !h.IsHKeySet && metric.IsSetHost() {
+	if !h.IsHKeySet && len(host) != 0 {
 		var tagValue data_model.TagUnion
-		id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), metric.Host)
+		id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), host)
 		if found {
 			tagValue.I = id
 		} else {
-			tagValue.S = string(metric.Host) // allocates on failed mapping only
+			tagValue.S = string(host) // allocates on failed mapping only
 		}
 		h.SetTag(format.HostTagIndex, tagValue, 0)
 	}

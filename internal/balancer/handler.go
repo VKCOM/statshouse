@@ -9,6 +9,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 )
 
 const (
@@ -208,8 +209,8 @@ func detectHostTag(override string) string {
 		return override
 	}
 	host, err := os.Hostname()
-	if err != nil || host == "" {
-		return "unknown"
+	if err != nil {
+		return ""
 	}
-	return host
+	return string(format.ForceValidStringValue(host)) // worse alternative is do not run at all
 }

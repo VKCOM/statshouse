@@ -63,6 +63,17 @@ func TestValidStringValue(t *testing.T) {
 	require.Equal(t, string(dst), "what ever")
 }
 
+func TestForceValidStringValueBytes_TrimsInPlace(t *testing.T) {
+	buf := make([]byte, 0, 64)
+	buf = append(buf, "myhost"...)
+	buf = append(buf, ' ', ' ')
+	out := ForceValidStringValueBytes(buf)
+	require.Equal(t, "myhost", string(out))
+	require.Equal(t, 6, len(out))
+	require.GreaterOrEqual(t, cap(out), cap(buf))
+	require.Equal(t, cap(buf), cap(out))
+}
+
 func TestAppendValidStringValue_Bytes(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n")

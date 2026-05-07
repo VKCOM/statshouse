@@ -13,6 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
+// host - temporary solution only for sh-balancer
 type StatshouseAddMetricsBatch struct {
 	FieldsMask uint32
 	Host       string // Conditional: item.FieldsMask.0
@@ -281,6 +282,7 @@ func (item *StatshouseAddMetricsBatch) ReadTL2(r []byte, ctx *basictl.TL2ReadCon
 	return r, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
 }
 
+// host - temporary solution only for sh-balancer
 type StatshouseAddMetricsBatchBytes struct {
 	FieldsMask uint32
 	Host       []byte // Conditional: item.FieldsMask.0
