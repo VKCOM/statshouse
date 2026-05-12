@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+	"github.com/VKCOM/statshouse/internal/mappings_tracker"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 
@@ -102,6 +103,7 @@ var argv struct {
 	metadataNet              string
 	cluster                  string
 	mappingsFileCount        int
+	trackedMappingsFile      string
 
 	trustedSubnetGroupsFlag trustedsubnets.Flag
 
@@ -213,6 +215,16 @@ func run() int {
 		log.Printf("failed to load mappings storage from %v", err)
 	}
 
+	mappingsTracker := mappings_tracker.New()
+	if argv.trackedMappingsFile != "" {
+		trackedMappingsFilePath := filepath.Join(argv.cacheDir, argv.trackedMappingsFile)
+		if err := mappingsTracker.LoadFromFile(trackedMappingsFilePath); err != nil {
+			log.Printf("error loading mappings from file %s: %v", argv.trackedMappingsFile, err)
+			return 1
+		}
+		log.Printf("mappings-tracker: loaded %d ids from %q", mappingsTracker.Len(), argv.trackedMappingsFile)
+	}
+
 	// we do not want to confuse journal from different clusters, this would be a disaster
 	fj, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("journal-%s.cache", argv.cluster)), os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -292,6 +304,7 @@ func run() int {
 		argv.cacheDir,
 		argv.cluster,
 		mappingsStorage,
+		mappingsTracker,
 		jwtHelper,
 		argv.HandlerOptions,
 		&argv.Config,
@@ -416,6 +429,33 @@ func run() int {
 		c.Value(format.BuiltinMetricMetaHeartbeatVersion.Name, heartbeatTags, uptime)
 	}))
 
+	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
+		usage := mappingsTracker.DrainUsage()
+		if len(usage) > 0 {
+			for id, count := range usage {
+				c.Count(
+					format.BuiltinMetricMetaMappingUsage.Name,
+					statshouse.Tags{
+						1: format.CodeTagValue(format.TagValueIDComponentAPI),
+						2: format.CodeTagValue(format.TagValueIdTrackedMappingUsageTypeUsed),
+						3: format.CodeTagValue(id),
+					},
+					float64(count),
+				)
+			}
+		} else {
+			c.Count(
+				format.BuiltinMetricMetaMappingUsage.Name,
+				statshouse.Tags{
+					1: format.CodeTagValue(format.TagValueIDComponentAPI),
+					2: format.CodeTagValue(format.TagValueIdTrackedMappingUsageTypeNoUsage),
+				},
+				float64(1),
+			)
+		}
+
+	}))
+
 	handlerRPC := api.NewRPCRouter(f, brs)
 	var hijackListener *rpc.HijackListener
 	metrics := util.NewRPCServerMetrics("statshouse_api")
@@ -527,6 +567,7 @@ func parseCommandLine() (err error) {
 	flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
 	flag.StringVar(&argv.cluster, "cluster", "statlogs2", "cluster name used for cache file names")
 	flag.IntVar(&argv.mappingsFileCount, "mappings-file-count", 16, "count of files for sharding metadata mappings")
+	flag.StringVar(&argv.trackedMappingsFile, "tracked-mappings-file", "", "path to a text file containing mapping IDs flagged as redundant; usage of these IDs is reported via __mapping_usage. Empty disables the feature. Same artifact deployed to metadata and aggregators.")
 	argv.HandlerOptions.Bind(flag.CommandLine)
 	argv.Config.Bind(flag.CommandLine, api.DefaultConfig())
 	argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)

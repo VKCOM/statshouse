@@ -447,3 +447,8 @@ var tokenSourceToValue = map[int32]string{
 	TagSourceTokenFromClient: "client",
 	TagSourceTokenFromVkuth:  "vkuth",
 }
+
+const (
+	TagValueIdTrackedMappingUsageTypeNoUsage = 1
+	TagValueIdTrackedMappingUsageTypeUsed    = 2
+)
