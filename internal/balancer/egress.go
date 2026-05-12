@@ -18,6 +18,7 @@ import (
 const (
 	bufferSize                = 50 * 1024 * 1024                // 50Mb
 	bufferLen                 = bufferSize / pktBodyMax / 2 / 2 // 2 workers with 2 slices
+	swapWaitMax               = 1 * time.Second                 // cap wait for 20% batch in swap
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
@@ -246,7 +247,7 @@ loop:
 			}
 		}
 		if err = s.buf.pop(func(pkts [][]byte) (int, error) {
-			bufs = append(bufs[:0], pkts...)
+			bufs = append(bufs[:0], pkts...) // writeTo changes slice to nil. So copy only const header
 			_, err := bufs.WriteTo(conn)
 			return len(bufs) - 1, err // not resend for last
 		}); err != nil {
@@ -270,9 +271,7 @@ func (s *tcpSender) getWriteErrM() tlstatshouse.MetricBytes {
 		{[]byte("1"), []byte("1")},           // lang: golang
 		{[]byte("2"), []byte("1")},           // kind: would_block
 		{[]byte("3"), []byte("sh-balancer")}, // application name
-	}
-	if s.cfg.HostTag != "" {
-		m.SetHost([]byte(s.cfg.HostTag))
+		{[]byte("_h"), []byte(s.cfg.HostTag)},
 	}
 	return m
 }
@@ -389,7 +388,14 @@ func (b *pktBuffer) pop(f func(pkts [][]byte) (int, error)) error {
 func (b *pktBuffer) swap() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	for b.wi < bufferLen*20/100 && !b.closed { // wait for 20% full
+	timeout := false
+	timer := time.AfterFunc(swapWaitMax, func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		timeout = true
+	})
+	defer timer.Stop()
+	for b.wi < bufferLen*20/100 && !b.closed && !timeout { // wait for 20% full (or swapWaitMax)
 		b.cond.Wait()
 	}
 	if b.closed {

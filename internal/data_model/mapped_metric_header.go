@@ -11,9 +11,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zeebo/xxh3"
+
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"github.com/zeebo/xxh3"
 )
 
 type HandlerArgs struct {
@@ -21,6 +22,7 @@ type HandlerArgs struct {
 	Description    string
 	ScrapeInterval int
 	Scratch        *[]byte
+	Host           []byte
 }
 
 type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)

@@ -254,13 +254,14 @@ func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *t
 	if err := handler.HandleMetricsBatch(b, size, scratch); !errors.Is(err, ErrNotImplemented) {
 		return true // not use ingestion for batch
 	}
+	if len(b.Host) != 0 {
+		b.Host = format.ForceValidStringValueBytes(b.Host)
+	}
 	for i := range b.Metrics {
-		if b.IsSetHost() {
-			b.Metrics[i].SetHost(b.Host)
-		}
 		h := handler.HandleMetrics(data_model.HandlerArgs{
 			MetricBytes: &b.Metrics[i],
 			Scratch:     scratch,
+			Host:        b.Host,
 		}) // might move out metric, if needs to
 		if ingestionError != nil && *ingestionError == nil && h.IngestionStatus != 0 {
 			*ingestionError = h.MapErrorFromHeader(b.Metrics[i])
