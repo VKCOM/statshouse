@@ -328,7 +328,6 @@ func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi
 	case args.IsSetStringValue():
 		value, ok := h.mappingsStorage.GetValue(args.StringValue)
 		if ok {
-			h.mappingsTracker.Check(value)
 			res.SetIntValue(value, nil)
 		} else {
 			err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find mapping for %q", args.StringValue)}
@@ -336,7 +335,6 @@ func (h *rpcRequestHandler) getMapping(ctx context.Context, args tlstatshouseApi
 	case args.IsSetIntValue():
 		value, ok := h.mappingsStorage.GetString(args.IntValue)
 		if ok {
-			h.mappingsTracker.Check(args.IntValue)
 			res.SetStringValue(value, nil)
 		} else {
 			err = &rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find string corresponding to %d", args.IntValue)}

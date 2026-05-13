@@ -3142,7 +3142,7 @@ var BuiltinMetricMetaMappingUsage = &MetricMetaValue{
 	Kind: MetricKindCounter,
 	Description: `Tracks the usage of flagged mappings (currently redundant mappings - candidates for deletion are flagged).
 Emitted by aggregators, metadata and api once per second per (component, mapping_id) pair when the redundant set is non-empty.
-A usage_type tag can be used as heartbeat -> "used" means the mapping is still in use and should not be deleted; "no_usage" -> tracking is in progress, nothing found within that second`,
+A value present means the mapping is still in use and should not be deleted.`,
 	NoSampleAgent:           true, // we must not lose data: zero counts are the signal that a mapping is unused
 	BuiltinAllowedToReceive: true,
 	WithAgentEnvRouteArch:   false,
@@ -3150,13 +3150,6 @@ A usage_type tag can be used as heartbeat -> "used" means the mapping is still i
 	Tags: []MetricMetaTag{{
 		Description:   "component",
 		ValueComments: convertToValueComments(componentToValue),
-	}, {
-		Description: "usage_type",
-		RawKind:     "int",
-		ValueComments: convertToValueComments(map[int32]string{
-			TagValueIdTrackedMappingUsageTypeNoUsage: "no_usage",
-			TagValueIdTrackedMappingUsageTypeUsed:    "used",
-		}),
 	}, {
 		Description: "mapping_id",
 		RawKind:     "int",

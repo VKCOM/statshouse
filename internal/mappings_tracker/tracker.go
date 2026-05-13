@@ -80,18 +80,15 @@ func (t *Tracker) IsRedundant(id int32) bool {
 
 func (t *Tracker) RecordUsage(id int32) {
 	t.mu.Lock()
-	if _, ok := t.usageCounts[id]; !ok {
-		t.usageCounts[id] = 0
-	}
+	defer t.mu.Unlock()
 	t.usageCounts[id]++
-	t.mu.Unlock()
 }
 
 func (t *Tracker) DrainUsage() map[int32]uint64 {
 	t.mu.Lock()
+	defer t.mu.Unlock()
 	drained := t.usageCounts
 	t.usageCounts = make(map[int32]uint64)
-	t.mu.Unlock()
 	return drained
 }
 

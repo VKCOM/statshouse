@@ -430,30 +430,16 @@ func run() int {
 	}))
 
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
-		usage := mappingsTracker.DrainUsage()
-		if len(usage) > 0 {
-			for id, count := range usage {
-				c.Count(
-					format.BuiltinMetricMetaMappingUsage.Name,
-					statshouse.Tags{
-						1: format.CodeTagValue(format.TagValueIDComponentAPI),
-						2: format.CodeTagValue(format.TagValueIdTrackedMappingUsageTypeUsed),
-						3: format.CodeTagValue(id),
-					},
-					float64(count),
-				)
-			}
-		} else {
+		for id, count := range mappingsTracker.DrainUsage() {
 			c.Count(
 				format.BuiltinMetricMetaMappingUsage.Name,
 				statshouse.Tags{
 					1: format.CodeTagValue(format.TagValueIDComponentAPI),
-					2: format.CodeTagValue(format.TagValueIdTrackedMappingUsageTypeNoUsage),
+					2: format.CodeTagValue(id),
 				},
-				float64(1),
+				float64(count),
 			)
 		}
-
 	}))
 
 	handlerRPC := api.NewRPCRouter(f, brs)
