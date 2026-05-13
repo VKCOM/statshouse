@@ -41,6 +41,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/mappings_tracker"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/metarqlite"
 	"github.com/VKCOM/statshouse/internal/promql"
@@ -206,6 +207,7 @@ type (
 		cacheInvalidateStop   chan chan struct{}
 		metadataLoader        *metarqlite.RQLiteLoader
 		mappingsStorage       *metajournal.MappingsStorage
+		mappingsTracker       *mappings_tracker.Tracker
 		jwtHelper             *vkuth.JWTHelper
 		plotRenderSem         *semaphore.Weighted
 		plotTemplate          *ttemplate.Template
@@ -585,7 +587,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2 *chutil.ClickHouse, metadataClient *tlmetadata.Client, journalFile *os.File, cacheDir string, cluster string, mappingsStorage *metajournal.MappingsStorage, mappingsTracker *mappings_tracker.Tracker, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	legacyMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	metadataLoader := metarqlite.NewRQliteLoader(cfg.RQLiteAddrs, metarqlite.DefaultMetaTimeout, legacyMetaLoader)
 
@@ -599,6 +601,9 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 	}
 	cl := config.NewConfigListener(format.StatshouseAPIRemoteConfig, cfg)
 	metricStorage := metajournal.MakeMetricsStorage(nil)
+	if mappingsTracker == nil {
+		mappingsTracker = mappings_tracker.New()
+	}
 	h := &Handler{
 		HandlerOptions:        opt,
 		showInvisible:         showInvisible,
@@ -607,6 +612,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		indexSettings:         string(settings),
 		metadataLoader:        metadataLoader,
 		mappingsStorage:       mappingsStorage,
+		mappingsTracker:       mappingsTracker,
 		ch:                    chV2,
 		metricsStorage:        metricStorage,
 		selectSettings:        cfg.BuildSelectSettings(),
@@ -973,6 +979,7 @@ func (h *Handler) getMetricIDForStat(metricName string) int32 {
 
 func (h *Handler) getTagValue(tagValueID int32) (string, error) {
 	str, ok := h.mappingsStorage.GetString(tagValueID)
+	h.mappingsTracker.Check(tagValueID)
 	if !ok {
 		return "", httpErr(http.StatusNotFound, fmt.Errorf("tag value for %v not found", tagValueID))
 	}
@@ -1027,6 +1034,7 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, tagID stri
 
 func (h *Handler) getTagValueID(tagValue string) (int32, error) {
 	valueID, ok := h.mappingsStorage.GetValue(tagValue)
+	h.mappingsTracker.Check(valueID)
 	if !ok {
 		return 0, httpErr(http.StatusNotFound, fmt.Errorf("tag value ID for %q not found", tagValue))
 	}

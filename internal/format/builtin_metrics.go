@@ -2645,7 +2645,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2679,7 +2679,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
+	Tags: []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -3132,5 +3132,26 @@ var BuiltinMetricMetaAggSendSrcBudget = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Description: "metric",
 		BuiltinKind: BuiltinKindMetric,
+	}},
+}
+
+const BuiltinMetricIDMappingUsage = -153
+
+var BuiltinMetricMetaMappingUsage = &MetricMetaValue{
+	Name: "__mapping_usage",
+	Kind: MetricKindCounter,
+	Description: `Tracks the usage of flagged mappings (currently redundant mappings - candidates for deletion are flagged).
+Emitted by aggregators, metadata and api once per second per (component, mapping_id) pair when the redundant set is non-empty.
+A value present means the mapping is still in use and should not be deleted.`,
+	NoSampleAgent:           true, // we must not lose data: zero counts are the signal that a mapping is unused
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description:   "component",
+		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "mapping_id",
+		RawKind:     "int",
 	}},
 }
