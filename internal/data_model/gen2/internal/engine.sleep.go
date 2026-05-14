@@ -66,7 +66,7 @@ func (item *EngineSleep) WriteResultTL1(w []byte, ret bool) (_ []byte, err error
 	return w, nil
 }
 
-func (item *EngineSleep) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+func (item *EngineSleep) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *bool) error {
 	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
@@ -74,11 +74,10 @@ func (item *EngineSleep) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLe
 }
 
 func (item *EngineSleep) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineSleep) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
+func (item *EngineSleep) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -89,18 +88,18 @@ func (item *EngineSleep) FillRandomResultTL1(rg *basictl.RandGenerator, w []byte
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineSleep) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSleep) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineSleep) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSleep) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -119,7 +118,7 @@ func (item *EngineSleep) ReadResultTL2WriteResultJSON(tctx *basictl.TL2ReadConte
 	return r, w, ErrorTL2SerializersNotGenerated("engine.sleep")
 }
 
-func (item *EngineSleep) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSleep) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.sleep")
 }
 
@@ -128,11 +127,11 @@ func (item EngineSleep) String() string {
 }
 
 func (item *EngineSleep) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineSleep) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineSleep) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propTimeMsPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -168,15 +167,14 @@ func (item *EngineSleep) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basi
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSleep) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineSleep) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineSleep) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineSleep) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineSleep) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexTimeMs := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -193,16 +191,17 @@ func (item *EngineSleep) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSleep) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.sleep", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineSleep) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineSleep) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.sleep"))
 }
 
-func (item *EngineSleep) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineSleep) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.sleep")
 }

@@ -47,7 +47,7 @@ func BuiltinTuple3StringInternalReadTL2(r []byte, vec *[3]string) (_ []byte, err
 	return r, ErrorTL2SerializersNotGenerated("[3]string")
 }
 
-func BuiltinTuple3StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3]string) error {
+func BuiltinTuple3StringReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3]string) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -75,10 +75,9 @@ func BuiltinTuple3StringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 }
 
 func BuiltinTuple3StringWriteJSON(w []byte, vec *[3]string) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinTuple3StringWriteJSONOpt(&tctx, w, vec)
+	return BuiltinTuple3StringWriteJSONOpt(nil, w, vec)
 }
-func BuiltinTuple3StringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[3]string) []byte {
+func BuiltinTuple3StringWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec *[3]string) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -121,7 +120,7 @@ func BuiltinTuple3StringBytesInternalReadTL2(r []byte, vec *[3][]byte) (_ []byte
 	return r, ErrorTL2SerializersNotGenerated("[3][]byte")
 }
 
-func BuiltinTuple3StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3][]byte) error {
+func BuiltinTuple3StringBytesReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[3][]byte) error {
 	index := 0
 	if in != nil {
 		in.Delim('[')
@@ -149,10 +148,9 @@ func BuiltinTuple3StringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 }
 
 func BuiltinTuple3StringBytesWriteJSON(w []byte, vec *[3][]byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinTuple3StringBytesWriteJSONOpt(&tctx, w, vec)
+	return BuiltinTuple3StringBytesWriteJSONOpt(nil, w, vec)
 }
-func BuiltinTuple3StringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec *[3][]byte) []byte {
+func BuiltinTuple3StringBytesWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec *[3][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -284,7 +282,7 @@ func BuiltinVectorStringInternalReadTL2(r []byte, vec *[]string) (_ []byte, err 
 	return r, nil
 }
 
-func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
+func BuiltinVectorStringReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -313,10 +311,9 @@ func BuiltinVectorStringReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStringWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStringWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
+func BuiltinVectorStringWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []string) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -448,7 +445,7 @@ func BuiltinVectorStringBytesInternalReadTL2(r []byte, vec *[][]byte) (_ []byte,
 	return r, nil
 }
 
-func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
+func BuiltinVectorStringBytesReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[][]byte) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -477,10 +474,9 @@ func BuiltinVectorStringBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStringBytesWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStringBytesWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
+func BuiltinVectorStringBytesWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec [][]byte) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -538,11 +534,11 @@ func (item String) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *String) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *String) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if err := Json2ReadString(in, item.ptr()); err != nil {
 		return err
 	}
@@ -550,16 +546,15 @@ func (item *String) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.J
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *String) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *String) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *String) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *String) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *String) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = basictl.JSONWriteString(w, *item.ptr())
 	return w
 }
@@ -568,13 +563,14 @@ func (item *String) MarshalJSON() ([]byte, error) {
 }
 
 func (item *String) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil
 }
 
-func (item *String) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *String) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("string"))
 }
 
@@ -582,7 +578,7 @@ func (item *String) InternalReadTL2(r []byte) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("string")
 }
 
-func (item *String) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *String) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }
 
@@ -635,11 +631,11 @@ func (item StringBytes) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *StringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StringBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if err := Json2ReadStringBytes(in, item.ptr()); err != nil {
 		return err
 	}
@@ -647,16 +643,15 @@ func (item *StringBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basi
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StringBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StringBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StringBytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *StringBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StringBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = basictl.JSONWriteStringBytes(w, *item.ptr())
 	return w
 }
@@ -665,13 +660,14 @@ func (item *StringBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StringBytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil
 }
 
-func (item *StringBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StringBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("string"))
 }
 
@@ -679,6 +675,6 @@ func (item *StringBytes) InternalReadTL2(r []byte) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("string")
 }
 
-func (item *StringBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StringBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

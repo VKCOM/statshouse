@@ -62,11 +62,11 @@ func (item EngineMetafilesStatData) String() string {
 }
 
 func (item *EngineMetafilesStatData) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineMetafilesStatData) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineMetafilesStatData) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propDataPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -82,7 +82,7 @@ func (item *EngineMetafilesStatData) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.metafilesStatData", "data")
 				}
 				propDataPresented = true
-				if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx, in, &item.Data); err != nil {
+				if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(jctx, in, &item.Data); err != nil {
 					return err
 				}
 			default:
@@ -102,20 +102,19 @@ func (item *EngineMetafilesStatData) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineMetafilesStatData) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineMetafilesStatData) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineMetafilesStatData) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineMetafilesStatData) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineMetafilesStatData) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexData := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"data":`...)
-	w = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(tctx, w, item.Data)
+	w = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(jctx, w, item.Data)
 	if !(len(item.Data) != 0) {
 		w = w[:backupIndexData]
 	}
@@ -127,16 +126,17 @@ func (item *EngineMetafilesStatData) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineMetafilesStatData) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.metafilesStatData", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineMetafilesStatData) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineMetafilesStatData) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.metafilesStatData"))
 }
 
-func (item *EngineMetafilesStatData) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineMetafilesStatData) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.metafilesStatData")
 }

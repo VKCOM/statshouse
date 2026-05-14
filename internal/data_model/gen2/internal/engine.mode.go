@@ -111,7 +111,7 @@ func (item *EngineMode) WriteTL1Boxed(w []byte, nat_fields_mask uint32) []byte {
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *EngineMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *EngineMode) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propReadEnabledPresented bool
 	var propWriteEnabledPresented bool
 	if in != nil {
@@ -169,15 +169,14 @@ func (item *EngineMode) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basic
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineMode) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *EngineMode) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *EngineMode) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *EngineMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *EngineMode) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -192,10 +191,10 @@ func (item *EngineMode) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, n
 	return append(w, '}')
 }
 
-func (item *EngineMode) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineMode) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.mode"))
 }
 
-func (item *EngineMode) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineMode) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.mode")
 }

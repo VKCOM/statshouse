@@ -281,8 +281,8 @@ func paddingLen(l int) int {
 	return int(-uint(l) % 4)
 }
 
-func StringWrite(w []byte, v string) []byte {
-	l := int64(len(v))
+func StringWriteLen(w []byte, le int) (_ []byte, padding uint) {
+	l := int64(le)
 	var p int64
 	switch {
 	case l <= tinyStringLen:
@@ -292,17 +292,18 @@ func StringWrite(w []byte, v string) []byte {
 		w = append(w, mediumStringMarker, byte(l), byte(l>>8), byte(l>>16))
 		p = l // +4
 	default:
-		if l > maxHugeStringLen { // for correctness only, we do not expect strings so huge
-			l = maxHugeStringLen
-			v = v[:l]
+		if l > maxHugeStringLen {
+			panic("TL1 does not support strings larger than 2^56-1")
 		}
 		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))
 		p = l // +8
 	}
-	w = append(w, v...)
+	return w, uint(uint64(p) % 4)
+}
 
+func StringWritePadding(w []byte, p uint) []byte {
 	// w is sometimes slice of byte array, so we do not want optimization to always append 3 bytes, then resize.
-	switch uint64(p) % 4 {
+	switch p {
 	case 1:
 		w = append(w, 0, 0, 0)
 	case 2:
@@ -313,36 +314,18 @@ func StringWrite(w []byte, v string) []byte {
 	return w
 }
 
-func StringWriteBytes(w []byte, v []byte) []byte {
-	l := int64(len(v))
-	var p int64
-	switch {
-	case l <= tinyStringLen:
-		w = append(w, byte(l))
-		p = l + 1
-	case l <= maxMediumStringLen:
-		w = append(w, mediumStringMarker, byte(l), byte(l>>8), byte(l>>16))
-		p = l // +4
-	default:
-		if l > maxHugeStringLen { // for correctness only, we do not expect strings so huge
-			l = maxHugeStringLen
-			v = v[:l]
-		}
-		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))
-		p = l // +8
-	}
+func StringWrite(w []byte, v string) []byte {
+	var p uint
+	w, p = StringWriteLen(w, len(v))
 	w = append(w, v...)
+	return StringWritePadding(w, p)
+}
 
-	// w is sometimes slice of byte array, so we do not want optimization to always append 3 bytes, then resize.
-	switch uint64(p) % 4 {
-	case 1:
-		w = append(w, 0, 0, 0)
-	case 2:
-		w = append(w, 0, 0)
-	case 3:
-		w = append(w, 0)
-	}
-	return w
+func StringWriteBytes(w []byte, v []byte) []byte {
+	var p uint
+	w, p = StringWriteLen(w, len(v))
+	w = append(w, v...)
+	return StringWritePadding(w, p)
 }
 
 func JSONWriteBool(w []byte, v bool) []byte {

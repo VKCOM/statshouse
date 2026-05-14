@@ -55,7 +55,7 @@ func BuiltinVectorStatshouseCentroidFloatInternalReadTL2(r []byte, vec *[]Statsh
 	return r, ErrorTL2SerializersNotGenerated("[]StatshouseCentroidFloat")
 }
 
-func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseCentroidFloat) error {
+func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseCentroidFloat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx *basictl.JSONReadC
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 func BuiltinVectorStatshouseCentroidFloatWriteJSON(w []byte, vec []StatshouseCentroidFloat) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseCentroidFloat) []byte {
+func BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseCentroidFloat) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -152,11 +151,11 @@ func (item StatshouseCentroidFloat) String() string {
 }
 
 func (item *StatshouseCentroidFloat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseCentroidFloat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseCentroidFloat) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propValuePresented bool
 	var propCountPresented bool
 	if in != nil {
@@ -204,15 +203,14 @@ func (item *StatshouseCentroidFloat) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseCentroidFloat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseCentroidFloat) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseCentroidFloat) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseCentroidFloat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseCentroidFloat) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -236,16 +234,17 @@ func (item *StatshouseCentroidFloat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseCentroidFloat) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.centroidFloat", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseCentroidFloat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseCentroidFloat) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.centroidFloat"))
 }
 
-func (item *StatshouseCentroidFloat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseCentroidFloat) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.centroidFloat")
 }

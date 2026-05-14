@@ -57,7 +57,7 @@ func (item *MetadataGetJournalResponsenew) WriteTL1Boxed(w []byte, nat_field_mas
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenew) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetJournalResponsenew) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
 	var propEventsPresented bool
 	if in != nil {
@@ -82,7 +82,7 @@ func (item *MetadataGetJournalResponsenew) ReadJSONGeneral(tctx *basictl.JSONRea
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
 				}
 				propEventsPresented = true
-				if err := BuiltinVectorMetadataEventReadJSONGeneral(tctx, in, &item.Events); err != nil {
+				if err := BuiltinVectorMetadataEventReadJSONGeneral(jctx, in, &item.Events); err != nil {
 					return err
 				}
 			default:
@@ -105,15 +105,14 @@ func (item *MetadataGetJournalResponsenew) ReadJSONGeneral(tctx *basictl.JSONRea
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetJournalResponsenew) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetJournalResponsenew) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenew) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -125,18 +124,18 @@ func (item *MetadataGetJournalResponsenew) WriteJSONOpt(tctx *basictl.JSONWriteC
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"events":`...)
-	w = BuiltinVectorMetadataEventWriteJSONOpt(tctx, w, item.Events)
+	w = BuiltinVectorMetadataEventWriteJSONOpt(jctx, w, item.Events)
 	if !(len(item.Events) != 0) {
 		w = w[:backupIndexEvents]
 	}
 	return append(w, '}')
 }
 
-func (item *MetadataGetJournalResponsenew) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetJournalResponsenew) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew"))
 }
 
-func (item *MetadataGetJournalResponsenew) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenew) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew")
 }
 
@@ -184,7 +183,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteTL1Boxed(w []byte, nat_fiel
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetJournalResponsenewBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetJournalResponsenewBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
 	var propEventsPresented bool
 	if in != nil {
@@ -209,7 +208,7 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSONGeneral(tctx *basictl.JS
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
 				}
 				propEventsPresented = true
-				if err := BuiltinVectorMetadataEventBytesReadJSONGeneral(tctx, in, &item.Events); err != nil {
+				if err := BuiltinVectorMetadataEventBytesReadJSONGeneral(jctx, in, &item.Events); err != nil {
 					return err
 				}
 			default:
@@ -232,15 +231,14 @@ func (item *MetadataGetJournalResponsenewBytes) ReadJSONGeneral(tctx *basictl.JS
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -252,17 +250,17 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(tctx *basictl.JSONW
 	backupIndexEvents := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"events":`...)
-	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(tctx, w, item.Events)
+	w = BuiltinVectorMetadataEventBytesWriteJSONOpt(jctx, w, item.Events)
 	if !(len(item.Events) != 0) {
 		w = w[:backupIndexEvents]
 	}
 	return append(w, '}')
 }
 
-func (item *MetadataGetJournalResponsenewBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetJournalResponsenewBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew"))
 }
 
-func (item *MetadataGetJournalResponsenewBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenewBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getJournalResponsenew")
 }

@@ -55,7 +55,7 @@ func BuiltinVectorStatshouseIngestionStatus2InternalReadTL2(r []byte, vec *[]Sta
 	return r, ErrorTL2SerializersNotGenerated("[]StatshouseIngestionStatus2")
 }
 
-func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
+func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseIngestionStatus2) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx *basictl.JSONRe
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorStatshouseIngestionStatus2ReadJSONGeneral(tctx *basictl.JSONRe
 }
 
 func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseIngestionStatus2) []byte {
+func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseIngestionStatus2) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -159,11 +158,11 @@ func (item StatshouseIngestionStatus2) String() string {
 }
 
 func (item *StatshouseIngestionStatus2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseIngestionStatus2) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propEnvPresented bool
 	var propMetricPresented bool
 	var propValuePresented bool
@@ -223,15 +222,14 @@ func (item *StatshouseIngestionStatus2) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseIngestionStatus2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseIngestionStatus2) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseIngestionStatus2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseIngestionStatus2) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexEnv := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -262,16 +260,17 @@ func (item *StatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.ingestionStatus2", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseIngestionStatus2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseIngestionStatus2) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.ingestionStatus2"))
 }
 
-func (item *StatshouseIngestionStatus2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseIngestionStatus2) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.ingestionStatus2")
 }

@@ -169,7 +169,7 @@ func (item *StatshouseCommonProxyHeader) WriteTL1Boxed(w []byte, nat_fields_mask
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseCommonProxyHeader) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseCommonProxyHeader) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propIngressProxyPresented bool
 	var trueTypeIngressProxyValue bool
 	var propAgentEnvStaging0Presented bool
@@ -237,7 +237,7 @@ func (item *StatshouseCommonProxyHeader) ReadJSONGeneral(tctx *basictl.JSONReadC
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "agent_ip")
 				}
 				propAgentIpPresented = true
-				if err := BuiltinTuple4IntReadJSONGeneral(tctx, in, &item.AgentIp); err != nil {
+				if err := BuiltinTuple4IntReadJSONGeneral(jctx, in, &item.AgentIp); err != nil {
 					return err
 				}
 			case "host_name":
@@ -336,15 +336,14 @@ func (item *StatshouseCommonProxyHeader) ReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseCommonProxyHeader) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseCommonProxyHeader) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseCommonProxyHeader) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseCommonProxyHeader) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<31) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -374,7 +373,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	w = BuiltinTuple4IntWriteJSONOpt(tctx, w, &item.AgentIp)
+	w = BuiltinTuple4IntWriteJSONOpt(jctx, w, &item.AgentIp)
 	backupIndexHostName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"host_name":`...)
@@ -404,11 +403,11 @@ func (item *StatshouseCommonProxyHeader) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	return append(w, '}')
 }
 
-func (item *StatshouseCommonProxyHeader) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseCommonProxyHeader) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader"))
 }
 
-func (item *StatshouseCommonProxyHeader) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseCommonProxyHeader) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader")
 }
 
@@ -568,7 +567,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteTL1Boxed(w []byte, nat_fields
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseCommonProxyHeaderBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propIngressProxyPresented bool
 	var trueTypeIngressProxyValue bool
 	var propAgentEnvStaging0Presented bool
@@ -636,7 +635,7 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSONGeneral(tctx *basictl.JSON
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.commonProxyHeader", "agent_ip")
 				}
 				propAgentIpPresented = true
-				if err := BuiltinTuple4IntReadJSONGeneral(tctx, in, &item.AgentIp); err != nil {
+				if err := BuiltinTuple4IntReadJSONGeneral(jctx, in, &item.AgentIp); err != nil {
 					return err
 				}
 			case "host_name":
@@ -735,15 +734,14 @@ func (item *StatshouseCommonProxyHeaderBytes) ReadJSONGeneral(tctx *basictl.JSON
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseCommonProxyHeaderBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<31) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -773,7 +771,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWri
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	w = BuiltinTuple4IntWriteJSONOpt(tctx, w, &item.AgentIp)
+	w = BuiltinTuple4IntWriteJSONOpt(jctx, w, &item.AgentIp)
 	backupIndexHostName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"host_name":`...)
@@ -803,10 +801,10 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(tctx *basictl.JSONWri
 	return append(w, '}')
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseCommonProxyHeaderBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader"))
 }
 
-func (item *StatshouseCommonProxyHeaderBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseCommonProxyHeaderBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.commonProxyHeader")
 }

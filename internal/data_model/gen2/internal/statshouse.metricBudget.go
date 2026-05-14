@@ -55,7 +55,7 @@ func BuiltinVectorStatshouseMetricBudgetInternalReadTL2(r []byte, vec *[]Statsho
 	return r, ErrorTL2SerializersNotGenerated("[]StatshouseMetricBudget")
 }
 
-func BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetricBudget) error {
+func BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseMetricBudget) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx *basictl.JSONReadCo
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorStatshouseMetricBudgetReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 func BuiltinVectorStatshouseMetricBudgetWriteJSON(w []byte, vec []StatshouseMetricBudget) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMetricBudget) []byte {
+func BuiltinVectorStatshouseMetricBudgetWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseMetricBudget) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -152,11 +151,11 @@ func (item StatshouseMetricBudget) String() string {
 }
 
 func (item *StatshouseMetricBudget) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseMetricBudget) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseMetricBudget) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propMetricIdPresented bool
 	var propBudgetPresented bool
 	if in != nil {
@@ -204,15 +203,14 @@ func (item *StatshouseMetricBudget) ReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMetricBudget) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseMetricBudget) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseMetricBudget) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseMetricBudget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseMetricBudget) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMetricId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -236,16 +234,17 @@ func (item *StatshouseMetricBudget) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseMetricBudget) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.metricBudget", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseMetricBudget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseMetricBudget) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.metricBudget"))
 }
 
-func (item *StatshouseMetricBudget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseMetricBudget) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.metricBudget")
 }

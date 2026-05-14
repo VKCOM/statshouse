@@ -55,7 +55,7 @@ func BuiltinVectorStatshousePromTargetInternalReadTL2(r []byte, vec *[]Statshous
 	return r, ErrorTL2SerializersNotGenerated("[]StatshousePromTarget")
 }
 
-func BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
+func BuiltinVectorStatshousePromTargetReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTarget, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx *basictl.JSONReadCont
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx *basictl.JSONReadCont
 }
 
 func BuiltinVectorStatshousePromTargetWriteJSON(w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshousePromTargetWriteJSONOpt(&tctx, w, vec, nat_t)
+	return BuiltinVectorStatshousePromTargetWriteJSONOpt(nil, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
+func BuiltinVectorStatshousePromTargetWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTarget, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w, nat_t)
+		w = elem.WriteJSONOpt(jctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -138,7 +137,7 @@ func BuiltinVectorStatshousePromTargetBytesInternalReadTL2(r []byte, vec *[]Stat
 	return r, ErrorTL2SerializersNotGenerated("[]StatshousePromTargetBytes")
 }
 
-func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
+func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshousePromTargetBytes, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -152,7 +151,7 @@ func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx *basictl.JSONRea
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -167,14 +166,13 @@ func BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx *basictl.JSONRea
 }
 
 func BuiltinVectorStatshousePromTargetBytesWriteJSON(w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(&tctx, w, vec, nat_t)
+	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(nil, w, vec, nat_t)
 }
-func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
+func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshousePromTargetBytes, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w, nat_t)
+		w = elem.WriteJSONOpt(jctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -342,7 +340,7 @@ func (item *StatshousePromTarget) WriteTL1Boxed(w []byte, nat_fields_mask_arg ui
 	return item.WriteTL1(w, nat_fields_mask_arg)
 }
 
-func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
+func (item *StatshousePromTarget) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -397,7 +395,7 @@ func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
 				propLabelsPresented = true
-				if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, &item.Labels); err != nil {
+				if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, &item.Labels); err != nil {
 					return err
 				}
 			case "scrape_interval":
@@ -547,15 +545,14 @@ func (item *StatshousePromTarget) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTarget) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask_arg), nil
+func (item *StatshousePromTarget) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask_arg), nil
 }
 
 func (item *StatshousePromTarget) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask_arg)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
+func (item *StatshousePromTarget) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -581,7 +578,7 @@ func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinDictStringStringWriteJSONOpt(tctx, w, item.Labels)
+	w = BuiltinDictStringStringWriteJSONOpt(jctx, w, item.Labels)
 	if !(len(item.Labels) != 0) {
 		w = w[:backupIndexLabels]
 	}
@@ -650,11 +647,11 @@ func (item *StatshousePromTarget) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	return append(w, '}')
 }
 
-func (item *StatshousePromTarget) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshousePromTarget) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.promTarget"))
 }
 
-func (item *StatshousePromTarget) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshousePromTarget) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.promTarget")
 }
 
@@ -823,7 +820,7 @@ func (item *StatshousePromTargetBytes) WriteTL1Boxed(w []byte, nat_fields_mask_a
 	return item.WriteTL1(w, nat_fields_mask_arg)
 }
 
-func (item *StatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
+func (item *StatshousePromTargetBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask_arg uint32) error {
 	var propFieldsMaskPresented bool
 	var propJobNamePresented bool
 	var propUrlPresented bool
@@ -878,7 +875,7 @@ func (item *StatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.promTarget", "labels")
 				}
 				propLabelsPresented = true
-				if err := BuiltinDictStringStringBytesReadJSONGeneral(tctx, in, &item.Labels); err != nil {
+				if err := BuiltinDictStringStringBytesReadJSONGeneral(jctx, in, &item.Labels); err != nil {
 					return err
 				}
 			case "scrape_interval":
@@ -1028,15 +1025,14 @@ func (item *StatshousePromTargetBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshousePromTargetBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask_arg), nil
+func (item *StatshousePromTargetBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask_arg), nil
 }
 
 func (item *StatshousePromTargetBytes) WriteJSON(w []byte, nat_fields_mask_arg uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask_arg)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask_arg)
 }
-func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
+func (item *StatshousePromTargetBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask_arg uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1062,7 +1058,7 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	backupIndexLabels := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"labels":`...)
-	w = BuiltinDictStringStringBytesWriteJSONOpt(tctx, w, item.Labels)
+	w = BuiltinDictStringStringBytesWriteJSONOpt(jctx, w, item.Labels)
 	if !(len(item.Labels) != 0) {
 		w = w[:backupIndexLabels]
 	}
@@ -1131,10 +1127,10 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	return append(w, '}')
 }
 
-func (item *StatshousePromTargetBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshousePromTargetBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.promTarget"))
 }
 
-func (item *StatshousePromTargetBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshousePromTargetBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.promTarget")
 }

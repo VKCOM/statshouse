@@ -69,11 +69,11 @@ func (item MetadataResetFloodResponse2) String() string {
 }
 
 func (item *MetadataResetFloodResponse2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataResetFloodResponse2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataResetFloodResponse2) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propBudgetBeforePresented bool
 	var propBudgetAfterPresented bool
 	if in != nil {
@@ -121,15 +121,14 @@ func (item *MetadataResetFloodResponse2) ReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataResetFloodResponse2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataResetFloodResponse2) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataResetFloodResponse2) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataResetFloodResponse2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataResetFloodResponse2) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBudgetBefore := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -153,16 +152,17 @@ func (item *MetadataResetFloodResponse2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataResetFloodResponse2) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.resetFloodResponse2", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataResetFloodResponse2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataResetFloodResponse2) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.resetFloodResponse2"))
 }
 
-func (item *MetadataResetFloodResponse2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataResetFloodResponse2) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.resetFloodResponse2")
 }

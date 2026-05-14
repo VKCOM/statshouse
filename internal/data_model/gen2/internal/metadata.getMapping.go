@@ -93,21 +93,19 @@ func (item *MetadataGetMapping) WriteResultTL1(w []byte, ret MetadataGetMappingR
 	return w, nil
 }
 
-func (item *MetadataGetMapping) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetMappingResponse) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in, item.FieldMask); err != nil {
+func (item *MetadataGetMapping) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *MetadataGetMappingResponse) error {
+	if err := ret.ReadJSONGeneral(jctx, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *MetadataGetMapping) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
+func (item *MetadataGetMapping) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w, item.FieldMask)
 	return w, nil
 }
 
@@ -117,18 +115,18 @@ func (item *MetadataGetMapping) FillRandomResultTL1(rg *basictl.RandGenerator, w
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *MetadataGetMapping) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetMapping) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetMappingResponse
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *MetadataGetMapping) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetMapping) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetMappingResponse
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -147,7 +145,7 @@ func (item *MetadataGetMapping) ReadResultTL2WriteResultJSON(tctx *basictl.TL2Re
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.getMapping")
 }
 
-func (item *MetadataGetMapping) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetMapping) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.getMapping")
 }
 
@@ -156,11 +154,11 @@ func (item MetadataGetMapping) String() string {
 }
 
 func (item *MetadataGetMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataGetMapping) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataGetMapping) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propMetricPresented bool
 	var propKeyPresented bool
@@ -236,15 +234,14 @@ func (item *MetadataGetMapping) ReadJSONGeneral(tctx *basictl.JSONReadContext, i
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMapping) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataGetMapping) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataGetMapping) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataGetMapping) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataGetMapping) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -279,16 +276,17 @@ func (item *MetadataGetMapping) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetMapping) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getMapping", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataGetMapping) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMapping) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMapping"))
 }
 
-func (item *MetadataGetMapping) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMapping) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMapping")
 }

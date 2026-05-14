@@ -133,7 +133,7 @@ func (item *StatshouseApiGetMappingResponse) WriteTL1Boxed(w []byte, nat_fields_
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseApiGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseApiGetMappingResponse) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	item.tl2mask0 = 0
 	var propIntValuePresented bool
 	var propStringValuePresented bool
@@ -194,15 +194,14 @@ func (item *StatshouseApiGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONR
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiGetMappingResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseApiGetMappingResponse) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseApiGetMappingResponse) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseApiGetMappingResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseApiGetMappingResponse) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if item.tl2mask0&1 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -285,18 +284,18 @@ func (item *StatshouseApiGetMappingResponse) InternalWriteTL2(w []byte, sizes []
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiGetMappingResponse) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -352,6 +351,6 @@ func (item *StatshouseApiGetMappingResponse) InternalReadTL2(r []byte) (_ []byte
 	return r, nil
 }
 
-func (item *StatshouseApiGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiGetMappingResponse) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

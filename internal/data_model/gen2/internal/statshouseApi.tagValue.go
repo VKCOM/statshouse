@@ -137,7 +137,7 @@ func BuiltinVectorStatshouseApiTagValueInternalReadTL2(r []byte, vec *[]Statshou
 	return r, nil
 }
 
-func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
+func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -151,7 +151,7 @@ func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx *basictl.JSONReadCon
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -166,14 +166,13 @@ func BuiltinVectorStatshouseApiTagValueReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 func BuiltinVectorStatshouseApiTagValueWriteJSON(w []byte, vec []StatshouseApiTagValue) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiTagValue) []byte {
+func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiTagValue) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -248,11 +247,11 @@ func (item StatshouseApiTagValue) String() string {
 }
 
 func (item *StatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiTagValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiTagValue) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propInPresented bool
 	var propValuePresented bool
@@ -295,7 +294,7 @@ func (item *StatshouseApiTagValue) ReadJSONGeneral(tctx *basictl.JSONReadContext
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "flag")
 				}
 				propFlagPresented = true
-				if err := item.Flag.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.Flag.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 			default:
@@ -324,15 +323,14 @@ func (item *StatshouseApiTagValue) ReadJSONGeneral(tctx *basictl.JSONReadContext
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiTagValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiTagValue) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiTagValue) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiTagValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiTagValue) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -357,7 +355,7 @@ func (item *StatshouseApiTagValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"flag":`...)
-	w = item.Flag.WriteJSONOpt(tctx, w)
+	w = item.Flag.WriteJSONOpt(jctx, w)
 	return append(w, '}')
 }
 
@@ -366,7 +364,8 @@ func (item *StatshouseApiTagValue) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiTagValue) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.tagValue", err.Error())
 	}
 	return nil
@@ -455,18 +454,18 @@ func (item *StatshouseApiTagValue) InternalWriteTL2(w []byte, sizes []int, optim
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiTagValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiTagValue) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -533,6 +532,6 @@ func (item *StatshouseApiTagValue) InternalReadTL2(r []byte) (_ []byte, err erro
 	return r, nil
 }
 
-func (item *StatshouseApiTagValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiTagValue) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

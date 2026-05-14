@@ -94,21 +94,19 @@ func (item *MetadataGetJournalnew) WriteResultTL1(w []byte, ret MetadataGetJourn
 	return w, nil
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenew) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in, item.FieldMask); err != nil {
+func (item *MetadataGetJournalnew) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *MetadataGetJournalResponsenew) error {
+	if err := ret.ReadJSONGeneral(jctx, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalnew) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *MetadataGetJournalnew) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w, item.FieldMask)
+func (item *MetadataGetJournalnew) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w, item.FieldMask)
 	return w, nil
 }
 
@@ -118,18 +116,18 @@ func (item *MetadataGetJournalnew) FillRandomResultTL1(rg *basictl.RandGenerator
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *MetadataGetJournalnew) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetJournalnew) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenew
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetJournalnew) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetJournalResponsenew
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -148,7 +146,7 @@ func (item *MetadataGetJournalnew) ReadResultTL2WriteResultJSON(tctx *basictl.TL
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.getJournalnew")
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetJournalnew) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.getJournalnew")
 }
 
@@ -157,11 +155,11 @@ func (item MetadataGetJournalnew) String() string {
 }
 
 func (item *MetadataGetJournalnew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataGetJournalnew) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataGetJournalnew) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
 	var propFromPresented bool
 	var propLimitPresented bool
@@ -237,15 +235,14 @@ func (item *MetadataGetJournalnew) ReadJSONGeneral(tctx *basictl.JSONReadContext
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetJournalnew) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataGetJournalnew) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataGetJournalnew) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataGetJournalnew) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataGetJournalnew) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -280,16 +277,17 @@ func (item *MetadataGetJournalnew) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetJournalnew) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getJournalnew", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataGetJournalnew) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetJournalnew) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getJournalnew"))
 }
 
-func (item *MetadataGetJournalnew) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetJournalnew) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getJournalnew")
 }

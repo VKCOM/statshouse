@@ -234,38 +234,38 @@ func (item *EngineReindexStatus) WriteTL1Boxed(w []byte) []byte {
 	return w
 }
 
-func (item *EngineReindexStatus) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatus) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.ReindexStatus"))
 }
 
-func (item *EngineReindexStatus) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+func (item *EngineReindexStatus) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) ([]byte, error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.ReindexStatus")
 }
 
 func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatus) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_tag, _value, err := Json2ReadUnion("engine.ReindexStatus", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusNever#7f6a89b9")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#7f6a89b9" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#7f6a89b9" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#7f6a89b9")
 		}
 		item.index = 0
 	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunningOld#ac530b46")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#ac530b46" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#ac530b46" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#ac530b46")
 		}
 		item.index = 1
@@ -273,14 +273,14 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueRunningOld.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueRunningOld.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunning#fa198b59")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#fa198b59" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#fa198b59" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#fa198b59")
 		}
 		item.index = 2
@@ -288,14 +288,14 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueRunning.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueRunning.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusFailed#10533721")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#10533721" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#10533721" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#10533721")
 		}
 		item.index = 3
@@ -303,14 +303,14 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueFailed.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueFailed.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusSignaled#756e878b")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#756e878b" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#756e878b" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#756e878b")
 		}
 		item.index = 4
@@ -318,14 +318,14 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueSignaled.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueSignaled.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDoneOld#afdbd505")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#afdbd505" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#afdbd505" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#afdbd505")
 		}
 		item.index = 5
@@ -333,14 +333,14 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueDoneOld.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueDoneOld.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
-		if !tctx.LegacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDone#0f67569a")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#0f67569a" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#0f67569a" {
 			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "#0f67569a")
 		}
 		item.index = 6
@@ -348,7 +348,7 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueDone.ReadJSONGeneral(tctx, in2Pointer); err != nil {
+		if err := item.valueDone.ReadJSONGeneral(jctx, in2Pointer); err != nil {
 			return err
 		}
 	default:
@@ -358,76 +358,75 @@ func (item *EngineReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, 
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatus) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatus) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatus) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatus) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatus) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	switch item.index {
 	case 0:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusNever"`...)
 		}
 		return append(w, '}')
 	case 1:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusRunningOld"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueRunningOld.WriteJSONOpt(tctx, w)
+		w = item.valueRunningOld.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	case 2:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusRunning"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueRunning.WriteJSONOpt(tctx, w)
+		w = item.valueRunning.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	case 3:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusFailed#10533721"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusFailed"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueFailed.WriteJSONOpt(tctx, w)
+		w = item.valueFailed.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	case 4:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusSignaled"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueSignaled.WriteJSONOpt(tctx, w)
+		w = item.valueSignaled.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	case 5:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusDoneOld"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueDoneOld.WriteJSONOpt(tctx, w)
+		w = item.valueDoneOld.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	case 6:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"engine.reindexStatusDone#0f67569a"`...)
 		} else {
 			w = append(w, `{"type":"engine.reindexStatusDone"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueDone.WriteJSONOpt(tctx, w)
+		w = item.valueDone.WriteJSONOpt(jctx, w)
 		return append(w, '}')
 	default: // Impossible due to panic above
 		return w
@@ -443,7 +442,8 @@ func (item *EngineReindexStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatus) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
 	}
 	return nil
@@ -511,11 +511,11 @@ func (item EngineReindexStatusDone) String() string {
 }
 
 func (item *EngineReindexStatusDone) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusDone) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusDone) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFinishTimePresented bool
 	var propNeedRestartPresented bool
 	if in != nil {
@@ -563,15 +563,14 @@ func (item *EngineReindexStatusDone) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusDone) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusDone) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusDone) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusDone) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusDone) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFinishTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -595,17 +594,18 @@ func (item *EngineReindexStatusDone) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusDone) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusDone) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusDone"))
 }
 
-func (item *EngineReindexStatusDone) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusDone) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusDone")
 }
 
@@ -664,11 +664,11 @@ func (item EngineReindexStatusDoneOld) String() string {
 }
 
 func (item *EngineReindexStatusDoneOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusDoneOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusDoneOld) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFinishTimePresented bool
 	if in != nil {
 		in.Delim('{')
@@ -704,15 +704,14 @@ func (item *EngineReindexStatusDoneOld) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusDoneOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusDoneOld) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusDoneOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusDoneOld) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFinishTime := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -729,17 +728,18 @@ func (item *EngineReindexStatusDoneOld) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusDoneOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusDoneOld) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusDoneOld"))
 }
 
-func (item *EngineReindexStatusDoneOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusDoneOld) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusDoneOld")
 }
 
@@ -805,11 +805,11 @@ func (item EngineReindexStatusFailed) String() string {
 }
 
 func (item *EngineReindexStatusFailed) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusFailed) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusFailed) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propExitCodePresented bool
 	var propFinishTimePresented bool
 	if in != nil {
@@ -857,15 +857,14 @@ func (item *EngineReindexStatusFailed) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusFailed) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusFailed) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusFailed) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusFailed) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusFailed) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexExitCode := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -889,17 +888,18 @@ func (item *EngineReindexStatusFailed) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusFailed) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusFailed) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusFailed"))
 }
 
-func (item *EngineReindexStatusFailed) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusFailed) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusFailed")
 }
 
@@ -950,11 +950,11 @@ func (item EngineReindexStatusNever) String() string {
 }
 
 func (item *EngineReindexStatusNever) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusNever) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusNever) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -972,15 +972,14 @@ func (item *EngineReindexStatusNever) ReadJSONGeneral(tctx *basictl.JSONReadCont
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusNever) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusNever) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusNever) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusNever) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusNever) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -990,17 +989,18 @@ func (item *EngineReindexStatusNever) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusNever) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusNever) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusNever"))
 }
 
-func (item *EngineReindexStatusNever) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusNever) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusNever")
 }
 
@@ -1066,11 +1066,11 @@ func (item EngineReindexStatusRunning) String() string {
 }
 
 func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusRunning) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusRunning) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPidsPresented bool
 	var propStartTimePresented bool
 	if in != nil {
@@ -1087,7 +1087,7 @@ func (item *EngineReindexStatusRunning) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "pids")
 				}
 				propPidsPresented = true
-				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Pids); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(jctx, in, &item.Pids); err != nil {
 					return err
 				}
 			case "start_time":
@@ -1118,20 +1118,19 @@ func (item *EngineReindexStatusRunning) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusRunning) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusRunning) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusRunning) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusRunning) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusRunning) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPids := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"pids":`...)
-	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.Pids)
+	w = BuiltinVectorIntWriteJSONOpt(jctx, w, item.Pids)
 	if !(len(item.Pids) != 0) {
 		w = w[:backupIndexPids]
 	}
@@ -1150,17 +1149,18 @@ func (item *EngineReindexStatusRunning) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusRunning) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusRunning) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusRunning"))
 }
 
-func (item *EngineReindexStatusRunning) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusRunning) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusRunning")
 }
 
@@ -1226,11 +1226,11 @@ func (item EngineReindexStatusRunningOld) String() string {
 }
 
 func (item *EngineReindexStatusRunningOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusRunningOld) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusRunningOld) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propPidPresented bool
 	var propStartTimePresented bool
 	if in != nil {
@@ -1278,15 +1278,14 @@ func (item *EngineReindexStatusRunningOld) ReadJSONGeneral(tctx *basictl.JSONRea
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusRunningOld) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusRunningOld) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusRunningOld) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusRunningOld) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexPid := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1310,17 +1309,18 @@ func (item *EngineReindexStatusRunningOld) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusRunningOld) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusRunningOld) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusRunningOld"))
 }
 
-func (item *EngineReindexStatusRunningOld) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusRunningOld) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusRunningOld")
 }
 
@@ -1386,11 +1386,11 @@ func (item EngineReindexStatusSignaled) String() string {
 }
 
 func (item *EngineReindexStatusSignaled) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineReindexStatusSignaled) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineReindexStatusSignaled) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propSignalPresented bool
 	var propFinishTimePresented bool
 	if in != nil {
@@ -1438,15 +1438,14 @@ func (item *EngineReindexStatusSignaled) ReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineReindexStatusSignaled) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineReindexStatusSignaled) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineReindexStatusSignaled) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineReindexStatusSignaled) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexSignal := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -1470,16 +1469,17 @@ func (item *EngineReindexStatusSignaled) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineReindexStatusSignaled) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineReindexStatusSignaled) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.reindexStatusSignaled"))
 }
 
-func (item *EngineReindexStatusSignaled) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineReindexStatusSignaled) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.reindexStatusSignaled")
 }
