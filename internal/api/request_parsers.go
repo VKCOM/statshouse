@@ -36,7 +36,7 @@ func (r *httpRequestHandler) parseSeriesRequest() (seriesRequest, error) {
 
 func (r *httpRequestHandler) parseSeriesRequestS(maxTabs int) (res []seriesRequest, err error) {
 	defer func() {
-		var dummy httpError
+		var dummy *httpError
 		if err != nil && !errors.As(err, &dummy) {
 			err = httpErr(http.StatusBadRequest, err)
 		}
