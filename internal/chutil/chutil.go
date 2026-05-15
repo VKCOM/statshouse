@@ -661,18 +661,24 @@ func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 	sem.AdjustCapacity(uint64(capacity))
 }
 
+func applyDecay(avgNS int64, lastQueryTimeNS int64) time.Duration {
+	if avgNS <= 0 {
+		return 0
+	}
+	elapsed := time.Since(time.Unix(0, lastQueryTimeNS))
+	return time.Duration(decayAvgNS(avgNS, elapsed))
+}
+
 func (pool *connPool) getAvgQueryDuration(shard int) time.Duration {
 	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
-		if ns := pool.shardAvgQueryNS[shard].Load(); ns > 0 {
-			return time.Duration(ns)
-		}
-		return 0
+		// TOCTOU: avg and timestamp are read separately; acceptable for this heuristic.
+		// Timestamps are updated only on query completion, so long-running in-flight
+		// queries may appear as idle time causing decay; this is an acceptable trade-off
+		// because the 60s grace period covers most queries and rejected/failed queries
+		// should not keep the average fresh.
+		return applyDecay(pool.shardAvgQueryNS[shard].Load(), pool.lastShardQueryTimeNS[shard].Load())
 	}
-	ns := pool.avgQueryDurationNS.Load()
-	if ns <= 0 {
-		return 0
-	}
-	return time.Duration(ns)
+	return applyDecay(pool.avgQueryDurationNS.Load(), pool.lastPoolQueryTimeNS.Load())
 }
 
 func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {

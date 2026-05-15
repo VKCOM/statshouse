@@ -187,3 +187,41 @@ func TestDecayAvgNS(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAvgQueryDuration_Dispatch(t *testing.T) {
+	pool := newConnPool("test", 10, 5, 2)
+	ns := int64(4 * time.Second)
+	now := time.Now().UnixNano()
+
+	pool.avgQueryDurationNS.Store(ns)
+	pool.lastPoolQueryTimeNS.Store(now)
+	pool.shardAvgQueryNS[0].Store(ns * 2)
+	pool.lastShardQueryTimeNS[0].Store(now)
+	pool.shardAvgQueryNS[1].Store(ns * 3)
+	pool.lastShardQueryTimeNS[1].Store(now)
+
+	poolGot := pool.getAvgQueryDuration(-1)
+	shard0Got := pool.getAvgQueryDuration(0)
+	shard1Got := pool.getAvgQueryDuration(1)
+	oobGot := pool.getAvgQueryDuration(99)
+
+	require.Equal(t, time.Duration(ns), poolGot, "shard -1 should use pool average")
+	require.Equal(t, time.Duration(ns*2), shard0Got, "shard 0 should use shard 0 average")
+	require.Equal(t, time.Duration(ns*3), shard1Got, "shard 1 should use shard 1 average")
+	require.Equal(t, time.Duration(ns), oobGot, "out-of-range shard should fall back to pool average")
+}
+
+func TestGetAvgQueryDuration_ZeroAverage(t *testing.T) {
+	pool := newConnPool("test", 10, 5, 2)
+	pool.avgQueryDurationNS.Store(0)
+	pool.lastPoolQueryTimeNS.Store(time.Now().Add(-10 * time.Minute).UnixNano())
+
+	got := pool.getAvgQueryDuration(-1)
+	require.Equal(t, time.Duration(0), got, "zero pool average should return 0 regardless of timestamp")
+
+	pool.shardAvgQueryNS[0].Store(0)
+	pool.lastShardQueryTimeNS[0].Store(time.Now().Add(-10 * time.Minute).UnixNano())
+
+	got = pool.getAvgQueryDuration(0)
+	require.Equal(t, time.Duration(0), got, "zero shard average should return 0 regardless of timestamp")
+}
