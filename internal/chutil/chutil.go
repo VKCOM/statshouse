@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"sync"
@@ -37,8 +38,10 @@ type connPool struct {
 	servers             []serverCH
 	sem                 *queue.Queue
 	shardSems           []*queue.Queue // shard_id -> semaphore
-	avgQueryDurationNS  atomic.Int64   // exponentially smoothed average in nanoseconds
-	shardAvgQueryNS     []atomic.Int64 // avgQueryDurationNS per-shard
+	avgQueryDurationNS   atomic.Int64   // exponentially smoothed average in nanoseconds
+	shardAvgQueryNS      []atomic.Int64 // avgQueryDurationNS per-shard
+	lastPoolQueryTimeNS  atomic.Int64
+	lastShardQueryTimeNS []atomic.Int64
 }
 
 type serverCH struct {
@@ -119,16 +122,23 @@ const (
 )
 
 func newConnPool(poolName string, maxConn int, maxShardConn, shardCount int) *connPool {
-	return &connPool{
-		poolName:            poolName,
-		rnd:                 rand.New(),
-		maxActiveQuery:      maxConn,
-		maxShardActiveQuery: maxShardConn,
-		servers:             make([]serverCH, 0),
-		sem:                 queue.NewQueue(int64(maxConn)),
-		shardSems:           make([]*queue.Queue, shardCount),
-		shardAvgQueryNS:     make([]atomic.Int64, shardCount),
+	p := &connPool{
+		poolName:             poolName,
+		rnd:                  rand.New(),
+		maxActiveQuery:       maxConn,
+		maxShardActiveQuery:  maxShardConn,
+		servers:              make([]serverCH, 0),
+		sem:                  queue.NewQueue(int64(maxConn)),
+		shardSems:            make([]*queue.Queue, shardCount),
+		shardAvgQueryNS:      make([]atomic.Int64, shardCount),
+		lastShardQueryTimeNS: make([]atomic.Int64, shardCount),
 	}
+	now := time.Now().UnixNano()
+	p.lastPoolQueryTimeNS.Store(now)
+	for i := range p.lastShardQueryTimeNS {
+		p.lastShardQueryTimeNS[i].Store(now)
+	}
+	return p
 }
 
 func newConnPoolWithShards(poolName string, maxConn int, shardCount int, maxShardConnsRatio int) *connPool {
@@ -385,6 +395,26 @@ func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) (*connPool, *ReplicaThr
 
 const latencySlackCH = 130 // 30% upside
 
+const avgDecayGracePeriodNS int64 = int64(60 * time.Second)
+const avgDecayHalfLifeNS int64 = int64(60 * time.Second)
+
+func decayAvgNS(avgNS int64, elapsed time.Duration) int64 {
+	if avgNS <= 0 {
+		return 0
+	}
+	elapsedNS := int64(elapsed)
+	if elapsedNS <= avgDecayGracePeriodNS {
+		return avgNS
+	}
+	decayNS := elapsedNS - avgDecayGracePeriodNS
+	ratio := float64(decayNS) / float64(avgDecayHalfLifeNS)
+	result := float64(avgNS) * math.Pow(0.5, ratio)
+	if result < 1 {
+		return 0
+	}
+	return int64(result)
+}
+
 func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query, trotCfg *ReplicaThrottleConfig) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
@@ -631,18 +661,24 @@ func adjustSemCapacity(s []serverCH, sem *queue.Queue, maxSize int) {
 	sem.AdjustCapacity(uint64(capacity))
 }
 
+func applyDecay(avgNS int64, lastQueryTimeNS int64) time.Duration {
+	if avgNS <= 0 {
+		return 0
+	}
+	elapsed := time.Since(time.Unix(0, lastQueryTimeNS))
+	return time.Duration(decayAvgNS(avgNS, elapsed))
+}
+
 func (pool *connPool) getAvgQueryDuration(shard int) time.Duration {
 	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
-		if ns := pool.shardAvgQueryNS[shard].Load(); ns > 0 {
-			return time.Duration(ns)
-		}
-		return 0
+		// TOCTOU: avg and timestamp are read separately; acceptable for this heuristic.
+		// Timestamps are updated only on query completion, so long-running in-flight
+		// queries may appear as idle time causing decay; this is an acceptable trade-off
+		// because the 60s grace period covers most queries and rejected/failed queries
+		// should not keep the average fresh.
+		return applyDecay(pool.shardAvgQueryNS[shard].Load(), pool.lastShardQueryTimeNS[shard].Load())
 	}
-	ns := pool.avgQueryDurationNS.Load()
-	if ns <= 0 {
-		return 0
-	}
-	return time.Duration(ns)
+	return applyDecay(pool.avgQueryDurationNS.Load(), pool.lastPoolQueryTimeNS.Load())
 }
 
 func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {
@@ -661,11 +697,14 @@ func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {
 			}
 		}
 	}
+	now := time.Now().UnixNano()
 	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
 		update(&pool.shardAvgQueryNS[shard])
+		pool.lastShardQueryTimeNS[shard].Store(now)
 		return
 	}
 	update(&pool.avgQueryDurationNS)
+	pool.lastPoolQueryTimeNS.Store(now)
 }
 
 func throttling(replica int, r *rand.Rand, err error, trotCfg *ReplicaThrottleConfig) error {
@@ -689,6 +728,27 @@ func BindQuery(query string, args ...any) (string, error) {
 
 //go:linkname clickHouseBind github.com/ClickHouse/clickhouse-go/v2.bind
 func clickHouseBind(tz *time.Location, query string, args ...interface{}) (string, error)
+
+func ErrorCodeName(code int) string {
+	switch code {
+	case format.TagValueIDAPIResponseExceptionCHUnknown:
+		return "unknown_ch_exception"
+	case format.TagValueIDAPIResponseExceptionCHTimeout:
+		return "timeout_during_ch"
+	case format.TagValueIDAPIResponseExceptionSemTimeout:
+		return "timeout_on_semaphore"
+	case format.TagValueIDAPIResponseExceptionSemError:
+		return "semaphore_error"
+	case format.TagValueIDAPIResponseExceptionLongCHTimeout:
+		return "fatal_ch_timeout"
+	case format.TagValueIDAPIResponseExceptionSemTooLate:
+		return "semaphore_too_late"
+	case format.TagValueIDAPIResponseExceptionCtxCanceled:
+		return "context_canceled"
+	default:
+		return fmt.Sprintf("unknown(%d)", code)
+	}
+}
 
 func modeStr(isFast, isLight, isHardware bool) string {
 	mode := "slow"
