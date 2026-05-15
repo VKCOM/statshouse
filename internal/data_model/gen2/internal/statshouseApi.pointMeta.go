@@ -142,7 +142,7 @@ func BuiltinVectorStatshouseApiPointMetaInternalReadTL2(r []byte, vec *[]Statsho
 	return r, nil
 }
 
-func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
+func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiPointMeta) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -156,7 +156,7 @@ func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx *basictl.JSONReadCo
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -171,14 +171,13 @@ func BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 func BuiltinVectorStatshouseApiPointMetaWriteJSON(w []byte, vec []StatshouseApiPointMeta) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiPointMeta) []byte {
+func BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiPointMeta) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -309,11 +308,11 @@ func (item StatshouseApiPointMeta) String() string {
 }
 
 func (item *StatshouseApiPointMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiPointMeta) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	item.tl2mask0 = 0
 	var propFieldsMaskPresented bool
 	var propTimeShiftPresented bool
@@ -367,7 +366,7 @@ func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContex
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "tags")
 				}
 				propTagsPresented = true
-				if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
+				if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, &item.Tags); err != nil {
 					return err
 				}
 			case "what":
@@ -375,7 +374,7 @@ func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContex
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.pointMeta", "what")
 				}
 				propWhatPresented = true
-				if err := item.What.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.What.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 				item.tl2mask0 |= 1
@@ -417,15 +416,14 @@ func (item *StatshouseApiPointMeta) ReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiPointMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiPointMeta) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiPointMeta) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiPointMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiPointMeta) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -458,14 +456,14 @@ func (item *StatshouseApiPointMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext,
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinDictStringStringWriteJSONOpt(tctx, w, item.Tags)
+	w = BuiltinDictStringStringWriteJSONOpt(jctx, w, item.Tags)
 	if !(len(item.Tags) != 0) {
 		w = w[:backupIndexTags]
 	}
 	if item.tl2mask0&1 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = item.What.WriteJSONOpt(tctx, w)
+		w = item.What.WriteJSONOpt(jctx, w)
 	}
 	return append(w, '}')
 }
@@ -475,7 +473,8 @@ func (item *StatshouseApiPointMeta) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.pointMeta", err.Error())
 	}
 	return nil
@@ -581,18 +580,18 @@ func (item *StatshouseApiPointMeta) InternalWriteTL2(w []byte, sizes []int, opti
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiPointMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiPointMeta) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -675,6 +674,6 @@ func (item *StatshouseApiPointMeta) InternalReadTL2(r []byte) (_ []byte, err err
 	return r, nil
 }
 
-func (item *StatshouseApiPointMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiPointMeta) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

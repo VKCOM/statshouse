@@ -100,7 +100,7 @@ func (item *StatshouseTestConnection2) WriteResultTL1(w []byte, ret string) (_ [
 	return w, nil
 }
 
-func (item *StatshouseTestConnection2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+func (item *StatshouseTestConnection2) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *string) error {
 	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
@@ -108,11 +108,10 @@ func (item *StatshouseTestConnection2) ReadResultJSON(legacyTypeNames bool, in *
 }
 
 func (item *StatshouseTestConnection2) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseTestConnection2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret string) (_ []byte, err error) {
+func (item *StatshouseTestConnection2) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -123,18 +122,18 @@ func (item *StatshouseTestConnection2) FillRandomResultTL1(rg *basictl.RandGener
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseTestConnection2) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -153,7 +152,7 @@ func (item *StatshouseTestConnection2) ReadResultTL2WriteResultJSON(tctx *basict
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
-func (item *StatshouseTestConnection2) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
@@ -162,11 +161,11 @@ func (item StatshouseTestConnection2) String() string {
 }
 
 func (item *StatshouseTestConnection2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseTestConnection2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseTestConnection2) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propHeaderPresented bool
 	var rawHeader []byte
@@ -247,12 +246,12 @@ func (item *StatshouseTestConnection2) ReadJSONGeneral(tctx *basictl.JSONReadCon
 	}
 	if propHeaderPresented {
 		inHeader := &basictl.JsonLexer{Data: rawHeader}
-		if err := item.Header.ReadJSONGeneral(tctx, inHeader, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, inHeader, item.FieldsMask); err != nil {
 			return err
 		}
 	}
 	if !propHeaderPresented {
-		if err := item.Header.ReadJSONGeneral(tctx, nil, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, nil, item.FieldsMask); err != nil {
 			return err
 		}
 	}
@@ -260,15 +259,14 @@ func (item *StatshouseTestConnection2) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseTestConnection2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseTestConnection2) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseTestConnection2) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseTestConnection2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseTestConnection2) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -279,7 +277,7 @@ func (item *StatshouseTestConnection2) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(jctx, w, item.FieldsMask)
 	backupIndexPayload := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"payload":`...)
@@ -309,17 +307,18 @@ func (item *StatshouseTestConnection2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseTestConnection2) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseTestConnection2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseTestConnection2) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.testConnection2"))
 }
 
-func (item *StatshouseTestConnection2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseTestConnection2) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
@@ -410,7 +409,7 @@ func (item *StatshouseTestConnection2Bytes) WriteResultTL1(w []byte, ret []byte)
 	return w, nil
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
+func (item *StatshouseTestConnection2Bytes) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *[]byte) error {
 	if err := Json2ReadStringBytes(in, ret); err != nil {
 		return err
 	}
@@ -418,11 +417,10 @@ func (item *StatshouseTestConnection2Bytes) ReadResultJSON(legacyTypeNames bool,
 }
 
 func (item *StatshouseTestConnection2Bytes) WriteResultJSON(w []byte, ret []byte) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseTestConnection2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
 }
@@ -433,18 +431,18 @@ func (item *StatshouseTestConnection2Bytes) FillRandomResultTL1(rg *basictl.Rand
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -463,7 +461,7 @@ func (item *StatshouseTestConnection2Bytes) ReadResultTL2WriteResultJSON(tctx *b
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }
 
@@ -472,11 +470,11 @@ func (item StatshouseTestConnection2Bytes) String() string {
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseTestConnection2Bytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propHeaderPresented bool
 	var rawHeader []byte
@@ -557,12 +555,12 @@ func (item *StatshouseTestConnection2Bytes) ReadJSONGeneral(tctx *basictl.JSONRe
 	}
 	if propHeaderPresented {
 		inHeader := &basictl.JsonLexer{Data: rawHeader}
-		if err := item.Header.ReadJSONGeneral(tctx, inHeader, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, inHeader, item.FieldsMask); err != nil {
 			return err
 		}
 	}
 	if !propHeaderPresented {
-		if err := item.Header.ReadJSONGeneral(tctx, nil, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, nil, item.FieldsMask); err != nil {
 			return err
 		}
 	}
@@ -570,15 +568,14 @@ func (item *StatshouseTestConnection2Bytes) ReadJSONGeneral(tctx *basictl.JSONRe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseTestConnection2Bytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseTestConnection2Bytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseTestConnection2Bytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -589,7 +586,7 @@ func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(tctx *basictl.JSONWrite
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(jctx, w, item.FieldsMask)
 	backupIndexPayload := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"payload":`...)
@@ -619,16 +616,17 @@ func (item *StatshouseTestConnection2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseTestConnection2Bytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseTestConnection2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseTestConnection2Bytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.testConnection2"))
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.testConnection2")
 }

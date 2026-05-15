@@ -73,21 +73,19 @@ func (item *EngineSetPersistentConfigValue) WriteResultTL1(w []byte, ret True) (
 	return w, nil
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *EngineSetPersistentConfigValue) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigValue) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineSetPersistentConfigValue) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *EngineSetPersistentConfigValue) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -97,18 +95,18 @@ func (item *EngineSetPersistentConfigValue) FillRandomResultTL1(rg *basictl.Rand
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -127,7 +125,7 @@ func (item *EngineSetPersistentConfigValue) ReadResultTL2WriteResultJSON(tctx *b
 	return r, w, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
 }
 
@@ -136,11 +134,11 @@ func (item EngineSetPersistentConfigValue) String() string {
 }
 
 func (item *EngineSetPersistentConfigValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineSetPersistentConfigValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineSetPersistentConfigValue) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propNamePresented bool
 	var propValuePresented bool
 	if in != nil {
@@ -188,15 +186,14 @@ func (item *EngineSetPersistentConfigValue) ReadJSONGeneral(tctx *basictl.JSONRe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSetPersistentConfigValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineSetPersistentConfigValue) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineSetPersistentConfigValue) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineSetPersistentConfigValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineSetPersistentConfigValue) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexName := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -220,16 +217,17 @@ func (item *EngineSetPersistentConfigValue) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSetPersistentConfigValue) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setPersistentConfigValue", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineSetPersistentConfigValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineSetPersistentConfigValue) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue"))
 }
 
-func (item *EngineSetPersistentConfigValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.setPersistentConfigValue")
 }

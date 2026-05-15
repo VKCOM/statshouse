@@ -66,21 +66,19 @@ func (item *EngineDumpForceQueries) WriteResultTL1(w []byte, ret True) (_ []byte
 	return w, nil
 }
 
-func (item *EngineDumpForceQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *EngineDumpForceQueries) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineDumpForceQueries) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineDumpForceQueries) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *EngineDumpForceQueries) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret True) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -90,18 +88,18 @@ func (item *EngineDumpForceQueries) FillRandomResultTL1(rg *basictl.RandGenerato
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineDumpForceQueries) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineDumpForceQueries) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineDumpForceQueries) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineDumpForceQueries) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -120,7 +118,7 @@ func (item *EngineDumpForceQueries) ReadResultTL2WriteResultJSON(tctx *basictl.T
 	return r, w, ErrorTL2SerializersNotGenerated("engine.dumpForceQueries")
 }
 
-func (item *EngineDumpForceQueries) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineDumpForceQueries) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.dumpForceQueries")
 }
 
@@ -129,11 +127,11 @@ func (item EngineDumpForceQueries) String() string {
 }
 
 func (item *EngineDumpForceQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineDumpForceQueries) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineDumpForceQueries) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propBuffersPressureThresholdPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -169,15 +167,14 @@ func (item *EngineDumpForceQueries) ReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineDumpForceQueries) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineDumpForceQueries) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineDumpForceQueries) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineDumpForceQueries) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineDumpForceQueries) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBuffersPressureThreshold := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -194,16 +191,17 @@ func (item *EngineDumpForceQueries) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineDumpForceQueries) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.dumpForceQueries", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineDumpForceQueries) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineDumpForceQueries) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.dumpForceQueries"))
 }
 
-func (item *EngineDumpForceQueries) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineDumpForceQueries) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.dumpForceQueries")
 }

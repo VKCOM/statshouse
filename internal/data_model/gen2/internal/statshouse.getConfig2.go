@@ -107,21 +107,19 @@ func (item *StatshouseGetConfig2) WriteResultTL1(w []byte, ret StatshouseGetConf
 	return w, nil
 }
 
-func (item *StatshouseGetConfig2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResult) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *StatshouseGetConfigResult) error {
+	if err := ret.ReadJSONGeneral(jctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetConfig2) WriteResultJSON(w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseGetConfig2) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
+func (item *StatshouseGetConfig2) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -131,18 +129,18 @@ func (item *StatshouseGetConfig2) FillRandomResultTL1(rg *basictl.RandGenerator,
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseGetConfig2) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResult
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseGetConfig2) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResult
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -161,7 +159,7 @@ func (item *StatshouseGetConfig2) ReadResultTL2WriteResultJSON(tctx *basictl.TL2
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
-func (item *StatshouseGetConfig2) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
@@ -179,11 +177,11 @@ func (item StatshouseGetConfig2) String() string {
 }
 
 func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetConfig2) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetConfig2) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propHeaderPresented bool
 	var rawHeader []byte
@@ -272,12 +270,12 @@ func (item *StatshouseGetConfig2) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 	}
 	if propHeaderPresented {
 		inHeader := &basictl.JsonLexer{Data: rawHeader}
-		if err := item.Header.ReadJSONGeneral(tctx, inHeader, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, inHeader, item.FieldsMask); err != nil {
 			return err
 		}
 	}
 	if !propHeaderPresented {
-		if err := item.Header.ReadJSONGeneral(tctx, nil, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, nil, item.FieldsMask); err != nil {
 			return err
 		}
 	}
@@ -285,15 +283,14 @@ func (item *StatshouseGetConfig2) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfig2) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetConfig2) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetConfig2) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetConfig2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetConfig2) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -304,7 +301,7 @@ func (item *StatshouseGetConfig2) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(jctx, w, item.FieldsMask)
 	backupIndexCluster := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"cluster":`...)
@@ -328,17 +325,18 @@ func (item *StatshouseGetConfig2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfig2) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfig2) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfig2) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfig2"))
 }
 
-func (item *StatshouseGetConfig2) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfig2) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
@@ -438,21 +436,19 @@ func (item *StatshouseGetConfig2Bytes) WriteResultTL1(w []byte, ret StatshouseGe
 	return w, nil
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResultBytes) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2Bytes) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *StatshouseGetConfigResultBytes) error {
+	if err := ret.ReadJSONGeneral(jctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetConfig2Bytes) WriteResultJSON(w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseGetConfig2Bytes) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
+func (item *StatshouseGetConfig2Bytes) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -462,18 +458,18 @@ func (item *StatshouseGetConfig2Bytes) FillRandomResultTL1(rg *basictl.RandGener
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResultBytes
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResultBytes
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -492,7 +488,7 @@ func (item *StatshouseGetConfig2Bytes) ReadResultTL2WriteResultJSON(tctx *basict
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }
 
@@ -510,11 +506,11 @@ func (item StatshouseGetConfig2Bytes) String() string {
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetConfig2Bytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propHeaderPresented bool
 	var rawHeader []byte
@@ -603,12 +599,12 @@ func (item *StatshouseGetConfig2Bytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 	}
 	if propHeaderPresented {
 		inHeader := &basictl.JsonLexer{Data: rawHeader}
-		if err := item.Header.ReadJSONGeneral(tctx, inHeader, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, inHeader, item.FieldsMask); err != nil {
 			return err
 		}
 	}
 	if !propHeaderPresented {
-		if err := item.Header.ReadJSONGeneral(tctx, nil, item.FieldsMask); err != nil {
+		if err := item.Header.ReadJSONGeneral(jctx, nil, item.FieldsMask); err != nil {
 			return err
 		}
 	}
@@ -616,15 +612,14 @@ func (item *StatshouseGetConfig2Bytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfig2Bytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetConfig2Bytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetConfig2Bytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -635,7 +630,7 @@ func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	w = item.Header.WriteJSONOpt(tctx, w, item.FieldsMask)
+	w = item.Header.WriteJSONOpt(jctx, w, item.FieldsMask)
 	backupIndexCluster := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"cluster":`...)
@@ -659,16 +654,17 @@ func (item *StatshouseGetConfig2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfig2Bytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfig2Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfig2Bytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfig2"))
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfig2")
 }

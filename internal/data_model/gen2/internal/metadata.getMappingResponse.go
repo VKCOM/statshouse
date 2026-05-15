@@ -143,25 +143,25 @@ func (item *MetadataGetMappingResponse) WriteTL1Boxed(w []byte, nat_field_mask u
 	return w
 }
 
-func (item *MetadataGetMappingResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMappingResponse) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.GetMappingResponse"))
 }
 
-func (item *MetadataGetMappingResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+func (item *MetadataGetMappingResponse) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) ([]byte, error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.GetMappingResponse")
 }
 
-func (item *MetadataGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMappingResponse) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	_tag, _value, err := Json2ReadUnion("metadata.GetMappingResponse", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "metadata.getMappingResponse#9286abfc", "metadata.getMappingResponse", "#9286abfc":
-		if !tctx.LegacyTypeNames && _tag == "metadata.getMappingResponse#9286abfc" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "metadata.getMappingResponse#9286abfc" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "metadata.getMappingResponse#9286abfc")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#9286abfc" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#9286abfc" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "#9286abfc")
 		}
 		item.index = 0
@@ -169,30 +169,30 @@ func (item *MetadataGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueGetMappingResponse.ReadJSONGeneral(tctx, in2Pointer, nat_field_mask); err != nil {
+		if err := item.valueGetMappingResponse.ReadJSONGeneral(jctx, in2Pointer, nat_field_mask); err != nil {
 			return err
 		}
 	case "metadata.getMappingResponseFloodLimitError#9286abfd", "metadata.getMappingResponseFloodLimitError", "#9286abfd":
-		if !tctx.LegacyTypeNames && _tag == "metadata.getMappingResponseFloodLimitError#9286abfd" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "metadata.getMappingResponseFloodLimitError#9286abfd" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "metadata.getMappingResponseFloodLimitError#9286abfd")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#9286abfd" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#9286abfd" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "#9286abfd")
 		}
 		item.index = 1
 	case "metadata.getMappingResponseKeyNotExists#9286abff", "metadata.getMappingResponseKeyNotExists", "#9286abff":
-		if !tctx.LegacyTypeNames && _tag == "metadata.getMappingResponseKeyNotExists#9286abff" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "metadata.getMappingResponseKeyNotExists#9286abff" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "metadata.getMappingResponseKeyNotExists#9286abff")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#9286abff" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#9286abff" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "#9286abff")
 		}
 		item.index = 2
 	case "metadata.getMappingResponseCreated#9286abbb", "metadata.getMappingResponseCreated", "#9286abbb":
-		if !tctx.LegacyTypeNames && _tag == "metadata.getMappingResponseCreated#9286abbb" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "metadata.getMappingResponseCreated#9286abbb" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "metadata.getMappingResponseCreated#9286abbb")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#9286abbb" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#9286abbb" {
 			return ErrorInvalidUnionLegacyTagJSON("metadata.GetMappingResponse", "#9286abbb")
 		}
 		item.index = 3
@@ -200,7 +200,7 @@ func (item *MetadataGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 		if _value != nil {
 			in2Pointer = &basictl.JsonLexer{Data: _value}
 		}
-		if err := item.valueCreated.ReadJSONGeneral(tctx, in2Pointer, nat_field_mask); err != nil {
+		if err := item.valueCreated.ReadJSONGeneral(jctx, in2Pointer, nat_field_mask); err != nil {
 			return err
 		}
 	default:
@@ -210,47 +210,46 @@ func (item *MetadataGetMappingResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) ([]byte, error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMappingResponse) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) ([]byte, error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMappingResponse) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	switch item.index {
 	case 0:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponse#9286abfc"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponse"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueGetMappingResponse.WriteJSONOpt(tctx, w, nat_field_mask)
+		w = item.valueGetMappingResponse.WriteJSONOpt(jctx, w, nat_field_mask)
 		return append(w, '}')
 	case 1:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseFloodLimitError#9286abfd"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponseFloodLimitError"`...)
 		}
 		return append(w, '}')
 	case 2:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseKeyNotExists#9286abff"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponseKeyNotExists"`...)
 		}
 		return append(w, '}')
 	case 3:
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			w = append(w, `{"type":"metadata.getMappingResponseCreated#9286abbb"`...)
 		} else {
 			w = append(w, `{"type":"metadata.getMappingResponseCreated"`...)
 		}
 		w = append(w, `,"value":`...)
-		w = item.valueCreated.WriteJSONOpt(tctx, w, nat_field_mask)
+		w = item.valueCreated.WriteJSONOpt(jctx, w, nat_field_mask)
 		return append(w, '}')
 	default: // Impossible due to panic above
 		return w
@@ -299,7 +298,7 @@ func (item *MetadataGetMappingResponse0) WriteTL1Boxed(w []byte, nat_field_mask 
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponse0) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMappingResponse0) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propIdPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -335,15 +334,14 @@ func (item *MetadataGetMappingResponse0) ReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingResponse0) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMappingResponse0) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMappingResponse0) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -355,11 +353,11 @@ func (item *MetadataGetMappingResponse0) WriteJSONOpt(tctx *basictl.JSONWriteCon
 	return append(w, '}')
 }
 
-func (item *MetadataGetMappingResponse0) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMappingResponse0) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponse"))
 }
 
-func (item *MetadataGetMappingResponse0) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMappingResponse0) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponse")
 }
 
@@ -405,7 +403,7 @@ func (item *MetadataGetMappingResponseCreated) WriteTL1Boxed(w []byte, nat_field
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseCreated) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMappingResponseCreated) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propIdPresented bool
 	if in != nil {
 		in.Delim('{')
@@ -441,15 +439,14 @@ func (item *MetadataGetMappingResponseCreated) ReadJSONGeneral(tctx *basictl.JSO
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingResponseCreated) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMappingResponseCreated) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMappingResponseCreated) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexId := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -461,11 +458,11 @@ func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(tctx *basictl.JSONWr
 	return append(w, '}')
 }
 
-func (item *MetadataGetMappingResponseCreated) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMappingResponseCreated) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseCreated"))
 }
 
-func (item *MetadataGetMappingResponseCreated) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseCreated) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseCreated")
 }
 
@@ -508,7 +505,7 @@ func (item *MetadataGetMappingResponseFloodLimitError) WriteTL1Boxed(w []byte, n
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMappingResponseFloodLimitError) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -526,24 +523,23 @@ func (item *MetadataGetMappingResponseFloodLimitError) ReadJSONGeneral(tctx *bas
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMappingResponseFloodLimitError) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMappingResponseFloodLimitError) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseFloodLimitError"))
 }
 
-func (item *MetadataGetMappingResponseFloodLimitError) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseFloodLimitError) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseFloodLimitError")
 }
 
@@ -586,7 +582,7 @@ func (item *MetadataGetMappingResponseKeyNotExists) WriteTL1Boxed(w []byte, nat_
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMappingResponseKeyNotExists) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -604,23 +600,22 @@ func (item *MetadataGetMappingResponseKeyNotExists) ReadJSONGeneral(tctx *basict
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMappingResponseKeyNotExists) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMappingResponseKeyNotExists"))
 }
 
-func (item *MetadataGetMappingResponseKeyNotExists) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMappingResponseKeyNotExists) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMappingResponseKeyNotExists")
 }

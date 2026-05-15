@@ -70,11 +70,11 @@ func (item StatshouseGetMetricsResult) String() string {
 }
 
 func (item *StatshouseGetMetricsResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetMetricsResult) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetMetricsResult) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propVersionPresented bool
 	var propMetricsPresented bool
 	if in != nil {
@@ -99,7 +99,7 @@ func (item *StatshouseGetMetricsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetricsResult", "metrics")
 				}
 				propMetricsPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Metrics); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.Metrics); err != nil {
 					return err
 				}
 			default:
@@ -122,15 +122,14 @@ func (item *StatshouseGetMetricsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetMetricsResult) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetMetricsResult) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetMetricsResult) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetMetricsResult) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetMetricsResult) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -142,7 +141,7 @@ func (item *StatshouseGetMetricsResult) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.Metrics)
+	w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.Metrics)
 	if !(len(item.Metrics) != 0) {
 		w = w[:backupIndexMetrics]
 	}
@@ -154,17 +153,18 @@ func (item *StatshouseGetMetricsResult) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetMetricsResult) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getMetricsResult", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetricsResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetMetricsResult) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getMetricsResult"))
 }
 
-func (item *StatshouseGetMetricsResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetMetricsResult) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getMetricsResult")
 }
 
@@ -225,11 +225,11 @@ func (item StatshouseGetMetricsResultBytes) String() string {
 }
 
 func (item *StatshouseGetMetricsResultBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetMetricsResultBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetMetricsResultBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propVersionPresented bool
 	var propMetricsPresented bool
 	if in != nil {
@@ -254,7 +254,7 @@ func (item *StatshouseGetMetricsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getMetricsResult", "metrics")
 				}
 				propMetricsPresented = true
-				if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, &item.Metrics); err != nil {
+				if err := BuiltinVectorStringBytesReadJSONGeneral(jctx, in, &item.Metrics); err != nil {
 					return err
 				}
 			default:
@@ -277,15 +277,14 @@ func (item *StatshouseGetMetricsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetMetricsResultBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetMetricsResultBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetMetricsResultBytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetMetricsResultBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetMetricsResultBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -297,7 +296,7 @@ func (item *StatshouseGetMetricsResultBytes) WriteJSONOpt(tctx *basictl.JSONWrit
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, item.Metrics)
+	w = BuiltinVectorStringBytesWriteJSONOpt(jctx, w, item.Metrics)
 	if !(len(item.Metrics) != 0) {
 		w = w[:backupIndexMetrics]
 	}
@@ -309,16 +308,17 @@ func (item *StatshouseGetMetricsResultBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetMetricsResultBytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getMetricsResult", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetricsResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetMetricsResultBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getMetricsResult"))
 }
 
-func (item *StatshouseGetMetricsResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetMetricsResultBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getMetricsResult")
 }

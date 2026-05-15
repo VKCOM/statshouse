@@ -55,7 +55,7 @@ func BuiltinVectorMetadataHistoryShortResponseEventInternalReadTL2(r []byte, vec
 	return r, ErrorTL2SerializersNotGenerated("[]MetadataHistoryShortResponseEvent")
 }
 
-func BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
+func BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]MetadataHistoryShortResponseEvent, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(tctx *basictl
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorMetadataHistoryShortResponseEventReadJSONGeneral(tctx *basictl
 }
 
 func BuiltinVectorMetadataHistoryShortResponseEventWriteJSON(w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(&tctx, w, vec, nat_t)
+	return BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(nil, w, vec, nat_t)
 }
-func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
+func BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []MetadataHistoryShortResponseEvent, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w, nat_t)
+		w = elem.WriteJSONOpt(jctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -139,7 +138,7 @@ func (item *MetadataHistoryShortResponseEvent) WriteTL1Boxed(w []byte, nat_field
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataHistoryShortResponseEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataHistoryShortResponseEvent) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propVersionPresented bool
 	var propMetadataPresented bool
 	if in != nil {
@@ -187,15 +186,14 @@ func (item *MetadataHistoryShortResponseEvent) ReadJSONGeneral(tctx *basictl.JSO
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataHistoryShortResponseEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataHistoryShortResponseEvent) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -214,10 +212,10 @@ func (item *MetadataHistoryShortResponseEvent) WriteJSONOpt(tctx *basictl.JSONWr
 	return append(w, '}')
 }
 
-func (item *MetadataHistoryShortResponseEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataHistoryShortResponseEvent) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.historyShortResponseEvent"))
 }
 
-func (item *MetadataHistoryShortResponseEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataHistoryShortResponseEvent) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.historyShortResponseEvent")
 }

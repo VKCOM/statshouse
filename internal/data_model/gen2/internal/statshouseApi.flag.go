@@ -145,58 +145,58 @@ func (item *StatshouseApiFlag) InternalReadTL2(r []byte) (_ []byte, err error) {
 	Unused(currentR)
 	return r, nil
 }
-func (item *StatshouseApiFlag) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiFlag) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
 
-func (item *StatshouseApiFlag) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) ([]byte, error) {
+func (item *StatshouseApiFlag) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) ([]byte, error) {
 	return item.InternalReadTL2(r)
 }
 
 func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiFlag) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiFlag) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	_tag, _, err := Json2ReadUnion("statshouseApi.Flag", in)
 	if err != nil {
 		return err
 	}
 	switch _tag {
 	case "Mapped", "statshouseApi.flagMapped#670ab89c", "statshouseApi.flagMapped", "#670ab89c":
-		if !tctx.LegacyTypeNames && _tag == "statshouseApi.flagMapped#670ab89c" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "statshouseApi.flagMapped#670ab89c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagMapped#670ab89c")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#670ab89c" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#670ab89c" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "#670ab89c")
 		}
 		item.index = 0
 	case "Raw", "statshouseApi.flagRaw#4ca979c0", "statshouseApi.flagRaw", "#4ca979c0":
-		if !tctx.LegacyTypeNames && _tag == "statshouseApi.flagRaw#4ca979c0" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "statshouseApi.flagRaw#4ca979c0" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagRaw#4ca979c0")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#4ca979c0" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#4ca979c0" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "#4ca979c0")
 		}
 		item.index = 1
 	case "Auto", "statshouseApi.flagAuto#2a6e4c14", "statshouseApi.flagAuto", "#2a6e4c14":
-		if !tctx.LegacyTypeNames && _tag == "statshouseApi.flagAuto#2a6e4c14" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "statshouseApi.flagAuto#2a6e4c14" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagAuto#2a6e4c14")
 		}
-		if !tctx.LegacyTypeNames && _tag == "#2a6e4c14" {
+		if jctx != nil && !jctx.LegacyTypeNames && _tag == "#2a6e4c14" {
 			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "#2a6e4c14")
 		}
 		item.index = 2
@@ -207,37 +207,36 @@ func (item *StatshouseApiFlag) ReadJSONGeneral(tctx *basictl.JSONReadContext, in
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item StatshouseApiFlag) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item StatshouseApiFlag) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) ([]byte, error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item StatshouseApiFlag) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item StatshouseApiFlag) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item StatshouseApiFlag) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	switch item.index {
 	case 0:
-		if tctx.IsTL2 {
+		if jctx != nil && jctx.IsTL2 {
 			return append(w, `"Mapped"`...)
 		}
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			return append(w, `"statshouseApi.flagMapped#670ab89c"`...)
 		}
 		return append(w, `"statshouseApi.flagMapped"`...)
 	case 1:
-		if tctx.IsTL2 {
+		if jctx != nil && jctx.IsTL2 {
 			return append(w, `"Raw"`...)
 		}
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			return append(w, `"statshouseApi.flagRaw#4ca979c0"`...)
 		}
 		return append(w, `"statshouseApi.flagRaw"`...)
 	case 2:
-		if tctx.IsTL2 {
+		if jctx != nil && jctx.IsTL2 {
 			return append(w, `"Auto"`...)
 		}
-		if tctx.LegacyTypeNames {
+		if jctx != nil && jctx.LegacyTypeNames {
 			return append(w, `"statshouseApi.flagAuto#2a6e4c14"`...)
 		}
 		return append(w, `"statshouseApi.flagAuto"`...)
@@ -255,7 +254,8 @@ func (item *StatshouseApiFlag) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiFlag) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
 	}
 	return nil

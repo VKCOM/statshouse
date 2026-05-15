@@ -69,11 +69,11 @@ func (item MetadataPutBootstrapEvent) String() string {
 }
 
 func (item *MetadataPutBootstrapEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataPutBootstrapEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataPutBootstrapEvent) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propMappingsPresented bool
 	if in != nil {
@@ -98,7 +98,7 @@ func (item *MetadataPutBootstrapEvent) ReadJSONGeneral(tctx *basictl.JSONReadCon
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putBootstrapEvent", "mappings")
 				}
 				propMappingsPresented = true
-				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(tctx, in, &item.Mappings); err != nil {
+				if err := BuiltinVectorStatshouseMappingReadJSONGeneral(jctx, in, &item.Mappings); err != nil {
 					return err
 				}
 			default:
@@ -121,15 +121,14 @@ func (item *MetadataPutBootstrapEvent) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataPutBootstrapEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataPutBootstrapEvent) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataPutBootstrapEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataPutBootstrapEvent) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,7 +140,7 @@ func (item *MetadataPutBootstrapEvent) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	backupIndexMappings := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"mappings":`...)
-	w = BuiltinVectorStatshouseMappingWriteJSONOpt(tctx, w, item.Mappings)
+	w = BuiltinVectorStatshouseMappingWriteJSONOpt(jctx, w, item.Mappings)
 	if !(len(item.Mappings) != 0) {
 		w = w[:backupIndexMappings]
 	}
@@ -153,16 +152,17 @@ func (item *MetadataPutBootstrapEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataPutBootstrapEvent) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putBootstrapEvent", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataPutBootstrapEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataPutBootstrapEvent) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.putBootstrapEvent"))
 }
 
-func (item *MetadataPutBootstrapEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataPutBootstrapEvent) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.putBootstrapEvent")
 }

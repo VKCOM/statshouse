@@ -96,21 +96,19 @@ func (item *MetadataEditEntitynew) WriteResultTL1(w []byte, ret MetadataEvent) (
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *MetadataEditEntitynew) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *MetadataEvent) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataEditEntitynew) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *MetadataEditEntitynew) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *MetadataEditEntitynew) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret MetadataEvent) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -120,18 +118,18 @@ func (item *MetadataEditEntitynew) FillRandomResultTL1(rg *basictl.RandGenerator
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *MetadataEditEntitynew) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataEvent
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataEvent
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -150,7 +148,7 @@ func (item *MetadataEditEntitynew) ReadResultTL2WriteResultJSON(tctx *basictl.TL
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.editEntitynew")
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("metadata.editEntitynew")
 }
 
@@ -159,11 +157,11 @@ func (item MetadataEditEntitynew) String() string {
 }
 
 func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataEditEntitynew) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataEditEntitynew) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propEventPresented bool
 	var propCreatePresented bool
@@ -192,7 +190,7 @@ func (item *MetadataEditEntitynew) ReadJSONGeneral(tctx *basictl.JSONReadContext
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "event")
 				}
 				propEventPresented = true
-				if err := item.Event.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.Event.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 			case "create":
@@ -243,15 +241,14 @@ func (item *MetadataEditEntitynew) ReadJSONGeneral(tctx *basictl.JSONReadContext
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataEditEntitynew) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataEditEntitynew) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataEditEntitynew) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataEditEntitynew) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataEditEntitynew) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -262,7 +259,7 @@ func (item *MetadataEditEntitynew) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"event":`...)
-	w = item.Event.WriteJSONOpt(tctx, w)
+	w = item.Event.WriteJSONOpt(jctx, w)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)
@@ -279,16 +276,17 @@ func (item *MetadataEditEntitynew) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataEditEntitynew) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.editEntitynew", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataEditEntitynew) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataEditEntitynew) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.editEntitynew"))
 }
 
-func (item *MetadataEditEntitynew) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.editEntitynew")
 }

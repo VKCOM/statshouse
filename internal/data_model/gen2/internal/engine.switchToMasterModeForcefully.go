@@ -63,21 +63,19 @@ func (item *EngineSwitchToMasterModeForcefully) WriteResultTL1(w []byte, ret Eng
 	return w, nil
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineSwitchMasterReplicaModeResult) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *EngineSwitchToMasterModeForcefully) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *EngineSwitchMasterReplicaModeResult) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSwitchToMasterModeForcefully) WriteResultJSON(w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineSwitchToMasterModeForcefully) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *EngineSwitchToMasterModeForcefully) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -87,18 +85,18 @@ func (item *EngineSwitchToMasterModeForcefully) FillRandomResultTL1(rg *basictl.
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSwitchToMasterModeForcefully) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineSwitchMasterReplicaModeResult
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSwitchToMasterModeForcefully) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineSwitchMasterReplicaModeResult
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -117,7 +115,7 @@ func (item *EngineSwitchToMasterModeForcefully) ReadResultTL2WriteResultJSON(tct
 	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSwitchToMasterModeForcefully) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
 }
 
@@ -126,11 +124,11 @@ func (item EngineSwitchToMasterModeForcefully) String() string {
 }
 
 func (item *EngineSwitchToMasterModeForcefully) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineSwitchToMasterModeForcefully) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -148,15 +146,14 @@ func (item *EngineSwitchToMasterModeForcefully) ReadJSONGeneral(tctx *basictl.JS
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineSwitchToMasterModeForcefully) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineSwitchToMasterModeForcefully) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineSwitchToMasterModeForcefully) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineSwitchToMasterModeForcefully) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineSwitchToMasterModeForcefully) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -166,16 +163,17 @@ func (item *EngineSwitchToMasterModeForcefully) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSwitchToMasterModeForcefully) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.switchToMasterModeForcefully", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineSwitchToMasterModeForcefully) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineSwitchToMasterModeForcefully) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully"))
 }
 
-func (item *EngineSwitchToMasterModeForcefully) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineSwitchToMasterModeForcefully) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.switchToMasterModeForcefully")
 }

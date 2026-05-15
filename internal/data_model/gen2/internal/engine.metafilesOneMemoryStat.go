@@ -55,7 +55,7 @@ func BuiltinVectorEngineMetafilesOneMemoryStatInternalReadTL2(r []byte, vec *[]E
 	return r, ErrorTL2SerializersNotGenerated("[]EngineMetafilesOneMemoryStat")
 }
 
-func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
+func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx *basictl.JSON
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorEngineMetafilesOneMemoryStatReadJSONGeneral(tctx *basictl.JSON
 }
 
 func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSON(w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
+func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []EngineMetafilesOneMemoryStat) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -160,11 +159,11 @@ func (item EngineMetafilesOneMemoryStat) String() string {
 }
 
 func (item *EngineMetafilesOneMemoryStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineMetafilesOneMemoryStat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineMetafilesOneMemoryStat) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propMemoryMegabytesPresented bool
 	var propTotalAioQueriesPresented bool
 	var propTotalAioBytesPresented bool
@@ -224,15 +223,14 @@ func (item *EngineMetafilesOneMemoryStat) ReadJSONGeneral(tctx *basictl.JSONRead
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineMetafilesOneMemoryStat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineMetafilesOneMemoryStat) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineMetafilesOneMemoryStat) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexMemoryMegabytes := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -263,16 +261,17 @@ func (item *EngineMetafilesOneMemoryStat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineMetafilesOneMemoryStat) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.metafilesOneMemoryStat", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineMetafilesOneMemoryStat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineMetafilesOneMemoryStat) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.metafilesOneMemoryStat"))
 }
 
-func (item *EngineMetafilesOneMemoryStat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineMetafilesOneMemoryStat) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.metafilesOneMemoryStat")
 }

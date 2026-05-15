@@ -76,11 +76,11 @@ func (item MetadataPutMappingEvent) String() string {
 }
 
 func (item *MetadataPutMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataPutMappingEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataPutMappingEvent) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propKeysPresented bool
 	var propValuePresented bool
@@ -106,7 +106,7 @@ func (item *MetadataPutMappingEvent) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "keys")
 				}
 				propKeysPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Keys); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.Keys); err != nil {
 					return err
 				}
 			case "value":
@@ -114,7 +114,7 @@ func (item *MetadataPutMappingEvent) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putMappingEvent", "value")
 				}
 				propValuePresented = true
-				if err := BuiltinVectorIntReadJSONGeneral(tctx, in, &item.Value); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(jctx, in, &item.Value); err != nil {
 					return err
 				}
 			default:
@@ -140,15 +140,14 @@ func (item *MetadataPutMappingEvent) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataPutMappingEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataPutMappingEvent) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataPutMappingEvent) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataPutMappingEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataPutMappingEvent) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -160,14 +159,14 @@ func (item *MetadataPutMappingEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	backupIndexKeys := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"keys":`...)
-	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.Keys)
+	w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.Keys)
 	if !(len(item.Keys) != 0) {
 		w = w[:backupIndexKeys]
 	}
 	backupIndexValue := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"value":`...)
-	w = BuiltinVectorIntWriteJSONOpt(tctx, w, item.Value)
+	w = BuiltinVectorIntWriteJSONOpt(jctx, w, item.Value)
 	if !(len(item.Value) != 0) {
 		w = w[:backupIndexValue]
 	}
@@ -179,16 +178,17 @@ func (item *MetadataPutMappingEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataPutMappingEvent) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putMappingEvent", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataPutMappingEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataPutMappingEvent) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.putMappingEvent"))
 }
 
-func (item *MetadataPutMappingEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataPutMappingEvent) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.putMappingEvent")
 }

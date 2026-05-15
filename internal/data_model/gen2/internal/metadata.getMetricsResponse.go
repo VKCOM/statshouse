@@ -56,7 +56,7 @@ func (item *MetadataGetMetricsResponse) WriteTL1Boxed(w []byte, nat_field_mask u
 	return item.WriteTL1(w, nat_field_mask)
 }
 
-func (item *MetadataGetMetricsResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
+func (item *MetadataGetMetricsResponse) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
 	var propCurrentVersionPresented bool
 	var propMetricsPresented bool
 	if in != nil {
@@ -81,7 +81,7 @@ func (item *MetadataGetMetricsResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getMetricsResponse", "metrics")
 				}
 				propMetricsPresented = true
-				if err := BuiltinVectorMetadataMetricOldReadJSONGeneral(tctx, in, &item.Metrics, nat_field_mask); err != nil {
+				if err := BuiltinVectorMetadataMetricOldReadJSONGeneral(jctx, in, &item.Metrics, nat_field_mask); err != nil {
 					return err
 				}
 			default:
@@ -98,7 +98,7 @@ func (item *MetadataGetMetricsResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 		item.CurrentVersion = 0
 	}
 	if !propMetricsPresented {
-		if err := BuiltinVectorMetadataMetricOldReadJSONGeneral(tctx, nil, &item.Metrics, nat_field_mask); err != nil {
+		if err := BuiltinVectorMetadataMetricOldReadJSONGeneral(jctx, nil, &item.Metrics, nat_field_mask); err != nil {
 			return err
 		}
 	}
@@ -106,15 +106,14 @@ func (item *MetadataGetMetricsResponse) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataGetMetricsResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_field_mask), nil
+func (item *MetadataGetMetricsResponse) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_field_mask), nil
 }
 
 func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_field_mask)
+	return item.WriteJSONOpt(nil, w, nat_field_mask)
 }
-func (item *MetadataGetMetricsResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
+func (item *MetadataGetMetricsResponse) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexCurrentVersion := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -126,17 +125,17 @@ func (item *MetadataGetMetricsResponse) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
-	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(tctx, w, item.Metrics, nat_field_mask)
+	w = BuiltinVectorMetadataMetricOldWriteJSONOpt(jctx, w, item.Metrics, nat_field_mask)
 	if !(len(item.Metrics) != 0) {
 		w = w[:backupIndexMetrics]
 	}
 	return append(w, '}')
 }
 
-func (item *MetadataGetMetricsResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataGetMetricsResponse) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.getMetricsResponse"))
 }
 
-func (item *MetadataGetMetricsResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataGetMetricsResponse) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.getMetricsResponse")
 }

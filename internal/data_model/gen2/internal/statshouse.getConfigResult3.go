@@ -120,11 +120,11 @@ func (item StatshouseGetConfigResult3) String() string {
 }
 
 func (item *StatshouseGetConfigResult3) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetConfigResult3) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propAddressesPresented bool
 	var propShardByMetricCountPresented bool
 	var propFieldsMaskPresented bool
@@ -148,7 +148,7 @@ func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "addresses")
 				}
 				propAddressesPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Addresses); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.Addresses); err != nil {
 					return err
 				}
 			case "shard_by_metric_count":
@@ -180,7 +180,7 @@ func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "agent_ip")
 				}
 				propAgentIpPresented = true
-				if err := BuiltinTuple4IntReadJSONGeneral(tctx, in, &item.AgentIp); err != nil {
+				if err := BuiltinTuple4IntReadJSONGeneral(jctx, in, &item.AgentIp); err != nil {
 					return err
 				}
 			case "unused":
@@ -188,7 +188,7 @@ func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "unused")
 				}
 				propUnusedPresented = true
-				if err := BuiltinTuple7IntReadJSONGeneral(tctx, in, &item.Unused); err != nil {
+				if err := BuiltinTuple7IntReadJSONGeneral(jctx, in, &item.Unused); err != nil {
 					return err
 				}
 			case "connected_to":
@@ -204,7 +204,7 @@ func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "unused_s")
 				}
 				propUnusedSPresented = true
-				if err := BuiltinTuple3StringReadJSONGeneral(tctx, in, &item.UnusedS); err != nil {
+				if err := BuiltinTuple3StringReadJSONGeneral(jctx, in, &item.UnusedS); err != nil {
 					return err
 				}
 			default:
@@ -248,20 +248,19 @@ func (item *StatshouseGetConfigResult3) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfigResult3) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetConfigResult3) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetConfigResult3) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetConfigResult3) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetConfigResult3) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.Addresses)
+	w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.Addresses)
 	if !(len(item.Addresses) != 0) {
 		w = w[:backupIndexAddresses]
 	}
@@ -285,10 +284,10 @@ func (item *StatshouseGetConfigResult3) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	w = BuiltinTuple4IntWriteJSONOpt(tctx, w, &item.AgentIp)
+	w = BuiltinTuple4IntWriteJSONOpt(jctx, w, &item.AgentIp)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"unused":`...)
-	w = BuiltinTuple7IntWriteJSONOpt(tctx, w, &item.Unused)
+	w = BuiltinTuple7IntWriteJSONOpt(jctx, w, &item.Unused)
 	backupIndexConnectedTo := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"connected_to":`...)
@@ -298,7 +297,7 @@ func (item *StatshouseGetConfigResult3) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"unused_s":`...)
-	w = BuiltinTuple3StringWriteJSONOpt(tctx, w, &item.UnusedS)
+	w = BuiltinTuple3StringWriteJSONOpt(jctx, w, &item.UnusedS)
 	return append(w, '}')
 }
 
@@ -307,17 +306,18 @@ func (item *StatshouseGetConfigResult3) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfigResult3) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfigResult3", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfigResult3) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfigResult3) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult3"))
 }
 
-func (item *StatshouseGetConfigResult3) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfigResult3) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult3")
 }
 
@@ -430,11 +430,11 @@ func (item StatshouseGetConfigResult3Bytes) String() string {
 }
 
 func (item *StatshouseGetConfigResult3Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propAddressesPresented bool
 	var propShardByMetricCountPresented bool
 	var propFieldsMaskPresented bool
@@ -458,7 +458,7 @@ func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "addresses")
 				}
 				propAddressesPresented = true
-				if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, &item.Addresses); err != nil {
+				if err := BuiltinVectorStringBytesReadJSONGeneral(jctx, in, &item.Addresses); err != nil {
 					return err
 				}
 			case "shard_by_metric_count":
@@ -490,7 +490,7 @@ func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "agent_ip")
 				}
 				propAgentIpPresented = true
-				if err := BuiltinTuple4IntReadJSONGeneral(tctx, in, &item.AgentIp); err != nil {
+				if err := BuiltinTuple4IntReadJSONGeneral(jctx, in, &item.AgentIp); err != nil {
 					return err
 				}
 			case "unused":
@@ -498,7 +498,7 @@ func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "unused")
 				}
 				propUnusedPresented = true
-				if err := BuiltinTuple7IntReadJSONGeneral(tctx, in, &item.Unused); err != nil {
+				if err := BuiltinTuple7IntReadJSONGeneral(jctx, in, &item.Unused); err != nil {
 					return err
 				}
 			case "connected_to":
@@ -514,7 +514,7 @@ func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult3", "unused_s")
 				}
 				propUnusedSPresented = true
-				if err := BuiltinTuple3StringBytesReadJSONGeneral(tctx, in, &item.UnusedS); err != nil {
+				if err := BuiltinTuple3StringBytesReadJSONGeneral(jctx, in, &item.UnusedS); err != nil {
 					return err
 				}
 			default:
@@ -558,20 +558,19 @@ func (item *StatshouseGetConfigResult3Bytes) ReadJSONGeneral(tctx *basictl.JSONR
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfigResult3Bytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseGetConfigResult3Bytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseGetConfigResult3Bytes) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseGetConfigResult3Bytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseGetConfigResult3Bytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, item.Addresses)
+	w = BuiltinVectorStringBytesWriteJSONOpt(jctx, w, item.Addresses)
 	if !(len(item.Addresses) != 0) {
 		w = w[:backupIndexAddresses]
 	}
@@ -595,10 +594,10 @@ func (item *StatshouseGetConfigResult3Bytes) WriteJSONOpt(tctx *basictl.JSONWrit
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	w = BuiltinTuple4IntWriteJSONOpt(tctx, w, &item.AgentIp)
+	w = BuiltinTuple4IntWriteJSONOpt(jctx, w, &item.AgentIp)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"unused":`...)
-	w = BuiltinTuple7IntWriteJSONOpt(tctx, w, &item.Unused)
+	w = BuiltinTuple7IntWriteJSONOpt(jctx, w, &item.Unused)
 	backupIndexConnectedTo := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"connected_to":`...)
@@ -608,7 +607,7 @@ func (item *StatshouseGetConfigResult3Bytes) WriteJSONOpt(tctx *basictl.JSONWrit
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"unused_s":`...)
-	w = BuiltinTuple3StringBytesWriteJSONOpt(tctx, w, &item.UnusedS)
+	w = BuiltinTuple3StringBytesWriteJSONOpt(jctx, w, &item.UnusedS)
 	return append(w, '}')
 }
 
@@ -617,16 +616,17 @@ func (item *StatshouseGetConfigResult3Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfigResult3Bytes) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfigResult3", err.Error())
 	}
 	return nil
 }
 
-func (item *StatshouseGetConfigResult3Bytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfigResult3Bytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult3"))
 }
 
-func (item *StatshouseGetConfigResult3Bytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfigResult3Bytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult3")
 }

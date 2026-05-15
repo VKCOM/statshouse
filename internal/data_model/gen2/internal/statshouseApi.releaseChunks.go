@@ -80,7 +80,7 @@ func (item *StatshouseApiReleaseChunks) WriteResultTL1(w []byte, ret StatshouseA
 	return w, nil
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultTL2(r []byte, ctx *basictl.TL2ReadContext, ret *StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadResultTL2(r []byte, tctx *basictl.TL2ReadContext, ret *StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
 	currentSize := 0
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
@@ -179,37 +179,35 @@ func (item *StatshouseApiReleaseChunks) writeResultTL2(w []byte, sizes []int, op
 	return w, sizes, currentSize
 }
 
-func (item *StatshouseApiReleaseChunks) WriteResultTL2(w []byte, ctx *basictl.TL2WriteContext, ret StatshouseApiReleaseChunksResponse) []byte {
+func (item *StatshouseApiReleaseChunks) WriteResultTL2(w []byte, tctx *basictl.TL2WriteContext, ret StatshouseApiReleaseChunksResponse) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.calculateLayoutResult(sizes, false, ret)
 	w, sizes2, _ = item.writeResultTL2(w, sizes, false, ret)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiReleaseChunksResponse) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *StatshouseApiReleaseChunks) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *StatshouseApiReleaseChunksResponse) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiReleaseChunks) WriteResultJSON(w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseApiReleaseChunks) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *StatshouseApiReleaseChunks) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -219,18 +217,18 @@ func (item *StatshouseApiReleaseChunks) FillRandomResultTL1(rg *basictl.RandGene
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiReleaseChunksResponse
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiReleaseChunksResponse
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -263,9 +261,9 @@ func (item *StatshouseApiReleaseChunks) ReadResultTL2WriteResultJSON(tctx *basic
 	return r, w, err
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiReleaseChunksResponse
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	return r, item.WriteResultTL2(w, tctx, ret), nil
@@ -276,11 +274,11 @@ func (item StatshouseApiReleaseChunks) String() string {
 }
 
 func (item *StatshouseApiReleaseChunks) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiReleaseChunks) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiReleaseChunks) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propAccessTokenPresented bool
 	var propResponseIdPresented bool
@@ -340,15 +338,14 @@ func (item *StatshouseApiReleaseChunks) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiReleaseChunks) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiReleaseChunks) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiReleaseChunks) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiReleaseChunks) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiReleaseChunks) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -379,7 +376,8 @@ func (item *StatshouseApiReleaseChunks) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiReleaseChunks) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.releaseChunks", err.Error())
 	}
 	return nil
@@ -461,18 +459,18 @@ func (item *StatshouseApiReleaseChunks) InternalWriteTL2(w []byte, sizes []int, 
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiReleaseChunks) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiReleaseChunks) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -532,6 +530,6 @@ func (item *StatshouseApiReleaseChunks) InternalReadTL2(r []byte) (_ []byte, err
 	return r, nil
 }
 
-func (item *StatshouseApiReleaseChunks) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

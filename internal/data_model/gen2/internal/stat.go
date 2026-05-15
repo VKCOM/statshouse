@@ -61,29 +61,28 @@ func (item Stat) String() string {
 	return string(item.WriteJSON(nil))
 }
 func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *Stat) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
-	if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, item.ptr()); err != nil {
+func (item *Stat) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+	if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, item.ptr()); err != nil {
 		return err
 	}
 	return nil
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *Stat) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *Stat) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *Stat) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
 
-func (item *Stat) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
-	w = BuiltinDictStringStringWriteJSONOpt(tctx, w, *item.ptr())
+func (item *Stat) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
+	w = BuiltinDictStringStringWriteJSONOpt(jctx, w, *item.ptr())
 	return w
 }
 func (item *Stat) MarshalJSON() ([]byte, error) {
@@ -91,13 +90,14 @@ func (item *Stat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *Stat) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("stat", err.Error())
 	}
 	return nil
 }
 
-func (item *Stat) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *Stat) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("stat"))
 }
 
@@ -105,6 +105,6 @@ func (item *Stat) InternalReadTL2(r []byte) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("stat")
 }
 
-func (item *Stat) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *Stat) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }
