@@ -6,10 +6,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"slices"
 	"sort"
 	"sync"
-	"unsafe"
 
 	"go.uber.org/atomic"
 )
@@ -28,60 +26,6 @@ func New() *Tracker {
 	t.usageCounts = make(map[int32]uint64)
 	t.loaded.Store(false) // explicit false for semantics
 	return t
-}
-
-// NOTE: deprecated, slow (~5 minutes for 50m mappings)
-func (t *Tracker) LoadFromFile(path string) error {
-	if t.loaded.Load() {
-		return fmt.Errorf("error loading from %s: set is already loaded", path)
-	}
-	if path == "" {
-		return fmt.Errorf("path cannot be empty")
-	}
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
-	if err != nil {
-		return fmt.Errorf("error opening mappings file: %s: %w", path, err)
-	}
-	defer f.Close()
-
-	ids := make([]int32, 0, 1024)
-
-	log.Printf("loading tracked mappings from file %s", path)
-	for {
-		var x int32
-		_, err = fmt.Fscanln(f, &x)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		ids = append(ids, x)
-	}
-
-	log.Printf("loaded tracked mappings from file %s, sorting...", path)
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	t.ids = ids
-	log.Printf("%d tracked mappings loaded", len(ids))
-	t.loaded.Store(true)
-	return nil
-}
-
-func nativeLittleEndian() bool {
-	var x uint16 = 1
-	return *(*byte)(unsafe.Pointer(&x)) == 1
-}
-
-func bytesAsInt32Slice(b []byte) []int32 {
-	if len(b) == 0 {
-		return nil
-	}
-
-	return unsafe.Slice(
-		(*int32)(unsafe.Pointer(unsafe.SliceData(b))),
-		len(b)/4,
-	)
 }
 
 func (t *Tracker) LoadFromBinFile(path string) error {
@@ -107,29 +51,21 @@ func (t *Tracker) LoadFromBinFile(path string) error {
 		return fmt.Errorf("read mappings file %s: %w", path, err)
 	}
 
-	if !nativeLittleEndian() {
-		ids := make([]int32, len(buf)/4)
-		for i := range ids {
-			ids[i] = int32(binary.LittleEndian.Uint32(buf[i*4:]))
+	// safe []int32 parse + sort check
+	ids := make([]int32, int(size/4))
+	lastId := int32(-1)
+	for i := range ids {
+		id := int32(binary.LittleEndian.Uint32(buf[i*4:]))
+		if id <= lastId {
+			return fmt.Errorf("invalid mappings file (parsing error or not sorted in ascending order) i: %d, ids[i]: %d, ids[i-1]: %d", i, id, lastId)
 		}
-		return nil
-	}
-
-	ids := bytesAsInt32Slice(buf)
-
-	// safety check
-	if !slices.IsSorted(ids) {
-		log.Printf("[WARNING] mappings file isn't sorted correctly, sorting...")
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		ids[i] = id
+		lastId = id
 	}
 
 	if len(ids) == 0 {
 		log.Printf("loaded empty tracked mappings from file %s, len=0, range=[]", path)
 	} else {
-		if ids[0] < 0 {
-			// extra safety check for conversion correctness
-			return fmt.Errorf("invalid mappings file, contains negative numbers: %d", ids[0])
-		}
 		log.Printf("loaded sorted tracked mappings from file %s, len=%d, range=[%d - %d]", path, len(ids), ids[0], ids[len(ids)-1])
 	}
 	t.ids = ids
