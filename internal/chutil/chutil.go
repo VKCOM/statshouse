@@ -690,6 +690,27 @@ func BindQuery(query string, args ...any) (string, error) {
 //go:linkname clickHouseBind github.com/ClickHouse/clickhouse-go/v2.bind
 func clickHouseBind(tz *time.Location, query string, args ...interface{}) (string, error)
 
+func ErrorCodeName(code int) string {
+	switch code {
+	case format.TagValueIDAPIResponseExceptionCHUnknown:
+		return "unknown_ch_exception"
+	case format.TagValueIDAPIResponseExceptionCHTimeout:
+		return "timeout_during_ch"
+	case format.TagValueIDAPIResponseExceptionSemTimeout:
+		return "timeout_on_semaphore"
+	case format.TagValueIDAPIResponseExceptionSemError:
+		return "semaphore_error"
+	case format.TagValueIDAPIResponseExceptionLongCHTimeout:
+		return "fatal_ch_timeout"
+	case format.TagValueIDAPIResponseExceptionSemTooLate:
+		return "semaphore_too_late"
+	case format.TagValueIDAPIResponseExceptionCtxCanceled:
+		return "context_canceled"
+	default:
+		return fmt.Sprintf("unknown(%d)", code)
+	}
+}
+
 func modeStr(isFast, isLight, isHardware bool) string {
 	mode := "slow"
 	if isFast {

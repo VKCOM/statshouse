@@ -889,7 +889,10 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	ChSelectProfileEvents(meta.IsFast, meta.IsLight, meta.IsHardware, meta.Metric, meta.User, meta.Table, "", info.OSCPUVirtualTimeMicroseconds, info.ErrorCode, err)
 	ChRequestsMetric(info.Shard, info.Host, meta.Table, info.ErrorCode, err == nil)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("%w (error_code=%s (%d))", err, chutil.ErrorCodeName(info.ErrorCode), info.ErrorCode)
+	}
+	return nil
 }
 
 func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
