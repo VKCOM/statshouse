@@ -38,8 +38,10 @@ type connPool struct {
 	servers             []serverCH
 	sem                 *queue.Queue
 	shardSems           []*queue.Queue // shard_id -> semaphore
-	avgQueryDurationNS  atomic.Int64   // exponentially smoothed average in nanoseconds
-	shardAvgQueryNS     []atomic.Int64 // avgQueryDurationNS per-shard
+	avgQueryDurationNS   atomic.Int64   // exponentially smoothed average in nanoseconds
+	shardAvgQueryNS      []atomic.Int64 // avgQueryDurationNS per-shard
+	lastPoolQueryTimeNS  atomic.Int64
+	lastShardQueryTimeNS []atomic.Int64
 }
 
 type serverCH struct {
@@ -120,16 +122,23 @@ const (
 )
 
 func newConnPool(poolName string, maxConn int, maxShardConn, shardCount int) *connPool {
-	return &connPool{
-		poolName:            poolName,
-		rnd:                 rand.New(),
-		maxActiveQuery:      maxConn,
-		maxShardActiveQuery: maxShardConn,
-		servers:             make([]serverCH, 0),
-		sem:                 queue.NewQueue(int64(maxConn)),
-		shardSems:           make([]*queue.Queue, shardCount),
-		shardAvgQueryNS:     make([]atomic.Int64, shardCount),
+	p := &connPool{
+		poolName:             poolName,
+		rnd:                  rand.New(),
+		maxActiveQuery:       maxConn,
+		maxShardActiveQuery:  maxShardConn,
+		servers:              make([]serverCH, 0),
+		sem:                  queue.NewQueue(int64(maxConn)),
+		shardSems:            make([]*queue.Queue, shardCount),
+		shardAvgQueryNS:      make([]atomic.Int64, shardCount),
+		lastShardQueryTimeNS: make([]atomic.Int64, shardCount),
 	}
+	now := time.Now().UnixNano()
+	p.lastPoolQueryTimeNS.Store(now)
+	for i := range p.lastShardQueryTimeNS {
+		p.lastShardQueryTimeNS[i].Store(now)
+	}
+	return p
 }
 
 func newConnPoolWithShards(poolName string, maxConn int, shardCount int, maxShardConnsRatio int) *connPool {
@@ -682,11 +691,14 @@ func (pool *connPool) recordQueryDuration(d time.Duration, shard int) {
 			}
 		}
 	}
+	now := time.Now().UnixNano()
 	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
 		update(&pool.shardAvgQueryNS[shard])
+		pool.lastShardQueryTimeNS[shard].Store(now)
 		return
 	}
 	update(&pool.avgQueryDurationNS)
+	pool.lastPoolQueryTimeNS.Store(now)
 }
 
 func throttling(replica int, r *rand.Rand, err error, trotCfg *ReplicaThrottleConfig) error {

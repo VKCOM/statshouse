@@ -8,6 +8,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewConnPoolTimestamps(t *testing.T) {
+	before := time.Now().UnixNano()
+	pool := newConnPool("test", 10, 5, 3)
+	after := time.Now().UnixNano()
+
+	poolTS := pool.lastPoolQueryTimeNS.Load()
+	require.GreaterOrEqual(t, poolTS, before, "lastPoolQueryTimeNS should be >= time before construction")
+	require.LessOrEqual(t, poolTS, after, "lastPoolQueryTimeNS should be <= time after construction")
+
+	require.Len(t, pool.lastShardQueryTimeNS, 3, "expected 3 shard timestamps")
+	for i := range pool.lastShardQueryTimeNS {
+		shardTS := pool.lastShardQueryTimeNS[i].Load()
+		require.GreaterOrEqual(t, shardTS, before, "shard %d timestamp should be >= time before construction", i)
+		require.LessOrEqual(t, shardTS, after, "shard %d timestamp should be <= time after construction", i)
+	}
+}
+
+func TestRecordQueryDurationTimestamps(t *testing.T) {
+	pool := newConnPool("test", 10, 5, 2)
+
+	before := time.Now().UnixNano()
+	pool.recordQueryDuration(100*time.Millisecond, -1)
+	after := time.Now().UnixNano()
+
+	poolTS := pool.lastPoolQueryTimeNS.Load()
+	require.GreaterOrEqual(t, poolTS, before, "pool timestamp should be >= time before call")
+	require.LessOrEqual(t, poolTS, after, "pool timestamp should be <= time after call")
+
+	before = time.Now().UnixNano()
+	pool.recordQueryDuration(100*time.Millisecond, 0)
+	after = time.Now().UnixNano()
+
+	shardTS := pool.lastShardQueryTimeNS[0].Load()
+	require.GreaterOrEqual(t, shardTS, before, "shard 0 timestamp should be >= time before call")
+	require.LessOrEqual(t, shardTS, after, "shard 0 timestamp should be <= time after call")
+
+	shard1TS := pool.lastShardQueryTimeNS[1].Load()
+	require.Less(t, shard1TS, before, "shard 1 timestamp should still be old value (not updated by shard 0 call)")
+}
+
 func TestDecayAvgNS(t *testing.T) {
 	grace := time.Duration(avgDecayGracePeriodNS)
 	halfLife := time.Duration(avgDecayHalfLifeNS)
