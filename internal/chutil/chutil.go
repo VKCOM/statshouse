@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"sync"
@@ -384,6 +385,26 @@ func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) (*connPool, *ReplicaThr
 }
 
 const latencySlackCH = 130 // 30% upside
+
+const avgDecayGracePeriodNS int64 = int64(60 * time.Second)
+const avgDecayHalfLifeNS int64 = int64(60 * time.Second)
+
+func decayAvgNS(avgNS int64, elapsed time.Duration) int64 {
+	if avgNS <= 0 {
+		return 0
+	}
+	elapsedNS := int64(elapsed)
+	if elapsedNS <= avgDecayGracePeriodNS {
+		return avgNS
+	}
+	decayNS := elapsedNS - avgDecayGracePeriodNS
+	ratio := float64(decayNS) / float64(avgDecayHalfLifeNS)
+	result := float64(avgNS) * math.Pow(0.5, ratio)
+	if result < 1 {
+		return 0
+	}
+	return int64(result)
+}
 
 func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query, trotCfg *ReplicaThrottleConfig) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
