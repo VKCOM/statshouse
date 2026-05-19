@@ -268,7 +268,7 @@ func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *que
 func (c *cache2) tryNotExceedMemoryHardLimit() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSize {
+	for c.limits.maxSize != 0 && c.info.size() > c.limits.maxSize {
 		c.allocCond.Wait()
 	}
 }

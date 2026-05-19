@@ -46,6 +46,7 @@ func (c *cache2) updateInflightApprox(deltaRows, deltaBytes int64) {
 	c.mu.Unlock()
 	if !shutdown && soft > 0 && eff > soft {
 		c.trimCond.Signal()
+		c.tryNotExceedMemoryHardLimit()
 	}
 }
 
