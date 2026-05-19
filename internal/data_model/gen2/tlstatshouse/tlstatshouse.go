@@ -113,6 +113,7 @@ func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchB
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -144,6 +145,7 @@ func (c *Client) AddMetricsBatch(ctx context.Context, args AddMetricsBatch, extr
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -174,6 +176,7 @@ func (c *Client) AutoCreateBytes(ctx context.Context, args AutoCreateBytes, extr
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -204,6 +207,7 @@ func (c *Client) AutoCreate(ctx context.Context, args AutoCreate, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -235,6 +239,7 @@ func (c *Client) GetConfig2Bytes(ctx context.Context, args GetConfig2Bytes, extr
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -266,6 +271,7 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -296,6 +302,7 @@ func (c *Client) GetConfig3Bytes(ctx context.Context, args GetConfig3Bytes, extr
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -326,6 +333,7 @@ func (c *Client) GetConfig3(ctx context.Context, args GetConfig3, extra *rpc.Inv
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -357,6 +365,7 @@ func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, ex
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -388,6 +397,7 @@ func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.I
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -418,6 +428,7 @@ func (c *Client) GetTagMapping2Bytes(ctx context.Context, args GetTagMapping2Byt
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -448,6 +459,7 @@ func (c *Client) GetTagMapping2(ctx context.Context, args GetTagMapping2, extra 
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -479,6 +491,7 @@ func (c *Client) GetTagMappingBootstrapBytes(ctx context.Context, args GetTagMap
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -510,6 +523,7 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -540,6 +554,7 @@ func (c *Client) GetTargets2Bytes(ctx context.Context, args GetTargets2Bytes, ex
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -570,6 +585,7 @@ func (c *Client) GetTargets2(ctx context.Context, args GetTargets2, extra *rpc.I
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -602,6 +618,7 @@ func (c *Client) SendKeepAlive2Bytes(ctx context.Context, args SendKeepAlive2Byt
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -634,6 +651,7 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -664,6 +682,7 @@ func (c *Client) SendKeepAlive3Bytes(ctx context.Context, args SendKeepAlive3Byt
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -694,6 +713,7 @@ func (c *Client) SendKeepAlive3(ctx context.Context, args SendKeepAlive3, extra 
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -727,6 +747,7 @@ func (c *Client) SendSourceBucket3Bytes(ctx context.Context, args SendSourceBuck
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -760,6 +781,7 @@ func (c *Client) SendSourceBucket3(ctx context.Context, args SendSourceBucket3, 
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -790,6 +812,7 @@ func (c *Client) TestConnection2Bytes(ctx context.Context, args TestConnection2B
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
@@ -820,6 +843,7 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
 	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)

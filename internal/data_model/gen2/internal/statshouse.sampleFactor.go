@@ -55,7 +55,7 @@ func BuiltinVectorStatshouseSampleFactorInternalReadTL2(r []byte, vec *[]Statsho
 	return r, ErrorTL2SerializersNotGenerated("[]StatshouseSampleFactor")
 }
 
-func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor, nat_t uint32) error {
+func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseSampleFactor, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadCo
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorStatshouseSampleFactorReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 func BuiltinVectorStatshouseSampleFactorWriteJSON(w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(&tctx, w, vec, nat_t)
+	return BuiltinVectorStatshouseSampleFactorWriteJSONOpt(nil, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
+func BuiltinVectorStatshouseSampleFactorWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseSampleFactor, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w, nat_t)
+		w = elem.WriteJSONOpt(jctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -175,7 +174,7 @@ func (item *StatshouseSampleFactor) WriteTL1Boxed(w []byte, nat_fields_mask uint
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseSampleFactor) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propMetricPresented bool
 	var propValuePresented bool
 	var propOriginalSizePresented bool
@@ -240,15 +239,14 @@ func (item *StatshouseSampleFactor) ReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseSampleFactor) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseSampleFactor) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseSampleFactor) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseSampleFactor) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexMetric := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -272,10 +270,10 @@ func (item *StatshouseSampleFactor) WriteJSONOpt(tctx *basictl.JSONWriteContext,
 	return append(w, '}')
 }
 
-func (item *StatshouseSampleFactor) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseSampleFactor) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.sampleFactor"))
 }
 
-func (item *StatshouseSampleFactor) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseSampleFactor) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.sampleFactor")
 }

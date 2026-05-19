@@ -1,17 +1,20 @@
 package mappings_tracker
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"sort"
 	"sync"
+
+	"go.uber.org/atomic"
 )
 
 type Tracker struct {
 	ids    []int32
-	loaded bool // not sync under the assumption that updating the var only happens once and so does loading the set
+	loaded atomic.Bool // not sync under the assumption that updating the var only happens once and so does loading the set
 
 	// TODO: sharding?
 	mu          sync.Mutex
@@ -21,44 +24,53 @@ type Tracker struct {
 func New() *Tracker {
 	t := &Tracker{}
 	t.usageCounts = make(map[int32]uint64)
-	t.loaded = false // explicit false for semantics
+	t.loaded.Store(false) // explicit false for semantics
 	return t
 }
 
-func (t *Tracker) LoadFromFile(path string) error {
-	if t.loaded {
-		return fmt.Errorf("error loading from %s: set is already loaded", path)
-	}
-	if path == "" {
-		return fmt.Errorf("path cannot be empty")
-	}
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+func (t *Tracker) LoadFromBinFile(path string) error {
+	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("error opening mappings file: %s: %w", path, err)
+		return fmt.Errorf("open mappings file %s: %w", path, err)
 	}
 	defer f.Close()
 
-	ids := make([]int32, 0, 1024)
-
-	log.Printf("loading tracked mappings from file %s", path)
-	for {
-		var x int32
-		_, err = fmt.Fscanln(f, &x)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		ids = append(ids, x)
+	st, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat mappings file %s: %w", path, err)
 	}
 
-	log.Printf("loaded tracked mappings from file %s, sorting...", path)
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	size := st.Size()
+	if size%4 != 0 {
+		return fmt.Errorf("invalid mappings file size %d: not divisible by 4", size)
+	}
+
+	buf := make([]byte, int(size))
+
+	if _, err := io.ReadFull(f, buf); err != nil {
+		return fmt.Errorf("read mappings file %s: %w", path, err)
+	}
+
+	// safe []int32 parse + sort check
+	ids := make([]int32, int(size/4))
+	lastId := int32(-1)
+	for i := range ids {
+		id := int32(binary.LittleEndian.Uint32(buf[i*4:]))
+		if id <= lastId {
+			return fmt.Errorf("invalid mappings file (parsing error or not sorted in ascending order) i: %d, ids[i]: %d, ids[i-1]: %d", i, id, lastId)
+		}
+		ids[i] = id
+		lastId = id
+	}
+
+	if len(ids) == 0 {
+		log.Printf("loaded empty tracked mappings from file %s, len=0, range=[]", path)
+	} else {
+		log.Printf("loaded sorted tracked mappings from file %s, len=%d, range=[%d - %d]", path, len(ids), ids[0], ids[len(ids)-1])
+	}
 	t.ids = ids
-	log.Printf("%d tracked mappings loaded", len(ids))
-	t.loaded = true
+	t.loaded.Store(true)
+
 	return nil
 }
 
@@ -71,7 +83,7 @@ func (t *Tracker) IsRedundant(id int32) bool {
 	if id <= 0 {
 		return false
 	}
-	if !t.loaded {
+	if !t.loaded.Load() {
 		return false
 	}
 	i := sort.Search(len(t.ids), func(i int) bool { return t.ids[i] >= id })

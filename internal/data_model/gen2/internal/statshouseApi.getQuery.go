@@ -88,7 +88,7 @@ func (item *StatshouseApiGetQuery) WriteResultTL1(w []byte, ret StatshouseApiQue
 	return w, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadResultTL2(r []byte, ctx *basictl.TL2ReadContext, ret *StatshouseApiQueryResponse) (_ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultTL2(r []byte, tctx *basictl.TL2ReadContext, ret *StatshouseApiQueryResponse) (_ []byte, err error) {
 	currentSize := 0
 	if r, currentSize, err = basictl.TL2ParseSize(r); err != nil {
 		return r, err
@@ -187,37 +187,35 @@ func (item *StatshouseApiGetQuery) writeResultTL2(w []byte, sizes []int, optimiz
 	return w, sizes, currentSize
 }
 
-func (item *StatshouseApiGetQuery) WriteResultTL2(w []byte, ctx *basictl.TL2WriteContext, ret StatshouseApiQueryResponse) []byte {
+func (item *StatshouseApiGetQuery) WriteResultTL2(w []byte, tctx *basictl.TL2WriteContext, ret StatshouseApiQueryResponse) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.calculateLayoutResult(sizes, false, ret)
 	w, sizes2, _ = item.writeResultTL2(w, sizes, false, ret)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiQueryResponse) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in, item.FieldsMask); err != nil {
+func (item *StatshouseApiGetQuery) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *StatshouseApiQueryResponse) error {
+	if err := ret.ReadJSONGeneral(jctx, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiQueryResponse) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *StatshouseApiGetQuery) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiQueryResponse) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w, item.FieldsMask)
+func (item *StatshouseApiGetQuery) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret StatshouseApiQueryResponse) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w, item.FieldsMask)
 	return w, nil
 }
 
@@ -227,18 +225,18 @@ func (item *StatshouseApiGetQuery) FillRandomResultTL1(rg *basictl.RandGenerator
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *StatshouseApiGetQuery) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiQueryResponse
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiQueryResponse
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -271,9 +269,9 @@ func (item *StatshouseApiGetQuery) ReadResultTL2WriteResultJSON(tctx *basictl.TL
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiQueryResponse
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	return r, item.WriteResultTL2(w, tctx, ret), nil
@@ -320,11 +318,11 @@ func (item StatshouseApiGetQuery) String() string {
 }
 
 func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiGetQuery) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propAccessTokenPresented bool
 	var propQueryPresented bool
@@ -358,7 +356,7 @@ func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "query")
 				}
 				propQueryPresented = true
-				if err := item.Query.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.Query.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 			default:
@@ -384,15 +382,14 @@ func (item *StatshouseApiGetQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiGetQuery) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiGetQuery) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiGetQuery) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiGetQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiGetQuery) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -410,7 +407,7 @@ func (item *StatshouseApiGetQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	w = item.Query.WriteJSONOpt(tctx, w)
+	w = item.Query.WriteJSONOpt(jctx, w)
 	return append(w, '}')
 }
 
@@ -419,7 +416,8 @@ func (item *StatshouseApiGetQuery) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiGetQuery) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.getQuery", err.Error())
 	}
 	return nil
@@ -500,18 +498,18 @@ func (item *StatshouseApiGetQuery) InternalWriteTL2(w []byte, sizes []int, optim
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiGetQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiGetQuery) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -571,6 +569,6 @@ func (item *StatshouseApiGetQuery) InternalReadTL2(r []byte) (_ []byte, err erro
 	return r, nil
 }
 
-func (item *StatshouseApiGetQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

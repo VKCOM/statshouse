@@ -70,11 +70,11 @@ func (item MetadataCreateMetricEvent) String() string {
 }
 
 func (item *MetadataCreateMetricEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *MetadataCreateMetricEvent) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *MetadataCreateMetricEvent) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propMetricPresented bool
 	var rawMetric []byte
@@ -119,12 +119,12 @@ func (item *MetadataCreateMetricEvent) ReadJSONGeneral(tctx *basictl.JSONReadCon
 	}
 	if propMetricPresented {
 		inMetric := &basictl.JsonLexer{Data: rawMetric}
-		if err := item.Metric.ReadJSONGeneral(tctx, inMetric, item.FieldsMask); err != nil {
+		if err := item.Metric.ReadJSONGeneral(jctx, inMetric, item.FieldsMask); err != nil {
 			return err
 		}
 	}
 	if !propMetricPresented {
-		if err := item.Metric.ReadJSONGeneral(tctx, nil, item.FieldsMask); err != nil {
+		if err := item.Metric.ReadJSONGeneral(jctx, nil, item.FieldsMask); err != nil {
 			return err
 		}
 	}
@@ -132,15 +132,14 @@ func (item *MetadataCreateMetricEvent) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *MetadataCreateMetricEvent) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *MetadataCreateMetricEvent) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *MetadataCreateMetricEvent) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *MetadataCreateMetricEvent) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *MetadataCreateMetricEvent) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -151,7 +150,7 @@ func (item *MetadataCreateMetricEvent) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	w = item.Metric.WriteJSONOpt(tctx, w, item.FieldsMask)
+	w = item.Metric.WriteJSONOpt(jctx, w, item.FieldsMask)
 	return append(w, '}')
 }
 
@@ -160,16 +159,17 @@ func (item *MetadataCreateMetricEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataCreateMetricEvent) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.createMetricEvent", err.Error())
 	}
 	return nil
 }
 
-func (item *MetadataCreateMetricEvent) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *MetadataCreateMetricEvent) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("metadata.createMetricEvent"))
 }
 
-func (item *MetadataCreateMetricEvent) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *MetadataCreateMetricEvent) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("metadata.createMetricEvent")
 }

@@ -55,7 +55,7 @@ func BuiltinVectorEngineBinlogPrefixInternalReadTL2(r []byte, vec *[]EngineBinlo
 	return r, ErrorTL2SerializersNotGenerated("[]EngineBinlogPrefix")
 }
 
-func BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineBinlogPrefix) error {
+func BuiltinVectorEngineBinlogPrefixReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]EngineBinlogPrefix) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -69,7 +69,7 @@ func BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx *basictl.JSONReadContex
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -84,14 +84,13 @@ func BuiltinVectorEngineBinlogPrefixReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 func BuiltinVectorEngineBinlogPrefixWriteJSON(w []byte, vec []EngineBinlogPrefix) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(&tctx, w, vec)
+	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(nil, w, vec)
 }
-func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []EngineBinlogPrefix) []byte {
+func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []EngineBinlogPrefix) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w)
+		w = elem.WriteJSONOpt(jctx, w)
 	}
 	return append(w, ']')
 }
@@ -152,11 +151,11 @@ func (item EngineBinlogPrefix) String() string {
 }
 
 func (item *EngineBinlogPrefix) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineBinlogPrefix) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineBinlogPrefix) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propBinlogPrefixPresented bool
 	var propSnapshotPrefixPresented bool
 	if in != nil {
@@ -204,15 +203,14 @@ func (item *EngineBinlogPrefix) ReadJSONGeneral(tctx *basictl.JSONReadContext, i
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineBinlogPrefix) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineBinlogPrefix) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineBinlogPrefix) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineBinlogPrefix) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineBinlogPrefix) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBinlogPrefix := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -236,16 +234,17 @@ func (item *EngineBinlogPrefix) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineBinlogPrefix) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.binlogPrefix", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineBinlogPrefix) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineBinlogPrefix) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.binlogPrefix"))
 }
 
-func (item *EngineBinlogPrefix) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineBinlogPrefix) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.binlogPrefix")
 }

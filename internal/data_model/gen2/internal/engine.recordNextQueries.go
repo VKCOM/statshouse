@@ -80,7 +80,7 @@ func (item *EngineRecordNextQueries) WriteResultTL1(w []byte, ret bool) (_ []byt
 	return w, nil
 }
 
-func (item *EngineRecordNextQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+func (item *EngineRecordNextQueries) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *bool) error {
 	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
@@ -88,11 +88,10 @@ func (item *EngineRecordNextQueries) ReadResultJSON(legacyTypeNames bool, in *ba
 }
 
 func (item *EngineRecordNextQueries) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineRecordNextQueries) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
+func (item *EngineRecordNextQueries) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -103,18 +102,18 @@ func (item *EngineRecordNextQueries) FillRandomResultTL1(rg *basictl.RandGenerat
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineRecordNextQueries) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineRecordNextQueries) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineRecordNextQueries) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineRecordNextQueries) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -133,7 +132,7 @@ func (item *EngineRecordNextQueries) ReadResultTL2WriteResultJSON(tctx *basictl.
 	return r, w, ErrorTL2SerializersNotGenerated("engine.recordNextQueries")
 }
 
-func (item *EngineRecordNextQueries) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineRecordNextQueries) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.recordNextQueries")
 }
 
@@ -142,11 +141,11 @@ func (item EngineRecordNextQueries) String() string {
 }
 
 func (item *EngineRecordNextQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineRecordNextQueries) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineRecordNextQueries) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propBinlognamePresented bool
 	var propNumQueriesPresented bool
 	var propAppendPresented bool
@@ -206,15 +205,14 @@ func (item *EngineRecordNextQueries) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineRecordNextQueries) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineRecordNextQueries) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineRecordNextQueries) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineRecordNextQueries) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineRecordNextQueries) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexBinlogname := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -245,16 +243,17 @@ func (item *EngineRecordNextQueries) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineRecordNextQueries) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.recordNextQueries", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineRecordNextQueries) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineRecordNextQueries) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.recordNextQueries"))
 }
 
-func (item *EngineRecordNextQueries) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineRecordNextQueries) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.recordNextQueries")
 }

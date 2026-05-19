@@ -528,7 +528,7 @@ func (item *StatshouseMultiValue) WriteTL1Boxed(w []byte, nat_fields_mask uint32
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseMultiValue) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propCounterPresented bool
 	var propCounterEq1Presented bool
 	var trueTypeCounterEq1Value bool
@@ -626,7 +626,7 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "centroids")
 				}
 				propCentroidsPresented = true
-				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(jctx, in, &item.Centroids); err != nil {
 					return err
 				}
 			case "implicit_centroid":
@@ -827,15 +827,14 @@ func (item *StatshouseMultiValue) ReadJSONGeneral(tctx *basictl.JSONReadContext,
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMultiValue) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseMultiValue) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseMultiValue) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -878,7 +877,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(jctx, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<18) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -917,11 +916,11 @@ func (item *StatshouseMultiValue) WriteJSONOpt(tctx *basictl.JSONWriteContext, w
 	return append(w, '}')
 }
 
-func (item *StatshouseMultiValue) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseMultiValue) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.multiValue"))
 }
 
-func (item *StatshouseMultiValue) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseMultiValue) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.multiValue")
 }
 
@@ -1440,7 +1439,7 @@ func (item *StatshouseMultiValueBytes) WriteTL1Boxed(w []byte, nat_fields_mask u
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseMultiValueBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propCounterPresented bool
 	var propCounterEq1Presented bool
 	var trueTypeCounterEq1Value bool
@@ -1538,7 +1537,7 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multiValue", "centroids")
 				}
 				propCentroidsPresented = true
-				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(tctx, in, &item.Centroids); err != nil {
+				if err := BuiltinVectorStatshouseCentroidFloatReadJSONGeneral(jctx, in, &item.Centroids); err != nil {
 					return err
 				}
 			case "implicit_centroid":
@@ -1739,15 +1738,14 @@ func (item *StatshouseMultiValueBytes) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseMultiValueBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseMultiValueBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValueBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1790,7 +1788,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(tctx, w, item.Centroids)
+		w = BuiltinVectorStatshouseCentroidFloatWriteJSONOpt(jctx, w, item.Centroids)
 	}
 	if nat_fields_mask&(1<<18) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1829,10 +1827,10 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	return append(w, '}')
 }
 
-func (item *StatshouseMultiValueBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseMultiValueBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.multiValue"))
 }
 
-func (item *StatshouseMultiValueBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseMultiValueBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.multiValue")
 }

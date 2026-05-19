@@ -174,11 +174,11 @@ func (item StatshouseApiQueryPoint) String() string {
 }
 
 func (item *StatshouseApiQueryPoint) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiQueryPoint) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	item.tl2mask0 = 0
 	var propFieldsMaskPresented bool
 	var propVersionPresented bool
@@ -253,7 +253,7 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "function")
 				}
 				propFunctionPresented = true
-				if err := item.Function.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.Function.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 			case "group_by":
@@ -261,7 +261,7 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "group_by")
 				}
 				propGroupByPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.GroupBy); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.GroupBy); err != nil {
 					return err
 				}
 			case "filter":
@@ -269,7 +269,7 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "filter")
 				}
 				propFilterPresented = true
-				if err := BuiltinVectorStatshouseApiFilterReadJSONGeneral(tctx, in, &item.Filter); err != nil {
+				if err := BuiltinVectorStatshouseApiFilterReadJSONGeneral(jctx, in, &item.Filter); err != nil {
 					return err
 				}
 			case "time_shift":
@@ -277,7 +277,7 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "time_shift")
 				}
 				propTimeShiftPresented = true
-				if err := BuiltinVectorLongReadJSONGeneral(tctx, in, &item.TimeShift); err != nil {
+				if err := BuiltinVectorLongReadJSONGeneral(jctx, in, &item.TimeShift); err != nil {
 					return err
 				}
 			case "what":
@@ -285,7 +285,7 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPoint", "what")
 				}
 				propWhatPresented = true
-				if err := BuiltinVectorStatshouseApiFunctionReadJSONGeneral(tctx, in, &item.What); err != nil {
+				if err := BuiltinVectorStatshouseApiFunctionReadJSONGeneral(jctx, in, &item.What); err != nil {
 					return err
 				}
 				item.tl2mask0 |= 1
@@ -342,15 +342,14 @@ func (item *StatshouseApiQueryPoint) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiQueryPoint) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiQueryPoint) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiQueryPoint) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiQueryPoint) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -396,32 +395,32 @@ func (item *StatshouseApiQueryPoint) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	w = item.Function.WriteJSONOpt(tctx, w)
+	w = item.Function.WriteJSONOpt(jctx, w)
 	backupIndexGroupBy := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"group_by":`...)
-	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.GroupBy)
+	w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.GroupBy)
 	if !(len(item.GroupBy) != 0) {
 		w = w[:backupIndexGroupBy]
 	}
 	backupIndexFilter := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"filter":`...)
-	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(tctx, w, item.Filter)
+	w = BuiltinVectorStatshouseApiFilterWriteJSONOpt(jctx, w, item.Filter)
 	if !(len(item.Filter) != 0) {
 		w = w[:backupIndexFilter]
 	}
 	backupIndexTimeShift := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"time_shift":`...)
-	w = BuiltinVectorLongWriteJSONOpt(tctx, w, item.TimeShift)
+	w = BuiltinVectorLongWriteJSONOpt(jctx, w, item.TimeShift)
 	if !(len(item.TimeShift) != 0) {
 		w = w[:backupIndexTimeShift]
 	}
 	if item.tl2mask0&1 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(tctx, w, item.What)
+		w = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(jctx, w, item.What)
 	}
 	return append(w, '}')
 }
@@ -431,7 +430,8 @@ func (item *StatshouseApiQueryPoint) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiQueryPoint) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.queryPoint", err.Error())
 	}
 	return nil
@@ -583,18 +583,18 @@ func (item *StatshouseApiQueryPoint) InternalWriteTL2(w []byte, sizes []int, opt
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiQueryPoint) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiQueryPoint) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -720,6 +720,6 @@ func (item *StatshouseApiQueryPoint) InternalReadTL2(r []byte) (_ []byte, err er
 	return r, nil
 }
 
-func (item *StatshouseApiQueryPoint) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiQueryPoint) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

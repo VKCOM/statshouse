@@ -84,11 +84,11 @@ func (item StatshouseApiQueryPointResponse) String() string {
 }
 
 func (item *StatshouseApiQueryPointResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *StatshouseApiQueryPointResponse) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *StatshouseApiQueryPointResponse) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propDataPresented bool
 	var propMetaPresented bool
@@ -114,7 +114,7 @@ func (item *StatshouseApiQueryPointResponse) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPointResponse", "data")
 				}
 				propDataPresented = true
-				if err := BuiltinVectorDoubleReadJSONGeneral(tctx, in, &item.Data); err != nil {
+				if err := BuiltinVectorDoubleReadJSONGeneral(jctx, in, &item.Data); err != nil {
 					return err
 				}
 			case "meta":
@@ -122,7 +122,7 @@ func (item *StatshouseApiQueryPointResponse) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPointResponse", "meta")
 				}
 				propMetaPresented = true
-				if err := BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(tctx, in, &item.Meta); err != nil {
+				if err := BuiltinVectorStatshouseApiPointMetaReadJSONGeneral(jctx, in, &item.Meta); err != nil {
 					return err
 				}
 			default:
@@ -148,15 +148,14 @@ func (item *StatshouseApiQueryPointResponse) ReadJSONGeneral(tctx *basictl.JSONR
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiQueryPointResponse) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *StatshouseApiQueryPointResponse) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *StatshouseApiQueryPointResponse) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *StatshouseApiQueryPointResponse) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *StatshouseApiQueryPointResponse) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -168,14 +167,14 @@ func (item *StatshouseApiQueryPointResponse) WriteJSONOpt(tctx *basictl.JSONWrit
 	backupIndexData := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"data":`...)
-	w = BuiltinVectorDoubleWriteJSONOpt(tctx, w, item.Data)
+	w = BuiltinVectorDoubleWriteJSONOpt(jctx, w, item.Data)
 	if !(len(item.Data) != 0) {
 		w = w[:backupIndexData]
 	}
 	backupIndexMeta := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"meta":`...)
-	w = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(tctx, w, item.Meta)
+	w = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(jctx, w, item.Meta)
 	if !(len(item.Meta) != 0) {
 		w = w[:backupIndexMeta]
 	}
@@ -187,7 +186,8 @@ func (item *StatshouseApiQueryPointResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiQueryPointResponse) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.queryPointResponse", err.Error())
 	}
 	return nil
@@ -267,18 +267,18 @@ func (item *StatshouseApiQueryPointResponse) InternalWriteTL2(w []byte, sizes []
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiQueryPointResponse) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiQueryPointResponse) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -338,6 +338,6 @@ func (item *StatshouseApiQueryPointResponse) InternalReadTL2(r []byte) (_ []byte
 	return r, nil
 }
 
-func (item *StatshouseApiQueryPointResponse) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiQueryPointResponse) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }

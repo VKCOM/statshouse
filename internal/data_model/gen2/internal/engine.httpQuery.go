@@ -146,11 +146,11 @@ func (item EngineHttpQuery) String() string {
 }
 
 func (item *EngineHttpQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineHttpQuery) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propUriPresented bool
 	var propArgsPresented bool
@@ -185,7 +185,7 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "args")
 				}
 				propArgsPresented = true
-				if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, &item.Args); err != nil {
+				if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, &item.Args); err != nil {
 					return err
 				}
 			case "headers":
@@ -193,7 +193,7 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQuery", "headers")
 				}
 				propHeadersPresented = true
-				if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, &item.Headers); err != nil {
+				if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, &item.Headers); err != nil {
 					return err
 				}
 			default:
@@ -231,15 +231,14 @@ func (item *EngineHttpQuery) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineHttpQuery) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineHttpQuery) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineHttpQuery) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineHttpQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineHttpQuery) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -256,12 +255,12 @@ func (item *EngineHttpQuery) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []by
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"args":`...)
-		w = BuiltinDictStringStringWriteJSONOpt(tctx, w, item.Args)
+		w = BuiltinDictStringStringWriteJSONOpt(jctx, w, item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"headers":`...)
-		w = BuiltinDictStringStringWriteJSONOpt(tctx, w, item.Headers)
+		w = BuiltinDictStringStringWriteJSONOpt(jctx, w, item.Headers)
 	}
 	return append(w, '}')
 }
@@ -271,16 +270,17 @@ func (item *EngineHttpQuery) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineHttpQuery) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.httpQuery", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineHttpQuery) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineHttpQuery) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.httpQuery"))
 }
 
-func (item *EngineHttpQuery) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineHttpQuery) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.httpQuery")
 }

@@ -92,7 +92,7 @@ func (item *StatshouseGetTargetsResult) WriteTL1Boxed(w []byte, nat_fields_mask 
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetTargetsResult) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseGetTargetsResult) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propTargetsPresented bool
 	var propHashPresented bool
 	var propGaugeMetricsPresented bool
@@ -110,7 +110,7 @@ func (item *StatshouseGetTargetsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
 				}
 				propTargetsPresented = true
-				if err := BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx, in, &item.Targets, nat_fields_mask); err != nil {
+				if err := BuiltinVectorStatshousePromTargetReadJSONGeneral(jctx, in, &item.Targets, nat_fields_mask); err != nil {
 					return err
 				}
 			case "hash":
@@ -126,7 +126,7 @@ func (item *StatshouseGetTargetsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "gauge_metrics")
 				}
 				propGaugeMetricsPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.GaugeMetrics); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.GaugeMetrics); err != nil {
 					return err
 				}
 			default:
@@ -151,7 +151,7 @@ func (item *StatshouseGetTargetsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 		}
 	}
 	if !propTargetsPresented {
-		if err := BuiltinVectorStatshousePromTargetReadJSONGeneral(tctx, nil, &item.Targets, nat_fields_mask); err != nil {
+		if err := BuiltinVectorStatshousePromTargetReadJSONGeneral(jctx, nil, &item.Targets, nat_fields_mask); err != nil {
 			return err
 		}
 	}
@@ -159,20 +159,19 @@ func (item *StatshouseGetTargetsResult) ReadJSONGeneral(tctx *basictl.JSONReadCo
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetTargetsResult) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseGetTargetsResult) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseGetTargetsResult) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseGetTargetsResult) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseGetTargetsResult) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexTargets := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"targets":`...)
-	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(tctx, w, item.Targets, nat_fields_mask)
+	w = BuiltinVectorStatshousePromTargetWriteJSONOpt(jctx, w, item.Targets, nat_fields_mask)
 	if !(len(item.Targets) != 0) {
 		w = w[:backupIndexTargets]
 	}
@@ -186,16 +185,16 @@ func (item *StatshouseGetTargetsResult) WriteJSONOpt(tctx *basictl.JSONWriteCont
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"gauge_metrics":`...)
-		w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.GaugeMetrics)
+		w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.GaugeMetrics)
 	}
 	return append(w, '}')
 }
 
-func (item *StatshouseGetTargetsResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetTargetsResult) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult"))
 }
 
-func (item *StatshouseGetTargetsResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetTargetsResult) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult")
 }
 
@@ -278,7 +277,7 @@ func (item *StatshouseGetTargetsResultBytes) WriteTL1Boxed(w []byte, nat_fields_
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propTargetsPresented bool
 	var propHashPresented bool
 	var propGaugeMetricsPresented bool
@@ -296,7 +295,7 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
 				}
 				propTargetsPresented = true
-				if err := BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx, in, &item.Targets, nat_fields_mask); err != nil {
+				if err := BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(jctx, in, &item.Targets, nat_fields_mask); err != nil {
 					return err
 				}
 			case "hash":
@@ -312,7 +311,7 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "gauge_metrics")
 				}
 				propGaugeMetricsPresented = true
-				if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, &item.GaugeMetrics); err != nil {
+				if err := BuiltinVectorStringBytesReadJSONGeneral(jctx, in, &item.GaugeMetrics); err != nil {
 					return err
 				}
 			default:
@@ -337,7 +336,7 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 		}
 	}
 	if !propTargetsPresented {
-		if err := BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(tctx, nil, &item.Targets, nat_fields_mask); err != nil {
+		if err := BuiltinVectorStatshousePromTargetBytesReadJSONGeneral(jctx, nil, &item.Targets, nat_fields_mask); err != nil {
 			return err
 		}
 	}
@@ -345,20 +344,19 @@ func (item *StatshouseGetTargetsResultBytes) ReadJSONGeneral(tctx *basictl.JSONR
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetTargetsResultBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseGetTargetsResultBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexTargets := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"targets":`...)
-	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(tctx, w, item.Targets, nat_fields_mask)
+	w = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(jctx, w, item.Targets, nat_fields_mask)
 	if !(len(item.Targets) != 0) {
 		w = w[:backupIndexTargets]
 	}
@@ -372,15 +370,15 @@ func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(tctx *basictl.JSONWrit
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"gauge_metrics":`...)
-		w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, item.GaugeMetrics)
+		w = BuiltinVectorStringBytesWriteJSONOpt(jctx, w, item.GaugeMetrics)
 	}
 	return append(w, '}')
 }
 
-func (item *StatshouseGetTargetsResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetTargetsResultBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult"))
 }
 
-func (item *StatshouseGetTargetsResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetTargetsResultBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getTargetsResult")
 }

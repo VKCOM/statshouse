@@ -58,21 +58,19 @@ func (item *EngineGetReindexStatus) WriteResultTL1(w []byte, ret EngineReindexSt
 	return w, nil
 }
 
-func (item *EngineGetReindexStatus) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineReindexStatus) error {
-	tctx := &basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	if err := ret.ReadJSONGeneral(tctx, in); err != nil {
+func (item *EngineGetReindexStatus) ReadResultJSON(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, ret *EngineReindexStatus) error {
+	if err := ret.ReadJSONGeneral(jctx, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexStatus) (_ []byte, err error) {
-	tctx := basictl.JSONWriteContext{}
-	return item.writeResultJSON(&tctx, w, ret)
+	return item.writeResultJSON(nil, w, ret)
 }
 
-func (item *EngineGetReindexStatus) writeResultJSON(tctx *basictl.JSONWriteContext, w []byte, ret EngineReindexStatus) (_ []byte, err error) {
-	w = ret.WriteJSONOpt(tctx, w)
+func (item *EngineGetReindexStatus) writeResultJSON(jctx *basictl.JSONWriteContext, w []byte, ret EngineReindexStatus) (_ []byte, err error) {
+	w = ret.WriteJSONOpt(jctx, w)
 	return w, nil
 }
 
@@ -82,18 +80,18 @@ func (item *EngineGetReindexStatus) FillRandomResultTL1(rg *basictl.RandGenerato
 	return item.WriteResultTL1(w, ret)
 }
 
-func (item *EngineGetReindexStatus) ReadResultTL1WriteResultJSON(tctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetReindexStatus) ReadResultTL1WriteResultJSON(jctx *basictl.JSONWriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineReindexStatus
 	if r, err = item.ReadResultTL1(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(tctx, w, ret)
+	w, err = item.writeResultJSON(jctx, w, ret)
 	return r, w, err
 }
 
-func (item *EngineGetReindexStatus) ReadResultJSONWriteResultTL1(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetReindexStatus) ReadResultJSONWriteResultTL1(jctx *basictl.JSONReadContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineReindexStatus
-	if err = item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret); err != nil {
+	if err = item.ReadResultJSON(jctx, &basictl.JsonLexer{Data: r}, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultTL1(w, ret)
@@ -112,7 +110,7 @@ func (item *EngineGetReindexStatus) ReadResultTL2WriteResultJSON(tctx *basictl.T
 	return r, w, ErrorTL2SerializersNotGenerated("engine.getReindexStatus")
 }
 
-func (item *EngineGetReindexStatus) ReadResultJSONWriteResultTL2(tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetReindexStatus) ReadResultJSONWriteResultTL2(jctx *basictl.JSONReadContext, tctx *basictl.TL2WriteContext, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	return r, w, ErrorTL2SerializersNotGenerated("engine.getReindexStatus")
 }
 
@@ -121,11 +119,11 @@ func (item EngineGetReindexStatus) String() string {
 }
 
 func (item *EngineGetReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
-	tctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
-	return item.ReadJSONGeneral(&tctx, in)
+	jctx := basictl.JSONReadContext{LegacyTypeNames: legacyTypeNames}
+	return item.ReadJSONGeneral(&jctx, in)
 }
 
-func (item *EngineGetReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
+func (item *EngineGetReindexStatus) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -143,15 +141,14 @@ func (item *EngineGetReindexStatus) ReadJSONGeneral(tctx *basictl.JSONReadContex
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *EngineGetReindexStatus) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w), nil
+func (item *EngineGetReindexStatus) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w), nil
 }
 
 func (item *EngineGetReindexStatus) WriteJSON(w []byte) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w)
+	return item.WriteJSONOpt(nil, w)
 }
-func (item *EngineGetReindexStatus) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte) []byte {
+func (item *EngineGetReindexStatus) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte) []byte {
 	w = append(w, '{')
 	return append(w, '}')
 }
@@ -161,16 +158,17 @@ func (item *EngineGetReindexStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineGetReindexStatus) UnmarshalJSON(b []byte) error {
-	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
+	jctx := basictl.JSONReadContext{LegacyTypeNames: true}
+	if err := item.ReadJSONGeneral(&jctx, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.getReindexStatus", err.Error())
 	}
 	return nil
 }
 
-func (item *EngineGetReindexStatus) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *EngineGetReindexStatus) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("engine.getReindexStatus"))
 }
 
-func (item *EngineGetReindexStatus) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("engine.getReindexStatus")
 }

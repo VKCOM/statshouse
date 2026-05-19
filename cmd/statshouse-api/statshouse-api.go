@@ -218,7 +218,7 @@ func run() int {
 	mappingsTracker := mappings_tracker.New()
 	if argv.trackedMappingsFile != "" {
 		trackedMappingsFilePath := filepath.Join(argv.cacheDir, argv.trackedMappingsFile)
-		if err := mappingsTracker.LoadFromFile(trackedMappingsFilePath); err != nil {
+		if err := mappingsTracker.LoadFromBinFile(trackedMappingsFilePath); err != nil {
 			log.Printf("error loading mappings from file %s: %v", argv.trackedMappingsFile, err)
 			return 1
 		}

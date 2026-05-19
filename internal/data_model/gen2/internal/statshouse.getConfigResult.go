@@ -103,7 +103,7 @@ func (item *StatshouseGetConfigResult) WriteTL1Boxed(w []byte, nat_fields_mask u
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResult) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseGetConfigResult) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propAddressesPresented bool
 	var propMaxAddressesCountPresented bool
 	var propPreviousAddressesPresented bool
@@ -122,7 +122,7 @@ func (item *StatshouseGetConfigResult) ReadJSONGeneral(tctx *basictl.JSONReadCon
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "addresses")
 				}
 				propAddressesPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.Addresses); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.Addresses); err != nil {
 					return err
 				}
 			case "max_addresses_count":
@@ -180,20 +180,19 @@ func (item *StatshouseGetConfigResult) ReadJSONGeneral(tctx *basictl.JSONReadCon
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfigResult) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseGetConfigResult) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseGetConfigResult) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseGetConfigResult) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseGetConfigResult) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.Addresses)
+	w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.Addresses)
 	if !(len(item.Addresses) != 0) {
 		w = w[:backupIndexAddresses]
 	}
@@ -219,11 +218,11 @@ func (item *StatshouseGetConfigResult) WriteJSONOpt(tctx *basictl.JSONWriteConte
 	return append(w, '}')
 }
 
-func (item *StatshouseGetConfigResult) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfigResult) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult"))
 }
 
-func (item *StatshouseGetConfigResult) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfigResult) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult")
 }
 
@@ -317,7 +316,7 @@ func (item *StatshouseGetConfigResultBytes) WriteTL1Boxed(w []byte, nat_fields_m
 	return item.WriteTL1(w, nat_fields_mask)
 }
 
-func (item *StatshouseGetConfigResultBytes) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+func (item *StatshouseGetConfigResultBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_fields_mask uint32) error {
 	var propAddressesPresented bool
 	var propMaxAddressesCountPresented bool
 	var propPreviousAddressesPresented bool
@@ -336,7 +335,7 @@ func (item *StatshouseGetConfigResultBytes) ReadJSONGeneral(tctx *basictl.JSONRe
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfigResult", "addresses")
 				}
 				propAddressesPresented = true
-				if err := BuiltinVectorStringBytesReadJSONGeneral(tctx, in, &item.Addresses); err != nil {
+				if err := BuiltinVectorStringBytesReadJSONGeneral(jctx, in, &item.Addresses); err != nil {
 					return err
 				}
 			case "max_addresses_count":
@@ -394,20 +393,19 @@ func (item *StatshouseGetConfigResultBytes) ReadJSONGeneral(tctx *basictl.JSONRe
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseGetConfigResultBytes) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_fields_mask), nil
+func (item *StatshouseGetConfigResultBytes) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_fields_mask), nil
 }
 
 func (item *StatshouseGetConfigResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_fields_mask)
 }
-func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
+func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexAddresses := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"addresses":`...)
-	w = BuiltinVectorStringBytesWriteJSONOpt(tctx, w, item.Addresses)
+	w = BuiltinVectorStringBytesWriteJSONOpt(jctx, w, item.Addresses)
 	if !(len(item.Addresses) != 0) {
 		w = w[:backupIndexAddresses]
 	}
@@ -433,10 +431,10 @@ func (item *StatshouseGetConfigResultBytes) WriteJSONOpt(tctx *basictl.JSONWrite
 	return append(w, '}')
 }
 
-func (item *StatshouseGetConfigResultBytes) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseGetConfigResultBytes) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	panic(ErrorTL2SerializersNotGenerated("statshouse.getConfigResult"))
 }
 
-func (item *StatshouseGetConfigResultBytes) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseGetConfigResultBytes) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return r, ErrorTL2SerializersNotGenerated("statshouse.getConfigResult")
 }

@@ -95,20 +95,23 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 	req.ActorID = c.ActorID
 	req.ReadOnly = true
 	req.FunctionName = "statshouseApi.getChunk"
-	preferTLVersion := 1
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
-		if extra.PreferTLVersion != 0 {
-			preferTLVersion = extra.PreferTLVersion
-		}
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	preferTLVersion := 1
+	if f := rpc.GetPreferTLVersionFunc(ctx); f != nil {
+		preferTLVersion = f(ctx, req, preferTLVersion)
+	}
+	if extra != nil && extra.PreferTLVersion != 0 {
+		preferTLVersion = extra.PreferTLVersion
+	}
 	if preferTLVersion == 2 {
 		req.BodyFormatTL2 = true
 		req.Body = basictl.NatWrite(req.Body, args.TLTag())
-		tctx := basictl.TL2WriteContext{}
-		req.Body = args.WriteTL2(req.Body, &tctx)
+		req.Body = args.WriteTL2(req.Body, nil)
 	} else {
 		req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 		if err != nil {
@@ -140,20 +143,23 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouseApi.getMapping"
-	preferTLVersion := 1
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
-		if extra.PreferTLVersion != 0 {
-			preferTLVersion = extra.PreferTLVersion
-		}
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	preferTLVersion := 1
+	if f := rpc.GetPreferTLVersionFunc(ctx); f != nil {
+		preferTLVersion = f(ctx, req, preferTLVersion)
+	}
+	if extra != nil && extra.PreferTLVersion != 0 {
+		preferTLVersion = extra.PreferTLVersion
+	}
 	if preferTLVersion == 2 {
 		req.BodyFormatTL2 = true
 		req.Body = basictl.NatWrite(req.Body, args.TLTag())
-		tctx := basictl.TL2WriteContext{}
-		req.Body = args.WriteTL2(req.Body, &tctx)
+		req.Body = args.WriteTL2(req.Body, nil)
 	} else {
 		req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 		if err != nil {
@@ -185,20 +191,23 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouseApi.getQuery"
-	preferTLVersion := 1
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
-		if extra.PreferTLVersion != 0 {
-			preferTLVersion = extra.PreferTLVersion
-		}
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	preferTLVersion := 1
+	if f := rpc.GetPreferTLVersionFunc(ctx); f != nil {
+		preferTLVersion = f(ctx, req, preferTLVersion)
+	}
+	if extra != nil && extra.PreferTLVersion != 0 {
+		preferTLVersion = extra.PreferTLVersion
+	}
 	if preferTLVersion == 2 {
 		req.BodyFormatTL2 = true
 		req.Body = basictl.NatWrite(req.Body, args.TLTag())
-		tctx := basictl.TL2WriteContext{}
-		req.Body = args.WriteTL2(req.Body, &tctx)
+		req.Body = args.WriteTL2(req.Body, nil)
 	} else {
 		req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 		if err != nil {
@@ -231,20 +240,23 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 	req.ActorID = c.ActorID
 	req.ReadOnly = true
 	req.FunctionName = "statshouseApi.getQueryPoint"
-	preferTLVersion := 1
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
-		if extra.PreferTLVersion != 0 {
-			preferTLVersion = extra.PreferTLVersion
-		}
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	preferTLVersion := 1
+	if f := rpc.GetPreferTLVersionFunc(ctx); f != nil {
+		preferTLVersion = f(ctx, req, preferTLVersion)
+	}
+	if extra != nil && extra.PreferTLVersion != 0 {
+		preferTLVersion = extra.PreferTLVersion
+	}
 	if preferTLVersion == 2 {
 		req.BodyFormatTL2 = true
 		req.Body = basictl.NatWrite(req.Body, args.TLTag())
-		tctx := basictl.TL2WriteContext{}
-		req.Body = args.WriteTL2(req.Body, &tctx)
+		req.Body = args.WriteTL2(req.Body, nil)
 	} else {
 		req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 		if err != nil {
@@ -276,20 +288,23 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "statshouseApi.releaseChunks"
-	preferTLVersion := 1
 	if extra != nil {
 		req.Extra = extra.RequestExtra
 		req.FailIfNoConnection = extra.FailIfNoConnection
-		if extra.PreferTLVersion != 0 {
-			preferTLVersion = extra.PreferTLVersion
-		}
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
 	}
 	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	preferTLVersion := 1
+	if f := rpc.GetPreferTLVersionFunc(ctx); f != nil {
+		preferTLVersion = f(ctx, req, preferTLVersion)
+	}
+	if extra != nil && extra.PreferTLVersion != 0 {
+		preferTLVersion = extra.PreferTLVersion
+	}
 	if preferTLVersion == 2 {
 		req.BodyFormatTL2 = true
 		req.Body = basictl.NatWrite(req.Body, args.TLTag())
-		tctx := basictl.TL2WriteContext{}
-		req.Body = args.WriteTL2(req.Body, &tctx)
+		req.Body = args.WriteTL2(req.Body, nil)
 	} else {
 		req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
 		if err != nil {

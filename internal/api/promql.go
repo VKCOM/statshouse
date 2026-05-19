@@ -460,7 +460,7 @@ func (h *requestHandler) GetTagValue(qry promql.TagValueQuery) string {
 func (h *requestHandler) GetTagValueID(qry promql.TagValueIDQuery) (int64, error) {
 	res, err := h.getRichTagValueID(&qry.Tag, qry.TagValue)
 	if err != nil {
-		var httpErr httpError
+		var httpErr *httpError
 		if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
 			err = promql.ErrNotFound
 		}

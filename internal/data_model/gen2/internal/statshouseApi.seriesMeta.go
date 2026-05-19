@@ -142,7 +142,7 @@ func BuiltinVectorStatshouseApiSeriesMetaInternalReadTL2(r []byte, vec *[]Statsh
 	return r, nil
 }
 
-func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
+func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, vec *[]StatshouseApiSeriesMeta, nat_t uint32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
 	if in != nil {
@@ -156,7 +156,7 @@ func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx *basictl.JSONReadC
 				*vec = append(*vec, newValue)
 				*vec = (*vec)[:cap(*vec)]
 			}
-			if err := (*vec)[index].ReadJSONGeneral(tctx, in, nat_t); err != nil {
+			if err := (*vec)[index].ReadJSONGeneral(jctx, in, nat_t); err != nil {
 				return err
 			}
 			in.WantComma()
@@ -171,14 +171,13 @@ func BuiltinVectorStatshouseApiSeriesMetaReadJSONGeneral(tctx *basictl.JSONReadC
 }
 
 func BuiltinVectorStatshouseApiSeriesMetaWriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(&tctx, w, vec, nat_t)
+	return BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(nil, w, vec, nat_t)
 }
-func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
+func BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) []byte {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = elem.WriteJSONOpt(tctx, w, nat_t)
+		w = elem.WriteJSONOpt(jctx, w, nat_t)
 	}
 	return append(w, ']')
 }
@@ -434,7 +433,7 @@ func (item *StatshouseApiSeriesMeta) WriteTL1Boxed(w []byte, nat_query_fields_ma
 	return item.WriteTL1(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
+func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
 	item.tl2mask0 = 0
 	var propFieldsMaskPresented bool
 	var propTimeShiftPresented bool
@@ -474,7 +473,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "tags")
 				}
 				propTagsPresented = true
-				if err := BuiltinDictStringStringReadJSONGeneral(tctx, in, &item.Tags); err != nil {
+				if err := BuiltinDictStringStringReadJSONGeneral(jctx, in, &item.Tags); err != nil {
 					return err
 				}
 			case "what":
@@ -482,7 +481,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "what")
 				}
 				propWhatPresented = true
-				if err := item.What.ReadJSONGeneral(tctx, in); err != nil {
+				if err := item.What.ReadJSONGeneral(jctx, in); err != nil {
 					return err
 				}
 				item.tl2mask0 |= 1
@@ -518,7 +517,7 @@ func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadConte
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.seriesMeta", "max_hosts")
 				}
 				propMaxHostsPresented = true
-				if err := BuiltinVectorStringReadJSONGeneral(tctx, in, &item.MaxHosts); err != nil {
+				if err := BuiltinVectorStringReadJSONGeneral(jctx, in, &item.MaxHosts); err != nil {
 					return err
 				}
 				item.tl2mask0 |= 16
@@ -586,15 +585,14 @@ func (item *StatshouseApiSeriesMeta) ReadJSONGeneral(tctx *basictl.JSONReadConte
 }
 
 // This method is general version of WriteJSON, use it instead!
-func (item *StatshouseApiSeriesMeta) WriteJSONGeneral(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(tctx, w, nat_query_fields_mask), nil
+func (item *StatshouseApiSeriesMeta) WriteJSONGeneral(jctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(jctx, w, nat_query_fields_mask), nil
 }
 
 func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) []byte {
-	tctx := basictl.JSONWriteContext{}
-	return item.WriteJSONOpt(&tctx, w, nat_query_fields_mask)
+	return item.WriteJSONOpt(nil, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) []byte {
+func (item *StatshouseApiSeriesMeta) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_query_fields_mask uint32) []byte {
 	w = append(w, '{')
 	backupIndexFieldsMask := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
@@ -613,14 +611,14 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	backupIndexTags := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tags":`...)
-	w = BuiltinDictStringStringWriteJSONOpt(tctx, w, item.Tags)
+	w = BuiltinDictStringStringWriteJSONOpt(jctx, w, item.Tags)
 	if !(len(item.Tags) != 0) {
 		w = w[:backupIndexTags]
 	}
 	if item.tl2mask0&1 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		w = item.What.WriteJSONOpt(tctx, w)
+		w = item.What.WriteJSONOpt(jctx, w)
 	}
 	if item.tl2mask0&2 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -640,7 +638,7 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(tctx *basictl.JSONWriteContext
 	if item.tl2mask0&16 != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"max_hosts":`...)
-		w = BuiltinVectorStringWriteJSONOpt(tctx, w, item.MaxHosts)
+		w = BuiltinVectorStringWriteJSONOpt(jctx, w, item.MaxHosts)
 	}
 	return append(w, '}')
 }
@@ -771,18 +769,18 @@ func (item *StatshouseApiSeriesMeta) InternalWriteTL2(w []byte, sizes []int, opt
 	return w, sizes, 1
 }
 
-func (item *StatshouseApiSeriesMeta) WriteTL2(w []byte, ctx *basictl.TL2WriteContext) []byte {
+func (item *StatshouseApiSeriesMeta) WriteTL2(w []byte, tctx *basictl.TL2WriteContext) []byte {
 	var sizes, sizes2 []int
-	if ctx != nil {
-		sizes = ctx.SizeBuffer[:0]
+	if tctx != nil {
+		sizes = tctx.SizeBuffer[:0]
 	}
 	sizes, _ = item.CalculateLayout(sizes, false)
 	w, sizes2, _ = item.InternalWriteTL2(w, sizes, false)
 	if len(sizes2) != 0 {
 		panic("tl2: internal write did not consume all size data")
 	}
-	if ctx != nil {
-		ctx.SizeBuffer = sizes
+	if tctx != nil {
+		tctx.SizeBuffer = sizes
 	}
 	return w
 }
@@ -891,6 +889,6 @@ func (item *StatshouseApiSeriesMeta) InternalReadTL2(r []byte) (_ []byte, err er
 	return r, nil
 }
 
-func (item *StatshouseApiSeriesMeta) ReadTL2(r []byte, ctx *basictl.TL2ReadContext) (_ []byte, err error) {
+func (item *StatshouseApiSeriesMeta) ReadTL2(r []byte, tctx *basictl.TL2ReadContext) (_ []byte, err error) {
 	return item.InternalReadTL2(r)
 }
