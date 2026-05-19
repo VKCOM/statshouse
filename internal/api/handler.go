@@ -34,6 +34,14 @@ import (
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/VKCOM/statshouse-go"
+	"github.com/mailru/easyjson"
+	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
+	"github.com/prometheus/prometheus/model/labels"
+	"go.uber.org/atomic"
+	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
+	"pgregory.net/rand"
+
 	"github.com/VKCOM/statshouse/internal/aggregator"
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/config"
@@ -48,13 +56,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/promql/parser"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
-	"github.com/mailru/easyjson"
-	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
-	"github.com/prometheus/prometheus/model/labels"
-	"go.uber.org/atomic"
-	"golang.org/x/sync/semaphore"
-	"golang.org/x/sync/singleflight"
-	"pgregory.net/rand"
 )
 
 //go:generate easyjson -no_std_marshalers httputil.go handler.go
@@ -3061,6 +3062,14 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	if err != nil {
 		return 0, err
 	}
+	cc := cache2FromInflightCtx(ctx)
+	var inflightAddedBytes, inflightAddedRows int64
+	if cc != nil {
+		defer func() {
+			cc.inflightBytes.Add(-inflightAddedBytes)
+			cc.afterInflightLoadFinished()
+		}()
+	}
 	rows := 0
 	isFast := lod.IsFast()
 	isLight := query.isLight()
@@ -3091,6 +3100,14 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 				ret[ix] = append(ret[ix], row)
 			}
 			rows += block.Rows
+			if cc != nil && block.Rows > 0 {
+				r0 := query.rowAt(0)
+				dRows := int64(block.Rows)
+				dBytes := int64(sizeofCache2Row(&r0)) * dRows
+				inflightAddedRows += dRows
+				inflightAddedBytes += dBytes
+				cc.updateInflightApprox(dRows, dBytes)
+			}
 			return nil
 		}})
 	duration := time.Since(start)

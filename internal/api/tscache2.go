@@ -30,6 +30,8 @@ type cache2 struct {
 	shutdownF bool
 	shutdownG sync.WaitGroup
 
+	inflightBytes atomic.Int64
+
 	// readonly after init
 	shards    map[time.Duration]*cache2Shard // by step
 	loader    tsLoadFunc
@@ -231,27 +233,42 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 		h.endpointStat.reportTiming("cache-total", time.Since(startCacheGet))
 	}()
 	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
-	if h.cacheDisabled() {
-		c.tryNotExceedMemoryHardLimit()
-		res = make(cache2Data, lodSize)
-		_, err = c.loader(ctx, h, q, lod, res, 0)
-		if err == nil {
-			cache2MapStringTags(h, q, res)
-			info := cache2UpdateInfo{}
-			mode := cache2BucketMode(time.Duration(q.play) * time.Second)
-			info.hitSizeS[mode][0] += sizeofCache2Data(res) // cache miss
-			c.updateRuntimeInfo(shard.stepS, h.accessInfo.user, &info)
-		}
+	if h.cacheDisabled() || c.shouldBypassWritesUnderPressure() {
+		res, err = c.loadWithoutCache(ctx, h, q, lod, shard, lodSize)
 	} else {
 		res, err = c.newLoader(h, q, lod, lodSize, forceLoad, shard).run(ctx)
 	}
 	return res, err
 }
 
+func (c *cache2) shouldBypassWritesUnderPressure() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.limits.maxSizeSoft <= 0 {
+		return false
+	}
+	return c.effectiveSizeLocked() > c.limits.maxSizeSoft
+}
+
+func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *queryBuilder, lod data_model.LOD, shard *cache2Shard, lodSize int) (cache2Data, error) {
+	c.tryNotExceedMemoryHardLimit()
+	res := make(cache2Data, lodSize)
+	_, err := c.loader(contextWithCache2Inflight(ctx, c), h, q, lod, res, 0)
+	if err != nil {
+		return nil, err
+	}
+	cache2MapStringTags(h, q, res)
+	info := cache2UpdateInfo{}
+	mode := cache2BucketMode(time.Duration(q.play) * time.Second)
+	info.hitSizeS[mode][0] += sizeofCache2Data(res) // cache miss
+	c.updateRuntimeInfo(shard.stepS, h.accessInfo.user, &info)
+	return res, nil
+}
+
 func (c *cache2) tryNotExceedMemoryHardLimit() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for c.limits.maxSize != 0 && c.info.size() > c.limits.maxSize {
+	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSize {
 		c.allocCond.Wait()
 	}
 }
@@ -271,7 +288,7 @@ func (c *cache2) setLimits(v cache2Limits) {
 		return
 	}
 	c.limits = v
-	size := c.info.size()
+	size := c.effectiveSizeLocked()
 	if c.limits.maxSizeSoft < size {
 		c.trimCond.Signal()
 	}
@@ -299,7 +316,7 @@ func (c *cache2) updateRuntimeInfo(step, user string, info *cache2UpdateInfo) {
 func (c *cache2) updateRuntimeInfoUnlocked(step, user string, info *cache2UpdateInfo) {
 	c.info.update(info)
 	if c.limits.maxSize != 0 {
-		size := c.info.size()
+		size := c.effectiveSizeLocked()
 		if c.limits.maxSizeSoft < size {
 			c.trimCond.Signal()
 		}
@@ -659,7 +676,7 @@ func (l *cache2Loader) loadChunks() {
 	c, b := l.cache, l.bucket
 	data := l.data[first.chunkStart:last.chunkEnd]
 
-	ctx, cancel := context.WithTimeout(context.Background(), QuerySelectTimeoutDefault)
+	ctx, cancel := context.WithTimeout(contextWithCache2Inflight(context.Background(), c), QuerySelectTimeoutDefault)
 	defer cancel()
 	_, err := c.loader(ctx, h, q, lod, data, 0)
 	if err == nil {
