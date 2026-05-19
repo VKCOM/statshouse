@@ -158,7 +158,7 @@ func DefaultConfig() *Config {
 		ApproxCacheMaxSize:   1_000_000,
 		MaxCacheSize:         5 * 1024 * 1024 * 1024,
 		MaxCacheSizeSoft:     0,
-		MaxCacheAge:          30,
+		MaxCacheAge:          60,
 		CacheChunkSize:       5,
 		AvailableShardsStr:   "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
 		CHMaxShardConnsRatio: 20,
