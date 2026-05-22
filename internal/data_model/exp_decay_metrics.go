@@ -67,9 +67,17 @@ func (d *ExpDecayMetrics) MergeMaxAndGet(dst map[int32]map[TagUnion]uint32) {
 				src = map[TagUnion]uint32{}
 				d.originalMetricSize[metric] = src
 			}
-			vmax := max(src[host], size)
-			src[host] = vmax
-			dst[metric][host] = vmax
+			src[host] = max(src[host], size)
+		}
+	}
+	for metric, hosts := range d.originalMetricSize {
+		for host, size := range hosts {
+			v := dst[metric]
+			if v == nil {
+				v = map[TagUnion]uint32{}
+				dst[metric] = v
+			}
+			v[host] = size
 		}
 	}
 }
