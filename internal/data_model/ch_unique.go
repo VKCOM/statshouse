@@ -69,6 +69,10 @@ func (ch *ChUnique) ItemsCount() int {
 	return int(ch.itemsCount)
 }
 
+func (ch *ChUnique) HeapAllocBytes() int {
+	return cap(ch.buf) * 4
+}
+
 func (ch *ChUnique) bufSize() int {
 	return 1 << ch.sizeDegree
 }

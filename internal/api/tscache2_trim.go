@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
+
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 )
 
@@ -38,7 +39,7 @@ func (c *cache2) trim() {
 			c.mu.Lock()
 			t.sendEvent(" 2", " 1", c.info.size())
 		}
-		size = c.info.size()
+		size = c.effectiveSizeLocked()
 		if c.limits.maxSizeSoft < size {
 			t.sendEvent(" 1", " 2", size)
 			c.mu.Unlock()
@@ -49,7 +50,7 @@ func (c *cache2) trim() {
 		if c.shutdownF {
 			break
 		}
-		size = c.info.size()
+		size = c.effectiveSizeLocked()
 		if c.limits.maxSize == 0 || size <= c.limits.maxSize {
 			var t *time.Timer
 			if c.limits.maxAge > 0 {
@@ -111,7 +112,7 @@ func (t *cache2Trim) reduceMemoryUsage() int {
 			// update runtime info and check if done
 			c.mu.Lock()
 			c.updateRuntimeInfoUnlocked(v.shard.stepS, v.bucket.fau, &info)
-			size, maxSize := c.info.size(), c.limits.maxSizeSoft
+			size, maxSize := c.effectiveSizeLocked(), c.limits.maxSizeSoft
 			c.mu.Unlock()
 			if size <= maxSize {
 				c.debugPrintf("trim end   #%d, buckets #%d", i, j)
