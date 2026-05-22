@@ -92,7 +92,6 @@ type (
 		currentMetricID      int32
 		currentMetricSFSum   float64
 		currentMetricSFCount float64
-		currentMetricOrgSize int64
 		MetricCount          int
 
 		timeStart      time.Time
@@ -316,12 +315,6 @@ func (h *sampler) run(g samplerGroup) {
 		}
 		if s[i].MetricID == 0 {
 			h.setCurrentGroup(s[i])
-		} else if s[i].MetricID != h.currentMetricID {
-			h.setCurrentMetric(s[i].MetricID)
-			if !s[i].noSampleAgent {
-				h.currentMetricSFCount++
-				h.currentMetricOrgSize = s[i].sumSize
-			}
 		}
 		s[i].keep(h)
 		if !s[i].FixedBudget {
@@ -342,7 +335,7 @@ func (h *sampler) run(g samplerGroup) {
 		} else if s[i].depth == len(h.partF) && s[i].MetricID != h.currentMetricID {
 			h.setCurrentMetric(s[i].MetricID)
 		}
-		if s[i].noSampleAgent {
+		if s[i].noSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent {
 			s[i].keep(h)
 		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
 			if !s[i].FixedBudget {
@@ -399,7 +392,6 @@ func (h *sampler) sample(g samplerGroup) {
 	sf := float64(sfNum) / float64(sfDenom)
 	h.currentMetricSFCount++
 	h.currentMetricSFSum += sf
-	h.currentMetricOrgSize += g.sumSize
 	// keep whales
 	items := g.items
 	// Often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
@@ -466,16 +458,14 @@ func (h *sampler) setCurrentMetric(metricID int32) {
 			h.SampleFactorF(h.currentMetricID, sf)
 		} else {
 			h.SampleFactors = append(h.SampleFactors, tlstatshouse.SampleFactor{
-				Metric:       h.currentMetricID,
-				Value:        float32(sf),
-				OriginalSize: uint32(h.currentMetricOrgSize),
+				Metric: h.currentMetricID,
+				Value:  float32(sf),
 			})
 		}
 	}
 	h.currentMetricID = metricID
 	h.currentMetricSFSum = 0
 	h.currentMetricSFCount = 0
-	h.currentMetricOrgSize = 0
 }
 
 func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
@@ -493,7 +483,7 @@ func partitionByBudget(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			FixedBudget:   true,
 			budgetDenom:   1,
 			weight:        1,
-			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent,
 			sumSize:       sumSize,
 			items:         items,
 		}
@@ -609,7 +599,7 @@ func partitionByMetric(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        items[0].metric.EffectiveWeight,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,
@@ -647,7 +637,7 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
-			noSampleAgent: items[0].metric.NoSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent,
+			noSampleAgent: items[0].metric.NoSampleAgent,
 			NamespaceID:   items[0].metric.NamespaceID,
 			GroupID:       items[0].metric.GroupID,
 			MetricID:      items[0].MetricID,

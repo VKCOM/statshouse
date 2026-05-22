@@ -613,7 +613,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			if len(bucket.SampleFactors) > 0 {
 				orgSize = bucket.SampleFactors[0].OriginalSize
 			}
-			log.Printf("[sampling]: adm605805 found in disable case, len(SampleFactors): %v, SampleFactors[0].OriginalSize: %v", len(bucket.SampleFactors), orgSize)
+			log.Printf("[sampling]: adm605805 found in enable case, len(SampleFactors): %v, SampleFactors[0].OriginalSize: %v", len(bucket.SampleFactors), orgSize)
 		}
 		for i, v := range bucket.SampleFactors {
 			byHost, ok := aggBucket.originalMetricSize[v.Metric]
