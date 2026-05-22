@@ -103,7 +103,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			ShortWindow:               data_model.MaxShortWindow,
 			InsertBudget:              400,
 			MinInsertBudget:           data_model.InsertBudgetFixed,
-			ReceiveSampleBudget:       800,
+			ReceiveSampleBudget:       500000,
 			StringTopCountInsert:      20,
 			SampleNamespaces:          true,
 			SampleGroups:              true,
