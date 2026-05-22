@@ -1070,7 +1070,13 @@ func (a *Aggregator) reportHostMetricBudgets(ts uint32, hostMetricBudgets map[da
 func (a *Aggregator) mergeHostBudgetCache(src map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
 	dst := make(map[data_model.TagUnion][]tlstatshouse.MetricBudget, len(src)) // alloc point
 	for k, v := range src {
+		if len(v) == 0 {
+			continue
+		}
 		dst[k] = append(dst[k], v...)
+	}
+	if len(dst) == 0 {
+		return
 	}
 	a.hostBudgetCacheMu.Lock()
 	defer a.hostBudgetCacheMu.Unlock()
