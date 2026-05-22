@@ -409,7 +409,7 @@ func TestMetricBudgetsSampleFactorOriginalSize(t *testing.T) {
 			require.False(t, found, "duplicate sample factor for metric")
 			found = true
 			require.Less(t, float32(1), sf.Value)
-			require.Equal(t, uint32(sumSize), sf.OriginalSize)
+			require.Zero(t, sf.OriginalSize)
 		}
 		require.True(t, found, "expected sample factor for metric with dedicated budget")
 	})
@@ -435,14 +435,12 @@ func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
 				return int(float64(len(s)) / sf)
 			},
 		})
-		metricSize := map[int32]int{}
 		for _, item := range b.MultiItems {
 			budget := uint32(0)
 			if item.Key.Metric == ghostMetric {
 				budget = uint32(ghostBudget)
 			}
 			size := samplingTestSizeOf(item)
-			metricSize[item.Key.Metric] += size
 			s.Add(SamplingMultiItemPair{
 				Item:        item,
 				WhaleWeight: item.FinishStringTop(rnd, 20),
@@ -454,7 +452,7 @@ func TestMetricBudgetsUnmatchedKeysOriginalSizeZero(t *testing.T) {
 		s.Run(globalBudget)
 		require.NotEmpty(t, s.SampleFactors)
 		for _, sf := range s.SampleFactors {
-			require.Equal(t, metricSize[sf.Metric], int(sf.OriginalSize))
+			require.Zero(t, sf.OriginalSize)
 		}
 	})
 }

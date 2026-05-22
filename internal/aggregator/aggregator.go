@@ -1011,7 +1011,6 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 	if len(b.originalMetricSize) == 0 {
 		return
 	}
-	log.Println("[sampling]: Received NOT empty original metric size")
 	totalBudget := int64(configR.ReceiveSampleBudget)
 	keepF := func(key data_model.Key, quota uint32) {
 		host := data_model.TagUnion{I: key.Tags[1], S: key.STags[1]}

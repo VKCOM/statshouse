@@ -101,22 +101,23 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 
 	var scratch []byte
 	var budgetScratch = map[int32]uint32{}
+	var sizeScratch = map[int32]uint32{}
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
-		scratch = s.preProcess(bucket, scratch, budgetScratch, rng)
+		scratch = s.preProcess(bucket, scratch, budgetScratch, sizeScratch, rng)
 		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]uint32, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch, sizeScratch map[int32]uint32, rng *rand.Rand) []byte {
 	var buffers data_model.SamplerBuffers
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
+	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
@@ -128,7 +129,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, bud
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch map[int32]uint32, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch, sizeScratch map[int32]uint32, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
@@ -171,6 +172,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		sb.Metrics = append(sb.Metrics, item)
 	}
 	clear(budgetScratch)
+	clear(sizeScratch)
 	s.metricBudgetsFromAgg.Get(budgetScratch)
 	sampler := data_model.NewSampler(data_model.SamplerConfig{
 		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
@@ -212,6 +214,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
 		}
+		sizeScratch[accountMetric] += uint32(sz)
 		sampler.Add(data_model.SamplingMultiItemPair{
 			Item:        item,
 			WhaleWeight: whaleWeight,
@@ -278,6 +281,19 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
+	for i, sf := range sampler.SampleFactors {
+		if size, ok := sizeScratch[sf.Metric]; ok {
+			sampler.SampleFactors[i].OriginalSize = size
+			delete(sizeScratch, sf.Metric)
+		}
+	}
+	for m, size := range sizeScratch {
+		sampler.SampleFactors = append(sampler.SampleFactors, tlstatshouse.SampleFactor{
+			Metric:       m,
+			Value:        0,
+			OriginalSize: size,
+		})
+	}
 	sb.SetHaveOriginalSize(true)
 	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
 
