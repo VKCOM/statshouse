@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"time"
 
 	"go4.org/mem"
@@ -608,35 +607,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	compressedSize := len(hctx.Request)
 	if !configR.DisableReceiveSampleBudget && bucket.IsSetHaveOriginalSize() && args.Header.ComponentTag == format.TagValueIDComponentAgent && !args.IsSetHistoric() && !args.IsSetSpare() {
-		if string(args.Header.HostName) == "adm605805" {
-			orgSize := uint32(0)
-			if len(bucket.SampleFactors) > 0 {
-				orgSize = bucket.SampleFactors[0].OriginalSize
-			}
-			log.Printf("[sampling]: adm605805 found in enable case, len(SampleFactors): %v, SampleFactors[0].OriginalSize: %v", len(bucket.SampleFactors), orgSize)
-		}
-		for i, v := range bucket.SampleFactors {
+		for _, v := range bucket.SampleFactors {
 			byHost, ok := aggBucket.originalMetricSize[v.Metric]
 			if !ok {
 				byHost = map[data_model.TagUnion]uint32{}
 				aggBucket.originalMetricSize[v.Metric] = byHost
 			}
 			byHost[hostTag] += v.OriginalSize
-			if v.OriginalSize == 0 {
-				log.Printf("[sampling]: unexpected zero src original size i: %v", i)
-			}
-		}
-	} else {
-		if configR.DisableReceiveSampleBudget {
-			log.Println("[sampling]: ReceiveSampleBudget disabled")
-		}
-		if args.Header.ComponentTag != format.TagValueIDComponentAgent {
-			if args.Header.ComponentTag != format.TagValueIDComponentAggregator && args.Header.ComponentTag != format.TagValueIDComponentIngressProxy && args.Header.ComponentTag != format.TagValueIDComponentMetadata {
-				log.Printf("[sampling]: unexpected component tag: %v", args.Header.ComponentTag)
-			}
-		}
-		if string(args.Header.HostName) == "adm605805" {
-			log.Printf("[sampling]: adm605805 found in disable case. HaveOriginalSize: %v, ComponentTag: %v, Historic: %v, Spare: %v", bucket.IsSetHaveOriginalSize(), args.Header.ComponentTag, args.IsSetHistoric(), args.IsSetSpare())
 		}
 	}
 
