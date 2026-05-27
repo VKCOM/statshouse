@@ -233,21 +233,12 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 		h.endpointStat.reportTiming("cache-total", time.Since(startCacheGet))
 	}()
 	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
-	if h.cacheDisabled() || c.shouldBypassWritesUnderPressure() {
+	if h.cacheDisabled() {
 		res, err = c.loadWithoutCache(ctx, h, q, lod, shard, lodSize)
 	} else {
 		res, err = c.newLoader(h, q, lod, lodSize, forceLoad, shard).run(ctx)
 	}
 	return res, err
-}
-
-func (c *cache2) shouldBypassWritesUnderPressure() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.limits.maxSizeSoft <= 0 {
-		return false
-	}
-	return c.effectiveSizeLocked() > c.limits.maxSizeSoft
 }
 
 func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *queryBuilder, lod data_model.LOD, shard *cache2Shard, lodSize int) (cache2Data, error) {
@@ -268,7 +259,7 @@ func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *que
 func (c *cache2) tryNotExceedMemoryHardLimit() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for c.limits.maxSize != 0 && c.info.size() > c.limits.maxSize {
+	for c.limits.maxSize != 0 && c.info.size() > 0 && c.effectiveSizeLocked() > c.limits.maxSize {
 		c.allocCond.Wait()
 	}
 }
