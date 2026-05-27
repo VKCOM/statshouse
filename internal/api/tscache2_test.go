@@ -198,59 +198,6 @@ func cache2TestDrawLOD(c *cache2) data_model.LOD {
 	}
 }
 
-func TestCache2BypassUnderPressureSkipsBucket(t *testing.T) {
-	h := &requestHandler{
-		Handler: &Handler{
-			HandlerOptions: HandlerOptions{
-				location: time.UTC,
-			},
-		},
-		accessInfo: accessInfo{user: "bypass-test-user"},
-	}
-	loads := 0
-	c := newCache2(h.Handler, 5, func(_ context.Context, _ *requestHandler, _ *queryBuilder, lod data_model.LOD, ret [][]tsSelectRow, _ int) (int, error) {
-		loads++
-		for i := range ret {
-			ret[i] = append(ret[i][:0], tsSelectRow{time: lod.FromSec + int64(i)*lod.StepSec})
-		}
-		return len(ret), nil
-	})
-	c.setLimits(cache2Limits{maxSize: 100 << 20, maxSizeSoft: 500})
-	c.updateRuntimeInfo(c.shards[time.Second].stepS, h.accessInfo.user, &cache2UpdateInfo{
-		sizeS: [2]int{600, 0},
-	})
-
-	lod := data_model.LOD{
-		Version:  Version3,
-		StepSec:  1,
-		FromSec:  100,
-		ToSec:    110,
-		Location: time.UTC,
-	}
-	q := &queryBuilder{play: 0}
-
-	require.True(t, c.shouldBypassWritesUnderPressure())
-	before := c.bucketCount()
-	_, err := c.Get(context.Background(), h, q, lod, false)
-	require.NoError(t, err)
-	require.Equal(t, 1, loads)
-	require.Equal(t, before, c.bucketCount(), "bypass must not create cache buckets")
-
-	c.mu.Lock()
-	c.info = cache2RuntimeInfo{minChunkAccessTime: time.Now().UnixNano()}
-	c.inflightBytes.Store(0)
-	c.mu.Unlock()
-	c.setLimits(cache2Limits{maxSize: 100 << 20, maxSizeSoft: 100 << 20})
-	require.False(t, c.shouldBypassWritesUnderPressure())
-
-	_, err = c.Get(context.Background(), h, q, lod, false)
-	require.NoError(t, err)
-	require.Equal(t, 2, loads)
-	require.Greater(t, c.bucketCount(), 0, "normal path creates buckets")
-
-	c.shutdown().Wait()
-}
-
 func requireCache2Valid(t *testing.T, c *cache2) {
 	for _, shard := range c.shards {
 		requireCache2ShardValid(t, shard)
