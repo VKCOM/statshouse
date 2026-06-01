@@ -134,6 +134,22 @@ func DebugCacheCreateMetrics(r *httpRequestHandler) {
 		Kind: format.MetricKindValue,
 		Tags: tags,
 	})
+	debugCacheCreateMetric(r, format.MetricMetaValue{
+		Name: "statshouse_api_cache_memory_size",
+		Kind: format.MetricKindValue,
+		Tags: []format.MetricMetaTag{
+			{Index: 0}, // environment
+			{Index: 1, Description: "host"},
+			{
+				Index:       2,
+				Description: "part",
+				ValueComments: map[string]string{
+					"size":          "cache size only",
+					"inflight_size": "inflight data size only",
+				},
+			},
+		},
+	})
 	tags = append(tags, format.MetricMetaTag{
 		Index:       2,
 		Description: "mode",

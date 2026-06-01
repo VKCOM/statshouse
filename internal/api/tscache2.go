@@ -372,9 +372,23 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.info.normalizeWaterLevel()
+	cacheSize := c.info.size()
+	effectiveSize := c.effectiveSizeLocked()
+	inflightSize := effectiveSize - cacheSize
+	if inflightSize < 0 {
+		inflightSize = 0
+	}
+	sizeTags := statshouse.NamedTags{
+		{"1", srvfunc.Hostname()},
+		{"2"},
+	}
 	// TODO: replace with builtins
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	client.NamedCount("statshouse_api_cache_waiting", tags[0][0], float64(c.waitN.Load()))
+	sizeTags[1][1] = "size"
+	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(cacheSize))
+	sizeTags[1][1] = "inflight_size"
+	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(inflightSize))
 	for i := 0; i < 2; i++ {
 		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sizeS[i]))
 		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.bucketCountS[i]))
