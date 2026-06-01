@@ -385,7 +385,6 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	// TODO: replace with builtins
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	client.NamedCount("statshouse_api_cache_waiting", tags[0][0], float64(c.waitN.Load()))
-	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(effectiveSize))
 	sizeTags[1][1] = "size"
 	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(cacheSize))
 	sizeTags[1][1] = "inflight_size"
