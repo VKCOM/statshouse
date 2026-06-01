@@ -3093,6 +3093,11 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 		Body:   query.body,
 		Result: query.res,
 		OnResult: func(_ context.Context, block proto.Block) error {
+			select {
+			case <-ctx.Done():
+				return nil // no client. Clickhouse still process query. Just ignore it
+			default:
+			}
 			for i := 0; i < block.Rows; i++ {
 				row := query.rowAt(i)
 				ix, err := lod.IndexOf(row.time)
