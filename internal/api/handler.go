@@ -3066,11 +3066,15 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 		return 0, err
 	}
 	cc := cache2FromInflightCtx(ctx)
-	var inflightAddedBytes, inflightAddedRows int64
+	var inflightMu sync.Mutex
+	var inflightAddedBytes int64
 	if cc != nil {
 		defer func() {
+			inflightMu.Lock()
+			defer inflightMu.Unlock()
 			cc.inflightBytes.Add(-inflightAddedBytes)
 			cc.afterInflightLoadFinished()
+			cc = nil
 		}()
 	}
 	rows := 0
@@ -3108,11 +3112,13 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 				ret[ix] = append(ret[ix], row)
 			}
 			rows += block.Rows
+
+			inflightMu.Lock()
+			defer inflightMu.Unlock()
 			if cc != nil && block.Rows > 0 {
 				r0 := query.rowAt(0)
 				dRows := int64(block.Rows)
 				dBytes := int64(sizeofCache2Row(&r0)) * dRows
-				inflightAddedRows += dRows
 				inflightAddedBytes += dBytes
 				cc.updateInflightApprox(dRows, dBytes)
 			}
