@@ -1079,6 +1079,7 @@ func (h *requestHandler) getRichTagValueID(tag *format.MetricMetaTag, tagValue s
 			return id, err
 		}
 		// We could return error, but this will stop rendering, so we try conventional mapping also, even for raw tags
+		return 0, httpErr(http.StatusNotFound, fmt.Errorf("comment value %q not found for a raw tag", tagValue))
 	}
 	v, err := h.getTagValueID(tagValue)
 	return int64(v), err
