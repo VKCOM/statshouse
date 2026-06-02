@@ -3070,6 +3070,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	var inflightMu sync.Mutex
 	var inflightAddedBytes int64
 	if cc != nil {
+		cc.updateInflightApprox(0) // check inflight OOM
 		defer func() {
 			inflightMu.Lock()
 			defer inflightMu.Unlock()
@@ -3121,7 +3122,7 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 				dRows := int64(block.Rows)
 				dBytes := int64(sizeofCache2Row(&r0)) * dRows
 				inflightAddedBytes += dBytes
-				cc.updateInflightApprox(dRows, dBytes)
+				cc.updateInflightApprox(dBytes)
 			}
 			return nil
 		}})

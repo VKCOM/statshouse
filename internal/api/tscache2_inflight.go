@@ -34,10 +34,7 @@ func (c *cache2) effectiveSizeLocked() int {
 	return c.info.size() + int(c.inflightBytes.Load())
 }
 
-func (c *cache2) updateInflightApprox(deltaRows, deltaBytes int64) {
-	if deltaRows == 0 && deltaBytes == 0 {
-		return
-	}
+func (c *cache2) updateInflightApprox(deltaBytes int64) {
 	c.inflightBytes.Add(deltaBytes)
 	c.mu.Lock()
 	soft := c.limits.maxSizeSoft
