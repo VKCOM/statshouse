@@ -43,7 +43,13 @@ func (c *cache2) updateInflightApprox(deltaBytes int64) {
 	c.mu.Unlock()
 	if !shutdown && soft > 0 && eff > soft {
 		c.trimCond.Signal()
-		c.tryNotExceedMemoryHardLimit()
+		if deltaBytes > 0 {
+			// Anyway we've already started SELECT. So finish it, even if (size()==0 && inflightBytes > maxSize). Avoid freezing
+			c.tryNotExceedMemoryHardLimit()
+		} else {
+			// SELECT not started, wait inflight. Freezing in case (size()==0 && inflightBytes > maxSize), so it doesn't get any worse than it already is.
+			c.tryStrictNotExceedMemoryHardLimit()
+		}
 	}
 }
 

@@ -264,6 +264,14 @@ func (c *cache2) tryNotExceedMemoryHardLimit() {
 	}
 }
 
+func (c *cache2) tryStrictNotExceedMemoryHardLimit() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSize {
+		c.allocCond.Wait()
+	}
+}
+
 func (c *cache2) setLimits(v cache2Limits) {
 	if v.maxSize <= 0 {
 		// running without memory limit
