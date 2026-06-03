@@ -30,7 +30,9 @@ type cache2 struct {
 	shutdownF bool
 	shutdownG sync.WaitGroup
 
-	inflightBytes atomic.Int64
+	inflightBytes int64
+	inflightReqID uint32
+	inflightReqM  map[uint32]*cache2InflightReq
 
 	// readonly after init
 	shards    map[time.Duration]*cache2Shard // by step
@@ -73,6 +75,11 @@ type cache2Loader struct {
 	mode      int // play mode indicator
 	waitN     int // number of values to read from "waitC"
 	forceLoad bool
+}
+
+type cache2InflightReq struct {
+	bytes  int64
+	cancel context.CancelFunc
 }
 
 type cache2LoaderChunk struct {
@@ -198,8 +205,9 @@ func newCache2(h *Handler, chunkSize int, loader tsLoadFunc) *cache2 {
 		info: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
-		infoM:     make(map[string]map[string]*cache2RuntimeInfo),
-		chunkSize: chunkSize,
+		infoM:        make(map[string]map[string]*cache2RuntimeInfo),
+		chunkSize:    chunkSize,
+		inflightReqM: make(map[uint32]*cache2InflightReq),
 	}
 	c.trimCond = sync.NewCond(&c.mu)
 	c.allocCond = sync.NewCond(&c.mu)
@@ -264,10 +272,37 @@ func (c *cache2) tryNotExceedMemoryHardLimit() {
 	}
 }
 
-func (c *cache2) tryStrictNotExceedMemoryHardLimit() {
+// tryNotExceedMemoryHardLimitInflight
+// Freezing in case (size()==0 && inflightBytes > maxSize).
+// It happens, when one inflight consumes all memory, cancel it to save other requests.
+func (c *cache2) tryNotExceedMemoryHardLimitInflight() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSize {
+		if c.info.size() <= 0 {
+			if len(c.inflightReqM) == 0 {
+				return
+			}
+			maxI, maxB := -1, int64(-1)
+			for i, r := range c.inflightReqM {
+				if r.bytes > maxB {
+					maxI, maxB = int(i), r.bytes
+				}
+			}
+			c.removeReqLocked(uint32(maxI))
+			continue
+		}
+		c.allocCond.Wait()
+	}
+}
+
+// tryNotExceedMemorySoftLimitInflight
+// Freezing in case (size()==0 && inflightBytes > maxSizeSoft).
+// SELECT not started yet. Wait inflight's end, so it doesn't get any worse than it already is.
+func (c *cache2) tryNotExceedMemorySoftLimitInflight() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSizeSoft {
 		c.allocCond.Wait()
 	}
 }

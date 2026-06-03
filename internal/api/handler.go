@@ -3066,17 +3066,15 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 	if err != nil {
 		return 0, err
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	cc := cache2FromInflightCtx(ctx)
-	var inflightMu sync.Mutex
-	var inflightAddedBytes int64
+	var reqID uint32
 	if cc != nil {
-		cc.updateInflightApprox(0) // check inflight OOM
+		reqID = cc.NewInflightReq(cancel)
+		cc.updateInflightApprox(reqID, 0)
 		defer func() {
-			inflightMu.Lock()
-			defer inflightMu.Unlock()
-			cc.inflightBytes.Add(-inflightAddedBytes)
-			cc.afterInflightLoadFinished()
-			cc = nil
+			cc.afterInflightLoadFinished(reqID)
 		}()
 	}
 	rows := 0
@@ -3104,6 +3102,12 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 				return nil // no client. Clickhouse still process query. Just ignore it
 			default:
 			}
+			if cc != nil && block.Rows > 0 {
+				r0 := query.rowAt(0)
+				dRows := block.Rows
+				dBytes := sizeofCache2Row(&r0) * dRows
+				cc.updateInflightApprox(reqID, int64(dBytes))
+			}
 			for i := 0; i < block.Rows; i++ {
 				row := query.rowAt(i)
 				ix, err := lod.IndexOf(row.time)
@@ -3114,16 +3118,6 @@ func loadPoints(ctx context.Context, h *requestHandler, pq *queryBuilder, lod da
 				ret[ix] = append(ret[ix], row)
 			}
 			rows += block.Rows
-
-			inflightMu.Lock()
-			defer inflightMu.Unlock()
-			if cc != nil && block.Rows > 0 {
-				r0 := query.rowAt(0)
-				dRows := int64(block.Rows)
-				dBytes := int64(sizeofCache2Row(&r0)) * dRows
-				inflightAddedBytes += dBytes
-				cc.updateInflightApprox(dBytes)
-			}
 			return nil
 		}})
 	duration := time.Since(start)
