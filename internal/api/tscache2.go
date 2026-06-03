@@ -274,7 +274,7 @@ func (c *cache2) tryNotExceedMemoryHardLimit() {
 
 // tryNotExceedMemoryHardLimitInflight
 // Freezing in case (size()==0 && inflightBytes > maxSize).
-// Anyway we've already started SELECT. So finish it for getting space.
+// It happens, when one inflight consumes all memory, cancel it to save other requests.
 func (c *cache2) tryNotExceedMemoryHardLimitInflight() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
