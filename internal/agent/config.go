@@ -235,7 +235,7 @@ func (c *Config) ValidateConfigSource() error {
 		return fmt.Errorf("--sampling-decay-half-life (%s) must be > 0", c.SamplingDecayHalfLife)
 	}
 	if c.SampleExtraBudgetRate <= 0 {
-		return fmt.Errorf("--sampling-extra-budget-rate (%s) must be > 0", c.SampleExtraBudgetRate)
+		return fmt.Errorf("--sampling-extra-budget-rate (%d) must be > 0", c.SampleExtraBudgetRate)
 	}
 
 	return nil

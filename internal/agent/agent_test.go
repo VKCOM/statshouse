@@ -152,6 +152,7 @@ func Test_AgentQueue(t *testing.T) {
 	}
 	shard.cond = sync.NewCond(&shard.mu)
 	shard.BucketsToPreprocess = make(chan *data_model.MetricsBucket, 1)
+	shard.BucketsToPostprocess = make(chan *data_model.MetricsBucket, 1)
 	agent.Shards = append(agent.Shards, shard)
 	agent.initBuiltInMetrics()
 
@@ -213,6 +214,7 @@ func testEnsureFlush(t *testing.T, shard *Shard, time uint32) {
 	}
 }
 
+// Benchmark_SampleFactor-14    	282327807	         4.257 ns/op
 func Benchmark_SampleFactor(b *testing.B) {
 	sampleFactors := map[int32]float64{}
 	for i := 0; i < 1000; i++ {
@@ -234,11 +236,13 @@ func Benchmark_SampleFactor(b *testing.B) {
 	}
 }
 
+// Benchmark_AgentApplyMetric-14    	 1228231	       854.1 ns/op	    1829 B/op	       2 allocs/op
 func Benchmark_AgentApplyMetric(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
 	config := Config{}
 	agent := makeAgent(config, nowUnix)
+	agent.shardByMetricCount = 16
 	m := tlstatshouse.MetricBytes{
 		Counter: 1,
 		Value:   make([]float64, 1),
@@ -259,7 +263,8 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	}
 }
 
-// Benchmark_SampleBucketMetricWithoutBudgets-14    	     562	   1861470 ns/op	  790916 B/op	    1014 allocs/op
+// Benchmark_SampleBucketMetricWithoutBudgets-14    	     5544	   181457 ns/op	  789219 B/op	    13 allocs/op
+// Just send with presample logic without sample run
 func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -272,6 +277,7 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	agent.shardByMetricCount = uint32(len(agent.Shards))
 	shard := agent.Shards[0]
 	shard.metricBudgetsFromAgg = data_model.NewExpDecay(config.BudgetDecayHalfLife)
+	shard.metricSamplingStat = data_model.NewExpDecaySampling(config.SamplingDecayHalfLife)
 
 	const namespaceN = 10
 	const groupN = 20
@@ -279,38 +285,71 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	const itemN = 8_192
 
 	keys, items := makeBenchmarkSampleItems(nowUnix, itemN, namespaceN, groupN, metricN)
+	targetSize := shard.getShardSampleBudget(config)
 
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
-	buffers := data_model.SamplerBuffers{}
-	budgetScratch := make(map[int32]uint32, metricN)
 	scratch := make([]byte, 0, 64*1024)
+	var sampledCount uint64
+	var sf []tlstatshouse.SampleFactor
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		bucket := makeBenchmarkSampleBucket(nowUnix, keys, items, targetSize)
+		sb = tlstatshouse.SourceBucket3{}
+		b.StartTimer()
+
+		scratch, sf = shard.sampleBucket(bucket, &sb, scratch, sf, rng)
+		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
+	}
+	sideEffect += sampledCount
+}
+
+// Benchmark_PreSampleBucketMetricWithoutBudgets-14    	    7915	    142719 ns/op	  329634 B/op	    1093 allocs/op
+func Benchmark_PreSampleBucketMetricWithoutBudgets(b *testing.B) {
+	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
+	nowUnix := uint32(startTime.Unix())
+	config := DefaultConfig()
+	config.SampleBudget = 100_000
+	config.MinSampleBudget = 4000
+	config.SampleNamespaces = true
+	config.SampleGroups = true
+	agent := makeAgent(config, nowUnix)
+	agent.shardByMetricCount = uint32(len(agent.Shards))
+	shard := agent.Shards[0]
+	shard.metricBudgetsFromAgg = data_model.NewExpDecay(config.BudgetDecayHalfLife)
+	shard.metricSamplingStat = data_model.NewExpDecaySampling(config.SamplingDecayHalfLife)
+
+	const namespaceN = 10
+	const groupN = 20
+	const metricN = 256
+	const itemN = 8_192
+
+	_, items := makeBenchmarkSampleItems(nowUnix, itemN, namespaceN, groupN, metricN)
+	benchmarkSeedSamplingStat(shard, items)
+
+	rng := rand.New()
+	buffers := data_model.SamplerBuffers{}
+	sampleScratch := map[int32]map[uint64]*data_model.MetricsBucketStat{}
+	budgetScratch := map[int32]uint32{}
 	var sampledCount uint64
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		bucket := &data_model.MetricsBucket{
-			Time: nowUnix,
-			MultiItemMap: data_model.MultiItemMap{
-				MultiItems: make(map[string]*data_model.MultiItem, len(items)),
-			},
-		}
-		for i := range items {
-			bucket.MultiItems[keys[i]] = items[i]
-		}
-		sb = tlstatshouse.SourceBucket3{}
+		bucket := &data_model.MetricsBucket{Time: nowUnix}
 		b.StartTimer()
-
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
-		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
+		buffers = shard.preSampleBucket(bucket, buffers, sampleScratch, budgetScratch, rng)
+		sampledCount += uint64(len(bucket.SampleRes))
 	}
 	sideEffect += sampledCount
 }
 
-// Benchmark_SampleBucketMetricBudgetsFromAgg-14    	     534	   2245887 ns/op	  722916 B/op	     809 allocs/op
-func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
+// Benchmark_PreSampleBucketMetricBudgetsFromAgg-14    	    8192	    145939 ns/op	  328883 B/op	    1089 allocs/op
+func Benchmark_PreSampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
 	config := DefaultConfig()
@@ -323,13 +362,15 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	agent.shardByMetricCount = uint32(len(agent.Shards))
 	shard := agent.Shards[0]
 	shard.metricBudgetsFromAgg = data_model.NewExpDecay(config.BudgetDecayHalfLife)
+	shard.metricSamplingStat = data_model.NewExpDecaySampling(config.SamplingDecayHalfLife)
 
 	const namespaceN = 10
 	const groupN = 20
 	const metricN = 256
 	const itemN = 8_192
 
-	keys, items := makeBenchmarkSampleItems(nowUnix, itemN, namespaceN, groupN, metricN)
+	_, items := makeBenchmarkSampleItems(nowUnix, itemN, namespaceN, groupN, metricN)
+	benchmarkSeedSamplingStat(shard, items)
 	shard.metricBudgetsFromAgg.MergeMax(func(f func(k int32, v uint32)) {
 		for metric := int32(1); metric <= metricN; metric++ {
 			f(metric, 64)
@@ -337,30 +378,19 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	})
 
 	rng := rand.New()
-	sb := tlstatshouse.SourceBucket3{}
 	buffers := data_model.SamplerBuffers{}
-	budgetScratch := make(map[int32]uint32, metricN)
-	scratch := make([]byte, 0, 64*1024)
+	sampleScratch := map[int32]map[uint64]*data_model.MetricsBucketStat{}
+	budgetScratch := map[int32]uint32{}
 	var sampledCount uint64
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		bucket := &data_model.MetricsBucket{
-			Time: nowUnix,
-			MultiItemMap: data_model.MultiItemMap{
-				MultiItems: make(map[string]*data_model.MultiItem, len(items)),
-			},
-		}
-		for i := range items {
-			bucket.MultiItems[keys[i]] = items[i]
-		}
-		sb = tlstatshouse.SourceBucket3{}
+		bucket := &data_model.MetricsBucket{Time: nowUnix}
 		b.StartTimer()
-
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
-		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
+		buffers = shard.preSampleBucket(bucket, buffers, sampleScratch, budgetScratch, rng)
+		sampledCount += uint64(len(bucket.SampleRes))
 	}
 	sideEffect += sampledCount
 }
@@ -390,6 +420,53 @@ func makeBenchmarkSampleItems(ts uint32, itemN int, namespaceN, groupN, metricN 
 		keys[i] = strconv.Itoa(i)
 	}
 	return keys, items
+}
+
+func makeBenchmarkSampleBucket(ts uint32, keys []string, items []*data_model.MultiItem, targetSize int64) *data_model.MetricsBucket {
+	bucket := &data_model.MetricsBucket{
+		Time: ts,
+		MultiItemMap: data_model.MultiItemMap{
+			MultiItems: make(map[string]*data_model.MultiItem, len(items)),
+		},
+		CurStats: map[int32]map[uint64]*data_model.MetricsBucketStat{},
+	}
+	var size int64
+	for i, item := range items {
+		itemSize := int64(item.TLSize())
+		if size >= targetSize {
+			break
+		}
+		size += itemSize
+		bucket.MultiItems[keys[i]] = item
+		benchmarkAddSamplingStat(bucket.CurStats, item, uint32(itemSize))
+	}
+	return bucket
+}
+
+func benchmarkSeedSamplingStat(shard *Shard, items []*data_model.MultiItem) {
+	stats := map[int32]map[uint64]*data_model.MetricsBucketStat{}
+	for _, item := range items {
+		benchmarkAddSamplingStat(stats, item, item.TLSize())
+	}
+	shard.metricSamplingStat.MergeMaxAndGet(stats)
+}
+
+func benchmarkAddSamplingStat(stats map[int32]map[uint64]*data_model.MetricsBucketStat, item *data_model.MultiItem, size uint32) {
+	var scratch []byte
+	_, hash := item.Key.XXHash(scratch)
+	metricID := item.Key.AccountMetric()
+	metricStats := stats[metricID]
+	if metricStats == nil {
+		metricStats = map[uint64]*data_model.MetricsBucketStat{}
+		stats[metricID] = metricStats
+	}
+	stat := metricStats[hash]
+	if stat == nil {
+		stat = &data_model.MetricsBucketStat{}
+		metricStats[hash] = stat
+	}
+	stat.Size += size
+	stat.Weight++
 }
 
 func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {

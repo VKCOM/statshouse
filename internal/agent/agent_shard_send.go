@@ -113,9 +113,10 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	rng := rand.New() // We use distinct rand so that we can use it without locking
 
 	var scratch []byte
+	var sampleScratch []tlstatshouse.SampleFactor
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
-		scratch = s.preProcess(bucket, scratch, rng)
+		scratch, sampleScratch = s.preProcess(bucket, scratch, sampleScratch, rng)
 		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
@@ -137,13 +138,13 @@ func (s *Shard) goPostProcess(wg *sync.WaitGroup) {
 	log.Printf("Postprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, sampleScratch []tlstatshouse.SampleFactor, rng *rand.Rand) ([]byte, []tlstatshouse.SampleFactor) {
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	scratch = s.sampleBucket(bucket, &sb, scratch, rng)
+	scratch, sampleScratch = s.sampleBucket(bucket, &sb, scratch, sampleScratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
@@ -156,10 +157,10 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, rng
 	case s.BucketsPool <- bucket:
 	default:
 	}
-	return scratch
+	return scratch, sampleScratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, scratch []byte, rnd *rand.Rand) []byte {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, scratch []byte, sampleScratch []tlstatshouse.SampleFactor, rnd *rand.Rand) ([]byte, []tlstatshouse.SampleFactor) {
 	s.metricSamplingStat.MergeMaxAndGet(bucket.CurStats)
 
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
@@ -243,6 +244,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeCounter, samplingTag, sizeCounter[i])
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
+	sampleScratch = sampleScratch[:0]
 	for m, sizes := range bucket.CurStats {
 		var sumSize uint32
 		for _, size := range sizes {
@@ -252,7 +254,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		if sfRes := bucket.SampleRes[m]; sfRes != nil {
 			sf = sfRes.SF
 		}
-		sb.SampleFactors = append(sb.SampleFactors, tlstatshouse.SampleFactor{
+		sampleScratch = append(sampleScratch, tlstatshouse.SampleFactor{
 			Metric:       m,
 			Value:        sf,
 			OriginalSize: sumSize,
@@ -260,10 +262,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		clear(sizes)
 	}
 	sb.SetHaveOriginalSize(true)
-
-	for _, metricMap := range bucket.CurStats {
-		clear(metricMap)
-	}
+	sb.SampleFactors = append(sb.SampleFactors, sampleScratch...)
 	clear(bucket.SampleRes) // will recreate at preSampleBucket, anyway help GC by splitting bucket dependency cluster into individual items
 
 	// Calculate size metrics for sample factors and ingestion status
@@ -275,7 +274,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
 
-	return scratch
+	return scratch, sampleScratch
 }
 
 func (s *Shard) preSampleBucket(bucket *data_model.MetricsBucket, buffers data_model.SamplerBuffers, sampleScratch map[int32]map[uint64]*data_model.MetricsBucketStat, budgetScratch map[int32]uint32, rnd *rand.Rand) data_model.SamplerBuffers {
