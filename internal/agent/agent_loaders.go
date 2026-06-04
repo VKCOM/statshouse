@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -98,40 +97,4 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 		[]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusOKFirst},
 		time.Since(now).Seconds(), 1)
 	return ret.Events, ret.CurrentVersion, nil
-}
-
-func (s *Agent) GetTagMappingBootstrap(ctxParent context.Context) ([]tlstatshouse.Mapping, time.Duration, error) {
-	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	// Use 2 alive random aggregators for mapping
-	s0, s1 := s.getRandomLiveShardReplicas()
-	if s0 == nil {
-		return nil, 0, fmt.Errorf("all aggregators are dead")
-	}
-
-	args := tlstatshouse.GetTagMappingBootstrap{}
-	s0.fillProxyHeader(&args.FieldsMask, &args.Header)
-
-	var ret tlstatshouse.GetTagMappingBootstrapResult
-
-	ctx, cancel := context.WithTimeout(ctxParent, data_model.AgentMappingTimeout1)
-	defer cancel()
-	s0client := s0.client()
-	err := s0client.GetTagMappingBootstrap(ctx, args, &extra, &ret)
-	if err == nil {
-		return ret.Mappings, 0, nil
-	}
-	if s1 == nil {
-		return nil, 0, fmt.Errorf("the only live aggregator %q returned error: %w", s0client.Address, err)
-	}
-
-	s1.fillProxyHeader(&args.FieldsMask, &args.Header)
-
-	ctx2, cancel2 := context.WithTimeout(ctxParent, data_model.AgentMappingTimeout2)
-	defer cancel2()
-	s1client := s1.client()
-	err2 := s1client.GetTagMappingBootstrap(ctx2, args, &extra, &ret)
-	if err2 == nil {
-		return ret.Mappings, 0, nil
-	}
-	return nil, 0, fmt.Errorf("two live aggregators %q %q returned errors: %v %w", s0client.Address, s1client.Address, err, err2)
 }

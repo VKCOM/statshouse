@@ -23,7 +23,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/tl/pkg/rpc"
 )
@@ -41,7 +40,6 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 		RawGetEntity:           proxy.HandleProxy("", handler.RawGetEntity),
 		RawGetHistoryShortInfo: proxy.HandleProxy("", handler.RawGetHistory),
 
-		PutTagMappingBootstrap: HandleProxyGen(&proxy, "", handler.PutTagMappingBootstrap),
 		GetTagMappingBootstrap: HandleProxyGen(&proxy, "", handler.GetTagMappingBootstrap),
 	}
 	sh := tlmetadata.Handler{
@@ -270,22 +268,6 @@ func putMetric(t *testing.T, rpcClient *tlmetadata.Client, name, json string, id
 	req.SetCreate(version == 0)
 	err := rpcClient.EditEntitynew(context.Background(), req, nil, &resp)
 	return resp, err
-}
-
-func putBootstrap(t *testing.T, rpcClient *tlmetadata.Client, mappings []tlstatshouse.Mapping) (int32, error) {
-	res := &tlstatshouse.PutTagMappingBootstrapResult{}
-	err := rpcClient.PutTagMappingBootstrap(context.Background(), tlmetadata.PutTagMappingBootstrap{
-		Mappings: mappings,
-	}, nil, res)
-	require.NoError(t, err)
-	return res.CountInserted, nil
-}
-
-func getBootstrap(t *testing.T, rpcClient *tlmetadata.Client) ([]tlstatshouse.Mapping, error) {
-	res := &tlstatshouse.GetTagMappingBootstrapResult{}
-	err := rpcClient.GetTagMappingBootstrap(context.Background(), tlmetadata.GetTagMappingBootstrap{}, nil, res)
-	require.NoError(t, err)
-	return res.Mappings, nil
 }
 
 func getHistory(t *testing.T, rpcClient *tlmetadata.Client, id int64) (tlmetadata.HistoryShortResponse, error) {
@@ -773,42 +755,4 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 	h.getMappingClients.mx.Lock()
 	defer h.getMappingClients.mx.Unlock()
 	require.Len(t, h.getMappingClients.clients, 1)
-}
-
-func TestBootstrap(t *testing.T) {
-	_, server, rpcClient, h := initServer(t, time.Now)
-	defer server.Close()
-	a := tlstatshouse.Mapping{
-		Str:   "a",
-		Value: 1,
-	}
-	b := tlstatshouse.Mapping{
-		Str:   "b",
-		Value: 2,
-	}
-	c := tlstatshouse.Mapping{
-		Str:   "c",
-		Value: 3,
-	}
-	t.Run("insert to empty db", func(t *testing.T) {
-		c, err := putBootstrap(t, rpcClient, []tlstatshouse.Mapping{a, b})
-		require.NoError(t, err)
-		require.Equal(t, int32(0), c)
-		m, err := getBootstrap(t, rpcClient)
-		require.NoError(t, err)
-		require.Len(t, m, 0)
-	})
-
-	t.Run("insert to non empty db", func(t *testing.T) {
-		require.NoError(t, h.db.PutMapping(context.Background(), []string{a.Str, c.Str}, []int32{a.Value, c.Value}))
-		count, err := putBootstrap(t, rpcClient, []tlstatshouse.Mapping{a, b, c})
-		require.NoError(t, err)
-		require.Equal(t, int32(2), count)
-
-		m, err := getBootstrap(t, rpcClient)
-		require.NoError(t, err)
-		require.Len(t, m, 2)
-		require.Contains(t, m, a)
-		require.Contains(t, m, c)
-	})
 }

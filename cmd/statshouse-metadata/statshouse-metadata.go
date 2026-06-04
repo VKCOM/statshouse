@@ -319,7 +319,6 @@ func run() error {
 		RawEditEntitynew:       proxy.HandleProxy("editEntity", handler.RawEditEntity),
 		RawGetEntity:           proxy.HandleProxy("getEntity", handler.RawGetEntity),
 		RawGetHistoryShortInfo: proxy.HandleProxy("getHistory", handler.RawGetHistory),
-		PutTagMappingBootstrap: metadata.HandleProxyGen(&proxy, "put_bootstrap", handler.PutTagMappingBootstrap),
 		GetTagMappingBootstrap: metadata.HandleProxyGen(&proxy, "get_bootstrap", handler.GetTagMappingBootstrap),
 		ResetFlood2:            metadata.HandleProxyGen(&proxy, "resetFloo2", handler.ResetFlood2),
 	}

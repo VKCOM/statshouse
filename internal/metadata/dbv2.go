@@ -665,16 +665,6 @@ func (db *DBV2) GetBootstrap(ctx context.Context) (tlstatshouse.GetTagMappingBoo
 	return res, err
 }
 
-func (db *DBV2) PutBootstrap(ctx context.Context, mappings []tlstatshouse.Mapping) (int32, error) {
-	var count int32
-	err := db.eng.Do(ctx, "put_bootstrap", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		var err error
-		count, cache, err = applyPutBootstrap(conn, cache, mappings)
-		return cache, err
-	})
-	return count, err
-}
-
 func calcBudget(oldBudget, expense int64, lastTimeUpdate, now uint32, max, bonusToStep int64, stepSec uint32) int64 {
 	if oldBudget > max {
 		return oldBudget - expense
