@@ -351,7 +351,6 @@ func (db *DBV2) GetLastNMappings(ctx context.Context, n int) ([]tlstatshouse.Map
 		}
 		return cache, nil
 	})
-
 	return result, err
 }
 

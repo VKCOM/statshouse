@@ -16,12 +16,11 @@ import (
 
 	"github.com/VKCOM/statshouse-go"
 
-	"github.com/VKCOM/tl/pkg/rpc"
-
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
@@ -220,7 +219,6 @@ func (h *Handler) broadcastMapping() {
 		for len(resp.Pairs) != 0 && resp.Pairs[0].Value <= args.From { // minVersion is almost the same, so this is not slow
 			resp.Pairs = resp.Pairs[1:]
 		}
-
 		if len(resp.Pairs) == 0 {
 			continue
 		}
