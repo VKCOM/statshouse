@@ -1,0 +1,3 @@
+#!/usr/bin/dh-exec
+../target/statshouse-balancer => usr/share/engine/bin/statshouse-balancer
+../cmd/statshouse-balancer/statshouse-balancer.service => usr/lib/systemd/system/statshouse-balancer.service
