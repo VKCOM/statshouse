@@ -22,11 +22,14 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/VKCOM/statshouse/internal/mappings_tracker"
 	"github.com/cloudflare/tableflip"
 	"github.com/gorilla/handlers"
 
+	"github.com/VKCOM/statshouse/internal/mappings_tracker"
+
 	statshouseui "github.com/VKCOM/statshouse/statshouse-ui"
+
+	"github.com/VKCOM/tl/pkg/rpc"
 
 	"github.com/VKCOM/statshouse/internal/api"
 	"github.com/VKCOM/statshouse/internal/chutil"
@@ -40,7 +43,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkuth"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const (
@@ -512,7 +514,7 @@ func parseCommandLine() (err error) {
 	flag.IntVar(&chMaxQueries, "clickhouse-max-queries", 32, "maximum number of concurrent ClickHouse queries")
 	config.StringSliceVar(flag.CommandLine, &argv.chV2Addrs, "clickhouse-v2-addrs", "", "comma-separated list of ClickHouse-v2 addresses")
 	flag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
-	flag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 12, "maximum number of ClickHouse-v2 connections (light fast)")
+	flag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 9, "maximum number of ClickHouse-v2 connections (light fast)")
 	flag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 4, "maximum number of ClickHouse-v2 connections (light slow)")
 	flag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 1, "maximum number of ClickHouse-v2 connections (heavy fast)")
 	flag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")

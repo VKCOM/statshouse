@@ -30,7 +30,9 @@ type cache2 struct {
 	shutdownF bool
 	shutdownG sync.WaitGroup
 
-	inflightBytes atomic.Int64
+	inflightBytes int64
+	inflightReqID uint32
+	inflightReqM  map[uint32]*cache2InflightReq
 
 	// readonly after init
 	shards    map[time.Duration]*cache2Shard // by step
@@ -73,6 +75,11 @@ type cache2Loader struct {
 	mode      int // play mode indicator
 	waitN     int // number of values to read from "waitC"
 	forceLoad bool
+}
+
+type cache2InflightReq struct {
+	bytes  int64
+	cancel context.CancelFunc
 }
 
 type cache2LoaderChunk struct {
@@ -198,8 +205,9 @@ func newCache2(h *Handler, chunkSize int, loader tsLoadFunc) *cache2 {
 		info: cache2RuntimeInfo{
 			minChunkAccessTime: time.Now().UnixNano(),
 		},
-		infoM:     make(map[string]map[string]*cache2RuntimeInfo),
-		chunkSize: chunkSize,
+		infoM:        make(map[string]map[string]*cache2RuntimeInfo),
+		chunkSize:    chunkSize,
+		inflightReqM: make(map[uint32]*cache2InflightReq),
 	}
 	c.trimCond = sync.NewCond(&c.mu)
 	c.allocCond = sync.NewCond(&c.mu)
@@ -233,21 +241,12 @@ func (c *cache2) Get(ctx context.Context, h *requestHandler, q *queryBuilder, lo
 		h.endpointStat.reportTiming("cache-total", time.Since(startCacheGet))
 	}()
 	shard := c.shards[time.Duration(lod.StepSec)*time.Second]
-	if h.cacheDisabled() || c.shouldBypassWritesUnderPressure() {
+	if h.cacheDisabled() {
 		res, err = c.loadWithoutCache(ctx, h, q, lod, shard, lodSize)
 	} else {
 		res, err = c.newLoader(h, q, lod, lodSize, forceLoad, shard).run(ctx)
 	}
 	return res, err
-}
-
-func (c *cache2) shouldBypassWritesUnderPressure() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.limits.maxSizeSoft <= 0 {
-		return false
-	}
-	return c.effectiveSizeLocked() > c.limits.maxSizeSoft
 }
 
 func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *queryBuilder, lod data_model.LOD, shard *cache2Shard, lodSize int) (cache2Data, error) {
@@ -268,7 +267,42 @@ func (c *cache2) loadWithoutCache(ctx context.Context, h *requestHandler, q *que
 func (c *cache2) tryNotExceedMemoryHardLimit() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for c.limits.maxSize != 0 && c.info.size() > c.limits.maxSize {
+	for c.limits.maxSize != 0 && c.info.size() > 0 && c.effectiveSizeLocked() > c.limits.maxSize {
+		c.allocCond.Wait()
+	}
+}
+
+// tryNotExceedMemoryHardLimitInflight
+// Freezing in case (size()==0 && inflightBytes > maxSize).
+// It happens, when one inflight consumes all memory, cancel it to save other requests.
+func (c *cache2) tryNotExceedMemoryHardLimitInflight() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSize {
+		if c.info.size() <= 0 {
+			if len(c.inflightReqM) == 0 {
+				return
+			}
+			maxI, maxB := -1, int64(-1)
+			for i, r := range c.inflightReqM {
+				if r.bytes > maxB {
+					maxI, maxB = int(i), r.bytes
+				}
+			}
+			c.removeReqLocked(uint32(maxI))
+			continue
+		}
+		c.allocCond.Wait()
+	}
+}
+
+// tryNotExceedMemorySoftLimitInflight
+// Freezing in case (size()==0 && inflightBytes > maxSizeSoft).
+// SELECT not started yet. Wait inflight's end, so it doesn't get any worse than it already is.
+func (c *cache2) tryNotExceedMemorySoftLimitInflight() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.limits.maxSize != 0 && c.effectiveSizeLocked() > c.limits.maxSizeSoft {
 		c.allocCond.Wait()
 	}
 }
@@ -381,9 +415,23 @@ func (c *cache2) sendMetrics(client *statshouse.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.info.normalizeWaterLevel()
+	cacheSize := c.info.size()
+	effectiveSize := c.effectiveSizeLocked()
+	inflightSize := effectiveSize - cacheSize
+	if inflightSize < 0 {
+		inflightSize = 0
+	}
+	sizeTags := statshouse.NamedTags{
+		{"1", srvfunc.Hostname()},
+		{"2"},
+	}
 	// TODO: replace with builtins
 	client.NamedValue("statshouse_api_cache_age", tags[0][0], c.info.age().Seconds())
 	client.NamedCount("statshouse_api_cache_waiting", tags[0][0], float64(c.waitN.Load()))
+	sizeTags[1][1] = "size"
+	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(cacheSize))
+	sizeTags[1][1] = "inflight_size"
+	client.NamedValue("statshouse_api_cache_memory_size", sizeTags, float64(inflightSize))
 	for i := 0; i < 2; i++ {
 		client.NamedValue("statshouse_api_cache_sum_size", tags[i][0], float64(c.info.sizeS[i]))
 		client.NamedCount("statshouse_api_cache_sum_bucket_count", tags[i][0], float64(c.info.bucketCountS[i]))
