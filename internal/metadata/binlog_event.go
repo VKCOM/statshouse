@@ -8,19 +8,19 @@ package metadata
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
-
-	"github.com/VKCOM/statshouse/internal/sqlite"
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 
 	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
 )
 
-func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []byte) (int, error) {
+func applyScanEvent(scanOnly bool, deletionCandidateIds *atomic.Pointer[[]int32]) func(conn sqlite.Conn, offset int64, data []byte) (int, error) {
 	return func(conn sqlite.Conn, offset int64, data []byte) (int, error) {
 		readCount := 0
 		var editMetricEvent tlmetadata.EditMetricEvent
@@ -86,6 +86,7 @@ func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []b
 					}
 				}
 			case putMappingEvent.TLTag():
+				// NOTE: event only fires by an admin endpoint, so we don't filter out deletion candidates
 				tail, err = putMappingEvent.ReadTL1(data)
 				if err != nil {
 					return fsbinlog.AddPadding(readCount), err
@@ -97,6 +98,7 @@ func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []b
 					}
 				}
 			case createMappingEvent.TLTag():
+				// NOTE: the event only fires in getOrCreateMapping for mappings that aren't deletion candidates
 				tail, err = createMappingEvent.ReadTL1(data)
 				if err != nil {
 					return fsbinlog.AddPadding(readCount), err
@@ -113,7 +115,7 @@ func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []b
 					return fsbinlog.AddPadding(readCount), err
 				}
 				if !scanOnly {
-					_, _, err := applyPutBootstrap(conn, nil, putBootstrapEvent.Mappings)
+					_, _, err := applyPutBootstrap(conn, nil, putBootstrapEvent.Mappings, deletionCandidateIds)
 					if err != nil {
 						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataPutBootstrapEvent: %w", err)
 					}
@@ -185,6 +187,7 @@ func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) er
 
 // todo support metric namespacing
 func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEvent) error {
+	// NOTE: filtering deletion candidates in usage
 	_, err := conn.Exec("insert_flood_limit", "INSERT OR REPLACE INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
 		sqlite.Int64("$t", int64(event.UpdatedAt)),
 		sqlite.Int64("$c", event.Budget),
@@ -234,7 +237,7 @@ func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent
 	return nil
 }
 
-func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponse, []byte, error) {
+func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32, deletionCandidateIds *atomic.Pointer[[]int32]) (tlmetadata.GetMappingResponse, []byte, error) {
 	var id int32
 	row := conn.Query("select_mapping", "SELECT id FROM mappings where name = $name;", sqlite.BlobString("$name", key))
 	if row.Error() != nil {
@@ -243,6 +246,9 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 	if row.Next() {
 		resp, _ := row.ColumnInt64(0)
 		id := int32(resp)
+		if IsDeletionCandidate(id, deletionCandidateIds) {
+			return tlmetadata.GetMappingResponse{}, cache, fmt.Errorf("requested id %d is marked for deletion", id)
+		}
 		return tlmetadata.GetMappingResponse0{Id: id}.AsUnion(), cache, nil
 	}
 	pred := roundTime(now, stepSec)
@@ -303,6 +309,7 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 }
 
 func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte, error) {
+	// NOTE: filtering deletion candidates in usage
 	for i := range ks {
 		_, err := conn.Exec("upsert_mapping", "INSERT OR REPLACE INTO mappings(id, name) VALUES($id, $name);", sqlite.Int64("$id", int64(vs[i])), sqlite.BlobString("$name", ks[i]))
 		if err != nil {
@@ -318,9 +325,12 @@ func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte
 	return cache, nil
 }
 
-func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.Mapping) (int32, []byte, error) {
+func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.Mapping, deletionCandidateIds *atomic.Pointer[[]int32]) (int32, []byte, error) {
 	filteredMappings := make([]tlstatshouse.Mapping, 0, len(mappings))
 	for _, m := range mappings {
+		if IsDeletionCandidate(m.Value, deletionCandidateIds) {
+			continue
+		}
 		k, isExists, err := getMappingByID(conn, m.Value)
 		if err != nil {
 			return 0, cache, err

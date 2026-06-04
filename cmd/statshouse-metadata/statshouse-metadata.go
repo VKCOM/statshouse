@@ -62,6 +62,8 @@ var argv struct {
 	version    bool
 	help       bool
 	secureMode bool
+
+	deletionCandidateMappingsPath string
 }
 
 type Logger struct{}
@@ -102,6 +104,8 @@ func parseArgs() {
 	pflag.Int64Var(&argv.budgetBonus, "budget-bonus", metadata.BudgetBonus, "every step-sec seconds metric will receive budget-bonus mappings to budget")
 	pflag.Int64Var(&argv.budgetBonus, "global-budget", metadata.GlobalBudget, "create mapping budget. After spent this budget meta will use step system")
 	pflag.Var(&argv.trustedSubnetGroupsFlag, "trusted-subnet-groups", "trusted subnet groups; format: group1,group1b;group2 (CIDR list, groups split by ';')")
+
+	pflag.StringVar(&argv.deletionCandidateMappingsPath, "deletion-candidate-mappings-path", "", "path to file with deletion candidate mappings")
 
 	pflag.Parse()
 }
@@ -271,7 +275,7 @@ func run() error {
 	}
 	host := srvfunc.Hostname()
 	log.Println("[debug] opening db and reread binlog")
-	db, err := metadata.OpenDB(argv.dbPath, metadata.Options{
+	db, err := metadata.OpenDB(argv.dbPath, argv.deletionCandidateMappingsPath, metadata.Options{
 		Host:         host,
 		MaxBudget:    argv.maxBudget,
 		StepSec:      argv.stepSec,
@@ -282,6 +286,12 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("db-path: %s, failed to open db: %w", argv.dbPath, err)
 	}
+	loadedLen, err := db.DeletionCandidatesLen()
+	if err != nil {
+		return err
+	}
+	log.Printf("[debug]: loaded %d delection candidate mapping ids from %q", loadedLen, argv.deletionCandidateMappingsPath)
+
 	defer func() {
 		err := db.Close()
 		if err != nil {
