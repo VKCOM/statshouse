@@ -8,7 +8,6 @@ package aggregator
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -22,8 +21,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/zeebo/xxh3"
 
 	"github.com/VKCOM/tl/pkg/rpc"
 
@@ -90,8 +87,6 @@ type (
 		cancelInsertsCtx  context.Context
 		insertsSema       *semaphore.Weighted
 		insertsSemaSize   int64 // configured value might change
-
-		tagMappingBootstrapResponse []byte // sending large responses to thousands of clients at once, so must be very efficient
 
 		sh2 *agent.Agent // set to not nil some time after launching aggregator
 
@@ -236,45 +231,30 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		ActorID: config.MetadataActorID,
 	}
 
-	// we do not try several times, because admin must quickly learn aggregator exited
-	// if we try forever, admin might think aggregator is running, while it is not
-	// but for local run, we want to run in wrong order, aggregator first, metadata second
-	tagMappingBootstrapResponse, err := loadBoostrap(config.Cluster, cacheDir, metadataClient, config.RemoteInitial.RQLiteAddrs)
-	if err != nil {
-		if !withoutCluster {
-			// in prod, running without bootstrap is dangerous and can leave large gap in all metrics
-			// if agent disk caches are erased
-			return nil, fmt.Errorf("failed to load mapping bootstrap: %v", err)
-		}
-		// ok, empty bootstrap is good for us for running locally
-		tagMappingBootstrapResponse, _ = (&tlmetadata.GetTagMappingBootstrap{}).WriteResultTL1(nil, tlstatshouse.GetTagMappingBootstrapResult{})
-	}
-
 	cancelInsertCtx, cancelInsertFunc := context.WithCancel(context.Background())
 
 	hostName = string(format.ForceValidStringValue(hostName)) // worse alternative is do not run at all
 
 	a := &Aggregator{
-		cancelInsertsCtx:            cancelInsertCtx,
-		cancelInsertsFunc:           cancelInsertFunc,
-		bucketsToSend:               make(chan *aggregatorBucket),
-		hostBudgetCache:             map[data_model.TagUnion][]tlstatshouse.MetricBudget{},
-		historicBuckets:             map[uint32]*aggregatorBucket{},
-		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-		config:                      config,
-		configR:                     config.RemoteInitial,
-		cfgNotifier:                 NewConfigChangeNotifier(),
-		orgMetricSize:               data_model.NewExpDecayMetrics(config.RemoteInitial.OriginalSizeDecayHalfLife),
-		withoutCluster:              withoutCluster,
-		shardKey:                    shardKey,
-		replicaKey:                  replicaKey,
-		buildArchTag:                format.GetBuildArchKey(runtime.GOARCH),
-		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
-		mappingsCache:               mappingsCache,
-		mappingsStorage:             mappingsStorage,
-		migrationConfig:             NewDefaultMigrationConfig(),
-		migrationConfigV3:           NewDefaultMigrationConfigV3(cacheDir),
-		migrationV3Data:             MakeMigrationV3Data(v3MigratorMappingsStorage),
+		cancelInsertsCtx:  cancelInsertCtx,
+		cancelInsertsFunc: cancelInsertFunc,
+		bucketsToSend:     make(chan *aggregatorBucket),
+		hostBudgetCache:   map[data_model.TagUnion][]tlstatshouse.MetricBudget{},
+		historicBuckets:   map[uint32]*aggregatorBucket{},
+		historicHosts:     [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+		config:            config,
+		configR:           config.RemoteInitial,
+		cfgNotifier:       NewConfigChangeNotifier(),
+		orgMetricSize:     data_model.NewExpDecayMetrics(config.RemoteInitial.OriginalSizeDecayHalfLife),
+		withoutCluster:    withoutCluster,
+		shardKey:          shardKey,
+		replicaKey:        replicaKey,
+		buildArchTag:      format.GetBuildArchKey(runtime.GOARCH),
+		mappingsCache:     mappingsCache,
+		mappingsStorage:   mappingsStorage,
+		migrationConfig:   NewDefaultMigrationConfig(),
+		migrationConfigV3: NewDefaultMigrationConfigV3(cacheDir),
+		migrationV3Data:   MakeMigrationV3Data(v3MigratorMappingsStorage),
 	}
 	errNoAutoCreate := &rpc.Error{Code: data_model.RPCErrorNoAutoCreate}
 	a.h = tlstatshouse.Handler{
@@ -283,7 +263,9 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		},
 		RawGetMetrics3: a.handleGetMetrics3,
 		RawGetTagMappingBootstrap: func(_ context.Context, hctx *rpc.HandlerContext) error {
-			hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
+			// remove after we have no more old agents deployed
+			var ret tlstatshouse.GetTagMappingBootstrapResult
+			hctx.Response = ret.WriteTL1Boxed(hctx.Response)
 			return nil
 		},
 		RawSendKeepAlive2:    a.handleSendKeepAlive2,
@@ -518,54 +500,6 @@ func loadAggregatorTag(mappingsCache *pcache.MappingsCache, loader metajournal.M
 		Value: keyValue,
 	}})
 	return data_model.TagUnion{I: keyValue}, nil
-}
-
-func loadBoostrap(cluster string, cacheDir string, client *tlmetadata.Client, rqliteAddrs string) ([]byte, error) {
-	// we do not use chunked storage, because we do not want to split bootstrap into chunks
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
-	defer cancel()
-	args := tlmetadata.GetTagMappingBootstrap{}
-	var ret tlstatshouse.GetTagMappingBootstrapResult
-	if rqliteAddrs == "" {
-		// We are going to get rid of boostrap in the near future soon anyway.
-		// Or we can implement this call in rqlite later.
-		if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
-			cacheDataWithHash, err := os.ReadFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)))
-			if err != nil {
-				return nil, fmt.Errorf("failed to open boostrap cache: %w", err)
-			}
-			hashOffset := len(cacheDataWithHash) - 16
-			if hashOffset < 0 {
-				return nil, fmt.Errorf("failed to parse boostrap cache: to short (%d) bytes", len(cacheDataWithHash))
-			}
-			cacheData := cacheDataWithHash[:hashOffset]
-			h := xxh3.Hash128(cacheData)
-			if h.Hi != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset:]) ||
-				h.Lo != binary.BigEndian.Uint64(cacheDataWithHash[hashOffset+8:]) {
-				return nil, fmt.Errorf("failed to parse boostrap cache: wrong hash")
-			}
-			_, err = args.ReadResultTL1(cacheData, &ret)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse boostrap cache: %w", err)
-			}
-			log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
-			return cacheData, nil // from cache
-		}
-	}
-	cacheData, err := args.WriteResultTL1(nil, ret)
-	if err != nil {
-		log.Printf("failed to serialize bootstrap of %d mappings", len(ret.Mappings))
-	}
-	h := xxh3.Hash128(cacheData)
-	cacheDataWithHash := cacheData
-	cacheDataWithHash = binary.BigEndian.AppendUint64(cacheDataWithHash, h.Hi)
-	cacheDataWithHash = binary.BigEndian.AppendUint64(cacheDataWithHash, h.Lo)
-	err = os.WriteFile(filepath.Join(cacheDir, fmt.Sprintf("bootstrap-%s.cache", cluster)), cacheDataWithHash, 0666)
-	if err != nil {
-		log.Printf("failed to store bootstrap of %d mappings of size %d in disk cache with err: %v", len(ret.Mappings), len(cacheData), err)
-	}
-	log.Printf("Loaded bootstrap of %d mappings of size %d", len(ret.Mappings), len(cacheData))
-	return cacheData, nil
 }
 
 func (b *aggregatorBucket) contributorsCount() float64 {
