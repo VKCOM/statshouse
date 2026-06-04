@@ -10,10 +10,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/sqlite"
-
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 
 	binlog2 "github.com/VKCOM/statshouse/internal/vkgo/binlog"

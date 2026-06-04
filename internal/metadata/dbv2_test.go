@@ -68,7 +68,7 @@ func initD1b(t *testing.T, dir string, dbFile string, createBl bool, options *Op
 	bl, err := fsbinlog.NewFsBinlog(&Logger{}, boptions)
 	require.NoError(t, err)
 
-	db, err := OpenDB(dir+"/"+dbFile, *options, bl)
+	db, err := OpenDB(dir+"/"+dbFile, "", *options, bl)
 	require.NoError(t, err)
 	return db, bl
 }

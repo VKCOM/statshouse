@@ -8,7 +8,11 @@ package metadata
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
+	"os"
+	"sort"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -17,6 +21,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
+	"go.uber.org/atomic"
 )
 
 type DBV2 struct {
@@ -37,6 +42,8 @@ type DBV2 struct {
 
 	globalBudget          int64
 	lastMappingIDToInsert int32
+
+	deletionCandidateMappings *atomic.Pointer[[]int32]
 }
 
 type Options struct {
@@ -160,6 +167,7 @@ const mappingCountReadLimit int64 = 50000 // we want to catch metricBytesReadLim
 
 func OpenDB(
 	path string,
+	deletionCandidateMappingsPath string,
 	opt Options,
 	binlog fsbinlog.BinlogReadWrite) (*DBV2, error) {
 	if opt.Now == nil {
@@ -170,6 +178,17 @@ func OpenDB(
 			return nil
 		}
 	}
+
+	deletionCandidateMappingIds := atomic.NewPointer[[]int32](nil)
+	if deletionCandidateMappingsPath != "" {
+		if ids, err := loadDeletionCandidatesFromBinFile(deletionCandidateMappingsPath); err != nil {
+			return nil, fmt.Errorf("error loading mappings from file %s: %v", deletionCandidateMappingsPath, err)
+		} else {
+			deletionCandidateMappingIds.Store(&ids)
+		}
+	}
+
+	// TODO: implement filtering deleted mappings in binlog
 	eng, err := sqlite.OpenEngine(sqlite.Options{
 		Path:   path,
 		APPID:  appId,
@@ -190,8 +209,9 @@ func OpenDB(
 		maxBudget:    opt.MaxBudget,
 		globalBudget: opt.GlobalBudget,
 
-		now:            opt.Now,
-		lastTimeCommit: opt.Now(),
+		now:                       opt.Now,
+		lastTimeCommit:            opt.Now(),
+		deletionCandidateMappings: deletionCandidateMappingIds,
 	}
 
 	return db, nil
@@ -306,6 +326,10 @@ func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([
 				return cache, err
 			}
 
+			if db.IsDeletionCandidate(int32(id)) {
+				continue
+			}
+
 			result = append(result, tlstatshouse.Mapping{
 				Value: int32(id),
 				Str:   name,
@@ -323,6 +347,8 @@ func (db *DBV2) GetNewMappings(ctx context.Context, fromID int32, page int32) ([
 		if row.Next() {
 			maxID64, _ := row.ColumnInt64(0)
 			maxID = int32(maxID64)
+			// NOTE: maxID logic preserved as-is because deletion candidates have smaller ids than existing max id
+			// breaking this invariant can lead to an endless request cycle
 		}
 		return cache, nil
 	})
@@ -342,6 +368,10 @@ func (db *DBV2) GetLastNMappings(ctx context.Context, n int) ([]tlstatshouse.Map
 			name, err := rows.ColumnBlobString(1)
 			if err != nil {
 				return cache, err
+			}
+
+			if db.IsDeletionCandidate(int32(id)) {
+				continue
 			}
 
 			result = append(result, tlstatshouse.Mapping{
@@ -533,7 +563,11 @@ func (db *DBV2) GetMappingByValue(ctx context.Context, value string) (int32, boo
 		row := conn.Query("select_mapping_by_name", "SELECT id FROM mappings where name = $name", sqlite.BlobString("$name", value))
 		if row.Next() {
 			id, _ := row.ColumnInt64(0)
-			res = int32(id)
+			if db.IsDeletionCandidate(int32(id)) {
+				notExists = true
+			} else {
+				res = int32(id)
+			}
 		} else {
 			notExists = true
 		}
@@ -800,4 +834,56 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 		return cache, nil
 	})
 	return result, err
+}
+
+func loadDeletionCandidatesFromBinFile(path string) ([]int32, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open mappings file %s: %w", path, err)
+	}
+	defer f.Close()
+
+	st, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat mappings file %s: %w", path, err)
+	}
+
+	size := st.Size()
+	if size%4 != 0 {
+		return nil, fmt.Errorf("invalid mappings file size %d: not divisible by 4", size)
+	}
+
+	buf := make([]byte, int(size))
+
+	if _, err := io.ReadFull(f, buf); err != nil {
+		return nil, fmt.Errorf("read mappings file %s: %w", path, err)
+	}
+
+	// safe []int32 parse + sort check
+	ids := make([]int32, int(size/4))
+	lastId := int32(-1)
+	for i := range ids {
+		id := int32(binary.LittleEndian.Uint32(buf[i*4:]))
+		if id <= lastId {
+			return nil, fmt.Errorf("invalid mappings file (parsing error or not sorted in ascending order) i: %d, ids[i]: %d, ids[i-1]: %d", i, id, lastId)
+		}
+		ids[i] = id
+		lastId = id
+	}
+
+	return ids, nil
+}
+
+func (db *DBV2) DeletionCandidatesLen() (int, error) {
+	ids := db.deletionCandidateMappings.Load()
+	if ids == nil {
+		return 0, fmt.Errorf("no delection candidates loaded")
+	}
+	return len(*ids), nil
+}
+
+func (db *DBV2) IsDeletionCandidate(id int32) bool {
+	ids := *db.deletionCandidateMappings.Load()
+	i := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
+	return i < len(ids) && ids[i] == id
 }
