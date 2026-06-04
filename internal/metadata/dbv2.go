@@ -21,7 +21,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/sqlite"
 	"github.com/VKCOM/statshouse/internal/vkgo/binlog/fsbinlog"
-	"go.uber.org/atomic"
+	"sync/atomic"
 )
 
 type DBV2 struct {
@@ -179,7 +179,7 @@ func OpenDB(
 		}
 	}
 
-	deletionCandidateMappingIds := atomic.NewPointer[[]int32](nil)
+	deletionCandidateMappingIds := &atomic.Pointer[[]int32]{}
 	if deletionCandidateMappingsPath != "" {
 		if ids, err := loadDeletionCandidatesFromBinFile(deletionCandidateMappingsPath); err != nil {
 			return nil, fmt.Errorf("error loading mappings from file %s: %v", deletionCandidateMappingsPath, err)
@@ -193,7 +193,7 @@ func OpenDB(
 		Path:   path,
 		APPID:  appId,
 		Scheme: scheme,
-	}, binlog, applyScanEvent(false), applyScanEvent(true))
+	}, binlog, applyScanEvent(false, deletionCandidateMappingIds), applyScanEvent(true, deletionCandidateMappingIds))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open engine: %w", err)
 	}
@@ -593,6 +593,9 @@ func (db *DBV2) PrintAllMappings(ctx context.Context) error {
 func (db *DBV2) GetMappingByID(ctx context.Context, id int32) (string, bool, error) {
 	var res string
 	var isExists bool
+	if db.IsDeletionCandidate(id) {
+		return "", false, nil
+	}
 	err := db.eng.Do(ctx, "get_mapping_by_key", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error
 		res, isExists, err = getMappingByID(conn, id)
@@ -602,6 +605,7 @@ func (db *DBV2) GetMappingByID(ctx context.Context, id int32) (string, bool, err
 }
 
 func getMappingByID(conn sqlite.Conn, id int32) (k string, isExists bool, err error) {
+	// NOTE: deletion candidates filtered in 2 usages
 	row := conn.Query("select_mapping_by_id", "SELECT name FROM mappings where id = $id", sqlite.Int64("$id", int64(id)))
 	if row.Next() {
 		k, err = row.ColumnBlobString(0)
@@ -654,7 +658,7 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 	now := db.now()
 	err := db.eng.Do(ctx, "get_or_create_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error
-		resp, cache, err = getOrCreateMapping(conn, cache, metricName, key, now, db.globalBudget, db.maxBudget, db.budgetBonus, db.stepSec, db.lastMappingIDToInsert)
+		resp, cache, err = getOrCreateMapping(conn, cache, metricName, key, now, db.globalBudget, db.maxBudget, db.budgetBonus, db.stepSec, db.lastMappingIDToInsert, db.deletionCandidateMappings)
 		if resp.IsCreated() {
 			created, _ := resp.AsCreated()
 			db.lastMappingIDToInsert = created.Id
@@ -668,6 +672,7 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 }
 
 func (db *DBV2) PutMapping(ctx context.Context, ks []string, vs []int32) error {
+	// NOTE: admin endpoint, filtering deletion candidates not implemented
 	if len(ks) != len(vs) {
 		return fmt.Errorf("can't match keys size and values size")
 	}
@@ -703,7 +708,7 @@ func (db *DBV2) PutBootstrap(ctx context.Context, mappings []tlstatshouse.Mappin
 	var count int32
 	err := db.eng.Do(ctx, "put_bootstrap", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error
-		count, cache, err = applyPutBootstrap(conn, cache, mappings)
+		count, cache, err = applyPutBootstrap(conn, cache, mappings, db.deletionCandidateMappings)
 		return cache, err
 	})
 	return count, err
@@ -883,7 +888,11 @@ func (db *DBV2) DeletionCandidatesLen() (int, error) {
 }
 
 func (db *DBV2) IsDeletionCandidate(id int32) bool {
-	ids := *db.deletionCandidateMappings.Load()
+	return IsDeletionCandidate(id, db.deletionCandidateMappings)
+}
+
+func IsDeletionCandidate(id int32, deletionCandidateIds *atomic.Pointer[[]int32]) bool {
+	ids := *deletionCandidateIds.Load()
 	i := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
 	return i < len(ids) && ids[i] == id
 }
