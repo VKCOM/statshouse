@@ -66,7 +66,6 @@ type (
 		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
-		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
 	}
 
@@ -74,11 +73,31 @@ type (
 		Time uint32
 
 		MultiItemMap
+		HashScratch []byte
+		SampleRes   map[int32]*MetricsBucketMetricRes
+		CurStats    map[int32]map[uint64]*MetricsBucketStat
 	}
 
 	MultiItemMap struct {
 		MultiItems map[string]*MultiItem // string is unsafe and points to part of the keysBuffer
 		keysBuffer []byte
+	}
+
+	MetricsBucketStat struct {
+		Size    uint32
+		Weight  float64
+		FairKey []int32 // maxFairKeyLen, default nil no allocation
+	}
+
+	MetricsBucketMetricRes struct {
+		ExtraBudget uint32
+		SF          float32
+		Key         map[uint64]*MetricsBucketKeyRes
+	}
+
+	MetricsBucketKeyRes struct {
+		Keep  bool
+		KeySF float64
 	}
 
 	AgentEnvRouteArch struct {
@@ -169,6 +188,17 @@ func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte)
 		stagsPos += 1
 	}
 	return
+}
+
+func (k *Key) AccountMetric() int32 {
+	if k.Metric == format.BuiltinMetricIDIngestionStatus && k.Tags[1] != 0 {
+		return k.Tags[1]
+	}
+	return k.Metric
+}
+
+func (k *Key) OutsideBudget() bool {
+	return k.Metric == format.BuiltinMetricIDIngestionStatus && k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached
 }
 
 func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) *Key {
@@ -264,6 +294,106 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
+func (b *MetricsBucket) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
+	if b.SampleRes == nil {
+		b.SampleRes = map[int32]*MetricsBucketMetricRes{}
+	}
+	if b.CurStats == nil {
+		b.CurStats = map[int32]map[uint64]*MetricsBucketStat{}
+	}
+	if key.OutsideBudget() || metricInfo != nil && metricInfo.NoSampleAgent {
+		return b.MultiItemMap.GetOrCreateMultiItem(key, metricInfo, keyBytes)
+	}
+	var hash uint64
+	b.HashScratch, hash = key.XXHash(b.HashScratch)
+	metricID := key.AccountMetric()
+
+	item = &MultiItem{Key: *key, MetricMeta: metricInfo}
+	size := item.TLSize()
+
+	created = true
+	if metricMap, ok := b.CurStats[metricID]; ok {
+		if _, ok := metricMap[hash]; ok {
+			created = false
+		}
+	}
+	metricMap := b.SampleRes[metricID]
+	if metricMap == nil {
+		// try saving not expected metric
+		metricMap = b.SampleRes[-1]
+		if metricMap == nil || metricMap.ExtraBudget == 0 {
+			return
+		}
+	}
+	keyRes := metricMap.Key[hash]
+	if keyRes == nil {
+		// try saving not expected key
+		if metricMap.ExtraBudget == 0 {
+			return
+		}
+		metricMap.ExtraBudget = metricMap.ExtraBudget - min(metricMap.ExtraBudget, size)
+
+		keyRes = &MetricsBucketKeyRes{Keep: true}
+		metricMap.Key[hash] = keyRes
+		return b.MultiItemMap.GetOrCreateMultiItem(key, metricInfo, keyBytes)
+	}
+	if !keyRes.Keep {
+		return
+	}
+	return b.MultiItemMap.GetOrCreateMultiItem(key, metricInfo, keyBytes)
+}
+
+func (b *MetricsBucket) AddCurStat(item *MultiItem, size int, count float64) {
+	if item.Key.OutsideBudget() || item.MetricMeta != nil && item.MetricMeta.NoSampleAgent {
+		return
+	}
+	if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[1] != 0 {
+		count = 0
+	}
+	if size < 0 {
+		size = 0
+	}
+	var hash uint64
+	b.HashScratch, hash = item.Key.XXHash(b.HashScratch)
+	metricID := item.Key.AccountMetric()
+
+	metricMap := b.CurStats[metricID]
+	if metricMap == nil {
+		metricMap = make(map[uint64]*MetricsBucketStat)
+		b.CurStats[metricID] = metricMap
+	}
+	stat := metricMap[hash]
+	if stat == nil {
+		stat = &MetricsBucketStat{}
+		metricMap[hash] = stat
+	}
+	stat.Size += uint32(size)
+	stat.Weight += count
+	if item.MetricMeta != nil && len(stat.FairKey) == 0 && len(item.MetricMeta.FairKeyIndex) != 0 {
+		n := len(item.MetricMeta.FairKeyIndex)
+		if n > MaxFairKeyLen {
+			n = MaxFairKeyLen
+		}
+		for j := 0; j < n; j++ {
+			if x := item.MetricMeta.FairKeyIndex[j]; 0 <= x && x < len(item.Key.Tags) {
+				stat.FairKey = append(stat.FairKey, item.Key.Tags[x])
+			}
+		}
+	}
+}
+
+func (b *MetricsBucket) RemoveMultiItem(item *MultiItem) {
+	var keyBytes []byte
+	b.keysBuffer, keyBytes = item.Key.MarshalAppend(b.keysBuffer)
+	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
+	delete(b.MultiItems, keyString)
+}
+
+func (b *MultiItemMap) Clear() {
+	clear(b.MultiItems)
+	b.keysBuffer = b.keysBuffer[:0] // we cleared map, dropped strings, now we can reuse bytes
+}
+
 func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
 	//if key.Timestamp == 0 { // TODO - remove check before merge to master
 	//	fmt.Printf("key: %v\n", *key)
@@ -292,7 +422,7 @@ func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricM
 		b.keysBuffer = b.keysBuffer[:wasLen]
 		return
 	}
-	item = &MultiItem{Key: *key, SF: 1, MetricMeta: metricInfo}
+	item = &MultiItem{Key: *key, MetricMeta: metricInfo}
 	b.MultiItems[keyString] = item
 	return
 }
@@ -444,6 +574,10 @@ func (s *MultiItem) isSingleValueCounter() bool {
 		}
 	}
 	return false
+}
+
+func (s *MultiItem) TLSize() uint32 {
+	return uint32(s.Key.TLSizeEstimate(s.Key.Timestamp) + s.TLSizeEstimate())
 }
 
 func (s *MultiValue) isSingleValueCounter() bool {

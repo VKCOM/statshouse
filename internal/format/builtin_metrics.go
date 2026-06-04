@@ -2645,7 +2645,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2679,7 +2679,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2745,6 +2745,7 @@ var BuiltinMetricMetaAgentTimings = &MetricMetaValue{
 			TagValueIDAgentTimingApplyMetric: "apply_metric",
 			TagValueIDAgentTimingFlush:       "flush",
 			TagValueIDAgentTimingPreprocess:  "preprocess",
+			TagValueIDAgentTimingPostprocess: "postprocess",
 			// send
 			TagValueIDAgentTimingSendRecent:   "send_recent",
 			TagValueIDAgentTimingSendHistoric: "send_historic",

@@ -220,6 +220,7 @@ const (
 	TagValueIDAgentTimingApplyMetric = 3
 	TagValueIDAgentTimingFlush       = 4
 	TagValueIDAgentTimingPreprocess  = 5
+	TagValueIDAgentTimingPostprocess = 6
 	// send
 	TagValueIDAgentTimingSendRecent   = 101
 	TagValueIDAgentTimingSendHistoric = 102

@@ -17,7 +17,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/format"
 )
 
-const maxFairKeyLen = 3
+const MaxFairKeyLen = 3
 
 type (
 	SamplingMultiItemPair struct {
@@ -25,11 +25,13 @@ type (
 		WhaleWeight float64 // whale selection criteria, for now sum Counters
 		Size        int
 		MetricID    int32
+		HashKey     uint64
 		BucketTs    uint32
 		Budget      uint32
+		SF          float64 // set when Marshalling/Sampling
 		metric      *format.MetricMetaValue
-		fairKey     [maxFairKeyLen]int32
-		fairKeyLen  int
+		FairKey     [MaxFairKeyLen]int32
+		FairKeyLen  int
 	}
 
 	samplerGroup struct { // either metric group, metric or fair key
@@ -66,8 +68,8 @@ type (
 		SampleFactorF func(metricID int32, sf float64)
 
 		// Called when sampling algorithm decides to either keep or discard the item
-		KeepF    func(v *MultiItem, ts uint32, quota uint32)
-		DiscardF func(v *MultiItem, ts uint32)
+		KeepF    func(v SamplingMultiItemPair, ts uint32, quota uint32)
+		DiscardF func(v SamplingMultiItemPair, ts uint32)
 
 		// Unit tests support
 		RoundF  func(budget float64, r *rand.Rand) float64 // rounds sample factor to an integer
@@ -154,9 +156,9 @@ func NewSampler(c SamplerConfig) sampler {
 
 func (h *sampler) Add(p SamplingMultiItemPair) {
 	if p.Size < 1 {
-		p.Item.SF = math.MaxFloat32
+		p.SF = math.MaxFloat32
 		if h.DiscardF != nil {
-			h.DiscardF(p.Item, p.BucketTs)
+			h.DiscardF(p, p.BucketTs)
 		}
 		h.sumSizeDiscard.AddValue(0)
 		return
@@ -178,23 +180,23 @@ func (h *sampler) Run(budget int64) {
 		if i > 0 && h.items[i].MetricID == h.items[i-1].MetricID {
 			h.items[i].metric = h.items[i-1].metric
 		} else {
-			if h.items[i].Item.MetricMeta != nil && h.items[i].MetricID == h.items[i].Item.MetricMeta.MetricID {
+			if h.items[i].Item != nil && h.items[i].Item.MetricMeta != nil && h.items[i].MetricID == h.items[i].Item.MetricMeta.MetricID {
 				h.items[i].metric = h.items[i].Item.MetricMeta
 			} else {
 				h.items[i].metric = h.getMetricMeta(h.items[i].MetricID)
 			}
 		}
-		if h.SampleKeys && len(h.items[i].metric.FairKeyIndex) != 0 {
+		if h.SampleKeys && len(h.items[i].metric.FairKeyIndex) != 0 && h.items[i].Item != nil {
 			n := len(h.items[i].metric.FairKeyIndex)
-			if n > maxFairKeyLen {
-				n = maxFairKeyLen
+			if n > MaxFairKeyLen {
+				n = MaxFairKeyLen
 			}
 			for j := 0; j < n; j++ {
 				if x := h.items[i].metric.FairKeyIndex[j]; 0 <= x && x < len(h.items[i].Item.Key.Tags) {
-					h.items[i].fairKey[j] = h.items[i].Item.Key.Tags[x]
+					h.items[i].FairKey[j] = h.items[i].Item.Key.Tags[x]
 				}
 			}
-			h.items[i].fairKeyLen = n
+			h.items[i].FairKeyLen = n
 		}
 	}
 	// partition by budget/namespace/group/metric/key
@@ -212,9 +214,9 @@ func (h *sampler) Run(budget int64) {
 		if lhs.MetricID != rhs.MetricID {
 			return lhs.MetricID < rhs.MetricID
 		}
-		for i := 0; i < lhs.fairKeyLen; i++ {
-			if lhs.fairKey[i] != rhs.fairKey[i] {
-				return lhs.fairKey[i] < rhs.fairKey[i]
+		for i := 0; i < lhs.FairKeyLen; i++ {
+			if lhs.FairKey[i] != rhs.FairKey[i] {
+				return lhs.FairKey[i] < rhs.FairKey[i]
 			}
 		}
 		return false
@@ -337,7 +339,7 @@ func (h *sampler) run(g samplerGroup) {
 		}
 		if s[i].noSampleAgent && h.ModeAgent && !h.DisableNoSampleAgent {
 			s[i].keep(h)
-		} else if s[i].depth < len(h.partF)+s[i].items[0].fairKeyLen {
+		} else if s[i].depth < len(h.partF)+s[i].items[0].FairKeyLen {
 			if !s[i].FixedBudget {
 				s[i].budget = int64(h.RoundF(float64(s[i].budget)/float64(s[i].budgetDenom), h.Rand))
 				s[i].budgetDenom = 1
@@ -356,17 +358,17 @@ func (g samplerGroup) keep(h *sampler) {
 }
 
 func (p *SamplingMultiItemPair) keep(sf float64, h *sampler) {
-	p.Item.SF = sf // communicate selected factor to next step of processing
+	p.SF = sf // communicate selected factor to next step of processing
 	if h.KeepF != nil {
-		h.KeepF(p.Item, p.BucketTs, uint32(p.Size))
+		h.KeepF(*p, p.BucketTs, uint32(p.Size))
 	}
 	h.currentGroup.SumSizeKeep.AddValue(float64(p.Size))
 }
 
 func (p *SamplingMultiItemPair) discard(sf float64, h *sampler) {
-	p.Item.SF = sf // communicate selected factor to next step of processing
+	p.SF = sf // communicate selected factor to next step of processing
 	if h.DiscardF != nil {
-		h.DiscardF(p.Item, p.BucketTs)
+		h.DiscardF(*p, p.BucketTs)
 	}
 	h.currentGroup.SumSizeDiscard.AddValue(float64(p.Size))
 }
@@ -648,7 +650,7 @@ func partitionByKey(h *sampler, g samplerGroup) ([]samplerGroup, int64) {
 	var i, j int
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
-		if s[i].fairKey[depth] != s[j].fairKey[depth] {
+		if s[i].FairKey[depth] != s[j].FairKey[depth] {
 			v := newSamplerGroup(s[i:j], sumSize)
 			res = append(res, v)
 			sumWeight += v.weight

@@ -59,7 +59,9 @@ type (
 
 		BucketsToSend chan compressedBucketData
 
-		BucketsToPreprocess chan *data_model.MetricsBucket
+		BucketsToPreprocess  chan *data_model.MetricsBucket
+		BucketsToPostprocess chan *data_model.MetricsBucket
+		BucketsPool          chan *data_model.MetricsBucket
 
 		historicBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
 		historicBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
@@ -69,6 +71,7 @@ type (
 
 		// budget for metrics from SendSourceBucket3Response
 		metricBudgetsFromAgg data_model.ExpDecay
+		metricSamplingStat   data_model.ExpDecaySampling
 	}
 
 	BuiltInItemValue struct {
@@ -180,9 +183,15 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes [
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
@@ -214,13 +223,19 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogra
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	if s.config.LegacyApplyValues {
 		mv.ApplyValuesLegacy(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 	} else {
 		mv.ApplyValues(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 	}
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
@@ -245,9 +260,15 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, count f
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 	s.mu.Unlock()
 
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
@@ -280,9 +301,15 @@ func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 }
 
 // We do not want to make allocation for every ingestion status string value, so we do not call
@@ -315,9 +342,15 @@ func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(&key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(&key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 }
 
 func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, value float64, count float64, hostTag data_model.TagUnion,
@@ -332,13 +365,19 @@ func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, 
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		mv.AddValueCounterHostPercentile(s.rng, value, count, hostTag, data_model.AgentPercentileCompression)
 	} else {
 		mv.AddValueCounterHost(s.rng, value, count, hostTag)
 	}
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, count)
 }
 
 func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemValue *data_model.ItemValue,
@@ -353,7 +392,13 @@ func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemV
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	diff := 0
+	item, created := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	if !created {
+		diff = int(item.TLSize())
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, itemValue.Count())
 	mv.Value.Merge(s.rng, itemValue)
+	diff = int(item.TLSize()) - diff
+	resolutionShard.AddCurStat(item, diff, itemValue.Count())
 }

@@ -284,7 +284,6 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	sb := tlstatshouse.SourceBucket3{}
 	buffers := data_model.SamplerBuffers{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sizeScratch := make(map[int32]uint32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -304,7 +303,7 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 		sb = tlstatshouse.SourceBucket3{}
 		b.StartTimer()
 
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
+		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
 		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
 	}
 	sideEffect += sampledCount
@@ -341,7 +340,6 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	sb := tlstatshouse.SourceBucket3{}
 	buffers := data_model.SamplerBuffers{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sizeScratch := make(map[int32]uint32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -361,7 +359,7 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 		sb = tlstatshouse.SourceBucket3{}
 		b.StartTimer()
 
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
+		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, rng)
 		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
 	}
 	sideEffect += sampledCount
