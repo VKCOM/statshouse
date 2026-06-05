@@ -8,9 +8,13 @@ package metadata
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"os"
+	"sort"
 	"sync"
 	"time"
 
@@ -49,11 +53,13 @@ type Handler struct {
 	mappingHead    int                                    // by mappingCacheMx
 	mappingTail    int                                    // by mappingCacheMx
 
+	deletionCandidateMappings []int32
+
 	host string
 	log  func(s string, args ...interface{})
 }
 
-func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) *Handler {
+func NewHandler(db *DBV2, host string, deletionCandidateMappingsPath string, log func(s string, args ...interface{})) *Handler {
 	h := &Handler{
 		db: db,
 		getJournalClients: &GetJournalClients{
@@ -68,7 +74,16 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 		log:          log,
 		host:         host,
 	}
+
 	h.mappingCacheMx.Lock()
+	if deletionCandidateMappingsPath != "" {
+		err := h.loadDeletionCandidatesFromBinFile(deletionCandidateMappingsPath)
+		if err != nil {
+			log("loading deletion candidates failed: %s", err)
+			return nil
+		}
+	}
+
 	defer h.mappingCacheMx.Unlock()
 	h.bootStrapMappingCacheUnlocked(context.Background())
 
@@ -201,7 +216,7 @@ func (h *Handler) broadcastMapping() {
 	if !cacheEnabled || minCacheVersion > minVersion+1 {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		m, lastVersion, err = h.db.GetNewMappings(ctx, minVersion, 100)
+		m, lastVersion, err = h.db.GetNewMappings(ctx, minVersion, 100, h.deletionCandidateMappings) // NOTE: filtered inside GetNewMappings
 		if err != nil {
 			return
 		}
@@ -303,7 +318,7 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 			}
 			return nil
 		}
-		m, lastV, err = h.db.GetNewMappings(ctx, args.From, args.Limit)
+		m, lastV, err = h.db.GetNewMappings(ctx, args.From, args.Limit, h.deletionCandidateMappings) //NOTE: filtered inside GetNewMappings
 		return err
 	}
 	if err = getNew(); err != nil {
@@ -413,6 +428,9 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	} else {
 		var id int32
 		id, notExists, err = h.db.GetMappingByValue(ctx, args.Key)
+		if !notExists && h.IsDeletionCandidate(id) {
+			return "", fmt.Errorf("tried to retrieve a mapping marked for deletion")
+		}
 		mapping = tlmetadata.GetMappingResponse0{Id: id}.AsUnion()
 	}
 	if err != nil {
@@ -423,6 +441,9 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	}
 	status := "load_mapping"
 	if m, ok := mapping.AsCreated(); ok {
+		if h.IsDeletionCandidate(m.Id) {
+			return "", fmt.Errorf("tried to create a mapping marked for deletion")
+		}
 		status = "create_mapping"
 		h.updateMappingCache(ctx, tlstatshouse.Mapping{Str: args.Key, Value: m.Id})
 		h.broadcastMapping()
@@ -439,6 +460,7 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to deserialize metadata.putMappingEvent request: %w", err)
 	}
 	err = h.db.PutMapping(ctx, args.Keys, args.Value)
+	// NOTE: admin endpoint, not used by the system; deletion candidates filtering intentionally skipped
 	if err != nil {
 		return "", err
 	}
@@ -471,7 +493,7 @@ func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapp
 }
 
 func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
-	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
+	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize, h.deletionCandidateMappings) // NOTE: filtered inside GetLastNMappings
 	if err != nil || len(mappings) != mappingCacheSize {
 		h.mappingHead, h.mappingTail = 0, 0
 		if err != nil { // there could be < mappingCacheSize total mappings during testing or initial production, so do not trash logs
@@ -490,7 +512,14 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.getInvertMapping request: %w", err)
 	}
-	k, isExists, err := h.db.GetMappingByID(ctx, args.Id)
+	var k string
+	var isExists bool
+	if h.IsDeletionCandidate(args.Id) {
+		k = ""
+		isExists = false
+	} else {
+		k, isExists, err = h.db.GetMappingByID(ctx, args.Id)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -542,4 +571,55 @@ func normalizeCircleIndex(ind, len int) int {
 		return ind
 	}
 	return len + ind
+}
+
+func (h *Handler) loadDeletionCandidatesFromBinFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open mappings file %s: %w", path, err)
+	}
+	defer f.Close()
+
+	st, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat mappings file %s: %w", path, err)
+	}
+
+	size := st.Size()
+	if size%4 != 0 {
+		return fmt.Errorf("invalid mappings file size %d: not divisible by 4", size)
+	}
+
+	buf := make([]byte, int(size))
+
+	if _, err := io.ReadFull(f, buf); err != nil {
+		return fmt.Errorf("read mappings file %s: %w", path, err)
+	}
+
+	// safe []int32 parse + sort check
+	ids := make([]int32, int(size/4))
+	lastId := int32(-1)
+	for i := range ids {
+		id := int32(binary.LittleEndian.Uint32(buf[i*4:]))
+		if id <= lastId {
+			return fmt.Errorf("invalid mappings file (parsing error or not sorted in ascending order) i: %d, ids[i]: %d, ids[i-1]: %d", i, id, lastId)
+		}
+		ids[i] = id
+		lastId = id
+	}
+
+	h.deletionCandidateMappings = ids
+
+	h.log("loaded %d deletion candidates from %s", len(ids), path)
+
+	return nil
+}
+
+func (h *Handler) IsDeletionCandidate(id int32) bool {
+	return IsDeletionCandidate(id, h.deletionCandidateMappings)
+}
+
+func IsDeletionCandidate(id int32, ids []int32) bool {
+	i := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
+	return i < len(ids) && ids[i] == id
 }

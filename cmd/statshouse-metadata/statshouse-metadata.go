@@ -62,6 +62,8 @@ var argv struct {
 	version    bool
 	help       bool
 	secureMode bool
+
+	deletionCandidateMappingsPath string
 }
 
 type Logger struct{}
@@ -102,6 +104,8 @@ func parseArgs() {
 	pflag.Int64Var(&argv.budgetBonus, "budget-bonus", metadata.BudgetBonus, "every step-sec seconds metric will receive budget-bonus mappings to budget")
 	pflag.Int64Var(&argv.budgetBonus, "global-budget", metadata.GlobalBudget, "create mapping budget. After spent this budget meta will use step system")
 	pflag.Var(&argv.trustedSubnetGroupsFlag, "trusted-subnet-groups", "trusted subnet groups; format: group1,group1b;group2 (CIDR list, groups split by ';')")
+
+	pflag.StringVar(&argv.deletionCandidateMappingsPath, "deletion-candidate-mappings-path", "", "path to file with deletion candidate mappings")
 
 	pflag.Parse()
 }
@@ -309,7 +313,7 @@ func run() error {
 	}))
 
 	proxy := metadata.ProxyHandler{Host: host}
-	handler := metadata.NewHandler(db, host, log.Printf)
+	handler := metadata.NewHandler(db, host, argv.deletionCandidateMappingsPath, log.Printf)
 	h := &tlmetadata.Handler{
 		RawGetMapping:       proxy.HandleProxy("getMapping", handler.RawGetMappingByValue),
 		RawPutMapping:       proxy.HandleProxy("putMapping", handler.RawPutMapping),

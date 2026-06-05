@@ -31,7 +31,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
 	db.now = now
-	handler := NewHandler(db, "abc", log.Printf)
+	handler := NewHandler(db, "abc", "", log.Printf)
 	proxy := ProxyHandler{}
 	h := tlmetadata.Handler{
 		RawGetMapping:          proxy.HandleProxy("", handler.RawGetMappingByValue),
