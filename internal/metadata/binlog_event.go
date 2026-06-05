@@ -319,18 +319,7 @@ func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte
 }
 
 func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.Mapping) (int32, []byte, error) {
-	filteredMappings := make([]tlstatshouse.Mapping, 0, len(mappings))
-	for _, m := range mappings {
-		k, isExists, err := getMappingByID(conn, m.Value)
-		if err != nil {
-			return 0, cache, err
-		}
-		if !isExists || k != m.Str {
-			continue
-		}
-		filteredMappings = append(filteredMappings, m)
-	}
-	res := tlstatshouse.GetTagMappingBootstrapResult{Mappings: filteredMappings}
+	res := tlstatshouse.GetTagMappingBootstrapResult{Mappings: mappings}
 	bytes := res.WriteTL1(nil)
 	_, err := conn.Exec("upsert_bootstrap", "INSERT OR REPLACE INTO property (name, data) VALUES ($name, $data)",
 		sqlite.BlobString("$name", bootstrapFieldName),
@@ -339,8 +328,8 @@ func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.M
 		return 0, cache, err
 	}
 	event := tlmetadata.PutBootstrapEvent{
-		Mappings: filteredMappings,
+		Mappings: mappings,
 	}
 	cache = event.WriteTL1Boxed(cache)
-	return int32(len(filteredMappings)), cache, nil
+	return int32(len(mappings)), cache, nil
 }

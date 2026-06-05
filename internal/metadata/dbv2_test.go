@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -542,45 +541,6 @@ func TestDB_GetKeyMapping(t *testing.T) {
 	})
 }
 
-func TestDB_Bootstrap(t *testing.T) {
-	path := t.TempDir()
-	db, _ := initD1b(t, path, "db", true, nil)
-	a := tlstatshouse.Mapping{
-		Str:   "a",
-		Value: 1,
-	}
-	b := tlstatshouse.Mapping{
-		Str:   "b",
-		Value: 2,
-	}
-	c := tlstatshouse.Mapping{
-		Str:   "c",
-		Value: 3,
-	}
-	t.Run("insert to empty db", func(t *testing.T) {
-		c, err := db.PutBootstrap(context.Background(), []tlstatshouse.Mapping{a, b})
-		require.NoError(t, err)
-		require.Equal(t, int32(0), c)
-
-		m, err := db.GetBootstrap(context.Background())
-		require.NoError(t, err)
-		require.Len(t, m.Mappings, 0)
-	})
-
-	t.Run("insert to non empty db", func(t *testing.T) {
-		require.NoError(t, db.PutMapping(context.Background(), []string{a.Str, c.Str}, []int32{a.Value, c.Value}))
-		count, err := db.PutBootstrap(context.Background(), []tlstatshouse.Mapping{a, b, c})
-		require.NoError(t, err)
-		require.Equal(t, int32(2), count)
-
-		m, err := db.GetBootstrap(context.Background())
-		require.NoError(t, err)
-		require.Len(t, m.Mappings, 2)
-		require.Contains(t, m.Mappings, a)
-		require.Contains(t, m.Mappings, c)
-	})
-}
-
 func Test_getPred(t *testing.T) {
 	var step uint32 = 5
 	tests := []struct {
@@ -823,61 +783,4 @@ func Test_Migration(t *testing.T) {
 			}
 
 		}, nil)
-}
-
-func Test_Reread_Binlog_PutBootstrap(t *testing.T) {
-	test := func(t *testing.T, newDb bool) {
-		path := t.TempDir()
-		mx := sync.Mutex{}
-		mappings := map[string]int32{}
-		dbFile2 := "db"
-		if newDb {
-			dbFile2 = "db1"
-		}
-		var mappingsList []tlstatshouse.Mapping
-		var index int32 = 1
-		testRereadBinlog(t, defaultOptions(), defaultOptions(), path, "db", dbFile2, 30,
-			func(t *testing.T, db *DBV2, gorNumb int) {
-				mx.Lock()
-				defer mx.Unlock()
-				i := index
-				index++
-				name := "tag" + strconv.FormatInt(int64(i), 10)
-				err := db.PutMapping(context.Background(), []string{name}, []int32{i})
-				require.NoError(t, err)
-				mappings[name] = i
-				var mappingsList1 []tlstatshouse.Mapping
-				for s, i := range mappings {
-					mappingsList1 = append(mappingsList1, tlstatshouse.Mapping{
-						Str:   s,
-						Value: i,
-					})
-					if len(mappingsList1) > len(mappings)/2 {
-						break
-					}
-				}
-				c, err := db.PutBootstrap(context.Background(), mappingsList1)
-				require.NoError(t, err)
-				require.Equal(t, len(mappingsList1), int(c))
-				mappingsList = mappingsList1
-			}, func(t *testing.T, db *DBV2) {
-				mx.Lock()
-				defer mx.Unlock()
-				bootstrap, err := db.GetBootstrap(context.Background())
-				require.NoError(t, err)
-				sort.Slice(bootstrap.Mappings, func(i, j int) bool {
-					return bootstrap.Mappings[i].Value < bootstrap.Mappings[j].Value
-				})
-				sort.Slice(mappingsList, func(i, j int) bool {
-					return mappingsList[i].Value < mappingsList[j].Value
-				})
-				require.Equal(t, mappingsList, bootstrap.Mappings)
-			}, nil)
-	}
-	t.Run("reread with new db", func(t *testing.T) {
-		test(t, true)
-	})
-	t.Run("reread with old db", func(t *testing.T) {
-		test(t, false)
-	})
 }

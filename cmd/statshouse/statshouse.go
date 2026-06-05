@@ -7,7 +7,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -177,12 +176,6 @@ func run() int {
 		}
 		defer fpmc.Close()
 	}
-	mappingsCacheEmpty := true
-	if fpmc != nil {
-		if s, err := fpmc.Stat(); err == nil {
-			mappingsCacheEmpty = s.Size() == 0
-		}
-	}
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.MappingCacheSize, argv.MappingCacheTTL) // we ignore error because cache can be damaged
 	mappingsCache.StartPeriodicSaving()
 
@@ -305,23 +298,6 @@ func run() int {
 	//		log.Printf("Get() took %v error %v", time.Since(slowNow), err)
 	//	}
 	//}()
-
-	if !mappingsCacheEmpty {
-		logOk.Printf("Tag Value cache not empty")
-	} else {
-		logOk.Printf("Tag Value cache empty, loading boostrap...")
-		// TODO - remove? There is no more long stall on agent side if agent knows no mappings.
-		// the only problem is larger sampling factor for the first 5-10 seconds, when
-		// more strings are sent instead of integers.
-		mappings, _, err := main.agent.GetTagMappingBootstrap(context.Background())
-		if err != nil {
-			logErr.Printf("failed to load boostrap mappings: %v", err)
-		} else {
-			now := time.Now()
-			mappingsCache.AddValues(uint32(now.Unix()), mappings)
-			logOk.Printf("Loaded and set %d boostrap mappings", len(mappings))
-		}
-	}
 
 	for i, u := range main.receiversUDP {
 		main.receiversWG.Add(1)

@@ -566,48 +566,7 @@ func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) 
 
 func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, string, error) {
 	var ret tlstatshouse.GetTagMappingBootstrapResult
-
-	totalSizeEstimate := 0
-	boostrapDifferences := 0
-	response, err := h.db.GetBootstrap(ctx)
-	if err != nil {
-		return tlstatshouse.GetTagMappingBootstrapResult{}, "", nil
-	}
-	for _, ma := range response.Mappings {
-		if h.IsDeletionCandidate(ma.Value) {
-			continue
-		}
-		k, isExists, err := h.db.GetMappingByID(ctx, ma.Value)
-		if err != nil {
-			return ret, "", err
-		}
-		if !isExists { // skip, no problem
-			continue
-		}
-		if k != ma.Str { // skip, log some examples
-			boostrapDifferences++
-			if boostrapDifferences < 10 {
-				h.log("[info] tag value %q from bootstrap is different from value in DB %q for ID %d", ma.Value, k, ma.Value)
-			}
-			continue
-		}
-		totalSizeEstimate += len(k) + 3 + 4 // 3 is pessimistic padding
-		ret.Mappings = append(ret.Mappings, tlstatshouse.Mapping{
-			Str:   k,
-			Value: ma.Value,
-		})
-		if totalSizeEstimate > MaxBoostrapResponseSize {
-			break
-		}
-	}
-	h.log("[info] returning boostrap of %d mappings of ~size %d, %d differences found", len(ret.Mappings), totalSizeEstimate, boostrapDifferences)
 	return ret, "get_bootstrap", nil
-}
-
-func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, string, error) {
-	// NOTE: admin endpoint, not used by the system; deletion candidates filtering intentionally skipped
-	count, err := h.db.PutBootstrap(ctx, args.Mappings)
-	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, "put_bootstrap", err
 }
 
 func normalizeCircleIndex(ind, len int) int {
