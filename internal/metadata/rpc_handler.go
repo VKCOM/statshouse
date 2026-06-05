@@ -76,10 +76,12 @@ func NewHandler(db *DBV2, host string, deletionCandidateMappingsPath string, log
 	}
 
 	h.mappingCacheMx.Lock()
-	err := h.loadDeletionCandidatesFromBinFile(deletionCandidateMappingsPath)
-	if err != nil {
-		log("loading deletion candidates failed: %s", err)
-		return nil
+	if deletionCandidateMappingsPath != "" {
+		err := h.loadDeletionCandidatesFromBinFile(deletionCandidateMappingsPath)
+		if err != nil {
+			log("loading deletion candidates failed: %s", err)
+			return nil
+		}
 	}
 
 	defer h.mappingCacheMx.Unlock()

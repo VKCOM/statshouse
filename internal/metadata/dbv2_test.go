@@ -423,7 +423,7 @@ func TestDB_GetNewMappings(t *testing.T) {
 
 	t.Run("empty database", func(t *testing.T) {
 		db := newDB(t)
-		mappings, maxID, err := db.GetNewMappings(ctx, 0, 10)
+		mappings, maxID, err := db.GetNewMappings(ctx, 0, 10, []int32{})
 		require.NoError(t, err)
 		require.Empty(t, mappings)
 		require.Equal(t, int32(0), maxID)
@@ -433,7 +433,7 @@ func TestDB_GetNewMappings(t *testing.T) {
 		db := newDB(t)
 		require.NoError(t, db.PutMapping(ctx, []string{"tag1", "tag2", "tag3"}, []int32{1, 3, 5}))
 
-		mappings, maxID, err := db.GetNewMappings(ctx, 1, 10)
+		mappings, maxID, err := db.GetNewMappings(ctx, 1, 10, []int32{})
 		require.NoError(t, err)
 		require.Equal(t, int32(5), maxID)
 		require.Equal(t, []tlstatshouse.Mapping{
@@ -441,14 +441,14 @@ func TestDB_GetNewMappings(t *testing.T) {
 			{Value: 5, Str: "tag3"},
 		}, mappings)
 
-		pageLimited, maxIDLimited, err := db.GetNewMappings(ctx, 0, 1)
+		pageLimited, maxIDLimited, err := db.GetNewMappings(ctx, 0, 1, []int32{})
 		require.NoError(t, err)
 		require.Equal(t, int32(5), maxIDLimited)
 		require.Equal(t, []tlstatshouse.Mapping{
 			{Value: 1, Str: "tag1"},
 		}, pageLimited)
 
-		emptyResp, maxIDSame, err := db.GetNewMappings(ctx, 5, 10)
+		emptyResp, maxIDSame, err := db.GetNewMappings(ctx, 5, 10, []int32{})
 		require.NoError(t, err)
 		require.Empty(t, emptyResp)
 		require.Equal(t, int32(5), maxIDSame)
