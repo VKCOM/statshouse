@@ -53,7 +53,6 @@ type Handler struct {
 	mappingHead    int                                    // by mappingCacheMx
 	mappingTail    int                                    // by mappingCacheMx
 
-	deletionCandidatesMx      sync.RWMutex
 	deletionCandidateMappings []int32
 
 	host string
@@ -215,8 +214,7 @@ func (h *Handler) broadcastMapping() {
 	if !cacheEnabled || minCacheVersion > minVersion+1 {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		m, lastVersion, err = h.db.GetNewMappings(ctx, minVersion, 100)
-		m = h.FilterDeletionCandidates(m)
+		m, lastVersion, err = h.db.GetNewMappings(ctx, minVersion, 100, h.deletionCandidateMappings) // NOTE: filtered inside GetNewMappings
 		if err != nil {
 			return
 		}
@@ -318,8 +316,7 @@ func (h *Handler) RawGetNewMappings(ctx context.Context, hctx *rpc.HandlerContex
 			}
 			return nil
 		}
-		m, lastV, err = h.db.GetNewMappings(ctx, args.From, args.Limit)
-		m = h.FilterDeletionCandidates(m)
+		m, lastV, err = h.db.GetNewMappings(ctx, args.From, args.Limit, h.deletionCandidateMappings) //NOTE: filtered inside GetNewMappings
 		return err
 	}
 	if err = getNew(); err != nil {
@@ -494,10 +491,7 @@ func (h *Handler) updateMappingCache(ctx context.Context, pair tlstatshouse.Mapp
 }
 
 func (h *Handler) bootStrapMappingCacheUnlocked(ctx context.Context) {
-	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize)
-	mappings = h.FilterDeletionCandidates(mappings)
-	// NOTE: there are >500 mappings that have larger IDs than deletion candidates, so in theory this shouldn't change anything
-	// but for safety we still filter; worst case cache won't be used
+	mappings, err := h.db.GetLastNMappings(ctx, mappingCacheSize, h.deletionCandidateMappings) // NOTE: filtered inside GetLastNMappings
 	if err != nil || len(mappings) != mappingCacheSize {
 		h.mappingHead, h.mappingTail = 0, 0
 		if err != nil { // there could be < mappingCacheSize total mappings during testing or initial production, so do not trash logs
@@ -612,9 +606,7 @@ func (h *Handler) loadDeletionCandidatesFromBinFile(path string) error {
 		lastId = id
 	}
 
-	h.deletionCandidatesMx.Lock()
 	h.deletionCandidateMappings = ids
-	h.deletionCandidatesMx.Unlock()
 
 	h.log("loaded %d deletion candidates from %s", len(ids), path)
 
@@ -622,9 +614,10 @@ func (h *Handler) loadDeletionCandidatesFromBinFile(path string) error {
 }
 
 func (h *Handler) IsDeletionCandidate(id int32) bool {
-	h.deletionCandidatesMx.RLock()
-	ids := h.deletionCandidateMappings
-	h.deletionCandidatesMx.RUnlock()
+	return IsDeletionCandidate(id, h.deletionCandidateMappings)
+}
+
+func IsDeletionCandidate(id int32, ids []int32) bool {
 	i := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
 	return i < len(ids) && ids[i] == id
 }
