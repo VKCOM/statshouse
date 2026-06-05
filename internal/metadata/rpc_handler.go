@@ -623,13 +623,3 @@ func IsDeletionCandidate(id int32, ids []int32) bool {
 	i := sort.Search(len(ids), func(i int) bool { return ids[i] >= id })
 	return i < len(ids) && ids[i] == id
 }
-
-func (h *Handler) FilterDeletionCandidates(mappings []tlstatshouse.Mapping) []tlstatshouse.Mapping {
-	buf := make([]tlstatshouse.Mapping, 0, 100)
-	for _, mapping := range mappings {
-		if !h.IsDeletionCandidate(mapping.Value) {
-			buf = append(buf, mapping)
-		}
-	}
-	return buf
-}
