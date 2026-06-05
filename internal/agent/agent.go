@@ -117,6 +117,7 @@ type Agent struct {
 	TimingsApplyMetric  *BuiltInItemValue
 	TimingsFlush        *BuiltInItemValue
 	TimingsPreprocess   *BuiltInItemValue
+	TimingsPostprocess  *BuiltInItemValue
 	TimingsSendRecent   *BuiltInItemValue
 	TimingsSendHistoric *BuiltInItemValue
 
@@ -259,15 +260,23 @@ func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGrou
 			timeSpreadDelta:      3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
 			BucketsToSend:        make(chan compressedBucketData),
 			BucketsToPreprocess:  make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
+			BucketsToPostprocess: make(chan *data_model.MetricsBucket, 1), // length of postprocessor queue
+			BucketsPool:          make(chan *data_model.MetricsBucket, 2), // length of preprocessor queue + preprocess workers
 			rng:                  rnd,
 			CurrentTime:          nowUnix,
 			SendTime:             nowUnix - 2, // accept previous seconds at the start of the agent
 			metricBudgetsFromAgg: data_model.NewExpDecay(config.BudgetDecayHalfLife),
+			metricSamplingStat:   data_model.NewExpDecaySampling(config.SamplingDecayHalfLife),
 		}
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
 		for j := 0; j < superQueueLen; j++ {
-			shard.SuperQueue[j] = &data_model.MetricsBucket{} // timestamp will be assigned at queue flush
+			b := &data_model.MetricsBucket{
+				SampleRes: map[int32]*data_model.MetricsBucketMetricRes{
+					-1: {ExtraBudget: uint32(shard.getShardSampleBudget(config))}, // cold start
+				},
+			}
+			shard.SuperQueue[j] = b // timestamp will be assigned at queue flush
 		}
 		shard.cond = sync.NewCond(&shard.mu)
 		result.Shards = append(result.Shards, shard)
@@ -348,6 +357,8 @@ func (s *Agent) initBuiltInMetrics() {
 		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingFlush, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 	s.TimingsPreprocess = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
 		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPreprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())})
+	s.TimingsPostprocess = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
+		[]int32{0, format.TagValueIDAgentTimingGroupPipeline, format.TagValueIDAgentTimingPostprocess, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 	s.TimingsSendRecent = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
 		[]int32{0, format.TagValueIDAgentTimingGroupSend, format.TagValueIDAgentTimingSendRecent, int32(build.CommitTimestamp()), int32(build.CommitTag())})
 	s.TimingsSendHistoric = s.CreateBuiltInItemValue(format.BuiltinMetricMetaAgentTimings,
@@ -378,6 +389,8 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	for _, shard := range s.Shards {
 		s.preprocessWG.Add(1)
 		go shard.goPreProcess(&s.preprocessWG)
+		s.preprocessWG.Add(1)
+		go shard.goPostProcess(&s.preprocessWG)
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
 			_ = s.recentSendersSema.Acquire(context.Background(), 1)
 			s.sendersWG.Add(1)
@@ -429,6 +442,7 @@ func (s *Agent) FlushAllData() (nonEmpty int) {
 	}
 	for _, shard := range s.Shards {
 		shard.StopPreprocessor()
+		shard.StopPostprocessor()
 	}
 	return
 }
@@ -514,6 +528,7 @@ func (s *Agent) updateRemoteConfig() {
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
 		shard.metricBudgetsFromAgg.SetHalfLife(config.BudgetDecayHalfLife)
+		shard.metricSamplingStat.SetHalfLife(config.SamplingDecayHalfLife)
 		shard.mu.Unlock()
 	}
 	for _, shardReplica := range s.ShardReplicas {
@@ -737,6 +752,7 @@ func (s *Agent) goFlushIteration(now time.Time) {
 		s.beforeFlushTime = nowUnix
 		for _, shard := range s.Shards {
 			shard.metricBudgetsFromAgg.Apply(now)
+			shard.metricSamplingStat.Apply(now)
 		}
 	}
 	for _, shard := range s.Shards {

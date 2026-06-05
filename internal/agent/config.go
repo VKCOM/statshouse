@@ -55,9 +55,11 @@ type Config struct {
 	RemoteWriteAddr    string
 	RemoteWritePath    string
 
-	AutoCreate           bool
-	DisableNoSampleAgent bool
-	BudgetDecayHalfLife  time.Duration
+	AutoCreate            bool
+	DisableNoSampleAgent  bool
+	BudgetDecayHalfLife   time.Duration
+	SamplingDecayHalfLife time.Duration
+	SampleExtraBudgetRate int
 
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
@@ -90,9 +92,11 @@ func DefaultConfig() Config {
 		AutoCreate:                   true,
 		DisableNoSampleAgent:         false,
 		BudgetDecayHalfLife:          data_model.ExpDecayHalfLife,
+		SamplingDecayHalfLife:        data_model.ExpDecaySamplingHalfLife,
 		MinSampleBudget:              2000,
 		HardwareMetricResolution:     5,
 		HardwareSlowMetricResolution: 15,
+		SampleExtraBudgetRate:        15,
 	}
 }
 
@@ -152,6 +156,8 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 	f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "Disable NoSampleAgent metric option.")
 	f.DurationVar(&c.BudgetDecayHalfLife, "budget-decay-half-life", d.BudgetDecayHalfLife, "Half-life for per-metric budgets from aggregator (exponential decay).")
+	f.DurationVar(&c.SamplingDecayHalfLife, "sampling-decay-half-life", d.SamplingDecayHalfLife, "Half-life for per-metric stats for on fly sampling (exponential decay).")
+	f.IntVar(&c.SampleExtraBudgetRate, "sampling-extra-budget-rate", d.SampleExtraBudgetRate, "Extra budget for on-fly sampling unexpected keys and metrics (0-100%).")
 	f.IntVar(&c.MinSampleBudget, "min-sample-budget", d.MinSampleBudget, "Minimum byte budget for the fallback/remain sampling pass after subtracting per-metric budgets (0 = no extra floor).")
 	f.BoolVar(&c.SampleKeepSingle, "sample-keep-single", d.SampleKeepSingle, "Statshouse won't sample single series.")
 	f.BoolVar(&c.SampleBudgets, "sample-budgets", d.SampleBudgets, "Statshouse will use per-host receive sample budget from aggregator for sampling.")
@@ -224,6 +230,12 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if c.BudgetDecayHalfLife <= 0 {
 		return fmt.Errorf("--budget-decay-half-life (%s) must be > 0", c.BudgetDecayHalfLife)
+	}
+	if c.SamplingDecayHalfLife <= 0 {
+		return fmt.Errorf("--sampling-decay-half-life (%s) must be > 0", c.SamplingDecayHalfLife)
+	}
+	if c.SampleExtraBudgetRate <= 0 {
+		return fmt.Errorf("--sampling-extra-budget-rate (%d) must be > 0", c.SampleExtraBudgetRate)
 	}
 
 	return nil
