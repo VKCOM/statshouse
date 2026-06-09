@@ -178,7 +178,6 @@ type (
 	}
 
 	Handler struct {
-		Version6Start         atomic.Int64
 		hardwareMetricRes     atomic.Int64
 		hardwareSlowMetricRes atomic.Int64
 		ConfigMu              sync.RWMutex
@@ -642,7 +641,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 			maxSize:     cfg.MaxCacheSize,
 			maxSizeSoft: cfg.MaxCacheSizeSoft,
 		})
-		h.Version6Start.Store(cfg.Version6Start)
 		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
 		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
 		_ = chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
@@ -1980,14 +1978,13 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Start:         from.Unix(),
-		End:           to.Unix(),
-		ScreenWidth:   100, // really dumb
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
-		Version6Start: h.Version6Start.Load(),
+		Start:       from.Unix(),
+		End:         to.Unix(),
+		ScreenWidth: 100, // really dumb
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -2136,7 +2133,6 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			Version6Start:    r.Version6Start.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,
 			ExplicitGrouping: true,
@@ -2267,7 +2263,6 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Step:  req.step,
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, meta.MetricID),
 			Options: promql.Options{
-				Version6Start:    h.Version6Start.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
@@ -2499,15 +2494,14 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		return nil, false, err
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version6Start: h.Version6Start.Load(),
-		Start:         req.from.Unix(),
-		End:           req.to.Unix(),
-		Step:          req.step,
-		ScreenWidth:   req.screenWidth,
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
+		Start:       req.from.Unix(),
+		End:         req.to.Unix(),
+		Step:        req.step,
+		ScreenWidth: req.screenWidth,
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -2634,7 +2628,6 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			Version6Start:    h.Version6Start.Load(),
 			Mode:             opt.mode,
 			AvoidCache:       req.avoidCache,
 			TimeNow:          opt.timeNow.Unix(),
