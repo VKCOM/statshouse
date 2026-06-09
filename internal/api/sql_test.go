@@ -20,21 +20,6 @@ const utcOffset = 3600 * 3 // GMT+3
 var metric = &format.MetricMetaValue{MetricID: 1000}
 var location = time.FixedZone("MSK", utcOffset)
 
-func getLod(t *testing.T) data_model.LOD {
-	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Start:       10_000,
-		End:         20_000,
-		ScreenWidth: 100,
-		TimeNow:     20_000,
-		Location:    location,
-		UTCOffset:   3,
-		Metric:      format.BuiltinMetricMetaIngestionStatus,
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(lods))
-	return lods[0]
-}
-
 func getLodForV6(t *testing.T, start int64, end int64, time_now int64, utc_offset int64) data_model.LOD {
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Start:       start,
