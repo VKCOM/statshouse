@@ -62,6 +62,10 @@ func (w *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, i
 	return receiver.ErrNotImplemented
 }
 
+func (w *packetPrinter) HandleMetricsBatchRaw([]byte) error {
+	return receiver.ErrNotImplemented
+}
+
 func mainTestParser() int {
 	u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, false, nil, nil, log.Printf)
 	if err != nil {

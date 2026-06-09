@@ -42,6 +42,10 @@ func (handler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]by
 	return receiver.ErrNotImplemented
 }
 
+func (handler) HandleMetricsBatchRaw([]byte) error {
+	return receiver.ErrNotImplemented
+}
+
 func listen(args argv, ch chan series) (func(), error) {
 	var addr = ":13337"
 	var serve func(func(*tlstatshouse.MetricBytes)) error

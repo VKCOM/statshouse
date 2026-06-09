@@ -10,13 +10,15 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/vkgo/basictl"
 )
 
 const (
-	pktHeadLen   = 4
-	pktBodyMax   = 65535
-	pktFrameMax  = pktHeadLen + pktBodyMax
-	sendInterval = 1 * time.Second // guaranteed send for small traffic
+	pktHeadLen    = 4
+	pktBodyMax    = 65535 + 128 // extra for host, ok for tcp
+	pktFrameMax   = pktHeadLen + pktBodyMax
+	sendInterval  = 1 * time.Second // guaranteed send for small traffic
+	hostFieldMask = 1 << 1
 )
 
 type handlerStats struct {
@@ -47,7 +49,7 @@ func newHandler(cfg HandlerConfig, e *Egress) *handler {
 		cfg:            cfg,
 		egress:         e,
 		sendInterval:   sendInterval,
-		reportInterval: 45 * time.Second,
+		reportInterval: 5 * time.Second,
 		pkt:            make([]byte, pktHeadLen, pktFrameMax),
 		stop:           make(chan struct{}),
 	}
@@ -75,6 +77,30 @@ func (h *handler) HandleMetrics(args data_model.HandlerArgs) data_model.MappedMe
 	single.Metrics = append(single.Metrics, *args.MetricBytes)
 	_ = h.HandleMetricsBatch(&single, 0, args.Scratch)
 	return data_model.MappedMetricHeader{}
+}
+
+func (h *handler) HandleMetricsBatchRaw(pkt []byte) error {
+	if len(pkt) < 8 {
+		return nil
+	}
+	fieldsMask := binary.LittleEndian.Uint32(pkt[4:])
+	set := fieldsMask&hostFieldMask != 0
+	if !set {
+		fieldsMask |= hostFieldMask
+		binary.LittleEndian.PutUint32(pkt[4:], fieldsMask)
+	}
+	estimateSize := len(pkt) + len(h.cfg.HostTag) + 4 // 4 bytes for string len
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.pkt)+estimateSize > pktFrameMax { // ok for tcp
+		h.flushLocked()
+	}
+	h.pkt = append(h.pkt, pkt...)
+	if !set {
+		h.pkt = basictl.StringWriteBytes(h.pkt, h.cfg.HostTag)
+	}
+	return nil
 }
 
 func (h *handler) HandleMetricsBatch(batch *tlstatshouse.AddMetricsBatchBytes, size int, _ *[]byte) error {
@@ -192,7 +218,7 @@ func (h *handler) reportLoop() {
 			return
 		case <-t.C:
 			now := time.Now()
-			dif := uint64(now.Sub(last).Seconds())
+			dif := uint64(now.Sub(last).Seconds()) + 1
 
 			hs := h.Stats()
 			es := h.egress.Stats()
