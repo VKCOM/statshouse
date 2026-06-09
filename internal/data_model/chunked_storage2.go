@@ -26,7 +26,7 @@ import (
 //     <--------------------------------->  --^ // hash of these bytes
 // for the first chunk we use [00..00] instead of hash of previous chunk
 
-const ChunkedMagicAllMappings = 0x83a28d14
+const ChunkedMagicAllMappings = 0x83a28d15
 const ChunkedMagicMappings = 0x83a28d18
 const ChunkedMagicJournal = 0x83a28d1f
 const ChunkedMagicConfig = 0x83a28d1a
