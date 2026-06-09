@@ -49,7 +49,7 @@ func newHandler(cfg HandlerConfig, e *Egress) *handler {
 		cfg:            cfg,
 		egress:         e,
 		sendInterval:   sendInterval,
-		reportInterval: 5 * time.Second,
+		reportInterval: 30 * time.Second,
 		pkt:            make([]byte, pktHeadLen, pktFrameMax),
 		stop:           make(chan struct{}),
 	}
