@@ -359,6 +359,7 @@ func (b *pktBuffer) push(pkt []byte) ([]byte, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.wi >= bufferLen {
+		b.cond.Signal()
 		return pkt, false
 	}
 	var cur []byte

@@ -19,6 +19,9 @@ func (*handlerMock) HandleParseError([]byte, error) {}
 func (*handlerMock) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
 	return receiver.ErrNotImplemented
 }
+func (*handlerMock) HandleMetricsBatchRaw([]byte) error {
+	return receiver.ErrNotImplemented
+}
 
 func BenchmarkSHWriterImpl(b *testing.B) {
 	p := MetricWriterSHImpl{
