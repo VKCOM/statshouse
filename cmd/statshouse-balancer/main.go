@@ -32,13 +32,9 @@ var argv struct {
 runtime.GOMAXPROCS(1)
 
 approx:
-6000 pkt/s => 390 Mb/s
-RAM: 24Mb
-CPU: 50%
-
 16000 pkt/s => 1 Gb/s
 RAM: 65Mb
-CPU 93%
+CPU 50%
 */
 
 func main() {

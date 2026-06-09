@@ -36,6 +36,7 @@ type Handler interface {
 	HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error // if ErrNotImplemented will use HandleMetrics
 	HandleMetrics(data_model.HandlerArgs) data_model.MappedMetricHeader
 	HandleParseError([]byte, error)
+	HandleMetricsBatchRaw([]byte) error
 }
 
 type CallbackHandler struct {
@@ -57,6 +58,10 @@ func (c CallbackHandler) HandleParseError(pkt []byte, err error) {
 }
 
 func (c CallbackHandler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
+	return ErrNotImplemented
+}
+
+func (c CallbackHandler) HandleMetricsBatchRaw([]byte) error {
 	return ErrNotImplemented
 }
 
@@ -186,6 +191,12 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 	case pktLen == 0: // Otherwise empty packets count as protobuf
 		setValueSize(u.packetSizeEmptyErr, pktLen)
 	case len(pkt) >= len(metricsBatchPrefix) && string(pkt[0:len(metricsBatchPrefix)]) == metricsBatchPrefix:
+		if err := h.HandleMetricsBatchRaw(pkt); !errors.Is(err, ErrNotImplemented) {
+			u.statBatchesTotalOK.Inc()
+			setValueSize(u.batchSizeTLOK, pktLen)
+			setValueSize(u.packetSizeTLOK, pktLen)
+			return nil
+		}
 		for len(pkt) > 0 {
 			var err error
 			was := pkt

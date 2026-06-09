@@ -72,6 +72,10 @@ func (p *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, i
 	return receiver.ErrNotImplemented
 }
 
+func (p *packetPrinter) HandleMetricsBatchRaw([]byte) error {
+	return receiver.ErrNotImplemented
+}
+
 func main() {
 	os.Exit(receiveBenchmark())
 }

@@ -243,7 +243,7 @@ func (s *TCP) dropConn(sc *serverConn) {
 
 func (s *TCP) receiveLoop(h Handler, sc *serverConn) error {
 	var batch tlstatshouse.AddMetricsBatchBytes
-	data := make([]byte, 4+math.MaxUint16) // max size we support
+	data := make([]byte, 4+math.MaxUint16+500) // max size we support, extra bytes for hostname from sh-balancer
 	var scratch []byte
 	size := 0
 	for {
@@ -262,9 +262,9 @@ func (s *TCP) receiveLoop(h Handler, sc *serverConn) error {
 				break
 			}
 			bodyLen := binary.LittleEndian.Uint32(data[offset:])
-			if bodyLen > math.MaxUint16 {
+			if bodyLen > math.MaxUint16+500 {
 				setValueSize(s.packetSizeFramingError, 0) // bodyLen does not represent actual packet here, do not report
-				return fmt.Errorf("framing error: %d bytes (max supported %d)", bodyLen, math.MaxUint16)
+				return fmt.Errorf("framing error: %d bytes (max supported %d)", bodyLen, math.MaxUint16+500)
 			}
 			if 4+offset+int(bodyLen) > size { // careful with overflow!
 				break

@@ -140,3 +140,7 @@ func (w *worker) printMetric(cachedString string, m tlstatshouse.MetricBytes, h 
 func (w *worker) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
 	return receiver.ErrNotImplemented
 }
+
+func (w *worker) HandleMetricsBatchRaw([]byte) error {
+	return receiver.ErrNotImplemented
+}
