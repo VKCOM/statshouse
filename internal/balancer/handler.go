@@ -26,8 +26,6 @@ type handler struct {
 	pkt      []byte
 	lastSend time.Time
 
-	parseErrs uint64
-
 	sendInterval   time.Duration
 	reportInterval time.Duration
 	stop           chan struct{}
@@ -53,8 +51,8 @@ func (h *handler) Close() {
 	if h.egress != nil {
 		h.flushLocked()
 		es := h.egress.Stats()
-		log.Printf("balancer stats: fwd=%d drop=%d parse_err=%d reconnect_err=%d dns_err=%d write_err=%d",
-			es.ForwardedPackets, es.DroppedPackets, h.parseErrs,
+		log.Printf("balancer stats: fwd=%d drop=%d reconnect_err=%d dns_err=%d write_err=%d",
+			es.ForwardedPackets, es.DroppedPackets,
 			es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 	}
 	close(h.stop)
@@ -81,12 +79,7 @@ func (h *handler) flushLocked() {
 	h.lastSend = time.Now()
 }
 
-func (h *handler) HandleParseError(_ []byte, err error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.parseErrs++
-	log.Printf("balancer parse error: %v", err)
-}
+func (h *handler) HandleParseError(_ []byte, _ error) { return }
 
 func (h *handler) sendLoop() {
 	t := time.NewTicker(h.sendInterval)
