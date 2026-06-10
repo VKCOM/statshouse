@@ -57,6 +57,7 @@ func (h *handler) Close() {
 			es.ForwardedPackets, es.DroppedPackets, h.parseErrs,
 			es.ReconnectErrors, es.DNSRefreshErrors, es.WriteErrors)
 	}
+	close(h.stop)
 }
 
 func (h *handler) HandleMetrics(data_model.HandlerArgs) (r data_model.MappedMetricHeader) { return }
