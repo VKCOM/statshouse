@@ -45,7 +45,7 @@ func (s *HTTP) httpFunction(h Handler, r *http.Request) error {
 	}
 	var firstError error
 	var batch tlstatshouse.AddMetricsBatchBytes
-	if err := s.parse(h, &firstError, body, &batch, nil); err != nil {
+	if err := s.parse(h, &firstError, body, &batch, nil, nil); err != nil {
 		return fmt.Errorf("error parsing HTTP body: %w", err)
 	}
 	return firstError

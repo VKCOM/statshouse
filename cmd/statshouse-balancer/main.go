@@ -61,7 +61,6 @@ func main() {
 			Network:            "tcp",
 			DNSRefreshInterval: time.Duration(argv.dnsRefreshSeconds) * time.Second,
 		},
-		Handler: balancer.HandlerConfig{},
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -89,7 +88,7 @@ func parseFlags() {
 	flag.StringVar(&argv.listenUDP6, "listen-udp6", "", "udp6 listen address")
 	flag.StringVar(&argv.listenUnixgram, "listen-unixgram", "", "unixgram listen path")
 	flag.StringVar(&argv.listenUnix, "listen-unix", "", "unix stream listen path for raw TCP protocol")
-	flag.StringVar(&argv.listenTCP, "listen-tcp", ":13337", "shared tcp listen address for raw TCP, HTTP and RPC (agent-compatible)")
+	flag.StringVar(&argv.listenTCP, "listen-tcp", ":13337", "shared tcp listen address for raw TCP and HTTP")
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.udpBufferSize, "buffer-size-udp", 16*1024*1024, "udp receive buffer size")
 	flag.IntVar(&argv.dnsRefreshSeconds, "dns-refresh-seconds", 60, "upstream dns refresh interval in seconds")
