@@ -79,7 +79,7 @@ func (h *handler) flushLocked() {
 	h.lastSend = time.Now()
 }
 
-func (h *handler) HandleParseError(_ []byte, _ error) { return }
+func (h *handler) HandleParseError(_ []byte, _ error) {}
 
 func (h *handler) sendLoop() {
 	t := time.NewTicker(h.sendInterval)
