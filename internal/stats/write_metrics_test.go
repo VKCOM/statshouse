@@ -16,9 +16,6 @@ func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMe
 	return data_model.MappedMetricHeader{}
 }
 func (*handlerMock) HandleParseError([]byte, error) {}
-func (*handlerMock) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
-	return receiver.ErrNotImplemented
-}
 func (*handlerMock) HandleMetricsBatchRaw([]byte) error {
 	return receiver.ErrNotImplemented
 }

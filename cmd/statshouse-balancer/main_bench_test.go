@@ -16,8 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VKCOM/tl/pkg/rpc"
-
 	"github.com/VKCOM/statshouse/internal/balancer"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/receiver"
@@ -56,8 +54,6 @@ BenchmarkBalancerIngress/unix
 BenchmarkBalancerIngress/unix-14        	 1796196	       733.0 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBalancerIngress/http
 BenchmarkBalancerIngress/http-14        	   30430	     39075 ns/op	    9314 B/op	      95 allocs/op
-BenchmarkBalancerIngress/rpc
-BenchmarkBalancerIngress/rpc-14         	   53305	     22187 ns/op	       4 B/op	       0 allocs/op
 
 2026/04/28 23:32:33 balancer stats: fwd=1305 drop=0 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */
@@ -90,7 +86,7 @@ func BenchmarkBalancerIngress(b *testing.B) {
 			b.Fatalf("dial tcp: %v", err)
 		}
 		defer conn.Close()
-		if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+		if _, err := conn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 			b.Fatalf("write tcp prefix: %v", err)
 		}
 
@@ -134,35 +130,6 @@ func BenchmarkBalancerIngress(b *testing.B) {
 			}
 		}
 	})
-
-	b.Run("rpc", func(b *testing.B) {
-		client := rpc.NewClient(rpc.ClientWithProtocolVersion(1))
-		ctx := context.Background()
-		tlClient := tlstatshouse.Client{
-			Client:  client,
-			Network: "tcp4",
-			Address: env.tcpAddr,
-			Timeout: 2 * time.Second,
-		}
-		args := tlstatshouse.AddMetricsBatchBytes{
-			Metrics: []tlstatshouse.MetricBytes{
-				{
-					Name:       []byte("bench.metric.rpc"),
-					FieldsMask: 1 << 1, // value
-					Value:      []float64{1},
-				},
-			},
-		}
-
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			var ret tlstatshouse.AddMetricsBatch__Result
-			if err := tlClient.AddMetricsBatchBytes(ctx, args, nil, &ret); err != nil {
-				b.Fatalf("rpc addMetricsBatch: %v", err)
-			}
-		}
-	})
 }
 
 /*
@@ -173,8 +140,6 @@ BenchmarkBalancerIngressParallel/unix_parallel
 BenchmarkBalancerIngressParallel/unix_parallel-14        	 1000000	      1200 ns/op	       1 B/op	       0 allocs/op
 BenchmarkBalancerIngressParallel/http_parallel
 BenchmarkBalancerIngressParallel/http_parallel-14        	   94917	     13483 ns/op	    8327 B/op	      95 allocs/op
-BenchmarkBalancerIngressParallel/rpc_parallel
-BenchmarkBalancerIngressParallel/rpc_parallel-14         	   72444	     16507 ns/op	     122 B/op	       0 allocs/op
 
 2026/04/29 11:33:58 balancer stats: fwd=325 drop=1330 parse_err=0 reconnect_err=0 dns_err=0 write_err=0
 */
@@ -257,38 +222,6 @@ func BenchmarkBalancerIngressParallel(b *testing.B) {
 			}
 		})
 	})
-
-	b.Run("rpc_parallel", func(b *testing.B) {
-		b.SetParallelism(4)
-		b.ReportAllocs()
-		b.ResetTimer()
-		b.RunParallel(func(pb *testing.PB) {
-			client := rpc.NewClient(rpc.ClientWithProtocolVersion(1))
-			ctx := context.Background()
-			tlClient := tlstatshouse.Client{
-				Client:  client,
-				Network: "tcp4",
-				Address: env.tcpAddr,
-				Timeout: 2 * time.Second,
-			}
-			args := tlstatshouse.AddMetricsBatchBytes{
-				Metrics: []tlstatshouse.MetricBytes{
-					{
-						Name:       []byte("bench.metric.rpc.parallel"),
-						FieldsMask: 1 << 1,
-						Value:      []float64{1},
-					},
-				},
-			}
-			for pb.Next() {
-				var ret tlstatshouse.AddMetricsBatch__Result
-				if err := tlClient.AddMetricsBatchBytes(ctx, args, nil, &ret); err != nil {
-					b.Errorf("rpc addMetricsBatch: %v", err)
-					return
-				}
-			}
-		})
-	})
 }
 
 /*
@@ -299,11 +232,11 @@ BenchmarkBalancerMatrix/size_matrix/udp_4096-14         	  431659	      2641 ns/
 BenchmarkBalancerMatrix/size_matrix/udp_8192
 BenchmarkBalancerMatrix/size_matrix/udp_8192-14         	  450151	      2626 ns/op	3107.54 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_256
-BenchmarkBalancerMatrix/size_matrix/tcp_256-14          	  569742	      2437 ns/op	 100.11 MB/s	       0 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_256-14          	  527365	      2288 ns/op	 106.63 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_4096
-BenchmarkBalancerMatrix/size_matrix/tcp_4096-14         	  179566	      6957 ns/op	 587.00 MB/s	       2 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_4096-14         	  401011	      3210 ns/op	1272.39 MB/s	       3 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/tcp_32768
-BenchmarkBalancerMatrix/size_matrix/tcp_32768-14        	   22192	     53904 ns/op	 607.38 MB/s	      21 B/op	       0 allocs/op
+BenchmarkBalancerMatrix/size_matrix/tcp_32768-14        	  167109	      6856 ns/op	4775.54 MB/s	      27 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/unix_256
 BenchmarkBalancerMatrix/size_matrix/unix_256-14         	 1626412	       747.0 ns/op	 326.63 MB/s	       0 B/op	       0 allocs/op
 BenchmarkBalancerMatrix/size_matrix/unix_4096
@@ -356,7 +289,7 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 					b.Fatalf("dial tcp: %v", err)
 				}
 				defer conn.Close()
-				if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+				if _, err := conn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 					b.Fatalf("write tcp prefix: %v", err)
 				}
 				b.SetBytes(int64(len(framed)))
@@ -396,7 +329,7 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 			b.Fatalf("dial tcp: %v", err)
 		}
 		defer tcpConn.Close()
-		if _, err := tcpConn.Write([]byte(receiver.TCPPrefix)); err != nil {
+		if _, err := tcpConn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 			b.Fatalf("write tcp prefix: %v", err)
 		}
 		udpConn, err := net.Dial("udp", env.udpAddr)
@@ -406,20 +339,6 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 		defer udpConn.Close()
 		httpClient := benchHTTPClient()
 		httpURL := "http://" + env.tcpAddr + receiver.StatshouseHTTPV1Endpoint
-
-		rpcClient := rpc.NewClient(rpc.ClientWithProtocolVersion(1))
-		defer rpcClient.Close()
-		tlRPC := tlstatshouse.Client{
-			Client:  rpcClient,
-			Network: "tcp4",
-			Address: env.tcpAddr,
-			Timeout: 2 * time.Second,
-		}
-		rpcArgs := tlstatshouse.AddMetricsBatchBytes{
-			Metrics: []tlstatshouse.MetricBytes{
-				{Name: []byte("bench.mix.rpc"), FieldsMask: 1 << 1, Value: []float64{1}},
-			},
-		}
 
 		rng := rand.New(rand.NewSource(42))
 		b.ReportAllocs()
@@ -431,16 +350,11 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 				if _, err := udpConn.Write(payload); err != nil {
 					b.Fatalf("write udp: %v", err)
 				}
-			case v < 90: // 20% tcp
+			case v < 95: // 25% tcp
 				if _, err := tcpConn.Write(framed); err != nil {
 					b.Fatalf("write tcp: %v", err)
 				}
-			case v < 97: // 7% rpc (one shared client; avoids ephemeral port exhaustion)
-				var ret tlstatshouse.AddMetricsBatch__Result
-				if err := tlRPC.AddMetricsBatchBytes(context.Background(), rpcArgs, nil, &ret); err != nil {
-					b.Fatalf("rpc: %v", err)
-				}
-			default: // 3% http
+			default: // 5% http
 				resp, err := httpClient.Post(httpURL, "application/octet-stream", bytes.NewReader(payload))
 				if err != nil {
 					b.Fatalf("http post: %v", err)
@@ -469,7 +383,7 @@ func BenchmarkBalancerMatrix(b *testing.B) {
 						return
 					}
 					defer conn.Close()
-					if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+					if _, err := conn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 						b.Errorf("write prefix: %v", err)
 						return
 					}
@@ -506,7 +420,7 @@ func BenchmarkBalancerSubscribers(b *testing.B) {
 		if err != nil {
 			b.Fatalf("dial tcp subscriber %d: %v", i, err)
 		}
-		if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+		if _, err := conn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 			_ = conn.Close()
 			b.Fatalf("write tcp prefix subscriber %d: %v", i, err)
 		}
@@ -613,7 +527,6 @@ func newBenchEnv(tb testing.TB) *benchEnv {
 		CoresUDP:       1,
 		ListenUDP6:     "",
 		ListenUnixgram: "",
-		Handler:        balancer.HandlerConfig{},
 		Egress: balancer.EgressConfig{
 			Network:            "tcp",
 			DNSRefreshInterval: time.Hour,
@@ -652,7 +565,7 @@ func newBenchEnv(tb testing.TB) *benchEnv {
 func dialPrefixedConn(tb testing.TB, network, addr, label string) net.Conn {
 	tb.Helper()
 	conn := dialConn(tb, network, addr, label)
-	if _, err := conn.Write([]byte(receiver.TCPPrefix)); err != nil {
+	if _, err := conn.Write(append([]byte(receiver.TCPPrefix), receiver.TCPMagicV1Default)); err != nil {
 		_ = conn.Close()
 		tb.Fatalf("write %s prefix: %v", label, err)
 	}
@@ -688,7 +601,7 @@ func (e *benchEnv) serveUpstreamDiscard(ln net.Listener) {
 		}
 		func(c net.Conn) {
 			defer c.Close()
-			if !consumePrefix(c, receiver.TCPPrefix) {
+			if !consumeTCPHandshake(c) {
 				return
 			}
 			var sizeBuf [4]byte
@@ -711,6 +624,29 @@ func consumePrefix(r io.Reader, prefix string) bool {
 		return false
 	}
 	return string(buf) == prefix
+}
+
+func consumeTCPHandshake(r io.Reader) bool {
+	if !consumePrefix(r, receiver.TCPPrefix) {
+		return false
+	}
+	var ver [1]byte
+	if _, err := io.ReadFull(r, ver[:]); err != nil {
+		return false
+	}
+	if ver[0] == receiver.TCPMagicV1Default {
+		var hostLenBuf [4]byte
+		if _, err := io.ReadFull(r, hostLenBuf[:]); err != nil {
+			return false
+		}
+		hostLen := binary.LittleEndian.Uint32(hostLenBuf[:])
+		if hostLen > 0 {
+			if _, err := io.CopyN(io.Discard, r, int64(hostLen)); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func buildTLPacketPayload() []byte {

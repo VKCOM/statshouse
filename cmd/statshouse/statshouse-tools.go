@@ -58,10 +58,6 @@ func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 	log.Printf("Error parsing packet: %v\n", err)
 }
 
-func (w *packetPrinter) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
-	return receiver.ErrNotImplemented
-}
-
 func (w *packetPrinter) HandleMetricsBatchRaw([]byte) error {
 	return receiver.ErrNotImplemented
 }
