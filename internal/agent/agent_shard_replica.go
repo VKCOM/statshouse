@@ -115,6 +115,16 @@ func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.D
 	return aggTimeDiff, duration, err
 }
 
+func setProxyHeaderStagingLevel(header *tlstatshouse.CommonProxyHeader, fieldsMask *uint32, stagingLevel int) {
+	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
+	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
+}
+
+func setProxyHeaderBytesStagingLevel(header *tlstatshouse.CommonProxyHeaderBytes, fieldsMask *uint32, stagingLevel int) {
+	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
+	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
+}
+
 func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes) {
 	*header = tlstatshouse.CommonProxyHeaderBytes{
 		ShardReplica:      int32(s.ShardReplicaNum),
@@ -128,7 +138,7 @@ func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatsh
 	if owner := s.agent.getOwner(); owner != "" {
 		header.SetOwner([]byte(owner), fieldsMask)
 	}
-	data_model.SetProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
+	setProxyHeaderBytesStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
 
 func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeader) {
@@ -144,7 +154,7 @@ func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.
 	if owner := s.agent.getOwner(); owner != "" {
 		header.SetOwner(owner, fieldsMask)
 	}
-	data_model.SetProxyHeaderStagingLevel(header, fieldsMask, s.agent.stagingLevel)
+	setProxyHeaderStagingLevel(header, fieldsMask, s.agent.stagingLevel)
 }
 
 // We see no reason to carefully stop/wait this loop at shutdown

@@ -1,6 +1,13 @@
 package format
 
 const (
+	// defaults, could be changed through config/remote config
+	// not in data_model/constants.go due to dependencies graph
+	HardwareMetricResolution     = 5
+	HardwareSlowMetricResolution = 15
+)
+
+const (
 	BuiltinMetricIDCPUUsage        = -1000
 	BuiltinMetricIDSystemUptime    = -1001
 	BuiltinMetricIDProcessCreated  = -1002
@@ -384,10 +391,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		}},
 	},
 	BuiltinMetricIDNetDevSpeed: {
-		Name:        BuiltinMetricNameNetDevSpeed,
-		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
-		Description: "The interface speed value",
+		Name:                 BuiltinMetricNameNetDevSpeed,
+		Kind:                 MetricKindValue,
+		MetricType:           MetricByte,
+		Description:          "The interface speed value",
+		IsHardwareSlowMetric: true,
 		Tags: []MetricMetaTag{{
 			Description: "device",
 		}},
@@ -487,11 +495,12 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDDiskUsage: {
-		Name:          BuiltinMetricNameDiskUsage,
-		Kind:          MetricKindValue,
-		MetricType:    MetricByte,
-		Description:   "Disk space utilization",
-		NoSampleAgent: true,
+		Name:                 BuiltinMetricNameDiskUsage,
+		Kind:                 MetricKindValue,
+		MetricType:           MetricByte,
+		Description:          "Disk space utilization",
+		NoSampleAgent:        true,
+		IsHardwareSlowMetric: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
@@ -509,10 +518,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDINodeUsage: {
-		Name:          BuiltinMetricNameINodeUsage,
-		Kind:          MetricKindValue,
-		Description:   "",
-		NoSampleAgent: true,
+		Name:                 BuiltinMetricNameINodeUsage,
+		Kind:                 MetricKindValue,
+		Description:          "",
+		NoSampleAgent:        true,
+		IsHardwareSlowMetric: true,
 		Tags: []MetricMetaTag{
 			{
 				Description: "state",
@@ -773,10 +783,4 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				})},
 		},
 	},
-}
-
-var slowHostMetricID = map[int32]bool{
-	BuiltinMetricIDDiskUsage:   true,
-	BuiltinMetricIDINodeUsage:  true,
-	BuiltinMetricIDNetDevSpeed: true,
 }

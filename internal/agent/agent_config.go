@@ -189,7 +189,7 @@ func (s *Agent) clientGetAndSaveConfig(ctxParent context.Context, client *tlstat
 	if s.componentTag == format.TagValueIDComponentIngressProxy {
 		args.SetNewIngressVersion(true)
 	}
-	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, s.stagingLevel)
+	setProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, s.stagingLevel)
 	var ret tlstatshouse.GetConfigResult3
 	ctx, cancel := context.WithTimeout(ctxParent, data_model.AutoConfigTimeout)
 	defer cancel()
@@ -297,7 +297,7 @@ func clientGetConfig(network string, rpcClient rpc.Client, shardReplicaNum int, 
 		args.SetNewIngressVersion(true)
 	}
 	args.SetTs(true)
-	data_model.SetProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, stagingLevel)
+	setProxyHeaderStagingLevel(&args.Header, &args.FieldsMask, stagingLevel)
 	var ret tlstatshouse.GetConfigResult
 	ctx, cancel := context.WithTimeout(context.Background(), data_model.AutoConfigTimeout)
 	defer cancel()

@@ -91,8 +91,8 @@ func DefaultConfig() Config {
 		DisableNoSampleAgent:         false,
 		BudgetDecayHalfLife:          data_model.ExpDecayHalfLife,
 		MinSampleBudget:              2000,
-		HardwareMetricResolution:     5,
-		HardwareSlowMetricResolution: 15,
+		HardwareMetricResolution:     format.HardwareMetricResolution,
+		HardwareSlowMetricResolution: format.HardwareSlowMetricResolution,
 	}
 }
 

@@ -174,8 +174,8 @@ func DefaultConfig() *Config {
 			CheckCount:         9,
 			RecalcInterval:     1 * time.Second,
 		},
-		HardwareMetricResolution:     5,
-		HardwareSlowMetricResolution: 15,
+		HardwareMetricResolution:     format.HardwareMetricResolution,
+		HardwareSlowMetricResolution: format.HardwareSlowMetricResolution,
 	}
 }
 
