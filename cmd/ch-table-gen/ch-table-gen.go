@@ -133,7 +133,7 @@ func parseParams() (params Params) {
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
 	flag.IntVar(&partitionHours, "partition-hours", 24, "partition by that many hours")
 	flag.StringVar(&cluster, "cluster", "statlogs2", "clickhouse cluster name")
-	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v3_", "prefix for tables")
+	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v6_", "prefix for tables")
 	flag.Parse()
 
 	schemaParams.BasicTags = make([]int, basicTagsN)
@@ -163,7 +163,7 @@ func parseParams() (params Params) {
 	secSettings.IntSettings["max_bytes_to_merge_at_max_space_in_pool"] = 16106127360
 
 	incomingTable := IncomingTableParams{
-		NamePrefix:  tablesPrefix,
+		NamePrefix:  "statshouse_v3_",
 		NamePostfix: incomingPostfix,
 		Cluster:     cluster,
 		Schema:      incomingSchemaParams,
