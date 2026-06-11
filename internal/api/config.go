@@ -17,7 +17,6 @@ import (
 
 type Config struct {
 	ApproxCacheMaxSize           int
-	Version6Start                int64
 	UserLimitsStr                string
 	UserLimits                   []chutil.ConnLimits
 	MaxCacheSize                 int // hard limit, in bytes
@@ -119,7 +118,6 @@ func (argv *Config) Copy() config.Config {
 func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	default_ := defaultI.(*Config)
 	f.IntVar(&argv.ApproxCacheMaxSize, "approx-cache-max-size", default_.ApproxCacheMaxSize, "approximate max amount of rows to cache for each table+resolution")
-	f.Int64Var(&argv.Version6Start, "version6-start", default_.Version6Start, "timestamp of schema version 6 start, zero means v6 feature is disabled")
 	f.IntVar(&argv.MaxCacheSize, "max-cache-size", default_.MaxCacheSize, "cache hard memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheSizeSoft, "max-cache-size-soft", default_.MaxCacheSizeSoft, "cache soft memory limit (in bytes)")
 	f.IntVar(&argv.MaxCacheAge, "max-cache-age", default_.MaxCacheAge, "maximum cache age in seconds")

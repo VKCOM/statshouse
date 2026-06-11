@@ -99,6 +99,9 @@ func MakeMigrationV3Data(mappingStorage *metajournal.MappingsStorage) *Migration
 }
 
 func (a *Aggregator) goMigrateV3(cancelCtx context.Context) {
+	// DEPRECATED
+	return
+
 	if a.replicaKey != 1 {
 		log.Printf("[migration_v3] Skipping migration: replica key is %d, expected 1", a.replicaKey)
 		return // Only one replica should run migration per shard

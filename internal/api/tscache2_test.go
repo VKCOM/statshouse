@@ -191,7 +191,7 @@ func cache2TestDrawLOD(c *cache2) data_model.LOD {
 	start = (start / int64(shard.step)) * int64(shard.step) // align
 	end := start + int64(shard.step)*rand.Int63n(10)
 	return data_model.LOD{
-		Version: Version3,
+		Version: Version6,
 		StepSec: int64(shard.step / time.Second),
 		FromSec: start / int64(time.Second),
 		ToSec:   end / int64(time.Second),

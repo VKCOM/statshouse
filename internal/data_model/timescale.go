@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	Version3 = "3"
 	Version6 = "6"
 
 	//   >2h at  1s resolution
@@ -37,10 +36,6 @@ const (
 	_24h = 24 * _1h
 	_7d  = 7 * _24h
 	_1M  = 31 * _24h
-
-	_1sTableSH3 = "statshouse_v3_1s"
-	_1mTableSH3 = "statshouse_v3_1m"
-	_1hTableSH3 = "statshouse_v3_1h"
 
 	_1sTableSH6 = "statshouse_v6_1s"
 	_1mTableSH6 = "statshouse_v6_1m"
@@ -88,18 +83,17 @@ type QueryStat struct {
 
 type GetTimescaleArgs struct {
 	QueryStat
-	Version6Start int64 // timestamp of schema version 6 start, zero means not set
-	Start         int64 // inclusive
-	End           int64 // exclusive
-	Step          int64
-	TimeNow       int64
-	ScreenWidth   int64
-	Mode          QueryMode
-	Extend        bool
-	Metric        *format.MetricMetaValue
-	Offset        int64
-	Location      *time.Location
-	UTCOffset     int64
+	Start       int64 // inclusive
+	End         int64 // exclusive
+	Step        int64
+	TimeNow     int64
+	ScreenWidth int64
+	Mode        QueryMode
+	Extend      bool
+	Metric      *format.MetricMetaValue
+	Offset      int64
+	Location    *time.Location
+	UTCOffset   int64
 }
 
 type LOD struct {
@@ -120,19 +114,6 @@ type lodSwitch struct {
 
 var (
 	LODTables = map[string]map[int64]string{
-		Version3: {
-			_1M:  _1hTableSH3,
-			_7d:  _1hTableSH3,
-			_24h: _1hTableSH3,
-			_4h:  _1hTableSH3,
-			_1h:  _1hTableSH3,
-			_15m: _1mTableSH3,
-			_5m:  _1mTableSH3,
-			_1m:  _1mTableSH3,
-			_15s: _1sTableSH3,
-			_5s:  _1sTableSH3,
-			_1s:  _1sTableSH3,
-		},
 		Version6: {
 			_1M:  _1hTableSH6,
 			_7d:  _1hTableSH6,
@@ -151,7 +132,7 @@ var (
 	lodLevels = map[string][]lodSwitch{
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
-		Version3: {{
+		Version6: {{
 			relSwitch: 33*_24h - 2*_1m,
 			levels:    []int64{_7d, _24h, _4h, _1h},
 		}, {
@@ -189,7 +170,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		}
 	}
 	// find appropriate LOD table. depends on query and version
-	var levels = lodLevels[Version3]
+	var levels = lodLevels[Version6]
 	if args.Step == _1M {
 		levels = lodLevelsV3Monthly
 	}
@@ -252,7 +233,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 					break
 				}
 			}
-			lod = TimescaleLOD{Step: step, Len: lodLen, Version: Version3}
+			lod = TimescaleLOD{Step: step, Len: lodLen, Version: Version6}
 			if step <= minStep || (args.ScreenWidth != 0 && int(args.ScreenWidth) < n) {
 				// use current "step" to the end
 				lodEnd, lodLen = endOfLOD(lodEnd, step, end, false, args.Location)
@@ -263,18 +244,6 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 		if lod.Step <= 0 || lod.Step > _1M || lod.Len <= 0 || !(pointQuery || lod.Len <= maxPoints) {
 			// should not happen
 			return Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
-		}
-
-		if args.Version6Start != 0 && lodEnd > args.Version6Start {
-			// v3-v6 interval is always much bigger than step, so we never need to split by both v3 and v6
-			if lodStart <= args.Version6Start {
-				// version 6 starts inside LOD, split
-				_, len := endOfLOD(lodStart, lod.Step, args.Version6Start, false, args.Location)
-				res.appendLOD(TimescaleLOD{Step: lod.Step, Len: len, Version: Version3})
-				resLen += len
-				lod.Len -= len
-			}
-			lod.Version = Version6
 		}
 		if lod.Len != 0 {
 			resLen += lod.Len
