@@ -5,7 +5,7 @@
 -- 2) v6_1s_dist, v6_1m_dist, v6_1h_dist
 -- 3) v6_1s_matview, v6_1m_matview, v6_1h_matview
 
--- Входящий трафик
+-- incoming traffic
 
 CREATE TABLE IF NOT EXISTS statshouse_v3_incoming ON CLUSTER statlogs2
 (
@@ -126,10 +126,6 @@ CREATE TABLE IF NOT EXISTS statshouse_v3_incoming ON CLUSTER statlogs2
     )
     ENGINE = Null
 ;
-
--- катить в порядке 1 -> 2 -> 3
-
-
 
 -- 1s / 1m / 1h
 
