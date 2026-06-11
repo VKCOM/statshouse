@@ -133,7 +133,7 @@ func parseParams() (params Params) {
 	flag.BoolVar(&stringTags, "string-tags", true, "basic tags can be stored as unmapped strings")
 	flag.IntVar(&partitionHours, "partition-hours", 24, "partition by that many hours")
 	flag.StringVar(&cluster, "cluster", "statlogs2", "clickhouse cluster name")
-	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v3_", "prefix for tables")
+	flag.StringVar(&tablesPrefix, "prefix", "statshouse_v6_", "prefix for tables")
 	flag.Parse()
 
 	schemaParams.BasicTags = make([]int, basicTagsN)
