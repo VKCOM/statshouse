@@ -163,7 +163,7 @@ func parseParams() (params Params) {
 	secSettings.IntSettings["max_bytes_to_merge_at_max_space_in_pool"] = 16106127360
 
 	incomingTable := IncomingTableParams{
-		NamePrefix:  tablesPrefix,
+		NamePrefix:  "statshouse_v3_",
 		NamePostfix: incomingPostfix,
 		Cluster:     cluster,
 		Schema:      incomingSchemaParams,
