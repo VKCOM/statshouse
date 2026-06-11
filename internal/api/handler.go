@@ -922,19 +922,19 @@ func (h *Handler) metricWithResolution(m *format.MetricMetaValue) *format.Metric
 	if m == nil || !format.HardwareMetric(m.MetricID) {
 		return m
 	}
-	res := int(h.hardwareMetricRes.Load())
+	res := 0
 	if m.IsHardwareSlowMetric {
 		res = int(h.hardwareSlowMetricRes.Load())
+	} else {
+		res = int(h.hardwareMetricRes.Load())
 	}
-	if res == 0 {
-		return m
-	}
-	if m.Resolution == res && m.EffectiveResolution == format.AllowedResolution(res) {
+	eres := format.AllowedResolution(res)
+	if m.Resolution == res && m.EffectiveResolution == eres {
 		return m
 	}
 	c := *m
 	c.Resolution = res
-	c.EffectiveResolution = format.AllowedResolution(res)
+	c.EffectiveResolution = eres
 	return &c
 }
 

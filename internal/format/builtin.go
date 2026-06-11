@@ -216,10 +216,10 @@ func init() {
 	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
-		if slowHostMetricID[k] {
-			v.Resolution = 15
+		if v.IsHardwareSlowMetric {
+			v.Resolution = HardwareSlowMetricResolution
 		} else {
-			v.Resolution = 15
+			v.Resolution = HardwareMetricResolution
 		}
 		v.GroupID = BuiltinGroupIDHost
 		BuiltinMetrics[k] = v

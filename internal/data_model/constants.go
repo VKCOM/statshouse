@@ -10,7 +10,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/tl/pkg/rpc"
 )
 
@@ -93,17 +92,6 @@ const (
 	RPCErrorInsert        = -5002 // just send again through historic (for recent), or send again after delay (for historic)
 	RPCErrorNoAutoCreate  = -5004 // just live with it, this is normal
 	RPCErrorScrapeAgentIP = -5006 // scrape agent must have IP address
-
-	JournalDiskNamespace        = "metric_journal_v5:"
-	TagValueDiskNamespace       = "tag_value_v3:"
-	TagValueInvertDiskNamespace = "tag_value_invert_v3:"
-	BootstrapDiskNamespace      = "bootstrap:" // stored in aggregator only
-
-	MappingMaxMemCacheSize  = 1_000_000
-	MappingMaxDiskCacheSize = 10_000_000
-	MappingCacheTTLMinimum  = 7 * 24 * time.Hour
-	MappingNegativeCacheTTL = 5 * time.Second
-	MappingMinInterval      = 1 * time.Millisecond
 )
 
 var ErrEntityNotExists = &rpc.Error{
@@ -149,14 +137,4 @@ func SilentRPCError(err error) bool {
 	default:
 		return false
 	}
-}
-
-func SetProxyHeaderStagingLevel(header *tlstatshouse.CommonProxyHeader, fieldsMask *uint32, stagingLevel int) {
-	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
-	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
-}
-
-func SetProxyHeaderBytesStagingLevel(header *tlstatshouse.CommonProxyHeaderBytes, fieldsMask *uint32, stagingLevel int) {
-	header.SetAgentEnvStaging0(stagingLevel&1 == 1, fieldsMask)
-	header.SetAgentEnvStaging1(stagingLevel&2 == 2, fieldsMask)
 }
