@@ -16,7 +16,7 @@ func (b *queryBuilder) getOrBuildCacheKey() string {
 	}
 	var sb strings.Builder
 	sb.WriteString(`{"v":`)
-	sb.WriteString(Version3)
+	sb.WriteString(Version6)
 	sb.WriteString(`,"m":`)
 	sb.WriteString(fmt.Sprint(b.metricID()))
 	sb.WriteString(`,"pk":"`)

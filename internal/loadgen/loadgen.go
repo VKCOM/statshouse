@@ -117,10 +117,7 @@ func makeInterruptibleContext() context.Context {
 func RunEnableNewPipeline() {
 	ctx := makeInterruptibleContext()
 	c := api.NewClient("http://127.0.0.1:10888", "loadgen")
-	ensureMetricWithDescription(ctx, c, format.StatshouseAPIRemoteConfig, `
---version3-start=1
---version3-prob=1
-`)
+	ensureMetricWithDescription(ctx, c, format.StatshouseAPIRemoteConfig, ``)
 	ensureMetricWithDescription(ctx, c, format.StatshouseAgentRemoteConfigMetric, `
 -conveyor-v3-staging=production,staging1,staging2,development
 `)

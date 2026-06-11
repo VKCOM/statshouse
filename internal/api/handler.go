@@ -113,7 +113,6 @@ const (
 	paramYL, paramYH  = "yl", "yh" // Y scale range
 	paramFull         = "full"
 
-	Version3       = "3" // new tables format with stags
 	Version6       = "6" // new tables format with 1 partition
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
@@ -832,7 +831,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range data_model.LODTables[Version3] {
+				for lodLevel := range data_model.LODTables[Version6] {
 					t := r.At
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
