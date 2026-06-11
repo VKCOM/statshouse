@@ -13,16 +13,16 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
 const (
-	bufferSize                = 50 * 1024 * 1024                // 50Mb
-	bufferLen                 = bufferSize / pktBodyMax / 2 / 2 // 2 workers with 2 slices
-	swapWaitMax               = 1 * time.Second                 // cap wait for 20% batch in swap
+	bufferSize                = 50 * 1024 * 1024                  // 50Mb
+	bufferLen                 = bufferSize / (pktBodyMax) / 2 / 2 // 2 workers with 2 slices
+	swapWaitMax               = 1 * time.Second                   // cap wait for 20% batch in swap
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
-	tcpHandshakeMagic         = "statshousev1"
 )
 
 var errWouldBlock = errors.New("would block")
@@ -31,10 +31,12 @@ var errNoAddress = errors.New("no resolved upstream addresses")
 type EgressConfig struct {
 	Network            string
 	Address            string
-	HostTag            string
+	HostTag            []byte
 	DNSRefreshInterval time.Duration
 	DialTimeout        time.Duration
 	ReconnectDelay     time.Duration
+
+	reconnectKey string // copy every connect for safety
 }
 
 type EgressStats struct {
@@ -124,6 +126,15 @@ func (cfg *EgressConfig) fillDefaults() {
 	if cfg.ReconnectDelay <= 0 {
 		cfg.ReconnectDelay = defaultReconnectDelay
 	}
+
+	buf := make([]byte, 0, len(receiver.TCPPrefix)+1+4+len(cfg.HostTag))
+	buf = append(buf, receiver.TCPPrefix...)
+	buf = append(buf, receiver.TCPMagicV2Balancer)
+	lenH := make([]byte, pktHeadLen)
+	binary.LittleEndian.PutUint32(lenH, uint32(len(cfg.HostTag)))
+	buf = append(buf, lenH...)
+	buf = append(buf, cfg.HostTag...)
+	cfg.reconnectKey = string(buf)
 }
 
 func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool, buf *pktBuffer) *tcpSender {
@@ -311,7 +322,7 @@ func (s *tcpSender) reconnect() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = conn.Write([]byte(tcpHandshakeMagic)); err != nil {
+	if _, err = conn.Write([]byte(s.cfg.reconnectKey)); err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
