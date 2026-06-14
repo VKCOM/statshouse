@@ -416,11 +416,6 @@ func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID 
 }
 
 func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget uint32, keyString string, item *MultiItem) bool {
-	if prev, ok := part.Tail[keyString]; ok {
-		item.SF = prev.SF
-		b.MultiItems[keyString] = item
-		return true
-	}
 	if part.TailSize > budget && rng.Float64()*float64(part.TailSize) >= float64(budget) {
 		return false
 	}
@@ -465,10 +460,6 @@ func (b *MetricsBucket) removeTail(part *BucketPartition, key string) {
 }
 
 func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget uint32, key string, item *MultiItem, count float64) bool {
-	if c, ok := part.Top[key]; ok {
-		item.SF = c.SF
-		return true
-	}
 	sf := 1 << part.TopSfLog2
 	if part.TopSfLog2 != 0 && count < float64(sf) {
 		if rng.Float64()*float64(sf) >= count {
@@ -497,12 +488,13 @@ func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudg
 		if v.Count > float64(rv) {
 			continue
 		}
-		delete(p.Top, k)
 		if v.Size >= p.TopSize {
 			p.TopSize = 0
 		} else {
 			p.TopSize -= v.Size
 		}
+		delete(p.Top, k)
+		delete(b.MultiItems, k)
 		b.sampleTail(rng, p, tailBudget, k, v) // move to tail
 		if i++; i > was/2 {
 			return // for remain low items
