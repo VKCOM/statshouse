@@ -41,11 +41,10 @@ func HandleInstantQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version6Start: r.Version6Start.Load(),
-			Mode:          data_model.InstantQuery,
-			Compat:        true,
-			TimeNow:       time.Now().Unix(),
-			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+			Mode:      data_model.InstantQuery,
+			Compat:    true,
+			TimeNow:   time.Now().Unix(),
+			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	w := r.Response()
@@ -81,9 +80,8 @@ func HandleRangeQuery(r *httpRequestHandler) {
 	q := promql.Query{
 		Expr: r.FormValue("query"),
 		Options: promql.Options{
-			Version6Start: r.Version6Start.Load(),
-			Compat:        true,
-			Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+			Compat:    true,
+			Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 		},
 	}
 	var err error
@@ -148,10 +146,9 @@ func HandlePromSeriesQuery(r *httpRequestHandler) {
 					End:   end,
 					Expr:  expr,
 					Options: promql.Options{
-						Version6Start: r.Version6Start.Load(),
-						Limit:         1000,
-						Mode:          data_model.TagsQuery,
-						Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+						Limit:     1000,
+						Mode:      data_model.TagsQuery,
+						Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 					},
 				})
 			if err != nil {
@@ -250,11 +247,10 @@ func HandlePromLabelValuesQuery(r *httpRequestHandler) {
 							End:   end,
 							Expr:  expr,
 							Options: promql.Options{
-								Version6Start: r.Version6Start.Load(),
-								Limit:         1000,
-								Mode:          data_model.TagsQuery,
-								GroupBy:       []string{tagName},
-								Namespace:     r.Header.Get("X-StatsHouse-Namespace"),
+								Limit:     1000,
+								Mode:      data_model.TagsQuery,
+								GroupBy:   []string{tagName},
+								Namespace: r.Header.Get("X-StatsHouse-Namespace"),
 							},
 						})
 					if err != nil {
@@ -569,7 +565,7 @@ func (h *requestHandler) QuerySeries(ctx context.Context, qry *promql.SeriesQuer
 			FromSec:    qry.Timescale.Time[0] - qry.Offset,
 			ToSec:      qry.Timescale.Time[1] - qry.Offset,
 			StepSec:    lod0.Step,
-			Version:    Version3,
+			Version:    Version6,
 			Metric:     qry.Metric,
 			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
 			PreKeyOnly: metric.PreKeyOnly,

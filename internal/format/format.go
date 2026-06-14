@@ -692,10 +692,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 
-	if slowHostMetricID[m.MetricID] {
-		m.IsHardwareSlowMetric = true
-	}
-
 	return err
 }
 

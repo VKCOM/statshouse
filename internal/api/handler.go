@@ -113,7 +113,6 @@ const (
 	paramYL, paramYH  = "yl", "yh" // Y scale range
 	paramFull         = "full"
 
-	Version3       = "3" // new tables format with stags
 	Version6       = "6" // new tables format with 1 partition
 	dataFormatPNG  = "png"
 	dataFormatSVG  = "svg"
@@ -178,7 +177,6 @@ type (
 	}
 
 	Handler struct {
-		Version6Start         atomic.Int64
 		hardwareMetricRes     atomic.Int64
 		hardwareSlowMetricRes atomic.Int64
 		ConfigMu              sync.RWMutex
@@ -642,7 +640,6 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 			maxSize:     cfg.MaxCacheSize,
 			maxSizeSoft: cfg.MaxCacheSizeSoft,
 		})
-		h.Version6Start.Store(cfg.Version6Start)
 		h.hardwareMetricRes.Store(int64(cfg.HardwareMetricResolution))
 		h.hardwareSlowMetricRes.Store(int64(cfg.HardwareSlowMetricResolution))
 		_ = chV2.SetLimits(cfg.UserLimits, cfg.CHMaxShardConnsRatio, cfg.RateLimitConfig, cfg.ReplicaThrottleCfg)
@@ -834,7 +831,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range data_model.LODTables[Version3] {
+				for lodLevel := range data_model.LODTables[Version6] {
 					t := r.At
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
@@ -925,19 +922,19 @@ func (h *Handler) metricWithResolution(m *format.MetricMetaValue) *format.Metric
 	if m == nil || !format.HardwareMetric(m.MetricID) {
 		return m
 	}
-	res := int(h.hardwareMetricRes.Load())
+	res := 0
 	if m.IsHardwareSlowMetric {
 		res = int(h.hardwareSlowMetricRes.Load())
+	} else {
+		res = int(h.hardwareMetricRes.Load())
 	}
-	if res == 0 {
-		return m
-	}
-	if m.Resolution == res && m.EffectiveResolution == format.AllowedResolution(res) {
+	eres := format.AllowedResolution(res)
+	if m.Resolution == res && m.EffectiveResolution == eres {
 		return m
 	}
 	c := *m
 	c.Resolution = res
-	c.EffectiveResolution = format.AllowedResolution(res)
+	c.EffectiveResolution = eres
 	return &c
 }
 
@@ -1980,14 +1977,13 @@ func (h *requestHandler) handleGetMetricTagValues(ctx context.Context, req getMe
 	}
 
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Start:         from.Unix(),
-		End:           to.Unix(),
-		ScreenWidth:   100, // really dumb
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
-		Version6Start: h.Version6Start.Load(),
+		Start:       from.Unix(),
+		End:         to.Unix(),
+		ScreenWidth: 100, // really dumb
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -2136,7 +2132,6 @@ func HandleBadgesQuery(r *httpRequestHandler) {
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			Version6Start:    r.Version6Start.Load(),
 			AvoidCache:       req.avoidCache,
 			Extend:           req.excessPoints,
 			ExplicitGrouping: true,
@@ -2267,7 +2262,6 @@ func (h *requestHandler) queryBadges(ctx context.Context, req seriesRequest, met
 			Step:  req.step,
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricMetaBadges.Name, meta.MetricID),
 			Options: promql.Options{
-				Version6Start:    h.Version6Start.Load(),
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				ScreenWidth:      req.screenWidth,
@@ -2499,15 +2493,14 @@ func (h *requestHandler) handleGetTable(ctx context.Context, req seriesRequest) 
 		return nil, false, err
 	}
 	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
-		Version6Start: h.Version6Start.Load(),
-		Start:         req.from.Unix(),
-		End:           req.to.Unix(),
-		Step:          req.step,
-		ScreenWidth:   req.screenWidth,
-		TimeNow:       time.Now().Unix(),
-		Metric:        metricMeta,
-		Location:      h.location,
-		UTCOffset:     h.utcOffset,
+		Start:       req.from.Unix(),
+		End:         req.to.Unix(),
+		Step:        req.step,
+		ScreenWidth: req.screenWidth,
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -2634,7 +2627,6 @@ func (h *requestHandler) handleSeriesRequest(ctx context.Context, req seriesRequ
 		Step:  req.step,
 		Expr:  req.promQL,
 		Options: promql.Options{
-			Version6Start:    h.Version6Start.Load(),
 			Mode:             opt.mode,
 			AvoidCache:       req.avoidCache,
 			TimeNow:          opt.timeNow.Unix(),

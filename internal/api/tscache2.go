@@ -211,8 +211,8 @@ func newCache2(h *Handler, chunkSize int, loader tsLoadFunc) *cache2 {
 	}
 	c.trimCond = sync.NewCond(&c.mu)
 	c.allocCond = sync.NewCond(&c.mu)
-	c.shards = make(map[time.Duration]*cache2Shard, len(data_model.LODTables[Version3]))
-	for stepSec := range data_model.LODTables[Version3] {
+	c.shards = make(map[time.Duration]*cache2Shard, len(data_model.LODTables[Version6]))
+	for stepSec := range data_model.LODTables[Version6] {
 		step := time.Duration(stepSec) * time.Second
 		size, duration := cache2ChunkSizeDuration(chunkSize, step)
 		c.shards[step] = &cache2Shard{

@@ -38,7 +38,7 @@ func (handler) HandleParseError(pkt []byte, err error) {
 	log.Fatalln(pkt, err)
 }
 
-func (handler) HandleMetricsBatch(*tlstatshouse.AddMetricsBatchBytes, int, *[]byte) error {
+func (handler) HandleMetricsBatchRaw([]byte) error {
 	return receiver.ErrNotImplemented
 }
 

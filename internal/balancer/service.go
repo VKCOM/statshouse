@@ -11,7 +11,6 @@ import (
 
 	"github.com/VKCOM/tl/pkg/rpc"
 
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
@@ -28,8 +27,7 @@ type Config struct {
 	UDPBufferSize int
 	CoresUDP      int
 
-	Handler HandlerConfig
-	Egress  EgressConfig
+	Egress EgressConfig
 }
 
 type Service struct {
@@ -52,12 +50,11 @@ type Service struct {
 
 func New(cfg Config) (*Service, error) {
 	cfg.fillDefaults()
-	hostTag := detectHostTag(cfg.HostName)
-	cfg.Handler.HostTag = []byte(hostTag)
+	hostTag := detectHostTag([]byte(cfg.HostName))
 	cfg.Egress.Address = cfg.UpstreamAddr
 	cfg.Egress.HostTag = hostTag
 	eg := NewEgress(cfg.Egress)
-	h := newHandler(cfg.Handler, eg)
+	h := newHandler(eg)
 
 	s := &Service{
 		cfg:       cfg,
@@ -202,22 +199,17 @@ func (s *Service) startTCPStack() error {
 		}
 	}()
 
-	receiverRPC := receiver.MakeRPCReceiver(nil, s.handler)
-	handlerRPC := &tlstatshouse.Handler{
-		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
-	}
 	s.rpcServer = rpc.NewServer(
-		rpc.ServerWithSyncHandler(handlerRPC.Handle),
 		rpc.ServerWithSocketHijackHandler(s.hijackConnection),
 	)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		if err := s.rpcServer.Serve(ln); err != nil && !errors.Is(err, net.ErrClosed) {
-			log.Printf("rpc receiver failed: %v", err)
+			log.Printf("tcp/http receiver failed: %v", err)
 		}
 	}()
-	log.Printf("listening udp/tcp/http/rpc on shared port %s", s.cfg.ListenTCP)
+	log.Printf("listening udp/tcp/http on shared port %s", s.cfg.ListenTCP)
 	return nil
 }
 
@@ -225,7 +217,7 @@ func (s *Service) startUnixStream() error {
 	if s.cfg.ListenUnix == "" {
 		return nil
 	}
-	s.unixReceiver = receiver.NewTCPReceiver(nil, nil)
+	s.unixReceiver = receiver.NewUnixReceiver(nil, nil)
 	_ = os.Remove(s.cfg.ListenUnix)
 	ln, err := net.Listen("unix", s.cfg.ListenUnix)
 	if err != nil {

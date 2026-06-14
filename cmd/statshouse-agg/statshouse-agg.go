@@ -22,6 +22,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
+
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/aggregator"
 	"github.com/VKCOM/statshouse/internal/data_model"
@@ -33,9 +36,6 @@ import (
 	"github.com/VKCOM/statshouse/internal/vkgo/build"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
 	"github.com/VKCOM/statshouse/internal/vkgo/vkd/platform"
-	"github.com/VKCOM/tl/pkg/rpc"
-	_ "github.com/prometheus/prometheus/discovery/consul" // spawns service discovery goroutines
-
 )
 
 const defaultPathToPwd = `/etc/engine/pass`
@@ -139,22 +139,23 @@ func mainAggregator() int {
 		log.Printf("failed to load mappings storage from %v", err)
 	}
 
-	var v3MigratorMappingStorageFiles []*os.File
-	for i := 0; i < argv.MappingsFileCount; i++ {
-		// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
-		f, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("v3_v6_migrator-mappings-%s-%d-%d.cache", argv.Cluster, argv.MappingsFileCount, i)), os.O_CREATE|os.O_RDWR, 0666)
-		if err != nil {
-			log.Printf("failed to open mappings storage file %v", err)
-			return 1
-		}
-		defer f.Close()
-		v3MigratorMappingStorageFiles = append(v3MigratorMappingStorageFiles, f)
-	}
-	v3MigratorMappingsStorage, err := metajournal.LoadMappingsFiles(context.Background(), v3MigratorMappingStorageFiles, data_model.JournalDDOSProtectionTimeout, true)
-	if err != nil {
-		// cache can be damaged
-		log.Printf("failed to load mappings storage for v3->v6 migration from %v", err)
-	}
+	// TODO remove DEPRECATED
+	//var v3MigratorMappingStorageFiles []*os.File
+	//for i := 0; i < argv.MappingsFileCount; i++ {
+	//	// Use cluster name as suffix to avoid conflicts between clusters (same as aggregator)
+	//	f, err := os.OpenFile(filepath.Join(argv.cacheDir, fmt.Sprintf("v3_v6_migrator-mappings-%s-%d-%d.cache", argv.Cluster, argv.MappingsFileCount, i)), os.O_CREATE|os.O_RDWR, 0666)
+	//	if err != nil {
+	//		log.Printf("failed to open mappings storage file %v", err)
+	//		return 1
+	//	}
+	//	defer f.Close()
+	//	v3MigratorMappingStorageFiles = append(v3MigratorMappingStorageFiles, f)
+	//}
+	//v3MigratorMappingsStorage, err := metajournal.LoadMappingsFiles(context.Background(), v3MigratorMappingStorageFiles, data_model.JournalDDOSProtectionTimeout, true)
+	//if err != nil {
+	//	// cache can be damaged
+	//	log.Printf("failed to load mappings storage for v3->v6 migration from %v", err)
+	//}
 
 	if err != nil {
 		// cache can be damaged
@@ -178,7 +179,7 @@ func mainAggregator() int {
 	// we ignore error because cache can be damaged
 	mappingsCache, _ := pcache.LoadMappingsCacheFile(fpmc, argv.RemoteInitial.MappingCacheSize, argv.RemoteInitial.MappingCacheTTL)
 	startDiscCacheTime := time.Now() // we only have disk cache before. Be carefull when redesigning
-	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, v3MigratorMappingsStorage, argv.cacheDir, argv.aggAddr, aesPwd, argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))), argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
+	agg, err := aggregator.MakeAggregator(fj, fjCompact, mappingsCache, mappingsStorage, nil, argv.cacheDir, argv.aggAddr, aesPwd, argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))), argv.ConfigAggregator, argv.customHostName, argv.logLevel == "trace")
 	if err != nil {
 		log.Println(err)
 		return 1
