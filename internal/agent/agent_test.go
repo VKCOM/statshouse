@@ -259,7 +259,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	}
 }
 
-// Benchmark_SampleBucketMetricWithoutBudgets-14    	     562	   1861470 ns/op	  790916 B/op	    1014 allocs/op
+// Benchmark_SampleBucketMetricWithoutBudgets-14    	    7170	    165283 ns/op	  792268 B/op	      21 allocs/op
 func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -272,6 +272,7 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	agent.shardByMetricCount = uint32(len(agent.Shards))
 	shard := agent.Shards[0]
 	shard.metricBudgetsFromAgg = data_model.NewExpDecay(config.BudgetDecayHalfLife)
+	targetSize := shard.getShardSampleBudget(config)
 
 	const namespaceN = 10
 	const groupN = 20
@@ -282,9 +283,8 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
-	buffers := data_model.SamplerBuffers{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sizeScratch := make(map[int32]uint32, metricN)
+	sfScratch := make(map[int32][2]float64, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -292,25 +292,17 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		bucket := &data_model.MetricsBucket{
-			Time: nowUnix,
-			MultiItemMap: data_model.MultiItemMap{
-				MultiItems: make(map[string]*data_model.MultiItem, len(items)),
-			},
-		}
-		for i := range items {
-			bucket.MultiItems[keys[i]] = items[i]
-		}
+		bucket := makeBenchmarkSampleBucket(nowUnix, keys, items, targetSize)
 		sb = tlstatshouse.SourceBucket3{}
 		b.StartTimer()
 
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
+		scratch = shard.sampleBucket(bucket, &sb, scratch, budgetScratch, sfScratch, rng)
 		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
 	}
 	sideEffect += sampledCount
 }
 
-// Benchmark_SampleBucketMetricBudgetsFromAgg-14    	     534	   2245887 ns/op	  722916 B/op	     809 allocs/op
+// Benchmark_SampleBucketMetricBudgetsFromAgg-14    	    6699	    170445 ns/op	  792269 B/op	      21 allocs/op
 func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	startTime := time.Unix(1000*24*3600, 0) // arbitrary deterministic test time
 	nowUnix := uint32(startTime.Unix())
@@ -324,6 +316,7 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	agent.shardByMetricCount = uint32(len(agent.Shards))
 	shard := agent.Shards[0]
 	shard.metricBudgetsFromAgg = data_model.NewExpDecay(config.BudgetDecayHalfLife)
+	targetSize := shard.getShardSampleBudget(config)
 
 	const namespaceN = 10
 	const groupN = 20
@@ -339,9 +332,8 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
-	buffers := data_model.SamplerBuffers{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sizeScratch := make(map[int32]uint32, metricN)
+	sfScratch := make(map[int32][2]float64, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -349,19 +341,11 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		bucket := &data_model.MetricsBucket{
-			Time: nowUnix,
-			MultiItemMap: data_model.MultiItemMap{
-				MultiItems: make(map[string]*data_model.MultiItem, len(items)),
-			},
-		}
-		for i := range items {
-			bucket.MultiItems[keys[i]] = items[i]
-		}
+		bucket := makeBenchmarkSampleBucket(nowUnix, keys, items, targetSize)
 		sb = tlstatshouse.SourceBucket3{}
 		b.StartTimer()
 
-		buffers, scratch = shard.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
+		scratch = shard.sampleBucket(bucket, &sb, scratch, budgetScratch, sfScratch, rng)
 		sampledCount += uint64(len(sb.Metrics) + len(sb.SampleFactors))
 	}
 	sideEffect += sampledCount
@@ -392,6 +376,33 @@ func makeBenchmarkSampleItems(ts uint32, itemN int, namespaceN, groupN, metricN 
 		keys[i] = strconv.Itoa(i)
 	}
 	return keys, items
+}
+
+func makeBenchmarkSampleBucket(ts uint32, keys []string, items []*data_model.MultiItem, targetSize int64) *data_model.MetricsBucket {
+	bucket := &data_model.MetricsBucket{
+		Time: ts,
+		MultiItemMap: data_model.MultiItemMap{
+			MultiItems: make(map[string]*data_model.MultiItem, len(items)),
+		},
+		CurSizes: map[int32]map[string]*data_model.BucketSizeItem{},
+		CurStats: map[int32]*data_model.BucketStat{},
+	}
+	var size int64
+	for i, item := range items {
+		itemSize := int64(item.TLSize())
+		if size >= targetSize {
+			break
+		}
+		size += itemSize
+		bucket.MultiItems[keys[i]] = item
+		sizes := bucket.CurSizes[item.Key.Metric]
+		if sizes == nil {
+			sizes = map[string]*data_model.BucketSizeItem{}
+			bucket.CurSizes[item.Key.Metric] = sizes
+		}
+		sizes[string(rune(i))] = &data_model.BucketSizeItem{Size: uint32(itemSize)}
+	}
+	return bucket
 }
 
 func randKey(rng *rand.Rand, ts uint32, metricOffset int32) data_model.Key {

@@ -1616,6 +1616,11 @@ var BuiltinMetricMetaSrcSamplingSizeBytes = &MetricMetaValue{
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
 		}),
+	}, {
+		Name: "version",
+		ValueComments: convertToValueComments(map[int32]string{
+			1: "from_agg",
+		}),
 	}},
 }
 
@@ -1797,6 +1802,11 @@ var BuiltinMetricMetaSrcSamplingGroupBudget = &MetricMetaValue{
 			BuiltinGroupIDBuiltin: "builtin",
 			BuiltinGroupIDHost:    "host",
 			BuiltinGroupIDMissing: "missing",
+		}),
+	}, {
+		Name: "version",
+		ValueComments: convertToValueComments(map[int32]string{
+			1: "from_agg",
 		}),
 	}},
 }
@@ -2645,7 +2655,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -2679,7 +2689,7 @@ var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false,
 	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{ // reserve for component
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
