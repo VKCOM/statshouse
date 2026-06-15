@@ -346,19 +346,6 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		part = &BucketPartition{Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
 		root.Partitions[decisionKey] = part
 	}
-
-	if item = part.Top[keyString]; item != nil {
-		item.Count += count
-		return
-	}
-	if item = part.Tail[keyString]; item != nil {
-		item.Count += count
-		if b.sampleTop(rng, part, part.Budget/2, keyString, item, item.Count) { // try move to top
-			b.removeTail(part, keyString)
-		}
-		return
-	}
-
 	item = &MultiItem{Key: *key, SF: 1, Count: count, MetricMeta: metricInfo}
 	item.Size = item.TLSize()
 	if created {
@@ -366,6 +353,20 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	}
 	part.Traffic += item.Size
 	root.Traffic += item.Size
+
+	if item := part.Top[keyString]; item != nil {
+		item.Count += count
+		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
+		return item, created
+	}
+	if item := part.Tail[keyString]; item != nil {
+		item.Count += count
+		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
+		if b.sampleTop(rng, part, part.Budget/2, keyString, item, item.Count) { // try move to top
+			b.removeTail(part, keyString)
+		}
+		return item, created
+	}
 	part.Budget = root.partitionBudget(rng, budget, part)
 	if part.Budget < 1 {
 		part.TopSize, part.TailSize = 0, 0
@@ -460,7 +461,7 @@ func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget
 	}
 	part.TailSize += item.Size
 	if part.Traffic > budget && budget > 0 {
-		item.SF = (float64(part.Traffic)) / float64(part.TailSize)
+		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
 	}
 	part.Tail[keyString] = item
 	b.MultiItems[keyString] = item
@@ -505,7 +506,7 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 			return false
 		}
 		part.TopSize += item.Size
-		item.SF = (float64(part.Traffic)) / float64(part.TopSize)
+		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
 	} else {
 		part.TopSize += item.Size
 	}
