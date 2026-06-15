@@ -367,7 +367,10 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		}
 		return item, created
 	}
-	part.Budget = root.partitionBudget(rng, budget, part)
+	part.Budget = budget
+	if len(root.Partitions) > 0 {
+		part.Budget = uint32(math.Round(float64(budget) / float64(len(root.Partitions))))
+	}
 	if part.Budget < 1 {
 		part.TopSize, part.TailSize = 0, 0
 		for k := range part.Top {
@@ -386,57 +389,44 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	}
 
 	root.KeepSize -= part.TopSize
-	root.KeepSize -= part.TailSize
-	defer func() {
-		root.KeepSize += part.TopSize
-		root.KeepSize += part.TailSize
-	}()
+	defer func() { root.KeepSize += part.TopSize }()
 	if b.sampleTop(rng, part, halfBudget, keyString, item, count) {
 		if root.KeepSize > budget {
-			root.recalc(rng, b, budget)
+			root.recalc(rng, b, budget, part.Budget)
 		}
 		return
 	}
+	root.KeepSize -= part.TailSize
+	defer func() { root.KeepSize += part.TailSize }()
 	if b.sampleTail(rng, part, halfBudget, keyString, item) {
 		if root.KeepSize > budget {
-			root.recalc(rng, b, budget)
+			root.recalc(rng, b, budget, part.Budget)
 		}
 		return
 	}
 	return nil, created
 }
 
-func (s *BucketStat) partitionBudget(rng *rand.Rand, totalBudget uint32, p *BucketPartition) uint32 {
-	if len(s.Partitions) <= 1 || s.Traffic == 0 {
-		return totalBudget
-	}
-	budget := float64(totalBudget*p.Traffic) / float64(s.Traffic)
-	floor := math.Floor(budget)
-	delta := budget - floor
-	if rng.Float64() < delta {
-		floor++
-	}
-	return uint32(floor)
-}
-
-func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget uint32) {
+func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partBudget uint32) {
 	for _, p := range s.Partitions {
-		budget := s.partitionBudget(rng, totalBudget, p)
-		if p.TopSize+p.TailSize <= budget*2 {
+		if p.TopSize+p.TailSize <= partBudget*2 {
 			continue // no need recalc
 		}
-		p.Budget = budget
-		halfBudget := uint32(math.Round(float64(budget) / 2))
+		if totalBudget >= s.KeepSize {
+			break // do not delete everything
+		}
+		p.Budget = partBudget
+		halfBudget := uint32(math.Round(float64(partBudget) / 2))
 
 		s.KeepSize -= p.TopSize
+		s.KeepSize -= p.TailSize
 		for p.TopSize >= halfBudget && len(p.Top) != 0 {
 			p.resampleTop(rng, b, halfBudget)
 		}
-		s.KeepSize += p.TopSize
-		s.KeepSize -= p.TailSize
 		for p.TailSize > halfBudget && len(p.Tail) > 1 {
 			b.removeRandomTail(rng, p)
 		}
+		s.KeepSize += p.TopSize
 		s.KeepSize += p.TailSize
 	}
 }
