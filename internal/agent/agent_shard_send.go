@@ -9,7 +9,6 @@ package agent
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -199,9 +198,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		}
 		if keptTraffic == 0 {
 			continue
-		}
-		if m == 6 {
-			fmt.Println()
 		}
 		sfScratch[m] = float32(stat.Traffic) / float32(keptTraffic)
 	}

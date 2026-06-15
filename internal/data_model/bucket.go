@@ -365,6 +365,18 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		root.Traffic += item.Size
 	}
 	part.Budget = root.partitionBudget(budget, part)
+	if part.Budget <= 1 {
+		part.TopSize, part.TailSize = 0, 0
+		for k := range part.Top {
+			delete(b.MultiItems, k)
+			delete(part.Top, k)
+		}
+		for k := range part.Tail {
+			delete(b.MultiItems, k)
+			delete(part.Tail, k)
+		}
+		return nil, created
+	}
 
 	if b.sampleTop(rng, part, part.Budget/2, keyString, item, count) {
 		root.recalc(rng, b, budget)
