@@ -8,6 +8,7 @@ package data_model
 
 import (
 	"encoding/binary"
+	"math"
 	"sort"
 	"unsafe"
 
@@ -82,6 +83,7 @@ type (
 
 	BucketStat struct {
 		Traffic    uint32
+		KeepSize   uint32
 		Partitions map[PartitionKey]*BucketPartition // mostly len=1. len>1 if fairKey and others
 	}
 
@@ -338,7 +340,7 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		root = &BucketStat{Partitions: map[PartitionKey]*BucketPartition{}}
 		b.CurStats[budgetID] = root
 	}
-	decisionKey := samplingDecisionKey(key, metricInfo, metricID)
+	decisionKey := samplingDecisionKey(key, metricInfo, metricID, budgetID)
 	part, ok := root.Partitions[decisionKey]
 	if !ok {
 		part = &BucketPartition{Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
@@ -361,11 +363,11 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	item.Size = item.TLSize()
 	if created {
 		sizes[keyString] = &BucketSizeItem{key: keyString, Size: item.Size}
-		part.Traffic += item.Size
-		root.Traffic += item.Size
 	}
-	part.Budget = root.partitionBudget(budget, part)
-	if part.Budget <= 1 {
+	part.Traffic += item.Size
+	root.Traffic += item.Size
+	part.Budget = root.partitionBudget(rng, budget, part)
+	if part.Budget < 1 {
 		part.TopSize, part.TailSize = 0, 0
 		for k := range part.Top {
 			delete(b.MultiItems, k)
@@ -377,47 +379,72 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		}
 		return nil, created
 	}
+	halfBudget := uint32(math.Round(float64(part.Budget) / 2))
+	if root.KeepSize < budget {
+		halfBudget = budget // get full root budget, until fit budget
+	}
 
-	if b.sampleTop(rng, part, part.Budget/2, keyString, item, count) {
-		root.recalc(rng, b, budget)
+	root.KeepSize -= part.TopSize
+	root.KeepSize -= part.TailSize
+	defer func() {
+		root.KeepSize += part.TopSize
+		root.KeepSize += part.TailSize
+	}()
+	if b.sampleTop(rng, part, halfBudget, keyString, item, count) {
+		if root.KeepSize > budget {
+			root.recalc(rng, b, budget)
+		}
 		return
 	}
-	if b.sampleTail(rng, part, part.Budget/2, keyString, item) {
-		root.recalc(rng, b, budget)
+	if b.sampleTail(rng, part, halfBudget, keyString, item) {
+		if root.KeepSize > budget {
+			root.recalc(rng, b, budget)
+		}
 		return
 	}
 	return nil, created
 }
 
-func (s *BucketStat) partitionBudget(totalBudget uint32, p *BucketPartition) uint32 {
+func (s *BucketStat) partitionBudget(rng *rand.Rand, totalBudget uint32, p *BucketPartition) uint32 {
 	if len(s.Partitions) <= 1 || s.Traffic == 0 {
 		return totalBudget
 	}
-	return uint32(uint64(totalBudget) * uint64(p.Traffic) / uint64(s.Traffic))
+	budget := float64(totalBudget*p.Traffic) / float64(s.Traffic)
+	floor := math.Floor(budget)
+	delta := budget - floor
+	if rng.Float64() < delta {
+		floor++
+	}
+	return uint32(floor)
 }
 
 func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget uint32) {
 	for _, p := range s.Partitions {
-		budget := s.partitionBudget(totalBudget, p)
-		if p.Budget <= budget*2 {
+		budget := s.partitionBudget(rng, totalBudget, p)
+		if p.TopSize+p.TailSize <= budget*2 {
 			continue // no need recalc
 		}
 		p.Budget = budget
-		halfBudget := max(1, budget/2)
+		halfBudget := uint32(math.Round(float64(budget) / 2))
+
+		s.KeepSize -= p.TopSize
 		for p.TopSize >= halfBudget && len(p.Top) != 0 {
 			p.resampleTop(rng, b, halfBudget)
 		}
+		s.KeepSize += p.TopSize
+		s.KeepSize -= p.TailSize
 		for p.TailSize > halfBudget && len(p.Tail) > 1 {
 			b.removeRandomTail(rng, p)
 		}
+		s.KeepSize += p.TailSize
 	}
 }
 
-func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID int32) PartitionKey {
+func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID, budgetID int32) PartitionKey {
 	var pk = PartitionKey{ID: metricID}
-	if metricInfo == nil || len(metricInfo.FairKeyIndex) == 0 {
+	if budgetID == -1 || metricInfo == nil || len(metricInfo.FairKeyIndex) == 0 {
 		return pk
-	}
+	} // no fair logic for common metrics
 	n := min(len(metricInfo.FairKeyIndex), maxFairKeyLen)
 	for i := 0; i < n; i++ {
 		if x := metricInfo.FairKeyIndex[i]; 0 <= x && x < len(key.Tags) {
@@ -428,13 +455,13 @@ func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID 
 }
 
 func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget uint32, keyString string, item *MultiItem) bool {
-	if part.TailSize > budget && rng.Float64()*float64(part.TailSize) >= float64(budget) {
+	if part.Traffic > budget && rng.Float64()*float64(part.Traffic) >= float64(budget) {
 		return false
 	}
-	if part.TailSize > budget {
-		item.SF = (float64(part.Traffic) / 2) / float64(budget)
-	}
 	part.TailSize += item.Size
+	if part.Traffic > budget && budget > 0 {
+		item.SF = (float64(part.Traffic)) / float64(part.TailSize)
+	}
 	part.Tail[keyString] = item
 	b.MultiItems[keyString] = item
 	for part.TailSize > budget && len(part.Tail) != 0 {
@@ -477,9 +504,11 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 		if rng.Float64()*float64(sf) >= count {
 			return false
 		}
-		item.SF = float64(sf) / count
+		part.TopSize += item.Size
+		item.SF = (float64(part.Traffic)) / float64(part.TopSize)
+	} else {
+		part.TopSize += item.Size
 	}
-	part.TopSize += item.Size
 	part.Top[key] = item
 	b.MultiItems[key] = item
 	for part.TopSize >= budget && len(part.Top) != 0 {
