@@ -82,7 +82,7 @@ type (
 
 	BucketStat struct {
 		Traffic    uint32
-		Partitions map[partitionKey]*BucketPartition // mostly len=1. len>1 if fairKey and others
+		Partitions map[PartitionKey]*BucketPartition // mostly len=1. len>1 if fairKey and others
 	}
 
 	BucketSizeItem struct {
@@ -90,8 +90,8 @@ type (
 		Size uint32
 	}
 
-	partitionKey struct {
-		id   int32
+	PartitionKey struct {
+		ID   int32
 		fair [maxFairKeyLen]int32
 	}
 
@@ -335,7 +335,7 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 
 	root := b.CurStats[budgetID]
 	if root == nil {
-		root = &BucketStat{Partitions: map[partitionKey]*BucketPartition{}}
+		root = &BucketStat{Partitions: map[PartitionKey]*BucketPartition{}}
 		b.CurStats[budgetID] = root
 	}
 	decisionKey := samplingDecisionKey(key, metricInfo, metricID)
@@ -401,8 +401,8 @@ func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget uint32
 	}
 }
 
-func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID int32) partitionKey {
-	var pk = partitionKey{id: metricID}
+func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID int32) PartitionKey {
+	var pk = PartitionKey{ID: metricID}
 	if metricInfo == nil || len(metricInfo.FairKeyIndex) == 0 {
 		return pk
 	}
@@ -420,12 +420,12 @@ func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget
 		return false
 	}
 	if part.TailSize > budget {
-		item.SF = float64(part.TailSize) / float64(budget)
+		item.SF = (float64(part.Traffic) / 2) / float64(budget)
 	}
 	part.TailSize += item.Size
 	part.Tail[keyString] = item
 	b.MultiItems[keyString] = item
-	for part.TailSize > budget && len(part.Tail) > 1 {
+	for part.TailSize > budget && len(part.Tail) != 0 {
 		b.removeRandomTail(rng, part)
 	}
 	return part.Tail[keyString] == item

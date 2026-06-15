@@ -9,6 +9,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -110,7 +111,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 
 	var scratch []byte
 	var budgetScratch = map[int32]uint32{}
-	var sfScratch = map[int32][2]float64{}
+	var sfScratch = map[int32]float32{}
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
 		scratch = s.preProcess(bucket, scratch, budgetScratch, sfScratch, rng)
@@ -119,7 +120,7 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32][2]float64, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32]float32, rng *rand.Rand) []byte {
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
@@ -141,7 +142,7 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, bud
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32][2]float64, rnd *rand.Rand) []byte {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32]float32, rnd *rand.Rand) []byte {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
@@ -186,6 +187,24 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	clear(sfScratch)
 	clear(budgetScratch)
 	s.metricBudgetsFromAgg.Get(budgetScratch)
+	for m, stat := range bucket.CurStats {
+		if m == -1 {
+			continue
+		}
+		keptTraffic := uint32(0)
+		for _, p := range stat.Partitions {
+			if p.TopSize != 0 || p.TailSize != 0 {
+				keptTraffic += p.Traffic
+			}
+		}
+		if keptTraffic == 0 {
+			continue
+		}
+		if m == 6 {
+			fmt.Println()
+		}
+		sfScratch[m] = float32(stat.Traffic) / float32(keptTraffic)
+	}
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization, outside budget, size tracked below in format.TagValueIDSizeSampleFactors
@@ -202,11 +221,20 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			continue
 		}
 		_ = item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
+		if globalSF := sfScratch[item.Key.AccountMetric()]; globalSF > 0 {
+			item.SF *= float64(globalSF)
+		}
 		keepF(item, bucket.Time, 0)
-		sf := sfScratch[item.Key.Metric]
-		sf[0]++
-		sf[1] += item.SF
-		sfScratch[item.Key.Metric] = sf
+	}
+	if stat := bucket.CurStats[-1]; stat != nil {
+		for k, p := range stat.Partitions {
+			size := p.TopSize + p.TailSize
+			if size == 0 {
+				continue
+			}
+			sfScratch[k.ID] = float32(p.Traffic) / float32(size)
+			continue
+		}
 	}
 
 	budgetSum := int64(0)
@@ -240,14 +268,13 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	}
 
 	for m, sizes := range bucket.CurSizes {
-		size := uint32(0)
+		var size uint32
 		for _, sz := range sizes {
 			size += sz.Size
 		}
-		sf := sfScratch[m]
 		sb.SampleFactors = append(sb.SampleFactors, tlstatshouse.SampleFactor{
 			Metric:       m,
-			Value:        float32(sf[1] / sf[0]),
+			Value:        sfScratch[m],
 			OriginalSize: size,
 		})
 	}
