@@ -24,6 +24,8 @@ const (
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
+	defaultWriteTimeout       = 30 * time.Second
+	writeTimeoutAccuracy      = 2 * time.Second
 	defaultStuckReconDelay    = 60 * time.Second // protection from slow agents
 )
 
@@ -37,6 +39,7 @@ type EgressConfig struct {
 	DNSRefreshInterval time.Duration
 	DialTimeout        time.Duration
 	ReconnectDelay     time.Duration
+	WriteTimeout       time.Duration
 	StuckReconDelay    time.Duration
 
 	reconnectKey string // copy every connect for safety
@@ -133,6 +136,9 @@ func (cfg *EgressConfig) fillDefaults() {
 	}
 	if cfg.ReconnectDelay <= 0 {
 		cfg.ReconnectDelay = defaultReconnectDelay
+	}
+	if cfg.WriteTimeout <= 0 {
+		cfg.WriteTimeout = defaultWriteTimeout
 	}
 	if cfg.StuckReconDelay <= 0 {
 		cfg.StuckReconDelay = defaultStuckReconDelay
@@ -254,6 +260,7 @@ func (s *tcpSender) sendLoop() {
 	var err error
 	var lastDial time.Time
 	var lastStuckRecon = time.Now()
+	var writeDeadline time.Time
 	var bufs = make(net.Buffers, 0, bufferLen)
 	m := s.getWriteErrM()
 	scratch := make([]byte, 110+len(s.cfg.HostTag)) // seems enough
@@ -269,6 +276,7 @@ loop:
 			if conn != nil {
 				_ = conn.Close()
 				conn = nil
+				writeDeadline = time.Time{}
 				lastStuckRecon = time.Now()
 			}
 		default:
@@ -284,6 +292,17 @@ loop:
 				log.Printf("balancer reconnect error: %v", err)
 				continue
 			}
+			writeDeadline = time.Time{}
+		}
+		if s.cfg.WriteTimeout-time.Until(writeDeadline) > writeTimeoutAccuracy {
+			deadline := time.Now().Add(s.cfg.WriteTimeout)
+			if err = conn.SetWriteDeadline(deadline); err != nil {
+				s.stats.writeErrors.Add(1)
+				_ = conn.Close()
+				conn = nil
+				continue
+			}
+			writeDeadline = deadline
 		}
 		if err = s.buf.pop(func(pkts [][]byte) (int, error) {
 			bufs = append(bufs[:0], pkts...) // writeTo changes slice to nil. So copy only const header
