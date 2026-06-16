@@ -75,7 +75,7 @@ func (h *handler) flushLocked() {
 		return
 	}
 	binary.LittleEndian.PutUint32(h.pkt[:pktHeadLen], uint32(len(h.pkt)-pktHeadLen))
-	h.pkt = h.egress.WritePacket(h.pkt)[:pktHeadLen] // swap packet
+	h.pkt = h.egress.WritePacketLocked(h.pkt)[:pktHeadLen] // swap packet
 	h.lastSend = time.Now()
 }
 
