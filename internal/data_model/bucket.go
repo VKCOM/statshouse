@@ -396,7 +396,7 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 
 func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partBudget uint32) {
 	for _, p := range s.Partitions {
-		if p.TopSize+p.TailSize <= partBudget*2 {
+		if p.TopSize+p.TailSize < partBudget*2 {
 			continue // no need recalc
 		}
 		if totalBudget >= s.KeepSize {
@@ -407,7 +407,7 @@ func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partB
 
 		s.KeepSize -= p.TopSize
 		s.KeepSize -= p.TailSize
-		for p.TopSize >= halfBudget && len(p.Top) != 0 {
+		for p.TopSize > halfBudget && len(p.Top) != 0 {
 			p.resampleTop(rng, b, halfBudget)
 		}
 		for p.TailSize > halfBudget && len(p.Tail) > 1 {
@@ -437,7 +437,7 @@ func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget
 		return false
 	}
 	part.TailSize += item.Size
-	if part.Traffic > budget*2 {
+	if part.Traffic > part.TopSize+part.TailSize {
 		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
 	}
 	part.Tail[keyString] = item
@@ -480,15 +480,15 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 		}
 	}
 	part.TopSize += item.Size
-	if part.Traffic > budget*2 {
+	if part.Traffic > part.TopSize+part.TailSize {
 		item.SF = (float64(part.Traffic)) / float64(part.TopSize+part.TailSize)
 	}
 	part.Top[key] = item
 	b.MultiItems[key] = item
-	for part.TopSize >= budget && len(part.Top) != 0 {
+	for part.TopSize > budget && len(part.Top) != 0 {
 		part.resampleTop(rng, b, budget)
 	}
-	return part.Top[key] == item
+	return part.Top[key] == item || part.Tail[key] == item // resampleTop could drop item to tail
 }
 
 func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudget uint32) {
