@@ -511,7 +511,7 @@ func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudg
 		delete(p.Top, k)
 		delete(b.MultiItems, k)
 		b.sampleTail(rng, p, tailBudget, k, v) // move to tail
-		if i++; i > was/2 {
+		if i++; i >= was/2 {
 			return // for remain low items
 		}
 	}
