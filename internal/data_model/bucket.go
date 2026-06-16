@@ -522,7 +522,7 @@ func (b *MetricsBucket) Clear() {
 	for mID, stat := range b.CurStats {
 		if stat.Traffic == 0 {
 			// remove disappeared from last sec, mem economy
-			clear(stat.Partitions)
+			clear(stat.Partitions) // help GC
 			delete(b.CurStats, mID)
 			continue
 		}
