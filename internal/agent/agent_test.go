@@ -239,6 +239,7 @@ func Benchmark_AgentApplyMetric(b *testing.B) {
 	nowUnix := uint32(startTime.Unix())
 	config := Config{}
 	agent := makeAgent(config, nowUnix)
+	agent.shardByMetricCount = 16
 	m := tlstatshouse.MetricBytes{
 		Counter: 1,
 		Value:   make([]float64, 1),
@@ -284,7 +285,7 @@ func Benchmark_SampleBucketMetricWithoutBudgets(b *testing.B) {
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sfScratch := make(map[int32][2]float64, metricN)
+	sfScratch := make(map[int32][2]float32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
@@ -333,7 +334,7 @@ func Benchmark_SampleBucketMetricBudgetsFromAgg(b *testing.B) {
 	rng := rand.New()
 	sb := tlstatshouse.SourceBucket3{}
 	budgetScratch := make(map[int32]uint32, metricN)
-	sfScratch := make(map[int32][2]float64, metricN)
+	sfScratch := make(map[int32][2]float32, metricN)
 	scratch := make([]byte, 0, 64*1024)
 	var sampledCount uint64
 
