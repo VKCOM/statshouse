@@ -388,22 +388,23 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 		halfBudget = budget // get full root budget, until fit budget
 	}
 
-	root.KeepSize -= part.TopSize
-	defer func() { root.KeepSize += part.TopSize }()
+	root.KeepSize -= part.TopSize + part.TailSize
 	if b.sampleTop(rng, part, halfBudget, keyString, item, count) {
+		root.KeepSize += part.TopSize + part.TailSize
 		if root.KeepSize > budget {
 			root.recalc(rng, b, budget, part.Budget)
 		}
 		return
 	}
-	root.KeepSize -= part.TailSize
-	defer func() { root.KeepSize += part.TailSize }()
+	root.KeepSize += part.TopSize
 	if b.sampleTail(rng, part, halfBudget, keyString, item) {
+		root.KeepSize += part.TailSize
 		if root.KeepSize > budget {
 			root.recalc(rng, b, budget, part.Budget)
 		}
 		return
 	}
+	root.KeepSize += part.TailSize
 	return nil, created
 }
 
