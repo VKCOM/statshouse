@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"log"
 	"math/rand"
 	"net"
 	"strings"
@@ -23,6 +24,9 @@ const (
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
+	defaultWriteTimeout       = 30 * time.Second
+	writeTimeoutAccuracy      = 2 * time.Second
+	defaultStuckReconDelay    = 60 * time.Second // protection from slow agents
 )
 
 var errWouldBlock = errors.New("would block")
@@ -35,6 +39,8 @@ type EgressConfig struct {
 	DNSRefreshInterval time.Duration
 	DialTimeout        time.Duration
 	ReconnectDelay     time.Duration
+	WriteTimeout       time.Duration
+	StuckReconDelay    time.Duration
 
 	reconnectKey string // copy every connect for safety
 }
@@ -64,6 +70,8 @@ type Egress struct {
 }
 
 type tcpPool struct {
+	primPtr   **tcpSender // ptr to primary, nonblocking swap
+	secPtr    **tcpSender // ptr to secondary, nonblocking swap
 	primary   *tcpSender
 	secondary *tcpSender
 	closed    chan struct{}
@@ -79,6 +87,7 @@ type tcpSender struct {
 	pool   addressPool
 	buf    *pktBuffer
 
+	reconCh  chan struct{}
 	closeCh  chan struct{}
 	closeWg  sync.WaitGroup
 	closeErr chan error
@@ -108,6 +117,8 @@ func NewEgress(cfg EgressConfig) *Egress {
 		secondary: newTCPSender(cfg, &e.stats, addressPool{}, newPktBuffer()),
 		closed:    make(chan struct{}),
 	}
+	e.pool.primPtr = &e.pool.primary
+	e.pool.secPtr = &e.pool.secondary
 	go e.pool.runDNSRefresh(cfg, &e.stats)
 	time.Sleep(2 * time.Second) // time to connect
 	return e
@@ -126,6 +137,12 @@ func (cfg *EgressConfig) fillDefaults() {
 	if cfg.ReconnectDelay <= 0 {
 		cfg.ReconnectDelay = defaultReconnectDelay
 	}
+	if cfg.WriteTimeout <= 0 {
+		cfg.WriteTimeout = defaultWriteTimeout
+	}
+	if cfg.StuckReconDelay <= 0 {
+		cfg.StuckReconDelay = defaultStuckReconDelay
+	}
 
 	buf := make([]byte, 0, len(receiver.TCPPrefix)+1+4+len(cfg.HostTag))
 	buf = append(buf, receiver.TCPPrefix...)
@@ -143,6 +160,7 @@ func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool, 
 		stats:    stats,
 		pool:     pool,
 		buf:      buf,
+		reconCh:  make(chan struct{}, 1),
 		closeCh:  make(chan struct{}),
 		closeErr: make(chan error, 1),
 	}
@@ -151,9 +169,9 @@ func newTCPSender(cfg EgressConfig, stats *egressStatsAtomic, pool addressPool, 
 	return s
 }
 
-func (e *Egress) WritePacket(pkt []byte) []byte {
+func (e *Egress) WritePacketLocked(pkt []byte) []byte {
 	var err error
-	pkt, err = e.pool.write(pkt)
+	pkt, err = e.pool.writeLocked(pkt)
 	if err != nil {
 		if errors.Is(err, errWouldBlock) {
 			e.stats.droppedPackets.Add(1)
@@ -183,16 +201,21 @@ func (e *Egress) Close() error {
 	return err
 }
 
-func (p *tcpPool) write(pkt []byte) ([]byte, error) {
+func (p *tcpPool) writeLocked(pkt []byte) ([]byte, error) {
 	select {
 	case <-p.closed:
 		return pkt, errWouldBlock
 	default:
 	}
-	if pkt, ok := p.primary.buf.push(pkt); ok {
+	if pkt, ok := (*p.primPtr).buf.push(pkt); ok {
 		return pkt, nil
 	}
-	if pkt, ok := p.secondary.buf.push(pkt); ok {
+	if pkt, ok := (*p.secPtr).buf.push(pkt); ok {
+		select {
+		case (*p.primPtr).reconCh <- struct{}{}:
+		default:
+		}
+		p.primPtr, p.secPtr = p.secPtr, p.primPtr
 		return pkt, nil
 	}
 	p.primary.wouldBlockBytes.Add(int64(len(pkt)))
@@ -236,6 +259,8 @@ func (s *tcpSender) sendLoop() {
 	var conn net.Conn
 	var err error
 	var lastDial time.Time
+	var lastStuckRecon = time.Now()
+	var writeDeadline time.Time
 	var bufs = make(net.Buffers, 0, bufferLen)
 	m := s.getWriteErrM()
 	scratch := make([]byte, 110+len(s.cfg.HostTag)) // seems enough
@@ -244,6 +269,16 @@ loop:
 		select {
 		case <-s.closeCh:
 			break loop
+		case <-s.reconCh:
+			if lastStuckRecon.Add(s.cfg.StuckReconDelay).After(time.Now()) {
+				continue
+			}
+			if conn != nil {
+				_ = conn.Close()
+				conn = nil
+				writeDeadline = time.Time{}
+				lastStuckRecon = time.Now()
+			}
 		default:
 		}
 		if conn == nil {
@@ -254,8 +289,20 @@ loop:
 				if !errors.Is(err, errNoAddress) { // ignore secondary without address
 					s.stats.reconnectErrors.Add(1)
 				}
+				log.Printf("balancer reconnect error: %v", err)
 				continue
 			}
+			writeDeadline = time.Time{}
+		}
+		if s.cfg.WriteTimeout-time.Until(writeDeadline) > writeTimeoutAccuracy {
+			deadline := time.Now().Add(s.cfg.WriteTimeout)
+			if err = conn.SetWriteDeadline(deadline); err != nil {
+				s.stats.writeErrors.Add(1)
+				_ = conn.Close()
+				conn = nil
+				continue
+			}
+			writeDeadline = deadline
 		}
 		if err = s.buf.pop(func(pkts [][]byte) (int, error) {
 			bufs = append(bufs[:0], pkts...) // writeTo changes slice to nil. So copy only const header
