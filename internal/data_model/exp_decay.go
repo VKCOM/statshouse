@@ -62,6 +62,12 @@ func (d *ExpDecay) Get(dst map[int32]uint32) {
 	}
 }
 
+func (d *ExpDecay) GetByID(id int32) uint32 {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.values[id]
+}
+
 func (d *ExpDecay) MergeMax(f func(func(k int32, v uint32))) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -73,4 +79,10 @@ func (d *ExpDecay) MergeMax(f func(func(k int32, v uint32))) {
 		}
 		d.values[k] = vmax
 	})
+}
+
+func (d *ExpDecay) MergeMaxOne(k int32, v uint32) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.values[k] = max(d.values[k], v)
 }

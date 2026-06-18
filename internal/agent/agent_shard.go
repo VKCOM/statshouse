@@ -60,6 +60,7 @@ type (
 		BucketsToSend chan compressedBucketData
 
 		BucketsToPreprocess chan *data_model.MetricsBucket
+		BucketsPool         chan *data_model.MetricsBucket
 
 		historicBucketsToSend   []compressedBucketData // Can be slightly out of order here, we sort it every time
 		historicBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
@@ -180,7 +181,12 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes [
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		s.mu.Unlock()
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.ApplyUnique(s.rng, hashes, count, hostTag)
 	s.mu.Unlock()
@@ -214,7 +220,12 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogra
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		s.mu.Unlock()
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	if s.config.LegacyApplyValues {
 		mv.ApplyValuesLegacy(s.rng, histogram, values, count, totalCount, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
@@ -245,7 +256,12 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, count f
 		s.mu.Unlock()
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		s.mu.Unlock()
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
 	s.mu.Unlock()
@@ -280,7 +296,11 @@ func (s *Shard) AddCounterHost(key *data_model.Key, resolutionHash uint64, count
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
 }
@@ -315,7 +335,11 @@ func (s *Shard) AddCounterHostStringBytesSrcIngestionStatus(t uint32, metricInfo
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(&key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, &key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		return
+	}
 	mv := item.MapStringTopBytes(s.rng, s.config.StringTopCapacity, topValue, count)
 	mv.AddCounterHost(s.rng, count, hostTag)
 }
@@ -332,7 +356,11 @@ func (s *Shard) AddValueCounterHost(key *data_model.Key, resolutionHash uint64, 
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, count, nil)
+	if item == nil {
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, count)
 	if metricInfo != nil && metricInfo.HasPercentiles {
 		mv.AddValueCounterHostPercentile(s.rng, value, count, hostTag, data_model.AgentPercentileCompression)
@@ -353,7 +381,23 @@ func (s *Shard) MergeItemValue(key *data_model.Key, resolutionHash uint64, itemV
 	if key.Timestamp < dropIfBeforeTimestamp { // key timestamp is only valid at this point
 		return
 	}
-	item, _ := resolutionShard.GetOrCreateMultiItem(key, metricInfo, nil)
+	budgetID, budget := s.GetMetricBudgetLocked(key.AccountMetric())
+	item, _ := resolutionShard.SampleOrCreateMultiItem(s.rng, key, metricInfo, budgetID, budget, itemValue.Count(), nil)
+	if item == nil {
+		return
+	}
 	mv := item.MapStringTop(s.rng, s.config.StringTopCapacity, topValue, itemValue.Count())
 	mv.Value.Merge(s.rng, itemValue)
+}
+
+func (s *Shard) GetMetricBudgetLocked(metricID int32) (int32, uint32) {
+	budget := s.metricBudgetsFromAgg.GetByID(metricID)
+	if budget > 0 {
+		return metricID, budget
+	}
+	budget = s.metricBudgetsFromAgg.GetByID(-1) // commonBudget
+	if budget > 0 {
+		return -1, budget
+	}
+	return -1, uint32(s.getShardSampleBudget(s.config))
 }

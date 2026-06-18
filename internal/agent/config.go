@@ -68,7 +68,7 @@ func DefaultConfig() Config {
 		SampleBudget:                     150000,
 		HistoricWindow:                   6 * 3600, // TODO - after V3 tables dropped, change to 24 hours
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
-		SampleBudgets:                    false,
+		SampleBudgets:                    true,
 		SampleNamespaces:                 false,
 		SampleGroups:                     false,
 		SampleKeys:                       false,
