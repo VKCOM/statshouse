@@ -373,6 +373,7 @@ func (s *tcpSender) reconnect() (net.Conn, error) {
 		_ = conn.Close()
 		return nil, err
 	}
+	log.Printf("balancer connected to upstream: %s", addr)
 	return conn, nil
 }
 
