@@ -980,6 +980,19 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 		}
 	}
 	s.Run(totalBudget)
+	for _, v := range s.MetricGroups {
+		a.sh2.MergeItemValue(b.time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, format.TagValueIDComponentAgent, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID, 1},
+			&v.SumSizeKeep)
+		// discard bytes
+		a.sh2.MergeItemValue(b.time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, format.TagValueIDComponentAgent, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID, 1},
+			&v.SumSizeDiscard)
+		// budget
+		a.sh2.AddValueCounter(b.time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, format.TagValueIDComponentAgent, v.NamespaceID, v.GroupID, 1},
+			v.Budget(), 1)
+	}
 }
 
 func (a *Aggregator) reportHostMetricBudgets(ts uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
