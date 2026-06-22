@@ -105,7 +105,9 @@ statshouse.getConfigResult3#f13698cb
 statshouse.commonProxyHeader#6c803d07 {fields_mask:#}
     // header uses bits backward to reduce conflicts with request fields
     ingress_proxy:fields_mask.31?true     // simply set to 1 by ingress proxy for all passing requests
-    agent_env_staging_0:fields_mask.30?true // set by test version of agents to help with debug
+
+    // bits set by agents according to statshouse_env arg to help with debug by separating built-in metrics from different sets of agents
+    agent_env_staging_0:fields_mask.30?true
     agent_env_staging_1:fields_mask.29?true
 
     shard_replica:int // Aggregator will only accept correct shard/replica conbinations

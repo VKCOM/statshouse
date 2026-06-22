@@ -7,7 +7,7 @@ REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VER
 TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
-TL_GEN := go run github.com/VKCOM/tl/cmd/tl2gen@v1.5.3
+TL_GEN := go run github.com/VKCOM/tl/cmd/tl2gen@v1.5.7
 #TL_GEN := /home/user/devbox/VKCOM/tl/target/bin/tlgen # for quick switch to locally developed tlgen
 
 COMMON_BUILD_VARS := -X 'github.com/VKCOM/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \

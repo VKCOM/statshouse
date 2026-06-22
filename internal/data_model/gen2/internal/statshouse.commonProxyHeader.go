@@ -17,7 +17,7 @@ var _ = basictl.NatWrite
 type StatshouseCommonProxyHeader struct {
 	// simply set to 1 by ingress proxy for all passing requests
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
-	// set by test version of agents to help with debug
+	// bits set by agents according to statshouse_env arg to help with debug by separating built-in metrics from different sets of agents
 	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
 	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
 	// Aggregator will only accept correct shard/replica conbinations
@@ -415,7 +415,7 @@ func (item *StatshouseCommonProxyHeader) ReadTL2(r []byte, tctx *basictl.TL2Read
 type StatshouseCommonProxyHeaderBytes struct {
 	// simply set to 1 by ingress proxy for all passing requests
 	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
-	// set by test version of agents to help with debug
+	// bits set by agents according to statshouse_env arg to help with debug by separating built-in metrics from different sets of agents
 	// AgentEnvStaging0 (TrueType) // Conditional: nat_fields_mask.30
 	// AgentEnvStaging1 (TrueType) // Conditional: nat_fields_mask.29
 	// Aggregator will only accept correct shard/replica conbinations

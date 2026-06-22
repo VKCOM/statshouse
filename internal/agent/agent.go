@@ -140,11 +140,11 @@ func stagingLevel(statsHouseEnv string) int {
 	switch statsHouseEnv {
 	case "production":
 		return 0
-	case "staging", "staging1":
+	case "staging", "staging1": // we have both arguments in producton, so keep them for a long time
 		return 1
 	case "staging2":
 		return 2
-	case "development", "staging3": // TODO: staging3 is an alias for development, remove if after all commands lines are updated
+	case "development":
 		return 3
 	default:
 		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
