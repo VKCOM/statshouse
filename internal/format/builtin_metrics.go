@@ -1748,6 +1748,13 @@ var BuiltinMetricMetaSrcSamplingBudget = &MetricMetaValue{
 	Tags: []MetricMetaTag{{
 		Name:          "component",
 		ValueComments: convertToValueComments(componentToValue),
+	}, {
+		Description: "type",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDSrcSamplingBudget:       "budget",
+			TagValueIDSrcSamplingBudgetUsed:   "used",
+			TagValueIDSrcSamplingBudgetComing: "coming",
+		}),
 	}},
 }
 
