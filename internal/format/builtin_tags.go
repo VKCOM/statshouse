@@ -354,6 +354,10 @@ const (
 	TagValueIDSamplingDecisionKeep    = -1
 	TagValueIDSamplingDecisionDiscard = -2
 
+	TagValueIDSrcSamplingBudget       = 1
+	TagValueIDSrcSamplingBudgetUsed   = 2
+	TagValueIDSrcSamplingBudgetComing = 3
+
 	TagValueIDDMESGParseError = 1
 	TagValueIDAPIPanicError   = 2
 

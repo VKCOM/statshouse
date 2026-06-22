@@ -527,6 +527,7 @@ func (b *MetricsBucket) Clear() {
 			continue
 		}
 		stat.Traffic = 0
+		stat.KeepSize = 0
 		for k, p := range stat.Partitions {
 			if p.Traffic == 0 {
 				delete(stat.Partitions, k)

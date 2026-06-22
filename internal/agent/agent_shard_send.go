@@ -186,6 +186,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	clear(sfScratch)
 	clear(budgetScratch)
 	s.metricBudgetsFromAgg.Get(budgetScratch)
+	var keptSizeSum int64
 	for m, stat := range bucket.CurStats {
 		if m == -1 {
 			for k, p := range stat.Partitions {
@@ -193,6 +194,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 					sf := sfScratch[k.ID]
 					sf[1] = float32(p.Traffic) / float32(size)
 					sfScratch[k.ID] = sf
+					keptSizeSum += int64(size)
 				}
 			}
 			continue
@@ -213,6 +215,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			sf[1] = float32(stat.Traffic) / float32(keptSize) // common sf
 		}
 		sfScratch[m] = sf
+		keptSizeSum += int64(keptSize)
 	}
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
@@ -242,10 +245,6 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	remainingBudget := max(int64(config.MinSampleBudget), s.getShardSampleBudget(config)-budgetSum)
 	s.metricBudgetsFromAgg.MergeMaxOne(-1, uint32(remainingBudget))
 
-	// report budget used
-	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
-		[]int32{0, s.agent.componentTag},
-		float64(budgetSum+remainingBudget), 1)
 	// metric count
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
 		[]int32{0, s.agent.componentTag},
@@ -265,6 +264,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
+	var comingSizeSum int64
 	for m, sizes := range bucket.CurSizes {
 		var size uint32
 		for _, sz := range sizes {
@@ -275,9 +275,26 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			Value:        sfScratch[m][1],
 			OriginalSize: size,
 		})
+		if budget, ok := budgetScratch[m]; ok && size > budget {
+			size = budget // for metric readable
+		} else if int64(size) > remainingBudget {
+			size = uint32(remainingBudget)
+		}
+		comingSizeSum += int64(size)
 	}
 	sb.SetHaveOriginalSize(true)
 	bucket.Clear()
+
+	// report budget used
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudget},
+		float64(budgetSum+remainingBudget), 1)
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudgetUsed},
+		float64(keptSizeSum), 1)
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudgetComing},
+		float64(comingSizeSum), 1)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
