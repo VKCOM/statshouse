@@ -66,7 +66,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		SampleBudget:                     150000,
-		HistoricWindow:                   6 * 3600, // TODO - after V3 tables dropped, change to 24 hours
+		HistoricWindow:                   24 * 3600,
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
 		SampleBudgets:                    true,
 		SampleNamespaces:                 false,
