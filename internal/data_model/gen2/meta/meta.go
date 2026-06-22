@@ -14,7 +14,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/internal/metainternal"
 )
 
-func SchemaGenerator() string { return "v1.5.3" }
+func SchemaGenerator() string { return "v1.5.7" }
 func SchemaURL() string       { return "" }
 func SchemaCommit() string    { return "" }
 func SchemaTimestamp() uint32 { return 0 }
