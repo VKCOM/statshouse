@@ -192,27 +192,31 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			for k, p := range stat.Partitions {
 				if size := p.TopSize + p.TailSize; size > 0 {
 					sf := sfScratch[k.ID]
-					sf[1] = float32(p.Traffic) / float32(size)
+					if p.KeptTraffic > 0 {
+						sf[1] = float32(p.Traffic) / float32(p.KeptTraffic)
+					}
 					sfScratch[k.ID] = sf
 					keptSizeSum += int64(size)
 				}
 			}
 			continue
 		}
+		sizeTraffic := uint32(0)
 		keptTraffic := uint32(0)
 		keptSize := uint32(0)
 		for _, p := range stat.Partitions {
 			if p.TopSize != 0 || p.TailSize != 0 {
-				keptTraffic += p.Traffic
+				sizeTraffic += p.Traffic
+				keptTraffic += p.KeptTraffic
 				keptSize += p.TopSize + p.TailSize
 			}
 		}
 		sf := sfScratch[m]
-		if keptTraffic > 0 {
-			sf[0] = float32(stat.Traffic) / float32(keptTraffic) // global sf
+		if sizeTraffic > 0 {
+			sf[0] = float32(stat.Traffic) / float32(sizeTraffic) // global sf
 		}
-		if keptSize > 0 {
-			sf[1] = float32(stat.Traffic) / float32(keptSize) // common sf
+		if keptTraffic > 0 {
+			sf[1] = float32(stat.Traffic) / float32(keptTraffic) // common sf
 		}
 		sfScratch[m] = sf
 		keptSizeSum += int64(keptSize)
