@@ -67,7 +67,8 @@ type (
 		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
-		SF               float64 // set when Marshalling/Sampling
+		SF               float64  // set when Marshalling/Sampling
+		GlobalSF         *float64 // BucketPartition SF
 		Count            float64
 		Size             uint32
 		DupCnt           uint32 // duplicates count
@@ -102,6 +103,7 @@ type (
 		Traffic     uint32
 		Budget      uint32
 		KeptTraffic uint32
+		SF          *float64 // ptr to every MultiItem.GlobalSF
 
 		TopSize   uint32
 		TopSfLog2 int
@@ -345,36 +347,35 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	decisionKey := samplingDecisionKey(key, metricInfo, metricID, budgetID)
 	part, ok := root.Partitions[decisionKey]
 	if !ok {
-		part = &BucketPartition{Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
+		sf := float64(1)
+		part = &BucketPartition{SF: &sf, Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
 		root.Partitions[decisionKey] = part
 	}
 
-	item = &MultiItem{Key: *key, SF: 1, Count: count, MetricMeta: metricInfo}
-	item.Size = item.TLSize()
+	size := uint32(key.TLSizeEstimate(key.Timestamp))
 	if created {
-		sizes[keyString] = &BucketSizeItem{key: keyString, Size: item.Size}
+		sizes[keyString] = &BucketSizeItem{key: keyString, Size: size}
 	}
-	part.Traffic += item.Size
-	root.Traffic += item.Size
+	part.Traffic += size
+	root.Traffic += size
 
-	if item := part.Top[keyString]; item != nil {
+	if item = part.Top[keyString]; item != nil {
 		item.Count += count
 		item.DupCnt++
 		part.KeptTraffic += item.Size
-		item.SF = part.sampleFactor()
 		return item, created
 	}
-	if item := part.Tail[keyString]; item != nil {
+	if item = part.Tail[keyString]; item != nil {
 		item.Count += count
 		if b.sampleTop(rng, part, part.Budget/2, keyString, item, item.Count) { // try move to top
 			b.removeTail(part, keyString, false)
 		} else {
 			item.DupCnt++
 			part.KeptTraffic += item.Size
-			item.SF = part.sampleFactor()
 		}
 		return item, created
 	}
+	item = &MultiItem{Key: *key, Size: size, SF: 1, GlobalSF: part.SF, Count: count, MetricMeta: metricInfo}
 
 	part.Budget = budget
 	if len(root.Partitions) > 0 {
@@ -401,11 +402,12 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	return nil, created
 }
 
-func (p *BucketPartition) sampleFactor() float64 {
+func (p *BucketPartition) SetSampleFactor() {
 	if p.KeptTraffic == 0 || p.Traffic <= p.KeptTraffic {
-		return 1
+		*p.SF = 1
+		return
 	}
-	return float64(p.Traffic) / float64(p.KeptTraffic)
+	*p.SF = float64(p.Traffic) / float64(p.KeptTraffic)
 }
 
 func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partBudget uint32) {
@@ -454,7 +456,6 @@ func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget
 	part.TailSize += item.Size
 	item.DupCnt++
 	part.KeptTraffic += item.Size
-	item.SF = part.sampleFactor()
 	part.Tail[keyString] = item
 	b.MultiItems[keyString] = item
 	for part.TailSize > budget && len(part.Tail) != 0 {
@@ -502,7 +503,6 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 	part.TopSize += item.Size
 	item.DupCnt++
 	part.KeptTraffic += item.Size
-	item.SF = part.sampleFactor()
 	part.Top[key] = item
 	b.MultiItems[key] = item
 	for part.TopSize > budget && len(part.Top) != 0 {
