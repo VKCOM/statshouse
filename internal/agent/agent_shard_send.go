@@ -190,6 +190,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	for m, stat := range bucket.CurStats {
 		if m == -1 {
 			for k, p := range stat.Partitions {
+				p.SetSampleFactor()
 				if size := p.TopSize + p.TailSize; size > 0 {
 					sf := sfScratch[k.ID]
 					if p.KeptTraffic > 0 {
@@ -205,6 +206,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		keptTraffic := uint32(0)
 		keptSize := uint32(0)
 		for _, p := range stat.Partitions {
+			p.SetSampleFactor()
 			if p.TopSize != 0 || p.TailSize != 0 {
 				sizeTraffic += p.Traffic
 				keptTraffic += p.KeptTraffic
@@ -237,8 +239,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			continue
 		}
 		_ = item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
+		if item.GlobalSF != nil {
+			item.SF = *item.GlobalSF // within-partition
+		}
 		if globalSF := sfScratch[item.Key.AccountMetric()]; globalSF[0] > 0 {
-			item.SF *= float64(globalSF[0])
+			item.SF *= float64(globalSF[0]) // cross-partition
 		}
 		keepF(item, bucket.Time, 0)
 	}
