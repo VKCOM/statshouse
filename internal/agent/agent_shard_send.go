@@ -189,7 +189,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	var keptSizeSum int64
 	for m, stat := range bucket.CurStats {
 		if m == -1 {
-			for k, p := range stat.Partitions {
+			for k, p := range stat.Partitions { // only partitions map
 				p.SetSampleFactor()
 				if size := p.TopSize + p.TailSize; size > 0 {
 					sf := sfScratch[k.ID]
@@ -205,12 +205,19 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		sizeTraffic := uint32(0)
 		keptTraffic := uint32(0)
 		keptSize := uint32(0)
-		for _, p := range stat.Partitions {
+		f := func(p *data_model.BucketPartition) {
 			p.SetSampleFactor()
 			if p.TopSize != 0 || p.TailSize != 0 {
 				sizeTraffic += p.Traffic
 				keptTraffic += p.KeptTraffic
 				keptSize += p.TopSize + p.TailSize
+			}
+		}
+		if stat.Partition != nil {
+			f(stat.Partition)
+		} else {
+			for _, p := range stat.Partitions {
+				f(p)
 			}
 		}
 		sf := sfScratch[m]
