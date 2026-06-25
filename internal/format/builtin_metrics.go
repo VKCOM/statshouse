@@ -2668,7 +2668,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 
 var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 	Name:                    "__mapping_queue_events",
-	Kind:                    MetricKindCounter,
+	Kind:                    MetricKindValue,
 	Description:             "Events in aggregator new conveyor mapping queue",
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
@@ -2681,7 +2681,7 @@ var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 			TagValueIDMappingQueueEventUnknownMapRemove:  "uknown_map_remove",
 			TagValueIDMappingQueueEventUnknownMapAdd:     "unknown_map_add",
 			TagValueIDMappingQueueEventUnknownListRemove: "unknown_list_remove",
-			TagValueIDMappingQueueEventUnknownListAdd:    "unknown_list_add",
+			TagValueIDMappingQueueEventUnknownListAdd:    "unknown_list_add", // historic value, never written
 			TagValueIDMappingQueueEventCreateMapAdd:      "create_map_add",
 			TagValueIDMappingQueueEventCreateMapRemove:   "create_map_remove",
 		}),
@@ -2868,8 +2868,6 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 		}),
 	}},
 }
-
-const BuiltinMetricIDMigrationLog = -141
 
 var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 	Name:                    "__migration_log",
@@ -3152,8 +3150,6 @@ var BuiltinMetricMetaAggSendSrcBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMappingUsage = -153
-
 var BuiltinMetricMetaMappingUsage = &MetricMetaValue{
 	Name: "__mapping_usage",
 	Kind: MetricKindCounter,
@@ -3170,5 +3166,17 @@ A value present means the mapping is still in use and should not be deleted.`,
 	}, {
 		Description: "mapping_id",
 		RawKind:     "int",
+	}},
+}
+
+var BuiltinMetricMetaMappingQueueRemovedTotalAvg = &MetricMetaValue{
+	Name:                    "__mapping_queue_removed_total_avg",
+	Kind:                    MetricKindValue,
+	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average total counter is reported here.",
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
