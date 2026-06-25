@@ -173,6 +173,7 @@ func ParseQueryFunc(str string, maxhost *bool) (SelectorWhat, bool) {
 	case format.ParamQueryFnUniqueNorm:
 		res.Digest = DigestUniqueSec
 	case format.ParamQueryFnMaxHost:
+		// TODO - why not res.Digest = DigestMax here?
 		if maxhost != nil {
 			*maxhost = true
 		}

@@ -18,16 +18,18 @@ import (
 )
 
 type unknownTag struct { // fits well into cache line
-	time uint32
-	hits uint32
+	time  uint32
+	hits  uint32
+	total int64
 }
 
 type configTagsMapper3 struct {
 	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
 	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
-	MaxLoadTagsPerIteration   int // deprecated: keep for low at first, then increase gradually
-	TagHitsToCreate           int // if used in 10 different seconds, then create
+	TagHitsToCreate           int // if used in N different seconds, then create
+	TagTotalToCreate          int // if used K times, then create
 	MaxUnknownTagsToKeep      int
+	KeepTime                  int // if not used for the long time, it is removed
 	MaxSendTagsToAgent        int
 }
 
@@ -70,36 +72,49 @@ func (ms *tagsMapper3) UnknownTagsLen() int {
 }
 
 func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]data_model.CreateMappingExtra, time uint32) (
-	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64) {
+	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64, avgRemovedTotal float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	var sumHits int64
+	var sumTotal int64
 	for k, v := range ms.unknownTags { // can delete a bit more items than strictly necessary
+		if int64(time) > int64(v.time)+int64(ms.config.KeepTime) {
+			// without limit, because reduces ms.unknownTags so the next call is faster.
+			unknownMapRemove++
+			sumHits += int64(v.hits)
+			sumTotal += v.total
+			delete(ms.unknownTags, k)
+			continue
+		}
 		if len(ms.unknownTags)+len(unknownTags) <= ms.config.MaxUnknownTagsToKeep {
 			break
 		}
 		unknownMapRemove++
 		sumHits += int64(v.hits)
-		delete(ms.unknownTags, k) // but stays in list, so list and map do not correspond 1-1 to each other
+		sumTotal += v.total
+		delete(ms.unknownTags, k)
 	}
 	if unknownMapRemove != 0 {
 		avgRemovedHits = float64(sumHits) / float64(unknownMapRemove)
+		avgRemovedTotal = float64(sumTotal) / float64(unknownMapRemove)
 	}
 	for k, v := range unknownTags {
 		u := ms.unknownTags[k]
+		u.total++
 		if time > u.time {
 			u.time = time
 			u.hits++
-			if int(u.hits) > ms.config.TagHitsToCreate {
+			if int(u.hits) > ms.config.TagHitsToCreate && u.total > int64(ms.config.TagTotalToCreate) {
 				createMapAdd++
 				ms.createTags[k] = v
 				u.hits = 0
+				u.total = 0
 				// we do not delete from ms.unknownTags, because it will be most likely added back immediately,
-				// but we clear counter, so we will not add to ms.createTags every iteration
+				// but we clear counter and total, so we will not add to ms.createTags every iteration.
 			}
-			ms.unknownTags[k] = u
 			unknownMapAdd++
 		}
+		ms.unknownTags[k] = u
 	}
 	return
 }
