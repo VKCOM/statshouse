@@ -107,7 +107,7 @@ type (
 		SF          *float64 // ptr to every MultiItem.GlobalSF
 
 		TopSize   uint32
-		TopSfLog2 int
+		TopSfLog2 int64
 		Top       map[string]*MultiItem // unsafe string
 
 		TailSize uint32
@@ -363,12 +363,21 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	}
 	if item = part.Tail[keyString]; item != nil {
 		item.Count += count
+		itemSize = item.Size
 		if v := b.sampleTop(rng, part, part.Budget/2, &item.Key, item.MetricMeta, keyString, item, item.Count, item.Size); v != nil { // try move to top
 			b.removeTail(part, keyString, false)
 		} else if item.Size != 0 {
 			item.DupCnt++
 			part.KeptTraffic += item.Size
 		} else { // we could full lose it after sample
+			if _, ok := part.Top[keyString]; ok { // item deleted in tail, might stay in top
+				if itemSize >= part.TopSize {
+					part.TopSize = 0
+				} else {
+					part.TopSize -= itemSize
+				}
+				delete(part.Top, keyString)
+			}
 			return nil, false
 		}
 		b.keysBuffer = b.keysBuffer[:wasLen]
@@ -500,9 +509,12 @@ func (b *MetricsBucket) removeRandomTail(part *BucketPartition) {
 	if len(part.Tail) == 0 {
 		return
 	}
+	i := len(part.Tail) / 2
 	for k := range part.Tail { // quasirandom remove, quite ok for O(1)
 		b.removeTail(part, k, true)
-		break
+		if i--; i <= 0 {
+			break
+		}
 	}
 }
 
@@ -550,17 +562,21 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 	return item
 }
 
+const maxTopSfLog2 = 61
+
 func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudget uint32) {
 	i := 0
 	was := len(p.Top)
 	for k, v := range p.Top {
-		cc := 2 << p.TopSfLog2
-		if v.Count >= float64(cc) {
-			continue
-		}
-		rv := rng.Intn(cc)
-		if v.Count > float64(rv) {
-			continue
+		if p.TopSfLog2 < maxTopSfLog2 { // if overflow just drop half random
+			cc := 2 << p.TopSfLog2
+			if v.Count >= float64(cc) {
+				continue
+			}
+			rv := rng.Intn(cc)
+			if v.Count > float64(rv) {
+				continue
+			}
 		}
 		if v.Size >= p.TopSize {
 			p.TopSize = 0
@@ -579,7 +595,9 @@ func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudg
 			return // for remain low items
 		}
 	}
-	p.TopSfLog2++
+	if p.TopSfLog2 < maxTopSfLog2 {
+		p.TopSfLog2++
+	}
 }
 
 func (b *MetricsBucket) Clear() {
