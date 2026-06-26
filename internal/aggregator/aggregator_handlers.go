@@ -646,9 +646,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		[]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss},
 		float64(mappingMisses), hostTag, aera)
 
-	//if !configR.EnableMappingAfterSampling {
-	a.addUnknownTags(unknownTags, aggBucket.time, hostTag, aera)
-	//}
+	if !configR.EnableMappingAfterSampling {
+		a.addUnknownTags(unknownTags, aggBucket.time, hostTag, aera)
+	}
 
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggSizeCompressed,
 		[]int32{0, 0, 0, 0, conveyor, spare},
