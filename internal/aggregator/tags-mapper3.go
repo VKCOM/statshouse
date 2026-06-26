@@ -24,12 +24,12 @@ type unknownTag struct { // fits well into cache line
 }
 
 type configTagsMapper3 struct {
-	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
-	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
+	MaxUnknownTagsInBucket    int // limit # of allocations during aggregation
+	MaxCreateTagsPerIteration int // limit to protect against all kind of errors
 	TagHitsToCreate           int // if used in N different seconds, then create
-	TagTotalToCreate          int // if used K times, then create
+	TagTotalToCreate          int // if inserted in database K times, then create
 	MaxUnknownTagsToKeep      int
-	KeepTime                  int // if not used for the long time, it is removed
+	KeepTime                  int // if not used for the long time, it is removed from unknownTags
 	MaxSendTagsToAgent        int
 }
 

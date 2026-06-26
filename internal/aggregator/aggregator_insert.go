@@ -335,9 +335,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 
 	recentTs := buckets[0].time // by convention first bucket is recent, all others are historic
 	recentUnknownTags := buckets[0].unknownTags
-	if !configR.EnableMappingAfterSampling {
-		recentUnknownTags = nil // make [] extremely fast NOP in processUnknownTag
-	}
 	historicTag := int32(format.TagValueIDConveyorRecent)
 	if len(buckets) > 1 {
 		historicTag = format.TagValueIDConveyorHistoric
@@ -529,9 +526,7 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
 		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, metricCache, unknownTags, recentUnknownTags)
 	}
-	if configR.EnableMappingAfterSampling {
-		a.addUnknownTags(unknownTags, recentTs, a.aggregatorHostTag, data_model.AgentEnvRouteArch{}) // no agent info here
-	}
+	a.addUnknownTags(unknownTags, recentTs, a.aggregatorHostTag, data_model.AgentEnvRouteArch{}) // no agent info here
 	return res, sampler.SamplerBuffers, stats, time.Since(startTime)
 }
 

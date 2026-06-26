@@ -646,10 +646,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		[]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss},
 		float64(mappingMisses), hostTag, aera)
 
-	if !configR.EnableMappingAfterSampling {
-		a.addUnknownTags(unknownTags, aggBucket.time, hostTag, aera)
-	}
-
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggSizeCompressed,
 		[]int32{0, 0, 0, 0, conveyor, spare},
 		float64(compressedSize), 1, hostTag, aera)
@@ -735,25 +731,25 @@ func (a *Aggregator) addUnknownTags(unknownTags map[string]data_model.CreateMapp
 	unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits, avgRemovedTotal := a.tagsMapper3.AddUnknownTags(unknownTags, time)
 
 	if unknownMapRemove != 0 {
-		a.sh2.AddCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
 			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove},
-			float64(unknownMapRemove), hostTag, aera)
-		a.sh2.AddCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
+			float64(unknownMapRemove), 1, hostTag, aera)
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
 			[]int32{},
-			avgRemovedHits, hostTag, aera)
-		a.sh2.AddCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedTotalAvg,
+			avgRemovedHits, 1, hostTag, aera)
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedTotalAvg,
 			[]int32{},
-			avgRemovedTotal, hostTag, aera)
+			avgRemovedTotal, 1, hostTag, aera)
 	}
 	if unknownMapAdd != 0 {
-		a.sh2.AddCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
 			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd},
-			float64(unknownMapAdd), hostTag, aera)
+			float64(unknownMapAdd), 1, hostTag, aera)
 	}
 	if createMapAdd != 0 {
-		a.sh2.AddCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
 			[]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd},
-			float64(createMapAdd), hostTag, aera)
+			float64(createMapAdd), 1, hostTag, aera)
 	}
 }
 

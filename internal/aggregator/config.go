@@ -46,7 +46,6 @@ type ConfigAggregatorRemote struct {
 	MigrationV3DisabledShards  map[int32]struct{}
 	MigrationDelaySec          int // delay in seconds between migration steps
 	ClusterShardsAddrs         []string
-	EnableMappingAfterSampling bool
 	DisableReceiveSampleBudget bool
 	OriginalSizeDecayHalfLife  time.Duration
 
@@ -211,13 +210,10 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.Func("migration-v3-disabled-shards", "List of disabled shards for migration v3", c.setMigrationV3DisabledShards)
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
-		var enableMappingStorage bool
-		f.BoolVar(&enableMappingStorage, "enable-mapping-storage", false, "Enable full mapping inmemory&disk storage")
-		f.BoolVar(&c.EnableMappingAfterSampling, "enable-mapping-after-sampling", d.EnableMappingAfterSampling, "Enable mapping after sampling")
+		var enableMappingAfterSampling bool
+		f.BoolVar(&enableMappingAfterSampling, "enable-mapping-after-sampling", false, "Enable mapping after sampling")
 		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
-		var maxLoadTagsPerIteration int
-		f.IntVar(&maxLoadTagsPerIteration, "mapping-queue-load-tags-per-iteration", 0, "Mapping queue will load no more tags per iteration (roughly second).")
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.TagTotalToCreate, "mapping-queue-total-to-create", d.TagTotalToCreate, "Tag mapping will be created if it is used so many times.")
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
