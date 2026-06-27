@@ -503,7 +503,6 @@ func mainTagMapping() int {
 		} else {
 			fmt.Printf("%q NOT FOUND\n", tag)
 		}
-		fmt.Println()
 	}
 	if argv.budget != 0 {
 		var ( // Set mapping budget

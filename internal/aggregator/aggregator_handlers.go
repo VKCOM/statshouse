@@ -350,7 +350,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	measurementStringTops := 0
 	measurementIntTops := 0
 	measurementOutdatedRows := 0
-	unknownTags := map[string]data_model.CreateMappingExtra{}
+	unknownTags := map[string]createMappingExtra{}
 	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
 	mappingHits := 0
 	mappingMisses := 0
@@ -388,11 +388,14 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			return mapped
 		}
 		mappingMisses++
-		if len(unknownTags) < configR.MaxUnknownTagsInBucket && !args.IsSetHistoric() {
+		// Benefits of creating mappings for historic data depends on circumstances.
+		// We decided to save CPU by not creating them.
+		if !args.IsSetHistoric() {
 			tagId := int32(i + format.TagIDShift)
+			// len(unknownTags) is limited to aggregation map by key (multiplied by 48 in the worst case)
+			// and is proportional to agent budget
 			if _, ok := unknownTags[string(str)]; !ok {
-				unknownTags[string(str)] = data_model.CreateMappingExtra{
-					Create:    true, // passed as is to meta loader
+				unknownTags[string(str)] = createMappingExtra{
 					MetricID:  metricID,
 					TagIDKey:  tagId,
 					ClientEnv: clientEnv,
@@ -727,7 +730,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	return "", errHijack, false
 }
 
-func (a *Aggregator) addUnknownTags(unknownTags map[string]data_model.CreateMappingExtra, time uint32, hostTag data_model.TagUnion, aera data_model.AgentEnvRouteArch) {
+func (a *Aggregator) addUnknownTags(unknownTags map[string]createMappingExtra, time uint32, hostTag data_model.TagUnion, aera data_model.AgentEnvRouteArch) {
 	unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits, avgRemovedTotal := a.tagsMapper3.AddUnknownTags(unknownTags, time)
 
 	if unknownMapRemove != 0 {
