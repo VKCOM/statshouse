@@ -626,6 +626,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingSent}, float64(len(sendMappings)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1, hostTag, aera)

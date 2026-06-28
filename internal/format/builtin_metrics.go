@@ -2571,6 +2571,7 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoNewKeys:            "new_keys",
 			TagValueIDAggBucketInfoMetrics:            "metrics",
 			TagValueIDAggBucketInfoOutdatedRows:       "outdated_rows",
+			TagValueIDAggBucketInfoMappingSent:        "sent_to_agent",
 		}),
 	}, {}},
 }
