@@ -24,9 +24,9 @@ const (
 	defaultDNSRefreshInterval = time.Minute
 	defaultDialTimeout        = 5 * time.Second
 	defaultReconnectDelay     = time.Second
-	defaultWriteTimeout       = 30 * time.Second
+	defaultWriteTimeout       = 15 * time.Second
 	writeTimeoutAccuracy      = 2 * time.Second
-	defaultStuckReconDelay    = 60 * time.Second // protection from slow agents
+	defaultStuckReconDelay    = 30 * time.Second // protection from slow agents
 )
 
 var errWouldBlock = errors.New("would block")
@@ -300,6 +300,7 @@ loop:
 				s.stats.writeErrors.Add(1)
 				_ = conn.Close()
 				conn = nil
+				log.Printf("balancer set deadline error: %v", err)
 				continue
 			}
 			writeDeadline = deadline
@@ -312,6 +313,7 @@ loop:
 			s.stats.writeErrors.Add(1)
 			_ = conn.Close()
 			conn = nil
+			log.Printf("balancer write error: %v", err)
 			continue // not resend packet
 		}
 		s.reportWouldBlockIfAny(conn, m, scratch)
