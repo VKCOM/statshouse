@@ -28,7 +28,7 @@ import (
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const mappingCacheSize = 500
-const mappingDeletionBatchSize = 5
+const mappingDeletionBatchSize = 500
 
 type GetMappingClients struct {
 	host    string
