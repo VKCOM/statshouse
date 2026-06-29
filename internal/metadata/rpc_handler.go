@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"sort"
@@ -462,7 +461,7 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 
 	cands := h.deletionCandidateMappings
 	if cands == nil || len(cands) == 0 {
-		log.Printf("[WARN] tried to delete mappings for an empty/absent list of candidates")
+		h.log("[WARN] tried to delete mappings for an empty/absent list of candidates")
 		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
 		return "ok", nil
 	}
