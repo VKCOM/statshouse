@@ -46,6 +46,11 @@ metadata.getNewMappingsResponse#9287aaaa {field_mask: #}
     pairs: (vector statshouse.mapping)
     = metadata.GetNewMappingsResponse field_mask;
 
+metadata.deleteMappingCandidatesResponse#9286ab67 {field_mask: #}
+    id: int
+    = metadata.DeleteMappingCandidatesResponse field_mask;
+
+
 metadata.getMappingResponse#9286abfc {field_mask: #}
     id: int
     = metadata.GetMappingResponse field_mask;
@@ -127,6 +132,12 @@ metadata.resetFloodResponse2#9286abef
     createIfAbsent: field_mask.1?%True
      = metadata.GetMappingResponse field_mask;
 
+@readwrite metadata.deleteMappingCandidates#9dfa7a67
+    field_mask: #
+    key: string
+     = metadata.DeleteMappingCandidatesResponse field_mask;
+
+
 @readwrite metadata.putMapping#9faf5281
     field_mask: #
     keys: (vector string) // TODO - 2 arrays are crap, use (vector statshouse.mapping)
@@ -169,6 +180,12 @@ metadata.createMappingEvent#12345678
     create: field_mask.0?%True
 	updated_at: #
      = metadata.CreateMappingEvent;
+
+metadata.deleteMappingsEvent#12346767
+    field_mask: #
+    ids: (vector long)
+     = metadata.DeleteMappingsEvent;
+
 
 // deprecated
 metadata.editMetricEvent#12345677

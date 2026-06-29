@@ -8,6 +8,7 @@ package metadata
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/sqlite"
@@ -27,6 +28,7 @@ func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []b
 		var createMetricEvent tlmetadata.CreateMetricEvent
 		var putMappingEvent tlmetadata.PutMappingEvent
 		var createMappingEvent tlmetadata.CreateMappingEvent
+		var deleteMappingsEvent tlmetadata.DeleteMappingsEvent
 		var editEntityEvent tlmetadata.EditEntityEvent
 		var createEntityEvent tlmetadata.CreateEntityEvent
 		var putBootstrapEvent tlmetadata.PutBootstrapEvent
@@ -105,6 +107,17 @@ func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []b
 					err = applyCreateMappingEvent(conn, createMappingEvent)
 					if err != nil {
 						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
+					}
+				}
+			case deleteMappingsEvent.TLTag():
+				tail, err = deleteMappingsEvent.ReadTL1(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyDeleteMappingsEvent(conn, deleteMappingsEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataDeleteMappingsEvent: %w", err)
 					}
 				}
 			case putBootstrapEvent.TLTag():
@@ -196,6 +209,25 @@ func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEve
 		sqlite.BlobString("$name", event.Key),
 		sqlite.Int64("$id", int64(event.Id)),
 	)
+	return err
+}
+
+func applyDeleteMappingsEvent(conn sqlite.Conn, event tlmetadata.DeleteMappingsEvent) error {
+	ids := event.Ids
+
+	if ids == nil {
+		return fmt.Errorf("nil list of deleted mappings")
+	}
+
+	if len(ids) != 0 {
+		log.Printf("[binlog] deleting %d mappings [%d, %d]", len(ids), ids[0], ids[len(ids)-1]) // assumes ids are sorted in ascending order
+	} else {
+		log.Printf("[binlog] provided an empty list for mappings deletion, skipping operation")
+		return nil
+	}
+
+	_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
+		sqlite.Int64Slice("$ids$", ids))
 	return err
 }
 

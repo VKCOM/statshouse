@@ -9,6 +9,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"log"
 	"slices"
 	"time"
 
@@ -640,6 +641,51 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 		return resp, fmt.Errorf("failed to create mapping: %w", err)
 	}
 	return resp, err
+}
+
+func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int64) error {
+	if ids == nil {
+		return fmt.Errorf("nil list of deleted mappings")
+	}
+
+	if len(ids) == 0 {
+		log.Printf("provided an empty list for mappings deletion, skipping operation")
+		return nil
+	}
+
+	log.Printf("deleting mappings [%d, %d]", ids[0], ids[len(ids)-1]) // assumes ids are sorted in ascending order
+
+	err := db.eng.Do(ctx, "delete_mappings_batched", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
+			sqlite.Int64Slice("$ids$", ids))
+		if err != nil {
+			return cache, err
+		}
+
+		event := tlmetadata.DeleteMappingsEvent{
+			Ids: ids,
+		}
+		eventBytes := event.WriteTL1Boxed(cache)
+		return eventBytes, nil
+	})
+	return err
+}
+
+func (db *DBV2) getCurrentMappingsLen(ctx context.Context) (int64, error) {
+	var length int64
+	err := db.eng.Do(ctx, "get_mappings_length", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("get_mappings_len", "SELECT count(*) FROM mappings")
+		if rows.Next() {
+			cnt, err := rows.ColumnInt64(0)
+			if err != nil {
+				return cache, err
+			}
+			length = cnt
+			return cache, nil
+		}
+		return cache, fmt.Errorf("error fetching mappings count: %w", rows.Error())
+	})
+	return length, err
 }
 
 func (db *DBV2) PutMapping(ctx context.Context, ks []string, vs []int32) error {

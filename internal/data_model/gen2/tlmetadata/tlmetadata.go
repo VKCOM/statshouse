@@ -20,6 +20,9 @@ type (
 	CreateEntityEvent                    = internal.MetadataCreateEntityEvent
 	CreateMappingEvent                   = internal.MetadataCreateMappingEvent
 	CreateMetricEvent                    = internal.MetadataCreateMetricEvent
+	DeleteMappingCandidates              = internal.MetadataDeleteMappingCandidates
+	DeleteMappingCandidatesResponse      = internal.MetadataDeleteMappingCandidatesResponse
+	DeleteMappingsEvent                  = internal.MetadataDeleteMappingsEvent
 	EditEntityEvent                      = internal.MetadataEditEntityEvent
 	EditEntitynew                        = internal.MetadataEditEntitynew
 	EditMetricEvent                      = internal.MetadataEditMetricEvent
@@ -72,6 +75,37 @@ type Client struct {
 	Address string
 	ActorID int64         // should be >0 for routing via rpc-proxy
 	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
+}
+
+func (c *Client) DeleteMappingCandidates(ctx context.Context, args DeleteMappingCandidates, extra *rpc.InvokeReqExtra, ret *DeleteMappingCandidatesResponse) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.deleteMappingCandidates"
+	if extra != nil {
+		req.Extra = extra.RequestExtra
+		req.FailIfNoConnection = extra.FailIfNoConnection
+		req.DoNotCreateLocalCancellationContext = extra.DoNotCreateLocalCancellationContext
+	}
+	rpc.UpdateExtraTimeout(&req.Extra, c.Timeout)
+	req.Body, err = args.WriteTL1BoxedGeneral(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("metadata.deleteMappingCandidates", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if extra != nil && resp != nil {
+		extra.ResponseExtra = resp.Extra
+	}
+	defer c.Client.PutResponse(resp)
+	if err != nil {
+		return internal.ErrorClientDo("metadata.deleteMappingCandidates", c.Network, c.ActorID, c.Address, err)
+	}
+	if ret != nil {
+		resp.Body, err = args.ReadResultTL1(resp.Body, ret)
+		if err != nil {
+			return internal.ErrorClientReadResult("metadata.deleteMappingCandidates", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
 }
 
 func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *rpc.InvokeReqExtra, ret *Event) (err error) {
@@ -485,13 +519,14 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 }
 
 type Handler struct {
-	EditEntitynew       func(ctx context.Context, args EditEntitynew) (Event, error)                       // metadata.editEntitynew
-	GetEntity           func(ctx context.Context, args GetEntity) (Event, error)                           // metadata.getEntity
-	GetHistoryShortInfo func(ctx context.Context, args GetHistoryShortInfo) (HistoryShortResponse, error)  // metadata.getHistoryShortInfo
-	GetInvertMapping    func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponse, error) // metadata.getInvertMapping
-	GetJournalnew       func(ctx context.Context, args GetJournalnew) (GetJournalResponsenew, error)       // metadata.getJournalnew
-	GetMapping          func(ctx context.Context, args GetMapping) (GetMappingResponse, error)             // metadata.getMapping
-	GetMetrics          func(ctx context.Context, args GetMetrics) (GetMetricsResponse, error)             // metadata.getMetrics
+	DeleteMappingCandidates func(ctx context.Context, args DeleteMappingCandidates) (DeleteMappingCandidatesResponse, error) // metadata.deleteMappingCandidates
+	EditEntitynew           func(ctx context.Context, args EditEntitynew) (Event, error)                                     // metadata.editEntitynew
+	GetEntity               func(ctx context.Context, args GetEntity) (Event, error)                                         // metadata.getEntity
+	GetHistoryShortInfo     func(ctx context.Context, args GetHistoryShortInfo) (HistoryShortResponse, error)                // metadata.getHistoryShortInfo
+	GetInvertMapping        func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponse, error)               // metadata.getInvertMapping
+	GetJournalnew           func(ctx context.Context, args GetJournalnew) (GetJournalResponsenew, error)                     // metadata.getJournalnew
+	GetMapping              func(ctx context.Context, args GetMapping) (GetMappingResponse, error)                           // metadata.getMapping
+	GetMetrics              func(ctx context.Context, args GetMetrics) (GetMetricsResponse, error)                           // metadata.getMetrics
 	// eventual consistency
 	GetNewMappings         func(ctx context.Context, args GetNewMappings) (GetNewMappingsResponse, error)                 // metadata.getNewMappings
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrap__Result, error) // metadata.getTagMappingBootstrap
@@ -501,24 +536,62 @@ type Handler struct {
 	ResetFlood  func(ctx context.Context, args ResetFlood) (ResetFloodResponse, error)   // metadata.resetFlood
 	ResetFlood2 func(ctx context.Context, args ResetFlood2) (ResetFloodResponse2, error) // metadata.resetFlood2
 
-	RawEditEntitynew          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.editEntitynew
-	RawGetEntity              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getEntity
-	RawGetHistoryShortInfo    func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getHistoryShortInfo
-	RawGetInvertMapping       func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getInvertMapping
-	RawGetJournalnew          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getJournalnew
-	RawGetMapping             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMapping
-	RawGetMetrics             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMetrics
-	RawGetNewMappings         func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getNewMappings
-	RawGetTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getTagMappingBootstrap
-	RawPutMapping             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.putMapping
-	RawPutTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.putTagMappingBootstrap
-	RawResetFlood             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.resetFlood
-	RawResetFlood2            func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.resetFlood2
+	RawDeleteMappingCandidates func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.deleteMappingCandidates
+	RawEditEntitynew           func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.editEntitynew
+	RawGetEntity               func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getEntity
+	RawGetHistoryShortInfo     func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getHistoryShortInfo
+	RawGetInvertMapping        func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getInvertMapping
+	RawGetJournalnew           func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getJournalnew
+	RawGetMapping              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMapping
+	RawGetMetrics              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMetrics
+	RawGetNewMappings          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getNewMappings
+	RawGetTagMappingBootstrap  func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getTagMappingBootstrap
+	RawPutMapping              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.putMapping
+	RawPutTagMappingBootstrap  func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.putTagMappingBootstrap
+	RawResetFlood              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.resetFlood
+	RawResetFlood2             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.resetFlood2
 }
 
 func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
+	case 0x9dfa7a67: // metadata.deleteMappingCandidates
+		hctx.SetRequestFunctionName("metadata.deleteMappingCandidates")
+		if h.RawDeleteMappingCandidates != nil && !hctx.BodyFormatTL2() {
+			hctx.Request = r
+			err = h.RawDeleteMappingCandidates(ctx, hctx)
+			if hctx.LongpollStarted() || rpc.IsLongpollResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.deleteMappingCandidates", err)
+			}
+			return nil
+		}
+		if h.DeleteMappingCandidates != nil {
+			var args DeleteMappingCandidates
+			if hctx.BodyFormatTL2() {
+				_, err = args.ReadTL2(r, nil)
+			} else {
+				_, err = args.ReadTL1(r)
+			}
+			if err != nil {
+				return internal.ErrorServerRead("metadata.deleteMappingCandidates", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.DeleteMappingCandidates(ctx, args)
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.deleteMappingCandidates", err)
+			}
+			if hctx.LongpollStarted() {
+				return nil
+			}
+			hctx.Response, err = args.WriteResultTL1(hctx.Response, ret)
+			if err != nil {
+				return internal.ErrorServerWriteResult("metadata.deleteMappingCandidates", err)
+			}
+			return nil
+		}
 	case 0x86df475f: // metadata.editEntitynew
 		hctx.SetRequestFunctionName("metadata.editEntitynew")
 		if h.RawEditEntitynew != nil && !hctx.BodyFormatTL2() {

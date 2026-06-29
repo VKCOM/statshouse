@@ -990,3 +990,26 @@ func massUpdateMetadata() int {
 	// journal.Compare(journalCompact)
 	return 0
 }
+
+func clearMappingDeletionCandidates() int {
+	client := tlmetadata.Client{
+		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithCryptoKey(readAESPwd()),
+			rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))))),
+		Network: argv.metadataNet,
+		Address: argv.metadataAddr,
+		ActorID: argv.metadataActorID,
+	}
+
+	args := tlmetadata.DeleteMappingCandidates{}
+	ctx := context.Background()
+	resp := tlmetadata.DeleteMappingCandidatesResponse{}
+	err := client.DeleteMappingCandidates(ctx, args, nil, &resp)
+
+	if err != nil {
+		log.Fatal(err)
+		return 1
+	}
+	return 0
+}
