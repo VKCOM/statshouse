@@ -59,7 +59,7 @@ type (
 		originalMetricSize map[int32]map[data_model.TagUnion]uint32
 
 		usedMetrics map[int32]struct{}
-		unknownTags map[string]data_model.CreateMappingExtra // for all strings, so we can create after sampling
+		unknownTags map[string]createMappingExtra // for all strings, so we can create after sampling
 
 		mu sync.Mutex // Protects everything, except shards
 
@@ -155,7 +155,7 @@ func newAggregatorBucket(time uint32) *aggregatorBucket {
 		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
 		originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
 		usedMetrics:                 map[int32]struct{}{},
-		unknownTags:                 map[string]data_model.CreateMappingExtra{},
+		unknownTags:                 map[string]createMappingExtra{},
 	}
 }
 

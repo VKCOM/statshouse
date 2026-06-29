@@ -116,13 +116,12 @@ func DefaultConfigAggregator() ConfigAggregator {
 			OriginalSizeDecayHalfLife: data_model.ExpDecayMetricsHalfLife,
 
 			configTagsMapper3: configTagsMapper3{
-				MaxUnknownTagsInBucket:    1024,
 				MaxCreateTagsPerIteration: 128,
-				TagHitsToCreate:           60,
+				TagHitsToCreate:           80, // minute+, so tags that change every minute do not get into DB
 				TagTotalToCreate:          1000,
 				MaxUnknownTagsToKeep:      1_000_000,
 				KeepTime:                  86400,
-				MaxSendTagsToAgent:        256,
+				MaxSendTagsToAgent:        1024,
 			},
 		},
 	}
@@ -212,13 +211,14 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 
 		var enableMappingAfterSampling bool
 		f.BoolVar(&enableMappingAfterSampling, "enable-mapping-after-sampling", false, "Enable mapping after sampling")
-		f.IntVar(&c.MaxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", d.MaxUnknownTagsInBucket, "Max unknown tags per bucket to add to mapping queue.")
+		var maxUnknownTagsInBucket int
+		f.IntVar(&maxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", 0, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.TagTotalToCreate, "mapping-queue-total-to-create", d.TagTotalToCreate, "Tag mapping will be created if it is used so many times.")
 		f.IntVar(&c.MaxUnknownTagsToKeep, "mapping-queue-max-unknown-tags-to-keep", d.MaxUnknownTagsToKeep, "Mapping queue will remember and collect hits on so many different strings.")
 		f.IntVar(&c.KeepTime, "mapping-queue-keep-time", d.KeepTime, "Mapping queue will forget string if not seen for this time.")
-		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxUnknownTagsInBucket, "Max tags to send in response to agent.")
+		f.IntVar(&c.MaxSendTagsToAgent, "mapping-queue-max-send-tags-to-agent", d.MaxSendTagsToAgent, "Max tags to send in response to agent.")
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 		f.BoolVar(&c.DisableReceiveSampleBudget, "disable-receive-sample-budget", d.DisableReceiveSampleBudget, "Disable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 		f.DurationVar(&c.OriginalSizeDecayHalfLife, "original-size-decay-half-life", d.OriginalSizeDecayHalfLife, "Half-life for per-metric original size from agent (exponential decay).")

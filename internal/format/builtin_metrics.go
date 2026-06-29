@@ -685,12 +685,13 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 	}, {}},
 }
 
-const BuiltinMetricIDBadges = -35 // copy of some other metrics for efficient show of errors and warnings
+const BuiltinMetricIDBadges = -35       // copy of some other metrics for efficient show of errors and warnings
+const BuiltinMetricBadgesResolution = 5 // we do lots of SELECTs with this metric, so we keep it smaller
 var BuiltinMetricMetaBadges = &MetricMetaValue{
 	Name:                    "__badges",
 	Kind:                    MetricKindValue,
 	Description:             "System metric used to display UI badges above plot. Stores stripped copy of some other builtin metrics.",
-	Resolution:              5,
+	Resolution:              BuiltinMetricBadgesResolution,
 	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false, // this metric must be extremely lightweight
@@ -2570,6 +2571,7 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoNewKeys:            "new_keys",
 			TagValueIDAggBucketInfoMetrics:            "metrics",
 			TagValueIDAggBucketInfoOutdatedRows:       "outdated_rows",
+			TagValueIDAggBucketInfoMappingSent:        "sent_to_agent",
 		}),
 	}, {}},
 }
