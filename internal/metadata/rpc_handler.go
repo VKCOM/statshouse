@@ -460,9 +460,12 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 	}
 
 	cands := h.deletionCandidateMappings
-	if cands == nil || len(cands) == 0 {
+	if len(cands) == 0 {
 		h.log("[WARN] tried to delete mappings for an empty/absent list of candidates")
 		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
+		if err != nil {
+			return "", err
+		}
 		return "ok", nil
 	}
 	mappingsBuf := make([]int64, 0, mappingDeletionBatchSize)
@@ -496,6 +499,9 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 	h.log("finished deleting mappings in batches; current count: %d", lenEnd)
 
 	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
+	if err != nil {
+		return "", err
+	}
 	return "ok", nil
 }
 
