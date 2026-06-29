@@ -736,6 +736,12 @@ func parseCommandLine() (int, error) {
 		argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)
 		build.FlagParseShowVersionHelp()
 		return massUpdateMetadata(), nil
+	case "clear_mapping_deletion_candidates":
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		return clearMappingDeletionCandidates(), nil
 	case "simple_fsync":
 		return mainSimpleFSyncTest(), nil
 	case "benchmark":

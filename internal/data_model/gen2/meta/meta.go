@@ -182,6 +182,10 @@ func init() {
 		&metainternal.TLItemImpl{Name: "metadata.createMappingEvent", Tag: 0x12345678, HaTL1: true})
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "metadata.createMetricEvent", Tag: 0x12345674, HaTL1: true})
+	metainternal.FillFunction(
+		&metainternal.TLItemImpl{Name: "metadata.deleteMappingCandidates", Tag: 0x9dfa7a67, HaTL1: true, Annotations: 0x10})
+	metainternal.FillObject(
+		&metainternal.TLItemImpl{Name: "metadata.deleteMappingsEvent", Tag: 0x12346767, HaTL1: true})
 	metainternal.FillObject(
 		&metainternal.TLItemImpl{Name: "metadata.editEntityEvent", Tag: 0x1234b677, HaTL1: true})
 	metainternal.FillFunction(

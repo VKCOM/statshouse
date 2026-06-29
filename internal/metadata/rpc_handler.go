@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"os"
 	"sort"
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -29,6 +29,7 @@ import (
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const mappingCacheSize = 500
+const mappingDeletionBatchSize = 5
 
 type GetMappingClients struct {
 	host    string
@@ -450,6 +451,53 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	}
 	hctx.Response, err = args.WriteResultTL1(hctx.Response, mapping)
 	return status, err
+}
+
+func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	args := tlmetadata.DeleteMappingCandidates{}
+	_, err := args.ReadTL1(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.DeleteMappingCandidates request: %w", err)
+	}
+
+	cands := h.deletionCandidateMappings
+	if cands == nil || len(cands) == 0 {
+		log.Printf("[WARN] tried to delete mappings for an empty/absent list of candidates")
+		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
+		return "ok", nil
+	}
+	mappingsBuf := make([]int64, 0, mappingDeletionBatchSize)
+	lenStart, err := h.db.getCurrentMappingsLen(ctx)
+	if err != nil {
+		return "", err
+	}
+	h.log("started deleting %d mappings in batches of %d; current count: %d", len(cands), mappingDeletionBatchSize, lenStart)
+	for start := 0; start < len(cands); start += mappingDeletionBatchSize {
+		end := start + mappingDeletionBatchSize
+		if end > len(cands) {
+			end = len(cands)
+		}
+		mappingsBuf = mappingsBuf[:0]
+		for _, x := range cands[start:end] {
+			mappingsBuf = append(mappingsBuf, int64(x))
+		}
+
+		err := h.db.deleteMappingsByIdBatched(ctx, mappingsBuf)
+		if err != nil {
+			return "", err
+		}
+
+		h.log("deletion progress: %d/%d; current range: [%d, %d]", start, len(cands), start, end)
+
+	}
+	lenEnd, err := h.db.getCurrentMappingsLen(ctx)
+	if err != nil {
+		return "", err
+	}
+	h.log("finished deleting mappings in batches; current count: %d", lenEnd)
+
+	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
+	return "ok", nil
 }
 
 // RawPutMapping Agent cache, Aggregator cache and Aggregator mapping replica DB will not know about changes!

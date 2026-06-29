@@ -82,6 +82,9 @@ const (
 	MetadataCreateEntityEvent                    = 0x1a345674 // metadata.createEntityEvent
 	MetadataCreateMappingEvent                   = 0x12345678 // metadata.createMappingEvent
 	MetadataCreateMetricEvent                    = 0x12345674 // metadata.createMetricEvent
+	MetadataDeleteMappingCandidates              = 0x9dfa7a67 // metadata.deleteMappingCandidates
+	MetadataDeleteMappingCandidatesResponse      = 0x9286ab67 // metadata.deleteMappingCandidatesResponse
+	MetadataDeleteMappingsEvent                  = 0x12346767 // metadata.deleteMappingsEvent
 	MetadataEditEntityEvent                      = 0x1234b677 // metadata.editEntityEvent
 	MetadataEditEntitynew                        = 0x86df475f // metadata.editEntitynew
 	MetadataEditMetricEvent                      = 0x12345677 // metadata.editMetricEvent
