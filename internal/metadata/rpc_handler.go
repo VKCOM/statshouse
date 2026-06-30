@@ -469,7 +469,7 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 		return "", fmt.Errorf("invalid argument limit %d %d for list of candidates", args.Limit, maxDeletionSizeLimit)
 	}
 
-	if len(cands) == 0 || args.Offset >= int32(len(cands)) {
+	if args.Offset >= int32(len(cands)) {
 		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
 			From:                -1,
 			To:                  -1,
