@@ -657,26 +657,43 @@ func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int32) (cou
 	}
 
 	err = db.eng.Do(ctx, "delete_mappings_batched", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		res := conn.Query("get_present_mappings_count", "SELECT count(*) FROM mappings where id in ($ids$)",
+		presentIdsInt64 := make([]int64, 0, len(idsInt64))
+
+		rows := conn.Query("get_present_mappings_count", "SELECT id FROM mappings where id in ($ids$)",
 			sqlite.Int64Slice("$ids$", idsInt64))
-		if res.Next() {
-			cnt, err := res.ColumnInt64(0)
+
+		if rows.Error() != nil {
+			return cache, rows.Error()
+		}
+
+		for rows.Next() {
+			id, err := rows.ColumnInt64(0)
 			if err != nil {
 				return cache, err
 			}
-			countBeforeDeletion = int32(cnt)
-		} else {
-			return cache, fmt.Errorf("couldn't fetch present mappings count for a list of ids: %v", ids)
+			presentIdsInt64 = append(presentIdsInt64, id)
 		}
 
+		countBeforeDeletion = int32(len(presentIdsInt64))
+		if len(presentIdsInt64) == 0 {
+			// if ids don't exist, we don't fire the delete query and don't write the binlog event
+			return cache, nil
+		}
+
+		// delete query only fires for the subset of ids that are present
 		_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
-			sqlite.Int64Slice("$ids$", idsInt64))
+			sqlite.Int64Slice("$ids$", presentIdsInt64))
 		if err != nil {
 			return cache, err
 		}
 
+		presentIds := make([]int32, len(presentIdsInt64))
+		for i, v := range presentIdsInt64 {
+			presentIds[i] = int32(v)
+		}
+
 		event := tlmetadata.DeleteMappingsEvent{
-			Ids: ids,
+			Ids: presentIds,
 		}
 		eventBytes := event.WriteTL1Boxed(cache)
 		return eventBytes, nil
