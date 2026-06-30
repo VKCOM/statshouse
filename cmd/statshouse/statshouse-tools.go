@@ -1002,14 +1002,31 @@ func clearMappingDeletionCandidates() int {
 		ActorID: argv.metadataActorID,
 	}
 
-	args := tlmetadata.DeleteMappingCandidates{}
-	ctx := context.Background()
-	resp := tlmetadata.DeleteMappingCandidatesResponse{}
-	err := client.DeleteMappingCandidates(ctx, args, nil, &resp)
+	offset := int32(argv.deleteMappingsOffset)
+	totalLimit := int32(argv.deleteMappingsLimit)
+	batchSize := int32(argv.deleteMappingsBatchSize)
+	lastDeletionIndex := offset + totalLimit // NOTE: exclusive
 
-	if err != nil {
-		log.Fatal(err)
-		return 1
+	log.Printf("starting deletion of up to %d mappings in batches of %d, starting from index %d", totalLimit, batchSize, offset)
+
+	for start := offset; start < lastDeletionIndex; start += batchSize {
+		args := tlmetadata.DeleteMappingCandidates{
+			Offset: start,
+			Limit:  batchSize,
+		}
+		ctx := context.Background()
+		resp := tlmetadata.DeleteMappingCandidatesResponse{}
+		log.Printf("deleting mappings from index %d/%d", start, lastDeletionIndex)
+		err := client.DeleteMappingCandidates(ctx, args, nil, &resp)
+
+		if err != nil {
+			log.Fatal(err)
+			return 1
+		}
+		log.Printf("deleted %d present mappings from values %v to %v", resp.CountBeforeDeletion, resp.From, resp.To)
 	}
+
+	log.Printf("Done.")
+
 	return 0
 }

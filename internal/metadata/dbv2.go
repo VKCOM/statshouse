@@ -650,7 +650,7 @@ func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int32) (cou
 	if len(ids) > maxDeletionSizeLimit {
 		return 0, fmt.Errorf("can't delete more than %d ids at once; tried to delete %d", maxDeletionSizeLimit, len(ids))
 	}
-	
+
 	idsInt64 := make([]int64, len(ids))
 	for i, v := range ids {
 		idsInt64[i] = int64(v)
@@ -682,23 +682,6 @@ func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int32) (cou
 		return eventBytes, nil
 	})
 	return countBeforeDeletion, err
-}
-
-func (db *DBV2) getCurrentMappingsLen(ctx context.Context) (int64, error) {
-	var length int64
-	err := db.eng.Do(ctx, "get_mappings_length", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("get_mappings_len", "SELECT count(*) FROM mappings")
-		if rows.Next() {
-			cnt, err := rows.ColumnInt64(0)
-			if err != nil {
-				return cache, err
-			}
-			length = cnt
-			return cache, nil
-		}
-		return cache, fmt.Errorf("error fetching mappings count: %w", rows.Error())
-	})
-	return length, err
 }
 
 func (db *DBV2) PutMapping(ctx context.Context, ks []string, vs []int32) error {

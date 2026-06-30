@@ -467,6 +467,9 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 			To:                  -1,
 			CountBeforeDeletion: 0,
 		})
+		if err != nil {
+			return "", err
+		}
 		return "ok", nil
 	}
 
@@ -484,6 +487,10 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 		end = int32(len(cands)) - 1
 	}
 	countBeforeDeletion, err := h.db.deleteMappingsByIdBatched(ctx, cands[start:end])
+
+	if err != nil {
+		return "", err
+	}
 
 	from := int32(-1)
 	to := int32(-1)
