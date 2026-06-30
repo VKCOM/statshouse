@@ -15,7 +15,7 @@ var _ = basictl.NatWrite
 
 type MetadataDeleteMappingsEvent struct {
 	FieldMask uint32
-	Ids       []int64
+	Ids       []int32
 }
 
 func (MetadataDeleteMappingsEvent) TLName() string { return "metadata.deleteMappingsEvent" }
@@ -28,14 +28,14 @@ func (item *MetadataDeleteMappingsEvent) Reset() {
 
 func (item *MetadataDeleteMappingsEvent) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldMask = basictl.RandomUint(rg)
-	BuiltinVectorLongFillRandom(rg, &item.Ids)
+	BuiltinVectorIntFillRandom(rg, &item.Ids)
 }
 
 func (item *MetadataDeleteMappingsEvent) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	return BuiltinVectorLongReadTL1(w, &item.Ids)
+	return BuiltinVectorIntReadTL1(w, &item.Ids)
 }
 
 func (item *MetadataDeleteMappingsEvent) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -44,7 +44,7 @@ func (item *MetadataDeleteMappingsEvent) WriteTL1General(w []byte) (_ []byte, er
 
 func (item *MetadataDeleteMappingsEvent) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	w = BuiltinVectorLongWriteTL1(w, item.Ids)
+	w = BuiltinVectorIntWriteTL1(w, item.Ids)
 	return w
 }
 
@@ -98,7 +98,7 @@ func (item *MetadataDeleteMappingsEvent) ReadJSONGeneral(jctx *basictl.JSONReadC
 					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingsEvent", "ids")
 				}
 				propIdsPresented = true
-				if err := BuiltinVectorLongReadJSONGeneral(jctx, in, &item.Ids); err != nil {
+				if err := BuiltinVectorIntReadJSONGeneral(jctx, in, &item.Ids); err != nil {
 					return err
 				}
 			default:
@@ -140,7 +140,7 @@ func (item *MetadataDeleteMappingsEvent) WriteJSONOpt(jctx *basictl.JSONWriteCon
 	backupIndexIds := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"ids":`...)
-	w = BuiltinVectorLongWriteJSONOpt(jctx, w, item.Ids)
+	w = BuiltinVectorIntWriteJSONOpt(jctx, w, item.Ids)
 	if !(len(item.Ids) != 0) {
 		w = w[:backupIndexIds]
 	}

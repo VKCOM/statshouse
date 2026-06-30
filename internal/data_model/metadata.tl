@@ -47,7 +47,9 @@ metadata.getNewMappingsResponse#9287aaaa {field_mask: #}
     = metadata.GetNewMappingsResponse field_mask;
 
 metadata.deleteMappingCandidatesResponse#9286ab67 {field_mask: #}
-    id: int
+    from: int
+    to: int
+    countBeforeDeletion: int
     = metadata.DeleteMappingCandidatesResponse field_mask;
 
 
@@ -134,7 +136,8 @@ metadata.resetFloodResponse2#9286abef
 
 @readwrite metadata.deleteMappingCandidates#9dfa7a67
     field_mask: #
-    key: string
+    offset: int
+    limit: int
      = metadata.DeleteMappingCandidatesResponse field_mask;
 
 
@@ -183,7 +186,7 @@ metadata.createMappingEvent#12345678
 
 metadata.deleteMappingsEvent#12346767
     field_mask: #
-    ids: (vector long)
+    ids: (vector int)
      = metadata.DeleteMappingsEvent;
 
 

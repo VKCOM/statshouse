@@ -9,7 +9,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"log"
 	"slices"
 	"time"
 
@@ -643,21 +642,35 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 	return resp, err
 }
 
-func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int64) error {
-	if ids == nil {
-		return fmt.Errorf("nil list of deleted mappings")
-	}
-
+func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int32) (countBeforeDeletion int32, err error) {
 	if len(ids) == 0 {
-		log.Printf("provided an empty list for mappings deletion, skipping operation")
-		return nil
+		return 0, nil
 	}
 
-	log.Printf("deleting mappings [%d, %d]", ids[0], ids[len(ids)-1]) // assumes ids are sorted in ascending order
+	if len(ids) > maxDeletionSizeLimit {
+		return 0, fmt.Errorf("can't delete more than %d ids at once; tried to delete %d", maxDeletionSizeLimit, len(ids))
+	}
+	
+	idsInt64 := make([]int64, len(ids))
+	for i, v := range ids {
+		idsInt64[i] = int64(v)
+	}
 
-	err := db.eng.Do(ctx, "delete_mappings_batched", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+	err = db.eng.Do(ctx, "delete_mappings_batched", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		res := conn.Query("get_present_mappings_count", "SELECT count(*) FROM mappings where id in ($ids$)",
+			sqlite.Int64Slice("$ids$", idsInt64))
+		if res.Next() {
+			cnt, err := res.ColumnInt64(0)
+			if err != nil {
+				return cache, err
+			}
+			countBeforeDeletion = int32(cnt)
+		} else {
+			return cache, fmt.Errorf("couldn't fetch present mappings count for a list of ids: %v", ids)
+		}
+
 		_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
-			sqlite.Int64Slice("$ids$", ids))
+			sqlite.Int64Slice("$ids$", idsInt64))
 		if err != nil {
 			return cache, err
 		}
@@ -668,7 +681,7 @@ func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int64) erro
 		eventBytes := event.WriteTL1Boxed(cache)
 		return eventBytes, nil
 	})
-	return err
+	return countBeforeDeletion, err
 }
 
 func (db *DBV2) getCurrentMappingsLen(ctx context.Context) (int64, error) {

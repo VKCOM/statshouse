@@ -14,7 +14,9 @@ import (
 var _ = basictl.NatWrite
 
 type MetadataDeleteMappingCandidatesResponse struct {
-	Id int32
+	From                int32
+	To                  int32
+	CountBeforeDeletion int32
 }
 
 func (MetadataDeleteMappingCandidatesResponse) TLName() string {
@@ -23,19 +25,31 @@ func (MetadataDeleteMappingCandidatesResponse) TLName() string {
 func (MetadataDeleteMappingCandidatesResponse) TLTag() uint32 { return 0x9286ab67 }
 
 func (item *MetadataDeleteMappingCandidatesResponse) Reset() {
-	item.Id = 0
+	item.From = 0
+	item.To = 0
+	item.CountBeforeDeletion = 0
 }
 
 func (item *MetadataDeleteMappingCandidatesResponse) FillRandom(rg *basictl.RandGenerator, nat_field_mask uint32) {
-	item.Id = basictl.RandomInt(rg)
+	item.From = basictl.RandomInt(rg)
+	item.To = basictl.RandomInt(rg)
+	item.CountBeforeDeletion = basictl.RandomInt(rg)
 }
 
 func (item *MetadataDeleteMappingCandidatesResponse) ReadTL1(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.IntRead(w, &item.Id)
+	if w, err = basictl.IntRead(w, &item.From); err != nil {
+		return w, err
+	}
+	if w, err = basictl.IntRead(w, &item.To); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.CountBeforeDeletion)
 }
 
 func (item *MetadataDeleteMappingCandidatesResponse) WriteTL1(w []byte, nat_field_mask uint32) []byte {
-	w = basictl.IntWrite(w, item.Id)
+	w = basictl.IntWrite(w, item.From)
+	w = basictl.IntWrite(w, item.To)
+	w = basictl.IntWrite(w, item.CountBeforeDeletion)
 	return w
 }
 
@@ -52,7 +66,9 @@ func (item *MetadataDeleteMappingCandidatesResponse) WriteTL1Boxed(w []byte, nat
 }
 
 func (item *MetadataDeleteMappingCandidatesResponse) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer, nat_field_mask uint32) error {
-	var propIdPresented bool
+	var propFromPresented bool
+	var propToPresented bool
+	var propCountBeforeDeletionPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -62,12 +78,28 @@ func (item *MetadataDeleteMappingCandidatesResponse) ReadJSONGeneral(jctx *basic
 			key := in.UnsafeFieldName(true)
 			in.WantColon()
 			switch key {
-			case "id":
-				if propIdPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidatesResponse", "id")
+			case "from":
+				if propFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidatesResponse", "from")
 				}
-				propIdPresented = true
-				if err := Json2ReadInt32(in, &item.Id); err != nil {
+				propFromPresented = true
+				if err := Json2ReadInt32(in, &item.From); err != nil {
+					return err
+				}
+			case "to":
+				if propToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidatesResponse", "to")
+				}
+				propToPresented = true
+				if err := Json2ReadInt32(in, &item.To); err != nil {
+					return err
+				}
+			case "countBeforeDeletion":
+				if propCountBeforeDeletionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidatesResponse", "countBeforeDeletion")
+				}
+				propCountBeforeDeletionPresented = true
+				if err := Json2ReadInt32(in, &item.CountBeforeDeletion); err != nil {
 					return err
 				}
 			default:
@@ -80,8 +112,14 @@ func (item *MetadataDeleteMappingCandidatesResponse) ReadJSONGeneral(jctx *basic
 			return in.Error()
 		}
 	}
-	if !propIdPresented {
-		item.Id = 0
+	if !propFromPresented {
+		item.From = 0
+	}
+	if !propToPresented {
+		item.To = 0
+	}
+	if !propCountBeforeDeletionPresented {
+		item.CountBeforeDeletion = 0
 	}
 	return nil
 }
@@ -96,12 +134,26 @@ func (item *MetadataDeleteMappingCandidatesResponse) WriteJSON(w []byte, nat_fie
 }
 func (item *MetadataDeleteMappingCandidatesResponse) WriteJSONOpt(jctx *basictl.JSONWriteContext, w []byte, nat_field_mask uint32) []byte {
 	w = append(w, '{')
-	backupIndexId := len(w)
+	backupIndexFrom := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"id":`...)
-	w = basictl.JSONWriteInt32(w, item.Id)
-	if !(item.Id != 0) {
-		w = w[:backupIndexId]
+	w = append(w, `"from":`...)
+	w = basictl.JSONWriteInt32(w, item.From)
+	if !(item.From != 0) {
+		w = w[:backupIndexFrom]
+	}
+	backupIndexTo := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"to":`...)
+	w = basictl.JSONWriteInt32(w, item.To)
+	if !(item.To != 0) {
+		w = w[:backupIndexTo]
+	}
+	backupIndexCountBeforeDeletion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"countBeforeDeletion":`...)
+	w = basictl.JSONWriteInt32(w, item.CountBeforeDeletion)
+	if !(item.CountBeforeDeletion != 0) {
+		w = w[:backupIndexCountBeforeDeletion]
 	}
 	return append(w, '}')
 }

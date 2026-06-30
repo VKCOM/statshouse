@@ -15,7 +15,8 @@ var _ = basictl.NatWrite
 
 type MetadataDeleteMappingCandidates struct {
 	FieldMask uint32
-	Key       string
+	Offset    int32
+	Limit     int32
 }
 
 func (MetadataDeleteMappingCandidates) TLName() string { return "metadata.deleteMappingCandidates" }
@@ -23,19 +24,24 @@ func (MetadataDeleteMappingCandidates) TLTag() uint32  { return 0x9dfa7a67 }
 
 func (item *MetadataDeleteMappingCandidates) Reset() {
 	item.FieldMask = 0
-	item.Key = ""
+	item.Offset = 0
+	item.Limit = 0
 }
 
 func (item *MetadataDeleteMappingCandidates) FillRandom(rg *basictl.RandGenerator) {
 	item.FieldMask = basictl.RandomUint(rg)
-	item.Key = basictl.RandomString(rg)
+	item.Offset = basictl.RandomInt(rg)
+	item.Limit = basictl.RandomInt(rg)
 }
 
 func (item *MetadataDeleteMappingCandidates) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Key)
+	if w, err = basictl.IntRead(w, &item.Offset); err != nil {
+		return w, err
+	}
+	return basictl.IntRead(w, &item.Limit)
 }
 
 func (item *MetadataDeleteMappingCandidates) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -44,7 +50,8 @@ func (item *MetadataDeleteMappingCandidates) WriteTL1General(w []byte) (_ []byte
 
 func (item *MetadataDeleteMappingCandidates) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldMask)
-	w = basictl.StringWrite(w, item.Key)
+	w = basictl.IntWrite(w, item.Offset)
+	w = basictl.IntWrite(w, item.Limit)
 	return w
 }
 
@@ -140,7 +147,8 @@ func (item *MetadataDeleteMappingCandidates) ReadJSON(legacyTypeNames bool, in *
 
 func (item *MetadataDeleteMappingCandidates) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldMaskPresented bool
-	var propKeyPresented bool
+	var propOffsetPresented bool
+	var propLimitPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -158,12 +166,20 @@ func (item *MetadataDeleteMappingCandidates) ReadJSONGeneral(jctx *basictl.JSONR
 				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
 					return err
 				}
-			case "key":
-				if propKeyPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidates", "key")
+			case "offset":
+				if propOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidates", "offset")
 				}
-				propKeyPresented = true
-				if err := Json2ReadString(in, &item.Key); err != nil {
+				propOffsetPresented = true
+				if err := Json2ReadInt32(in, &item.Offset); err != nil {
+					return err
+				}
+			case "limit":
+				if propLimitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.deleteMappingCandidates", "limit")
+				}
+				propLimitPresented = true
+				if err := Json2ReadInt32(in, &item.Limit); err != nil {
 					return err
 				}
 			default:
@@ -179,8 +195,11 @@ func (item *MetadataDeleteMappingCandidates) ReadJSONGeneral(jctx *basictl.JSONR
 	if !propFieldMaskPresented {
 		item.FieldMask = 0
 	}
-	if !propKeyPresented {
-		item.Key = ""
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propLimitPresented {
+		item.Limit = 0
 	}
 	return nil
 }
@@ -202,12 +221,19 @@ func (item *MetadataDeleteMappingCandidates) WriteJSONOpt(jctx *basictl.JSONWrit
 	if !(item.FieldMask != 0) {
 		w = w[:backupIndexFieldMask]
 	}
-	backupIndexKey := len(w)
+	backupIndexOffset := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
-	w = append(w, `"key":`...)
-	w = basictl.JSONWriteString(w, item.Key)
-	if !(len(item.Key) != 0) {
-		w = w[:backupIndexKey]
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt32(w, item.Offset)
+	if !(item.Offset != 0) {
+		w = w[:backupIndexOffset]
+	}
+	backupIndexLimit := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"limit":`...)
+	w = basictl.JSONWriteInt32(w, item.Limit)
+	if !(item.Limit != 0) {
+		w = w[:backupIndexLimit]
 	}
 	return append(w, '}')
 }
