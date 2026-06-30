@@ -8,7 +8,6 @@ package metadata
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/VKCOM/statshouse/internal/sqlite"
@@ -213,21 +212,12 @@ func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEve
 }
 
 func applyDeleteMappingsEvent(conn sqlite.Conn, event tlmetadata.DeleteMappingsEvent) error {
-	ids := event.Ids
-
-	if ids == nil {
-		return fmt.Errorf("nil list of deleted mappings")
+	idsInt64 := make([]int64, len(event.Ids))
+	for i, v := range event.Ids {
+		idsInt64[i] = int64(v)
 	}
-
-	if len(ids) != 0 {
-		log.Printf("[binlog] deleting %d mappings [%d, %d]", len(ids), ids[0], ids[len(ids)-1]) // assumes ids are sorted in ascending order
-	} else {
-		log.Printf("[binlog] provided an empty list for mappings deletion, skipping operation")
-		return nil
-	}
-
 	_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
-		sqlite.Int64Slice("$ids$", ids))
+		sqlite.Int64Slice("$ids$", idsInt64))
 	return err
 }
 

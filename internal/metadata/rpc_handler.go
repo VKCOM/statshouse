@@ -28,7 +28,7 @@ import (
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const mappingCacheSize = 500
-const mappingDeletionBatchSize = 500
+const maxDeletionSizeLimit = 1000
 
 type GetMappingClients struct {
 	host    string
@@ -460,45 +460,43 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 	}
 
 	cands := h.deletionCandidateMappings
-	if len(cands) == 0 {
-		h.log("[WARN] tried to delete mappings for an empty/absent list of candidates")
-		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
-		if err != nil {
-			return "", err
-		}
+
+	if len(cands) == 0 || args.Offset > int32(len(cands)) {
+		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
+			From:                -1,
+			To:                  -1,
+			CountBeforeDeletion: 0,
+		})
 		return "ok", nil
 	}
-	mappingsBuf := make([]int64, 0, mappingDeletionBatchSize)
-	lenStart, err := h.db.getCurrentMappingsLen(ctx)
-	if err != nil {
-		return "", err
+
+	if args.Offset < 0 {
+		return "", fmt.Errorf("invalid argument offset %d for list of %d candidates", args.Offset, len(cands))
 	}
-	h.log("started deleting %d mappings in batches of %d; current count: %d", len(cands), mappingDeletionBatchSize, lenStart)
-	for start := 0; start < len(cands); start += mappingDeletionBatchSize {
-		end := start + mappingDeletionBatchSize
-		if end > len(cands) {
-			end = len(cands)
-		}
-		mappingsBuf = mappingsBuf[:0]
-		for _, x := range cands[start:end] {
-			mappingsBuf = append(mappingsBuf, int64(x))
-		}
 
-		err := h.db.deleteMappingsByIdBatched(ctx, mappingsBuf)
-		if err != nil {
-			return "", err
-		}
-
-		h.log("deletion progress: %d/%d; current range: [%d, %d]", start, len(cands), start, end)
-
+	if args.Limit <= 0 || args.Limit > maxDeletionSizeLimit {
+		return "", fmt.Errorf("invalid argument limit %d %d for list of candidates", args.Limit, maxDeletionSizeLimit)
 	}
-	lenEnd, err := h.db.getCurrentMappingsLen(ctx)
-	if err != nil {
-		return "", err
-	}
-	h.log("finished deleting mappings in batches; current count: %d", lenEnd)
 
-	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{})
+	start := args.Offset
+	end := args.Offset + args.Limit - 1
+	if end > int32(len(cands)) {
+		end = int32(len(cands)) - 1
+	}
+	countBeforeDeletion, err := h.db.deleteMappingsByIdBatched(ctx, cands[start:end])
+
+	from := int32(-1)
+	to := int32(-1)
+	if len(cands) > 0 {
+		from = cands[start]
+		to = cands[end]
+	}
+
+	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
+		From:                from,
+		To:                  to,
+		CountBeforeDeletion: countBeforeDeletion,
+	})
 	if err != nil {
 		return "", err
 	}
