@@ -461,7 +461,15 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 
 	cands := h.deletionCandidateMappings
 
-	if len(cands) == 0 || args.Offset > int32(len(cands)) {
+	if args.Offset < 0 {
+		return "", fmt.Errorf("invalid argument offset %d for list of %d candidates", args.Offset, len(cands))
+	}
+
+	if args.Limit <= 0 || args.Limit > maxDeletionSizeLimit {
+		return "", fmt.Errorf("invalid argument limit %d %d for list of candidates", args.Limit, maxDeletionSizeLimit)
+	}
+
+	if len(cands) == 0 || args.Offset >= int32(len(cands)) {
 		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
 			From:                -1,
 			To:                  -1,
@@ -473,18 +481,10 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 		return "ok", nil
 	}
 
-	if args.Offset < 0 {
-		return "", fmt.Errorf("invalid argument offset %d for list of %d candidates", args.Offset, len(cands))
-	}
-
-	if args.Limit <= 0 || args.Limit > maxDeletionSizeLimit {
-		return "", fmt.Errorf("invalid argument limit %d %d for list of candidates", args.Limit, maxDeletionSizeLimit)
-	}
-
 	start := args.Offset
-	end := args.Offset + args.Limit - 1
+	end := args.Offset + args.Limit
 	if end > int32(len(cands)) {
-		end = int32(len(cands)) - 1
+		end = int32(len(cands))
 	}
 	countBeforeDeletion, err := h.db.deleteMappingsByIdBatched(ctx, cands[start:end])
 
@@ -492,16 +492,9 @@ func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.Hand
 		return "", err
 	}
 
-	from := int32(-1)
-	to := int32(-1)
-	if len(cands) > 0 {
-		from = cands[start]
-		to = cands[end]
-	}
-
 	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
-		From:                from,
-		To:                  to,
+		From:                cands[start],
+		To:                  cands[end-1],
 		CountBeforeDeletion: countBeforeDeletion,
 	})
 	if err != nil {

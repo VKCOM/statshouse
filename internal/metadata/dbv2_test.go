@@ -683,6 +683,121 @@ func Test_Reread_Binlog_CreateMapping(t *testing.T) {
 	})
 }
 
+func TestDB_deleteMappingsByIdBatched(t *testing.T) {
+	ctx := context.Background()
+	newDB := func(t *testing.T) *DBV2 {
+		path := t.TempDir()
+		db, _ := initD1b(t, path, "db", true, nil)
+		t.Cleanup(func() { require.NoError(t, db.Close()) })
+		return db
+	}
+
+	populateMappings := func(t *testing.T, db *DBV2, ids ...int32) {
+		keys := make([]string, len(ids))
+		for i, id := range ids {
+			keys[i] = "k" + strconv.Itoa(int(id))
+		}
+		require.NoError(t, db.PutMapping(ctx, keys, ids))
+	}
+
+	mappingExists := func(t *testing.T, db *DBV2, id int32) bool {
+		_, ok, err := db.GetMappingByID(ctx, id)
+		require.NoError(t, err)
+		return ok
+	}
+
+	t.Run("correct empty input", func(t *testing.T) {
+		db := newDB(t)
+		populateMappings(t, db, 1, 2, 3)
+		cnt, err := db.deleteMappingsByIdBatched(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, int32(0), cnt)
+		require.True(t, mappingExists(t, db, 1))
+	})
+
+	t.Run("deletes exactly the requested present ids", func(t *testing.T) {
+		db := newDB(t)
+		populateMappings(t, db, 1, 2, 3, 4, 5)
+		cnt, err := db.deleteMappingsByIdBatched(ctx, []int32{2, 4})
+		require.NoError(t, err)
+		require.Equal(t, int32(2), cnt)
+		require.True(t, mappingExists(t, db, 1))
+		require.False(t, mappingExists(t, db, 2))
+		require.True(t, mappingExists(t, db, 3))
+		require.False(t, mappingExists(t, db, 4))
+		require.True(t, mappingExists(t, db, 5))
+	})
+
+	t.Run("countBeforeDeletion counts only present ids", func(t *testing.T) {
+		db := newDB(t)
+		populateMappings(t, db, 1, 2, 3)
+		// 2 and 3 exist, 99 and 100 do not
+		cnt, err := db.deleteMappingsByIdBatched(ctx, []int32{2, 3, 99, 100})
+		require.NoError(t, err)
+		require.Equal(t, int32(2), cnt)
+		require.True(t, mappingExists(t, db, 1))
+		require.False(t, mappingExists(t, db, 2))
+		require.False(t, mappingExists(t, db, 3))
+	})
+
+	t.Run("rejects oversized batch", func(t *testing.T) {
+		db := newDB(t)
+		ids := make([]int32, maxDeletionSizeLimit+1)
+		for i := range ids {
+			ids[i] = int32(i + 1)
+		}
+		_, err := db.deleteMappingsByIdBatched(ctx, ids)
+		require.Error(t, err)
+	})
+}
+
+func Test_Reread_Binlog_DeleteMappings(t *testing.T) {
+	ctx := context.Background()
+	test := func(t *testing.T, newDb bool) {
+		path := t.TempDir()
+		newFileName := "db"
+		if newDb {
+			newFileName = "db1"
+		}
+
+		db, _ := initD1b(t, path, "db", true, nil)
+
+		presentMappings := []int32{1, 2, 3, 4, 5, 6, 7}
+		deletionMappings := []int32{2, 4, 6}
+		expectedRemainingMappings := []int32{1, 3, 5, 7}
+
+		keys := make([]string, len(presentMappings))
+		for i, id := range presentMappings {
+			keys[i] = "key" + strconv.Itoa(int(id))
+		}
+		require.NoError(t, db.PutMapping(ctx, keys, presentMappings))
+
+		cnt, err := db.deleteMappingsByIdBatched(ctx, deletionMappings)
+		require.NoError(t, err)
+		require.Equal(t, int32(len(deletionMappings)), cnt)
+
+		require.NoError(t, db.Close())
+
+		db, _ = initD1b(t, path, newFileName, false, nil)
+		defer func() { require.NoError(t, db.Close()) }()
+
+		for _, id := range deletionMappings {
+			_, ok, err := db.GetMappingByID(ctx, id)
+			require.NoError(t, err)
+			require.Falsef(t, ok, "mapping id %d shouldn't be present after binlog reread", id)
+		}
+		for _, id := range expectedRemainingMappings {
+			name, ok, err := db.GetMappingByID(ctx, id)
+			require.NoError(t, err)
+			require.Truef(t, ok, "mapping id %d should be present after binlog reread", id)
+			require.Equal(t, "key"+strconv.Itoa(int(id)), name)
+		}
+	}
+
+	t.Run("reread from empty db", func(t *testing.T) { test(t, true) })
+	t.Run("reread from old snapshot", func(t *testing.T) { test(t, false) })
+}
+
 func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 	test := func(t *testing.T, newDb bool) {
 		path := t.TempDir()
