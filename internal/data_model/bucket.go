@@ -72,6 +72,7 @@ type (
 		Count            float64
 		Size             uint32
 		DupCnt           uint32 // duplicates count
+		Deleted          bool
 		MetricMeta       *format.MetricMetaValue
 	}
 
@@ -107,7 +108,7 @@ type (
 		SF          *float64 // ptr to every MultiItem.GlobalSF
 
 		TopSize   uint32
-		TopSfLog2 int64
+		TopSfLog2 int
 		Top       map[string]*MultiItem // unsafe string
 
 		TailSize uint32
@@ -363,21 +364,13 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	}
 	if item = part.Tail[keyString]; item != nil {
 		item.Count += count
-		itemSize = item.Size
 		if v := b.sampleTop(rng, part, part.Budget/2, &item.Key, item.MetricMeta, keyString, item, item.Count, item.Size); v != nil { // try move to top
-			b.removeTail(part, keyString, false)
-		} else if item.Size != 0 {
+			b.removeTail(part, keyString, item, false)
+		} else if !item.Deleted {
 			item.DupCnt++
 			part.KeptTraffic += item.Size
 		} else { // we could full lose it after sample
-			if _, ok := part.Top[keyString]; ok { // item deleted in tail, might stay in top
-				if itemSize >= part.TopSize {
-					part.TopSize = 0
-				} else {
-					part.TopSize -= itemSize
-				}
-				delete(part.Top, keyString)
-			}
+			b.removeTail(part, keyString, item, false)
 			return nil, false
 		}
 		b.keysBuffer = b.keysBuffer[:wasLen]
@@ -401,7 +394,7 @@ func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metric
 	part.Budget = budget
 	halfBudget := budget // get full root budget, until fit budget
 	if root.KeepSize >= budget {
-		if len(root.Partitions) > 0 {
+		if len(root.Partitions) > 1 {
 			part.Budget = uint32(math.Round(float64(budget) / float64(len(root.Partitions))))
 		}
 		halfBudget = uint32(math.Round(float64(part.Budget) / 2))
@@ -442,16 +435,14 @@ func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partB
 		p.Budget = partBudget
 		halfBudget := uint32(math.Round(float64(partBudget) / 2))
 
-		s.KeepSize -= p.TopSize
-		s.KeepSize -= p.TailSize
+		s.KeepSize -= p.TopSize + p.TailSize
 		for p.TopSize > halfBudget && len(p.Top) != 0 {
-			p.resampleTop(rng, b, halfBudget)
+			b.resampleTop(rng, p)
 		}
 		for p.TailSize > halfBudget && len(p.Tail) > 1 {
 			b.removeRandomTail(p)
 		}
-		s.KeepSize += p.TopSize
-		s.KeepSize += p.TailSize
+		s.KeepSize += p.TopSize + p.TailSize
 	}
 	if s.Partition != nil {
 		f(s.Partition)
@@ -485,7 +476,6 @@ func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID,
 
 func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget uint32, key *Key, meta *format.MetricMetaValue, keyString string, item *MultiItem, count float64, size uint32) *MultiItem {
 	if part.Traffic > budget && rng.Float64()*float64(part.Traffic) >= float64(budget) {
-		b.removeTail(part, keyString, true)
 		return nil
 	}
 	if item == nil {
@@ -499,7 +489,7 @@ func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget
 	for part.TailSize > budget && len(part.Tail) != 0 {
 		b.removeRandomTail(part)
 	}
-	if item.Size == 0 { // removeRandomTail could remove item
+	if item.Deleted { // removeRandomTail could remove item
 		return nil
 	}
 	return item
@@ -510,32 +500,39 @@ func (b *MetricsBucket) removeRandomTail(part *BucketPartition) {
 		return
 	}
 	i := len(part.Tail) / 2
-	for k := range part.Tail { // quasirandom remove, quite ok for O(1)
-		b.removeTail(part, k, true)
+	for k, v := range part.Tail { // quasirandom half remove, quite ok
+		b.removeTail(part, k, v, true)
 		if i--; i <= 0 {
 			break
 		}
 	}
 }
 
-func (b *MetricsBucket) removeTail(part *BucketPartition, key string, fullDelete bool) {
-	if item, ok := part.Tail[key]; ok {
-		if item.Size >= part.TailSize {
-			part.TailSize = 0
-		} else {
-			part.TailSize -= item.Size
+func (b *MetricsBucket) removeTail(part *BucketPartition, key string, item *MultiItem, fullDelete bool) {
+	if item == nil {
+		if item = part.Tail[key]; item == nil {
+			return
 		}
-		delete(part.Tail, key)
 	}
-	if item, ok := b.MultiItems[key]; ok && fullDelete {
-		if traffic := item.Size * item.DupCnt; traffic >= part.KeptTraffic {
-			part.KeptTraffic = 0
-		} else {
-			part.KeptTraffic -= traffic
-		}
-		item.Size = 0 // optimisation to avoid map lookup
-		delete(b.MultiItems, key)
+	if item.Size >= part.TailSize {
+		part.TailSize = 0
+	} else {
+		part.TailSize -= item.Size
 	}
+	delete(part.Tail, key)
+	if fullDelete {
+		b.removeFull(part, key, item)
+	}
+}
+
+func (b *MetricsBucket) removeFull(part *BucketPartition, k string, v *MultiItem) {
+	if traffic := v.Size * v.DupCnt; traffic >= part.KeptTraffic {
+		part.KeptTraffic = 0
+	} else {
+		part.KeptTraffic -= traffic
+	}
+	v.Deleted = true // optimisation to avoid map lookup
+	delete(b.MultiItems, k)
 }
 
 func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget uint32, key *Key, meta *format.MetricMetaValue, keyString string, item *MultiItem, count float64, size uint32) *MultiItem {
@@ -554,9 +551,9 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 	part.Top[keyString] = item
 	b.MultiItems[keyString] = item
 	for part.TopSize > budget && len(part.Top) != 0 {
-		part.resampleTop(rng, b, budget)
+		b.resampleTop(rng, part)
 	}
-	if item.Size == 0 { // resampleTop could drop item to tail
+	if item.Deleted { // resampleTop could drop
 		return nil
 	}
 	return item
@@ -564,11 +561,11 @@ func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget 
 
 const maxTopSfLog2 = 61
 
-func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudget uint32) {
+func (b *MetricsBucket) resampleTop(rng *rand.Rand, p *BucketPartition) {
 	i := 0
 	was := len(p.Top)
 	for k, v := range p.Top {
-		if p.TopSfLog2 < maxTopSfLog2 { // if overflow just drop half random
+		if p.TopSfLog2 < maxTopSfLog2 { // if overflow just drop half quasirandom
 			cc := 2 << p.TopSfLog2
 			if v.Count >= float64(cc) {
 				continue
@@ -583,14 +580,8 @@ func (p *BucketPartition) resampleTop(rng *rand.Rand, b *MetricsBucket, tailBudg
 		} else {
 			p.TopSize -= v.Size
 		}
-		v.DupCnt--
-		if v.Size >= p.KeptTraffic {
-			p.KeptTraffic = 0
-		} else {
-			p.KeptTraffic -= v.Size
-		}
 		delete(p.Top, k)
-		b.sampleTail(rng, p, tailBudget, &v.Key, v.MetricMeta, k, v, v.Count, v.Size) // move to tail
+		b.removeFull(p, k, v) // not move to tail for speed
 		if i++; i >= was/2 {
 			return // for remain low items
 		}
