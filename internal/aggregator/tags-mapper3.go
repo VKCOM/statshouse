@@ -85,10 +85,23 @@ func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]createMappingExtra,
 	defer ms.mu.Unlock()
 	var sumHits int64
 	var sumTotal int64
+	numIter := 0
+	// work proportional to len(unknownTags).
+	for k, v := range ms.unknownTags {
+		if int64(time) >= int64(v.time)+int64(ms.config.KeepTime) {
+			unknownMapRemove++
+			sumHits += int64(v.hits)
+			sumTotal += v.total
+			delete(ms.unknownTags, k)
+		}
+		numIter++
+		if numIter > 4*len(unknownTags) { // 4x multiplier so if 25% of items is stale, enough space is freed to fit all new tags
+			break
+		}
+	}
+	// work usually proportional to len(unknownTags), but if ms.config.MaxUnknownTagsToKeep is reduced, can do a lot of work, but only once
 	for k, v := range ms.unknownTags { // can delete a bit more items than strictly necessary
-		if len(ms.unknownTags)+len(unknownTags) <= ms.config.MaxUnknownTagsToKeep &&
-			int64(time) < int64(v.time)+int64(ms.config.KeepTime) {
-			// second condition deletes without limit, because it reduces ms.unknownTags so the next call is faster.
+		if len(ms.unknownTags)+len(unknownTags) <= ms.config.MaxUnknownTagsToKeep {
 			break
 		}
 		unknownMapRemove++
