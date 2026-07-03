@@ -18,6 +18,7 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/semaphore"
 )
 
@@ -89,7 +90,7 @@ func (s *TCP) rareLog(last *time.Time, format string, args ...any) {
 	}
 }
 
-func (s *TCP) Serve(h Handler, ln net.Listener) error {
+func (s *TCP) Serve(rh RawHandler, h Handler, ln net.Listener) error {
 	s.mu.Lock()
 	if s.serverStatus > serverStatusStarted {
 		s.mu.Unlock()
@@ -139,7 +140,7 @@ func (s *TCP) Serve(h Handler, ln net.Listener) error {
 			s.connSem.Release(1)
 			return err
 		}
-		go s.goHandshake(h, nc, ln.Addr())                       // will release connSem
+		go s.goHandshake(rh, h, nc, ln.Addr())                   // will release connSem
 		if err := s.connSem.Acquire(s.closeCtx, 1); err != nil { // we need to acquire again to Accept()
 			return nil
 		}
@@ -202,7 +203,7 @@ func (s *TCP) Close() error {
 	return nil
 }
 
-func (s *TCP) goHandshake(h Handler, conn net.Conn, lnAddr net.Addr) {
+func (s *TCP) goHandshake(rh RawHandler, h Handler, conn net.Conn, lnAddr net.Addr) {
 	defer s.connSem.Release(1)
 
 	defer setValueSize(s.packetSizeDisconnect, 0)
@@ -219,7 +220,7 @@ func (s *TCP) goHandshake(h Handler, conn net.Conn, lnAddr net.Addr) {
 	}
 	defer s.dropConn(sc)
 
-	var connHost []byte
+	var connHost string
 	var err error
 	if s.readHandshake {
 		connHost, err = readTCPHandshake(sc.conn)
@@ -228,7 +229,8 @@ func (s *TCP) goHandshake(h Handler, conn net.Conn, lnAddr net.Addr) {
 			return
 		}
 	}
-	err = s.receiveLoop(h, sc, connHost)
+	connHost = string(format.ForceValidStringValue(connHost))
+	err = s.receiveLoop(rh, h, sc, connHost)
 
 	if err != nil {
 		s.rareLog(&s.lastReadErrorLog, "tcp error: %v", err)
@@ -257,7 +259,7 @@ func (s *TCP) dropConn(sc *serverConn) {
 	delete(s.conns, sc)
 }
 
-func (s *TCP) receiveLoop(h Handler, sc *serverConn, connHost []byte) error {
+func (s *TCP) receiveLoop(rh RawHandler, h Handler, sc *serverConn, connHost string) error {
 	var batch tlstatshouse.AddMetricsBatchBytes
 	data := make([]byte, 4+MaxTCPFrameBody)
 	var scratch []byte
@@ -285,7 +287,12 @@ func (s *TCP) receiveLoop(h Handler, sc *serverConn, connHost []byte) error {
 			if 4+offset+int(bodyLen) > size { // careful with overflow!
 				break
 			}
-			_ = s.parse(h, nil, data[4+offset:4+offset+int(bodyLen)], &batch, &scratch, connHost) // wrong packet data is harmless if framing is correct
+			frame := data[4+offset : 4+offset+int(bodyLen)]
+			if rh != nil {
+				_ = rh(frame)
+			} else {
+				_ = s.parse(h, nil, frame, &batch, &scratch, connHost) // wrong packet data is harmless if framing is correct
+			}
 			offset += 4 + int(bodyLen)
 		}
 		if offset != 0 { // OK, somewhat inefficient move

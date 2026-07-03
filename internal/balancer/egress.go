@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/receiver"
 )
@@ -35,7 +34,7 @@ var errNoAddress = errors.New("no resolved upstream addresses")
 type EgressConfig struct {
 	Network            string
 	Address            string
-	HostTag            []byte
+	HostTag            string
 	DNSRefreshInterval time.Duration
 	DialTimeout        time.Duration
 	ReconnectDelay     time.Duration
@@ -263,7 +262,7 @@ func (s *tcpSender) sendLoop() {
 	var writeDeadline time.Time
 	var bufs = make(net.Buffers, 0, bufferLen)
 	m := s.getWriteErrM()
-	scratch := make([]byte, 110+len(s.cfg.HostTag)) // seems enough
+	var scratch []byte
 loop:
 	for {
 		select {
@@ -316,7 +315,7 @@ loop:
 			log.Printf("balancer write error: %v", err)
 			continue // not resend packet
 		}
-		s.reportWouldBlockIfAny(conn, m, scratch)
+		scratch = s.reportWouldBlockIfAny(conn, m, scratch)
 	}
 	if conn != nil {
 		err = conn.Close()
@@ -324,36 +323,37 @@ loop:
 	s.closeErr <- err
 }
 
-func (s *tcpSender) getWriteErrM() tlstatshouse.MetricBytes {
-	var m tlstatshouse.MetricBytes
-	m.Name = []byte("__src_client_write_err")
-	m.Tags = []tl.DictFieldStringStringBytes{
-		{[]byte("1"), []byte("1")},           // lang: golang
-		{[]byte("2"), []byte("1")},           // kind: would_block
-		{[]byte("3"), []byte("sh-balancer")}, // application name
-		{[]byte("_h"), []byte(s.cfg.HostTag)},
+func (s *tcpSender) getWriteErrM() tlstatshouse.Metric {
+	var m tlstatshouse.Metric
+	m.Name = "__src_client_write_err"
+	m.Tags = map[string]string{
+		"1":  "1",           // lang: golang
+		"2":  "1",           // kind: would_block
+		"3":  "sh-balancer", // application name
+		"_h": s.cfg.HostTag,
 	}
 	return m
 }
 
-func (s *tcpSender) reportWouldBlockIfAny(conn net.Conn, m tlstatshouse.MetricBytes, scratch []byte) {
+func (s *tcpSender) reportWouldBlockIfAny(conn net.Conn, m tlstatshouse.Metric, scratch []byte) []byte {
 	n := s.wouldBlockBytes.Swap(0)
 	if n == 0 {
-		return
+		return scratch
 	}
 	scratch = encodeClientWriteErrPacket(float64(n), m, scratch)
 	if len(scratch) == 0 {
-		return
+		return scratch
 	}
 	if _, err := conn.Write(scratch); err != nil {
 		s.stats.writeErrors.Add(1)
 	}
+	return scratch
 }
 
-func encodeClientWriteErrPacket(bytesDropped float64, m tlstatshouse.MetricBytes, pkt []byte) []byte {
+func encodeClientWriteErrPacket(bytesDropped float64, m tlstatshouse.Metric, pkt []byte) []byte {
 	m.SetValue([]float64{bytesDropped})
-	var batch = tlstatshouse.AddMetricsBatchBytes{
-		Metrics: []tlstatshouse.MetricBytes{m},
+	var batch = tlstatshouse.AddMetricsBatch{
+		Metrics: []tlstatshouse.Metric{m},
 	}
 	pkt = append(pkt[:4], batch.WriteTL1Boxed(pkt[4:4])...)
 	binary.LittleEndian.PutUint32(pkt[:4], uint32(len(pkt[4:])))

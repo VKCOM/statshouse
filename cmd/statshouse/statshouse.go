@@ -459,7 +459,7 @@ func (main *mainAgent) listenUDP(network string, addr string) error {
 
 func (main *mainAgent) serve(u *receiver.UDP, num int) {
 	defer main.receiversWG.Done()
-	err := u.Serve(main.worker)
+	err := u.Serve(nil, main.worker)
 	if err != nil {
 		logErr.Fatalf("Serve: %v", err)
 	}
@@ -467,13 +467,13 @@ func (main *mainAgent) serve(u *receiver.UDP, num int) {
 }
 
 func (main *mainAgent) serveHTTP() {
-	if err := main.receiverHTTP.Serve(main.worker, main.hijackHTTP); err != nil {
+	if err := main.receiverHTTP.Serve(nil, main.worker, main.hijackHTTP); err != nil {
 		logErr.Printf("error serving HTTP: %v", err)
 	}
 }
 
 func (main *mainAgent) serveTCP() {
-	if err := main.receiverTCP.Serve(main.worker, main.hijackTCP); err != nil {
+	if err := main.receiverTCP.Serve(nil, main.worker, main.hijackTCP); err != nil {
 		logErr.Printf("error serving TCP: %v", err)
 	}
 }

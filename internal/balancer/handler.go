@@ -123,13 +123,13 @@ func (h *handler) reportLoop() {
 	}
 }
 
-func detectHostTag(override []byte) []byte {
+func detectHostTag(override string) string {
 	if len(override) > 0 {
 		return override
 	}
 	host, err := os.Hostname()
 	if err != nil {
-		return nil
+		return ""
 	}
-	return format.ForceValidStringValue(host) // worse alternative is do not run at all
+	return string(format.ForceValidStringValue(host)) // worse alternative is do not run at all
 }

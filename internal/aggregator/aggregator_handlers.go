@@ -564,38 +564,39 @@ outer:
 			continue outer
 		}
 
-		for i, tb := range item.Top {
-			if !validateStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]) {
+		for i := range item.Top {
+			ptb := &item.Top[i]
+			if !validateStringTag(format.StringTopTagIndexV3, ptb.Stag, k.Metric, k.Tags[0]) {
 				continue outer
 			}
-			if m := mapStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
-				item.Top[i].Tag = m
+			if m := mapStringTag(format.StringTopTagIndexV3, ptb.Stag, k.Metric, k.Tags[0]); m > 0 {
+				ptb.Tag = m
 			}
-			if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
-				if !validateStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]) {
+			if ptb.Value.IsSetMaxHostStag(ptb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, ptb.Value.MaxHostStag, k.Metric, k.Tags[0]) {
 					continue outer
 				}
-				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
-					tb.Value.SetMaxHostTag(m, &item.FieldsMask)
-					tb.Value.ClearMaxHostStag(&item.FieldsMask)
+				if m := mapStringTag(format.HostTagIndex, ptb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
+					ptb.Value.SetMaxHostTag(m, &ptb.FieldsMask)
+					ptb.Value.ClearMaxHostStag(&ptb.FieldsMask)
 				}
 			}
-			if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
-				if !validateStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]) {
+			if ptb.Value.IsSetMaxCounterHostStag(ptb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, ptb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]) {
 					continue outer
 				}
-				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
-					tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
-					tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
+				if m := mapStringTag(format.HostTagIndex, ptb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
+					ptb.Value.SetMaxCounterHostTag(m, &ptb.FieldsMask)
+					ptb.Value.ClearMaxCounterHostStag(&ptb.FieldsMask)
 				}
 			}
-			if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
-				if !validateStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]) {
+			if ptb.Value.IsSetMinHostStag(ptb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, ptb.Value.MinHostStag, k.Metric, k.Tags[0]) {
 					continue outer
 				}
-				if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
-					tb.Value.SetMinHostTag(m, &item.FieldsMask)
-					tb.Value.ClearMinHostStag(&item.FieldsMask)
+				if m := mapStringTag(format.HostTagIndex, ptb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
+					ptb.Value.SetMinHostTag(m, &ptb.FieldsMask)
+					ptb.Value.ClearMinHostStag(&ptb.FieldsMask)
 				}
 			}
 		}

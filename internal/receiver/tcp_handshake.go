@@ -21,32 +21,32 @@ const (
 	MaxTCPFrameBody    = math.MaxUint16
 )
 
-func readTCPHandshake(conn net.Conn) (host []byte, err error) {
+func readTCPHandshake(conn net.Conn) (host string, err error) {
 	ver, err := readConnByte(conn)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	switch ver {
 	case TCPMagicV1Default:
-		return nil, nil
+		return "", nil
 	case TCPMagicV2Balancer:
 		var lenBuf [4]byte
 		if _, err = io.ReadFull(conn, lenBuf[:]); err != nil {
-			return nil, err
+			return "", err
 		}
 		hostLen := binary.LittleEndian.Uint32(lenBuf[:])
 		if hostLen > MaxTCPFrameBody {
-			return nil, fmt.Errorf("statshouse TCP host length %d exceeds max %d", hostLen, MaxTCPFrameBody)
+			return "", fmt.Errorf("statshouse TCP host length %d exceeds max %d", hostLen, MaxTCPFrameBody)
 		}
-		host = make([]byte, hostLen)
 		if hostLen != 0 {
-			if _, err = io.ReadFull(conn, host); err != nil {
-				return nil, err
+			hostBytes := make([]byte, hostLen)
+			if _, err = io.ReadFull(conn, hostBytes); err != nil {
+				return string(hostBytes), err
 			}
 		}
-		return host, nil
+		return "", nil
 	default:
-		return nil, fmt.Errorf("unsupported statshouse TCP version %q", ver)
+		return "", fmt.Errorf("unsupported statshouse TCP version %q", ver)
 	}
 }
 

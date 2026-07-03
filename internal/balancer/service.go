@@ -50,7 +50,7 @@ type Service struct {
 
 func New(cfg Config) (*Service, error) {
 	cfg.fillDefaults()
-	hostTag := detectHostTag([]byte(cfg.HostName))
+	hostTag := detectHostTag(cfg.HostName)
 	cfg.Egress.Address = cfg.UpstreamAddr
 	cfg.Egress.HostTag = hostTag
 	eg := NewEgress(cfg.Egress)
@@ -143,7 +143,7 @@ func (s *Service) startUDP() error {
 			s.wg.Add(1)
 			go func(rcv *receiver.UDP) {
 				defer s.wg.Done()
-				if err := rcv.Serve(s.handler); err != nil {
+				if err := rcv.Serve(s.handler.HandleMetricsBatchRaw, s.handler); err != nil {
 					log.Printf("udp receiver (%s) failed: %v", network, err)
 				}
 			}(r)
@@ -187,14 +187,14 @@ func (s *Service) startTCPStack() error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.tcpReceiver.Serve(s.handler, s.hijackTCP); err != nil {
+		if err := s.tcpReceiver.Serve(s.handler.HandleMetricsBatchRaw, s.handler, s.hijackTCP); err != nil {
 			log.Printf("tcp receiver failed: %v", err)
 		}
 	}()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.httpReceiver.Serve(s.handler, s.hijackHTTP); err != nil {
+		if err := s.httpReceiver.Serve(s.handler.HandleMetricsBatchRaw, s.handler, s.hijackHTTP); err != nil {
 			log.Printf("http receiver failed: %v", err)
 		}
 	}()
@@ -227,7 +227,7 @@ func (s *Service) startUnixStream() error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.unixReceiver.Serve(s.handler, ln); err != nil {
+		if err := s.unixReceiver.Serve(s.handler.HandleMetricsBatchRaw, s.handler, ln); err != nil {
 			log.Printf("unix receiver failed: %v", err)
 		}
 	}()

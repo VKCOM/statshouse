@@ -68,10 +68,6 @@ func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
 	w.errors.Inc()
 }
 
-func (p *packetPrinter) HandleMetricsBatchRaw([]byte) error {
-	return receiver.ErrNotImplemented
-}
-
 func main() {
 	os.Exit(receiveBenchmark())
 }
@@ -150,7 +146,7 @@ func receiveBenchmark() int {
 	if mode != 0 && mode != 1 {
 		for i := 0; i < coresUDP; i++ {
 			go func() {
-				err := receiversUDP[0].Serve(w)
+				err := receiversUDP[0].Serve(nil, w)
 				if err != nil {
 					log.Fatalf("Serve: %v", err)
 				}
@@ -159,7 +155,7 @@ func receiveBenchmark() int {
 	} else {
 		for _, u := range receiversUDP {
 			go func(u *receiver.UDP) {
-				err := u.Serve(w)
+				err := u.Serve(nil, w)
 				if err != nil {
 					log.Fatalf("Serve: %v", err)
 				}

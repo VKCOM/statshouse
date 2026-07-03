@@ -6,7 +6,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/VKCOM/statshouse/internal/receiver"
 )
 
 type handlerMock struct {
@@ -16,9 +15,6 @@ func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMe
 	return data_model.MappedMetricHeader{}
 }
 func (*handlerMock) HandleParseError([]byte, error) {}
-func (*handlerMock) HandleMetricsBatchRaw([]byte) error {
-	return receiver.ErrNotImplemented
-}
 
 func BenchmarkSHWriterImpl(b *testing.B) {
 	p := MetricWriterSHImpl{

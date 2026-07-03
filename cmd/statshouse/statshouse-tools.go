@@ -78,7 +78,7 @@ func mainTestParser() int {
 
 	w := &packetPrinter{}
 
-	if err = u.Serve(w); err != nil {
+	if err = u.Serve(nil, w); err != nil {
 		logErr.Printf("Serve: %v", err)
 		return 1
 	}
@@ -290,7 +290,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	// go writeFunc()
 	// go writeFunc()
 	serveFunc := func(u *receiver.UDP, rm *atomic.Int64) error {
-		return u.Serve(receiver.CallbackHandler{
+		return u.Serve(nil, receiver.CallbackHandler{
 			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
 				r := rm.Inc()
 				if almostReceiveOnly && r%1024 != 0 {

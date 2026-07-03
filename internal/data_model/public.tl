@@ -18,4 +18,4 @@ statshouse.metric#3325d884 fields_mask:#
 // for smooth MessagePack interoperability, first byte of tag must be less than 0x80
 // for smooth ProtoBuf interoperability, first byte must be as large as possible.
 
-@write statshouse.addMetricsBatch#56580239 fields_mask:# legacy_host:fields_mask.0?string metrics:(vector statshouse.metric) host:fields_mask.1?string = True; // host - temporary solution only for sh-balancer
+@write statshouse.addMetricsBatch#56580239 fields_mask:# metrics:(vector statshouse.metric) = True;

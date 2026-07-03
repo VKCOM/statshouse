@@ -34,7 +34,7 @@ func NewHTTPReceiver(sh2 *agent.Agent, logPacket func(format string, args ...int
 
 // TODO - heavily optimize, as this endpoint will lure hordes of pythonists/javists
 // maybe even use fasthttp with sane limits?
-func (s *HTTP) httpFunction(h Handler, r *http.Request) error {
+func (s *HTTP) httpFunction(rh RawHandler, h Handler, r *http.Request) error {
 	reader := io.LimitReader(r.Body, math.MaxUint16)
 	body, err := io.ReadAll(reader)
 	if err != nil {
@@ -43,18 +43,21 @@ func (s *HTTP) httpFunction(h Handler, r *http.Request) error {
 		}
 		return fmt.Errorf("error reading HTTP body: %w", err)
 	}
+	if rh != nil {
+		return rh(body)
+	}
 	var firstError error
 	var batch tlstatshouse.AddMetricsBatchBytes
-	if err := s.parse(h, &firstError, body, &batch, nil, nil); err != nil {
+	if err := s.parse(h, &firstError, body, &batch, nil, ""); err != nil {
 		return fmt.Errorf("error parsing HTTP body: %w", err)
 	}
 	return firstError
 }
 
-func (s *HTTP) Serve(h Handler, ln net.Listener) error {
+func (s *HTTP) Serve(rh RawHandler, h Handler, ln net.Listener) error {
 	handler := http.NewServeMux()
 	handler.HandleFunc(StatshouseHTTPV1Endpoint, func(w http.ResponseWriter, r *http.Request) {
-		if err := s.httpFunction(h, r); err != nil {
+		if err := s.httpFunction(rh, h, r); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(err.Error()))
 			return

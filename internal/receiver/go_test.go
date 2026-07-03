@@ -315,7 +315,7 @@ func (g *goMachine) Run(t *rapid.T) {
 	// we rely on the fact that UDP buffer is big enough to hold everything sent before this point
 	timer := time.AfterFunc(recvTimeout, func() { _ = g.recv.Close() })
 	defer timer.Stop()
-	serveErr := g.recv.Serve(receiver.CallbackHandler{
+	serveErr := g.recv.Serve(nil, receiver.CallbackHandler{
 		Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
 			switch {
 			case len(m.Value) > 0:

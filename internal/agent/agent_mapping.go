@@ -27,7 +27,7 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 
 // mapAllTags processes all tags in a single pass, including environment tag
 // unlike v2, it doesn't stop on the first invalid tag
-func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate, host []byte) {
+func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshouse.MetricBytes, autoCreate *data_model.AutoCreate, host string) {
 	for i := 0; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
 		tagMeta, tagIDKey, validEvent := data_model.MapValidateTag(v, metric, h, autoCreate)
@@ -74,11 +74,11 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 	}
 	if !h.IsHKeySet && len(host) != 0 {
 		var tagValue data_model.TagUnion
-		id, found := s.mappingsCache.GetValueBytes(uint32(h.ReceiveTime.Unix()), host)
+		id, found := s.mappingsCache.GetValue(uint32(h.ReceiveTime.Unix()), host)
 		if found {
 			tagValue.I = id
 		} else {
-			tagValue.S = string(host) // allocates on failed mapping only
+			tagValue.S = host
 		}
 		h.SetTag(format.HostTagIndex, tagValue, 0)
 	}
