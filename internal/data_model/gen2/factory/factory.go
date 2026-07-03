@@ -114,6 +114,8 @@ func init() {
 	metainternal.SetGlobalFactoryCreateForObject("metadata.createEntityEvent", func() metainternal.Object { return new(internal.MetadataCreateEntityEvent) })
 	metainternal.SetGlobalFactoryCreateForObject("metadata.createMappingEvent", func() metainternal.Object { return new(internal.MetadataCreateMappingEvent) })
 	metainternal.SetGlobalFactoryCreateForObject("metadata.createMetricEvent", func() metainternal.Object { return new(internal.MetadataCreateMetricEvent) })
+	metainternal.SetGlobalFactoryCreateForFunction("metadata.deleteMappingCandidates", func() metainternal.Function { return new(internal.MetadataDeleteMappingCandidates) }, nil)
+	metainternal.SetGlobalFactoryCreateForObject("metadata.deleteMappingsEvent", func() metainternal.Object { return new(internal.MetadataDeleteMappingsEvent) })
 	metainternal.SetGlobalFactoryCreateForObject("metadata.editEntityEvent", func() metainternal.Object { return new(internal.MetadataEditEntityEvent) })
 	metainternal.SetGlobalFactoryCreateForFunction("metadata.editEntitynew", func() metainternal.Function { return new(internal.MetadataEditEntitynew) }, nil)
 	metainternal.SetGlobalFactoryCreateForObject("metadata.editMetricEvent", func() metainternal.Object { return new(internal.MetadataEditMetricEvent) })

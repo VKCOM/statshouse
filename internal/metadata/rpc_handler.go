@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/VKCOM/statshouse-go"
-
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -29,6 +28,7 @@ import (
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
 const mappingCacheSize = 500
+const maxDeletionSizeLimit = 1000
 
 type GetMappingClients struct {
 	host    string
@@ -450,6 +450,57 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	}
 	hctx.Response, err = args.WriteResultTL1(hctx.Response, mapping)
 	return status, err
+}
+
+func (h *Handler) RawDeleteMappingCandidates(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	args := tlmetadata.DeleteMappingCandidates{}
+	_, err := args.ReadTL1(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.DeleteMappingCandidates request: %w", err)
+	}
+
+	cands := h.deletionCandidateMappings
+
+	if args.Offset < 0 {
+		return "", fmt.Errorf("invalid argument offset %d for list of %d candidates", args.Offset, len(cands))
+	}
+
+	if args.Limit <= 0 || args.Limit > maxDeletionSizeLimit {
+		return "", fmt.Errorf("invalid argument limit %d %d for list of candidates", args.Limit, maxDeletionSizeLimit)
+	}
+
+	if args.Offset >= int32(len(cands)) {
+		hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
+			From:                -1,
+			To:                  -1,
+			CountBeforeDeletion: 0,
+		})
+		if err != nil {
+			return "", err
+		}
+		return "ok", nil
+	}
+
+	start := args.Offset
+	end := args.Offset + args.Limit
+	if end > int32(len(cands)) {
+		end = int32(len(cands))
+	}
+	countBeforeDeletion, err := h.db.deleteMappingsByIdBatched(ctx, cands[start:end])
+
+	if err != nil {
+		return "", err
+	}
+
+	hctx.Response, err = args.WriteResultTL1(hctx.Response, tlmetadata.DeleteMappingCandidatesResponse{
+		From:                cands[start],
+		To:                  cands[end-1],
+		CountBeforeDeletion: countBeforeDeletion,
+	})
+	if err != nil {
+		return "", err
+	}
+	return "ok", nil
 }
 
 // RawPutMapping Agent cache, Aggregator cache and Aggregator mapping replica DB will not know about changes!

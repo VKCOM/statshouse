@@ -82,6 +82,11 @@ var argv struct {
 	metadataAddr    string
 	metadataActorID int64
 
+	// delete mappings
+	deleteMappingsOffset    int64
+	deleteMappingsBatchSize int64
+	deleteMappingsLimit     int64
+
 	// publish_tag_drafts mode
 	maxUpdates int
 	dryRun     bool
@@ -736,6 +741,16 @@ func parseCommandLine() (int, error) {
 		argv.trustedSubnetGroupsFlag.Bind(flag.CommandLine)
 		build.FlagParseShowVersionHelp()
 		return massUpdateMetadata(), nil
+	case "clear_mapping_deletion_candidates":
+		flag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "")
+		flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+		flag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+		flag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "")
+		flag.Int64Var(&argv.deleteMappingsOffset, "delete-mappings-offset", 0, "")
+		flag.Int64Var(&argv.deleteMappingsBatchSize, "delete-mappings-batch-size", 500, "")
+		flag.Int64Var(&argv.deleteMappingsLimit, "delete-mappings-limit", 500, "")
+		build.FlagParseShowVersionHelp()
+		return clearMappingDeletionCandidates(), nil
 	case "simple_fsync":
 		return mainSimpleFSyncTest(), nil
 	case "benchmark":

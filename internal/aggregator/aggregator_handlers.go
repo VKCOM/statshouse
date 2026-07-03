@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"go4.org/mem"
@@ -288,14 +289,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if roundedToOurTime < oldestTime {
 			aggBucket = a.historicBuckets[args.Time]
 			if aggBucket == nil {
-				aggBucket = &aggregatorBucket{
-					time:                        args.Time,
-					contributors:                map[rpc.LongpollHandle]struct{}{},
-					contributors3:               map[rpc.LongpollHandle]contributor{},
-					contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
-					historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-					originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
-				}
+				aggBucket = newAggregatorBucket(args.Time)
 				a.historicBuckets[args.Time] = aggBucket
 			}
 		} else {
@@ -357,7 +351,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	measurementStringTops := 0
 	measurementIntTops := 0
 	measurementOutdatedRows := 0
-	unknownTags := map[string]data_model.CreateMappingExtra{}
+	unknownTags := map[string]createMappingExtra{}
 	sendMappings := map[string]int32{} // we want deduplication to efficiently use network
 	mappingHits := 0
 	mappingMisses := 0
@@ -381,6 +375,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	clampedTimestampsMetrics := map[clampedKey]float32{}
 	oldMetricBuckets := map[int32][3]int{}
 
+	validateStringTag := func(i int, str []byte, metricID int32, clientEnv int32) bool {
+		if len(str) == 0 {
+			return true
+		}
+		if format.ValidStringValue(mem.B(str)) {
+			return true
+		}
+		tagId := int32(i + format.TagIDShift)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
+			[]int32{0, 1, metricID, tagId},
+			1, hostTag, aera)
+		return false
+	}
 	// If agents send lots of strings, this loop is non-trivial amount of work.
 	// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
 	mapStringTag := func(i int, str []byte, metricID int32, clientEnv int32) int32 {
@@ -395,11 +402,14 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			return mapped
 		}
 		mappingMisses++
-		if len(unknownTags) < configR.MaxUnknownTagsInBucket {
+		// Benefits of creating mappings for historic data depends on circumstances.
+		// We decided to save CPU by not creating them.
+		if !args.IsSetHistoric() {
 			tagId := int32(i + format.TagIDShift)
+			// len(unknownTags) is limited to aggregation map by key (multiplied by 48 in the worst case)
+			// and is proportional to agent budget
 			if _, ok := unknownTags[string(str)]; !ok {
-				unknownTags[string(str)] = data_model.CreateMappingExtra{
-					Create:    true, // passed as is to meta loader
+				unknownTags[string(str)] = createMappingExtra{
 					MetricID:  metricID,
 					TagIDKey:  tagId,
 					ClientEnv: clientEnv,
@@ -419,6 +429,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// we will allocate if key won't fit into this buffer, but it is quite unlikely
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
+outer:
 	for _, item := range bucket.Metrics {
 		if item.T != 0 && item.T < roundedToOurTime {
 			measurementOutdatedRows++
@@ -452,9 +463,12 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
 		}
 		for i, str := range item.Skeys {
-			// in case agents sends more then 16 tags
+			// in case agents sends more tags
 			if i >= format.MaxTags {
 				break
+			}
+			if !validateStringTag(i, str, k.Metric, k.Tags[0]) {
+				continue outer
 			}
 			if m := mapStringTag(i, str, k.Metric, k.Tags[0]); m > 0 {
 				k.Tags[i] = m
@@ -516,40 +530,69 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 		}
 		if item.Tail.IsSetMaxHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MaxHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMaxCounterHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxCounterHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxCounterHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMinHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MinHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMinHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
 			}
 		}
+		// quick check of counter only
+		if item.Tail.Counter < 0 || math.IsNaN(item.Tail.Counter) || item.Tail.Counter > math.MaxFloat32 {
+			a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
+				[]int32{0, 2, item.Metric},
+				1, hostTag, aera)
+			continue outer
+		}
+
 		for i, tb := range item.Top {
+			if !validateStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
 				item.Top[i].Tag = m
 			}
 			if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMaxHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMaxHostStag(&item.FieldsMask)
 				}
 			}
 			if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
 				}
 			}
 			if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMinHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMinHostStag(&item.FieldsMask)
@@ -579,21 +622,13 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		resp.Mappings = append(resp.Mappings, tlstatshouse.Mapping{Str: k, Value: v})
 	}
 
-	var avgRemovedHits float64
-	var unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd int
-	if !configR.EnableMappingStorage {
-		unknownMapRemove, unknownMapAdd, unknownListAdd, createMapAdd, avgRemovedHits = a.tagsMapper2.AddUnknownTags(unknownTags, aggBucket.time)
-	} else {
-		unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits = a.tagsMapper3.AddUnknownTags(unknownTags, aggBucket.time)
-	}
-
 	aggBucket.mu.Lock()
 
-	if aggBucket.usedMetrics == nil {
-		aggBucket.usedMetrics = map[int32]struct{}{}
-	}
 	for m := range usedMetrics {
 		aggBucket.usedMetrics[m] = struct{}{}
+	}
+	for k, v := range unknownTags {
+		aggBucket.unknownTags[k] = v
 	}
 	if args.IsSetHistoric() {
 		aggBucket.historicHosts[bool2int(args.IsSetSpare())][bool2int(isRouteProxy)][hostTag]++
@@ -638,6 +673,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingMisses}, float64(mappingMisses), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
+		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingSent}, float64(len(sendMappings)), 1, hostTag, aera)
+	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingUnknownKeys}, float64(len(unknownTags)), 1, hostTag, aera)
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggBucketInfo,
 		[]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDAggBucketInfoMappingLocks}, float64(measurementLocks), 1, hostTag, aera)
@@ -660,24 +697,6 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingCacheEvent,
 		[]int32{0, format.TagValueIDComponentAggregator, format.TagValueIDMappingCacheEventMiss},
 		float64(mappingMisses), hostTag, aera)
-
-	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
-		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove},
-		float64(unknownMapRemove), hostTag, aera)
-	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
-		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd},
-		float64(unknownMapAdd), hostTag, aera)
-	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
-		[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownListAdd},
-		float64(unknownListAdd), hostTag, aera)
-	a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueEvent,
-		[]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd},
-		float64(createMapAdd), hostTag, aera)
-	if avgRemovedHits != 0 {
-		a.sh2.AddCounterHostAERA(args.Time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
-			[]int32{},
-			avgRemovedHits, hostTag, aera)
-	}
 
 	a.sh2.AddValueCounterHostAERA(args.Time, format.BuiltinMetricMetaAggSizeCompressed,
 		[]int32{0, 0, 0, 0, conveyor, spare},
@@ -758,6 +777,32 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	return "", errHijack, false
+}
+
+func (a *Aggregator) addUnknownTags(unknownTags map[string]createMappingExtra, time uint32, hostTag data_model.TagUnion, aera data_model.AgentEnvRouteArch) {
+	unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits, avgRemovedTotal := a.tagsMapper3.AddUnknownTags(unknownTags, time)
+
+	if unknownMapRemove != 0 {
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove},
+			float64(unknownMapRemove), 1, hostTag, aera)
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
+			[]int32{},
+			avgRemovedHits, 1, hostTag, aera)
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedTotalAvg,
+			[]int32{},
+			avgRemovedTotal, 1, hostTag, aera)
+	}
+	if unknownMapAdd != 0 {
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd},
+			float64(unknownMapAdd), 1, hostTag, aera)
+	}
+	if createMapAdd != 0 {
+		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
+			[]int32{0, 0, format.TagValueIDMappingQueueEventCreateMapAdd},
+			float64(createMapAdd), 1, hostTag, aera)
+	}
 }
 
 func (a *Aggregator) handleSendKeepAlive2(_ context.Context, hctx *rpc.HandlerContext) error {

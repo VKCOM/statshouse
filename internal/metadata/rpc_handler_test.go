@@ -756,3 +756,83 @@ func TestRPCServerBroadcastMapping(t *testing.T) {
 	defer h.getMappingClients.mx.Unlock()
 	require.Len(t, h.getMappingClients.clients, 1)
 }
+
+func callDeleteMappingCandidates(t *testing.T, h *Handler, offset, limit int32) (tlmetadata.DeleteMappingCandidatesResponse, error) {
+	args := tlmetadata.DeleteMappingCandidates{Offset: offset, Limit: limit}
+	hctx := &rpc.HandlerContext{Request: args.WriteTL1(nil)}
+	_, err := h.RawDeleteMappingCandidates(context.Background(), hctx)
+	if err != nil {
+		return tlmetadata.DeleteMappingCandidatesResponse{}, err
+	}
+	var resp tlmetadata.DeleteMappingCandidatesResponse
+	_, derr := args.ReadResultTL1(hctx.Response, &resp)
+	require.NoError(t, derr)
+	return resp, nil
+}
+
+func TestRawDeleteMappingCandidates(t *testing.T) {
+	ctx := context.Background()
+
+	presentMappings := []int32{5, 10, 15, 20, 25, 30, 35, 40, 45, 50}
+	cands := []int32{10, 20, 30, 40, 50}
+
+	setup := func(t *testing.T) *Handler {
+		_, server, _, h := initServer(t, time.Now)
+		t.Cleanup(func() { server.Close() })
+		keys := make([]string, len(presentMappings))
+		for i, id := range presentMappings {
+			keys[i] = "key" + fmt.Sprint(id)
+		}
+		require.NoError(t, h.db.PutMapping(ctx, keys, presentMappings))
+		h.deletionCandidateMappings = cands
+		return h
+	}
+
+	exists := func(t *testing.T, h *Handler, id int32) bool {
+		_, ok, err := h.db.GetMappingByID(ctx, id)
+		require.NoError(t, err)
+		return ok
+	}
+
+	t.Run("deletes at most limit candidates from offset", func(t *testing.T) {
+		h := setup(t)
+		resp, err := callDeleteMappingCandidates(t, h, 0, 2)
+		require.NoError(t, err)
+		require.Equal(t, int32(2), resp.CountBeforeDeletion)
+		require.Equal(t, int32(10), resp.From)
+		require.Equal(t, int32(20), resp.To)
+		require.False(t, exists(t, h, 10))
+		require.False(t, exists(t, h, 20))
+		require.True(t, exists(t, h, 30))
+	})
+
+	t.Run("full range deletes every candidate", func(t *testing.T) {
+		h := setup(t)
+		resp, err := callDeleteMappingCandidates(t, h, 0, int32(len(cands)))
+		require.NoError(t, err)
+		require.Equal(t, int32(len(cands)), resp.CountBeforeDeletion)
+		for _, id := range cands {
+			require.Falsef(t, exists(t, h, id), "id %d should be deleted", id)
+		}
+	})
+
+	t.Run("offset equal or bigger than len cands doesn't delete anything", func(t *testing.T) {
+		h := setup(t)
+		require.NotPanics(t, func() {
+			resp, err := callDeleteMappingCandidates(t, h, int32(len(cands)), 1)
+			require.NoError(t, err)
+			require.Equal(t, int32(0), resp.CountBeforeDeletion)
+		})
+		for _, id := range cands {
+			require.True(t, exists(t, h, id))
+		}
+	})
+
+	t.Run("window ending exactly at len does not panic", func(t *testing.T) {
+		h := setup(t)
+		require.NotPanics(t, func() {
+			_, err := callDeleteMappingCandidates(t, h, 1, int32(len(cands)))
+			require.NoError(t, err)
+		})
+	})
+}

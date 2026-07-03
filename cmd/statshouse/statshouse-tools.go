@@ -503,7 +503,6 @@ func mainTagMapping() int {
 		} else {
 			fmt.Printf("%q NOT FOUND\n", tag)
 		}
-		fmt.Println()
 	}
 	if argv.budget != 0 {
 		var ( // Set mapping budget
@@ -989,5 +988,45 @@ func massUpdateMetadata() int {
 	}
 	_, _ = fmt.Fprintf(os.Stderr, "Finished list of %d metrics, %d found of %d --max-updates\n", len(list), found, argv.maxUpdates)
 	// journal.Compare(journalCompact)
+	return 0
+}
+
+func clearMappingDeletionCandidates() int {
+	client := tlmetadata.Client{
+		Client: rpc.NewClient(
+			// rpc.ClientWithProtocolVersion(rpc.LatestProtocolVersion),
+			rpc.ClientWithCryptoKey(readAESPwd()),
+			rpc.ClientWithTrustedSubnetGroups(argv.trustedSubnetGroupsFlag.GetOrDefault(rpc.SplitSubnetsString(build.TrustedSubnetGroups(""))))),
+		Network: argv.metadataNet,
+		Address: argv.metadataAddr,
+		ActorID: argv.metadataActorID,
+	}
+
+	offset := int32(argv.deleteMappingsOffset)
+	totalLimit := int32(argv.deleteMappingsLimit)
+	batchSize := int32(argv.deleteMappingsBatchSize)
+	lastDeletionIndex := offset + totalLimit // NOTE: exclusive
+
+	log.Printf("starting deletion of up to %d mappings in batches of %d, starting from index %d", totalLimit, batchSize, offset)
+
+	for start := offset; start < lastDeletionIndex; start += batchSize {
+		args := tlmetadata.DeleteMappingCandidates{
+			Offset: start,
+			Limit:  batchSize,
+		}
+		ctx := context.Background()
+		resp := tlmetadata.DeleteMappingCandidatesResponse{}
+		log.Printf("deleting mappings from index %d/%d", start, lastDeletionIndex)
+		err := client.DeleteMappingCandidates(ctx, args, nil, &resp)
+
+		if err != nil {
+			log.Fatal(err)
+			return 1
+		}
+		log.Printf("deleted %d present mappings from values %v to %v", resp.CountBeforeDeletion, resp.From, resp.To)
+	}
+
+	log.Printf("Done.")
+
 	return 0
 }

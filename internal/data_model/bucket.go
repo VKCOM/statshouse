@@ -125,17 +125,6 @@ type (
 		Route     int32
 		BuildArch int32
 	}
-
-	// TODO - better place?
-	CreateMappingExtra struct {
-		Create    bool
-		Metric    string // set by old conveyor, TODO - remove?
-		MetricID  int32  // set by new conveyor
-		TagIDKey  int32
-		ClientEnv int32
-		Aera      AgentEnvRouteArch
-		HostTag   TagUnion
-	}
 )
 
 func (t *TagUnion) Normalize() {

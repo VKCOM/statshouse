@@ -642,6 +642,65 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 	return resp, err
 }
 
+func (db *DBV2) deleteMappingsByIdBatched(ctx context.Context, ids []int32) (countBeforeDeletion int32, err error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	if len(ids) > maxDeletionSizeLimit {
+		return 0, fmt.Errorf("can't delete more than %d ids at once; tried to delete %d", maxDeletionSizeLimit, len(ids))
+	}
+
+	idsInt64 := make([]int64, len(ids))
+	for i, v := range ids {
+		idsInt64[i] = int64(v)
+	}
+
+	err = db.eng.Do(ctx, "delete_mappings_batched", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		presentIdsInt64 := make([]int64, 0, len(idsInt64))
+
+		rows := conn.Query("get_present_mappings_count", "SELECT id FROM mappings where id in ($ids$)",
+			sqlite.Int64Slice("$ids$", idsInt64))
+
+		if rows.Error() != nil {
+			return cache, rows.Error()
+		}
+
+		for rows.Next() {
+			id, err := rows.ColumnInt64(0)
+			if err != nil {
+				return cache, err
+			}
+			presentIdsInt64 = append(presentIdsInt64, id)
+		}
+
+		countBeforeDeletion = int32(len(presentIdsInt64))
+		if len(presentIdsInt64) == 0 {
+			// if ids don't exist, we don't fire the delete query and don't write the binlog event
+			return cache, nil
+		}
+
+		// delete query only fires for the subset of ids that are present
+		_, err := conn.Exec("delete_mappings", "DELETE FROM mappings WHERE id in ($ids$)",
+			sqlite.Int64Slice("$ids$", presentIdsInt64))
+		if err != nil {
+			return cache, err
+		}
+
+		presentIds := make([]int32, len(presentIdsInt64))
+		for i, v := range presentIdsInt64 {
+			presentIds[i] = int32(v)
+		}
+
+		event := tlmetadata.DeleteMappingsEvent{
+			Ids: presentIds,
+		}
+		eventBytes := event.WriteTL1Boxed(cache)
+		return eventBytes, nil
+	})
+	return countBeforeDeletion, err
+}
+
 func (db *DBV2) PutMapping(ctx context.Context, ks []string, vs []int32) error {
 	if len(ks) != len(vs) {
 		return fmt.Errorf("can't match keys size and values size")

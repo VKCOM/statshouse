@@ -315,10 +315,11 @@ func run() error {
 	proxy := metadata.ProxyHandler{Host: host}
 	handler := metadata.NewHandler(db, host, argv.deletionCandidateMappingsPath, log.Printf)
 	h := &tlmetadata.Handler{
-		RawGetMapping:       proxy.HandleProxy("getMapping", handler.RawGetMappingByValue),
-		RawPutMapping:       proxy.HandleProxy("putMapping", handler.RawPutMapping),
-		RawGetInvertMapping: proxy.HandleProxy("getMappingByID", handler.RawGetMappingByID),
-		RawResetFlood:       proxy.HandleProxy("resetFlood", handler.RawResetFlood),
+		RawGetMapping:              proxy.HandleProxy("getMapping", handler.RawGetMappingByValue),
+		RawDeleteMappingCandidates: proxy.HandleProxy("deleteMappingCandidates", handler.RawDeleteMappingCandidates),
+		RawPutMapping:              proxy.HandleProxy("putMapping", handler.RawPutMapping),
+		RawGetInvertMapping:        proxy.HandleProxy("getMappingByID", handler.RawGetMappingByID),
+		RawResetFlood:              proxy.HandleProxy("resetFlood", handler.RawResetFlood),
 
 		RawEditEntitynew:       proxy.HandleProxy("editEntity", handler.RawEditEntity),
 		RawGetEntity:           proxy.HandleProxy("getEntity", handler.RawGetEntity),

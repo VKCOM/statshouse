@@ -390,6 +390,7 @@ const (
 	TagValueIDAggBucketInfoNewKeys            = 12
 	TagValueIDAggBucketInfoMetrics            = 13
 	TagValueIDAggBucketInfoOutdatedRows       = 14
+	TagValueIDAggBucketInfoMappingSent        = 15
 
 	TagValueIDMappingCacheEventHit                 = 1
 	TagValueIDMappingCacheEventMiss                = 2

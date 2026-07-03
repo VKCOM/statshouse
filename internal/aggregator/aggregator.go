@@ -59,7 +59,9 @@ type (
 		originalMetricSize map[int32]map[data_model.TagUnion]uint32
 
 		usedMetrics map[int32]struct{}
-		mu          sync.Mutex // Protects everything, except shards
+		unknownTags map[string]createMappingExtra // for all strings, so we can create after sampling
+
+		mu sync.Mutex // Protects everything, except shards
 
 		sendMu sync.RWMutex // Used to wait for all aggregating clients to finish before sending
 
@@ -119,9 +121,7 @@ type (
 		journalFast     *metajournal.JournalFast
 		journalCompact  *metajournal.JournalFast
 		testConnection  *TestConnection
-		tagsMapper2     *tagsMapper2 // deprecated
 		tagsMapper3     *tagsMapper3
-		mappingsCache   *pcache.MappingsCache // deprecated
 		mappingsStorage *metajournal.MappingsStorage
 
 		scrape     *scrapeServer
@@ -145,6 +145,19 @@ type (
 		data_model.ItemValue
 	}
 )
+
+func newAggregatorBucket(time uint32) *aggregatorBucket {
+	return &aggregatorBucket{
+		time:                        time,
+		contributors:                map[rpc.LongpollHandle]struct{}{},
+		contributors3:               map[rpc.LongpollHandle]contributor{},
+		contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
+		historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
+		originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
+		usedMetrics:                 map[int32]struct{}{},
+		unknownTags:                 map[string]createMappingExtra{},
+	}
+}
 
 func (b *aggregatorBucket) CancelLongpoll(lh rpc.LongpollHandle) {
 	b.mu.Lock()
@@ -250,7 +263,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 		shardKey:          shardKey,
 		replicaKey:        replicaKey,
 		buildArchTag:      format.GetBuildArchKey(runtime.GOARCH),
-		mappingsCache:     mappingsCache,
 		mappingsStorage:   mappingsStorage,
 		migrationConfig:   NewDefaultMigrationConfig(),
 		migrationConfigV3: NewDefaultMigrationConfigV3(cacheDir),
@@ -355,7 +367,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	a.migrationV3Data.metricMetaLoader = legacyMetaLoader
 
 	a.testConnection = MakeTestConnection()
-	a.tagsMapper2 = NewTagsMapper2(a, a.sh2, a.metricStorage, a.metricMetaLoader)
 	a.tagsMapper3 = NewTagsMapper3(a, a.sh2, a.metricStorage, a.metricMetaLoader)
 
 	a.aggregatorHostTag, err = loadAggregatorTag(mappingsCache, a.metricMetaLoader, hostName)
@@ -375,7 +386,6 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	_ = a.insertsSema.Acquire(context.Background(), a.insertsSemaSize)
 
 	a.updateConfigRemotelyExperimental()
-	go a.tagsMapper2.goRun()
 	go a.tagsMapper3.goRun()
 	go a.goTicker()
 	for i := 0; i < a.config.RecentInserters; i++ {
@@ -397,24 +407,10 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 }
 
 func (a *Aggregator) getTagValueBytes(unix uint32, tagValue []byte) (int32, bool) {
-	a.configMu.RLock()
-	useStorage := a.configR.EnableMappingStorage
-	a.configMu.RUnlock()
-
-	if !useStorage {
-		return a.mappingsCache.GetValueBytes(unix, tagValue)
-	}
 	return a.mappingsStorage.GetValueBytes(tagValue)
 }
 
 func (a *Aggregator) getTagValue(unix uint32, tagValue string) (int32, bool) {
-	a.configMu.RLock()
-	useStorage := a.configR.EnableMappingStorage
-	a.configMu.RUnlock()
-
-	if !useStorage {
-		return a.mappingsCache.GetValue(unix, tagValue)
-	}
 	return a.mappingsStorage.GetValue(tagValue)
 }
 
@@ -431,7 +427,7 @@ func (a *Aggregator) getTagUnion(unix uint32, tagValue string) data_model.TagUni
 	if ok {
 		return data_model.TagUnion{I: v}
 	}
-	return data_model.TagUnion{S: string(tagValue)}
+	return data_model.TagUnion{S: tagValue}
 }
 
 func (a *Aggregator) SaveJournals() {
@@ -576,9 +572,6 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 		[]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric},
 		float64(historicSends), 1, a.aggregatorHostTag)
 
-	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
-		[]int32{},
-		float64(a.tagsMapper2.UnknownTagsLen()), 1, a.aggregatorHostTag)
 	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
 		[]int32{},
 		float64(a.tagsMapper3.UnknownTagsLen()), 1, a.aggregatorHostTag)
@@ -1080,25 +1073,11 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 		a.recentBuckets = append([]*aggregatorBucket{}, a.recentBuckets[1:]...) // copy
 	}
 	if len(a.recentBuckets) == 0 { // Jumped into future, also initial state
-		b := &aggregatorBucket{
-			time:                        nowUnix - uint32(configR.ShortWindow),
-			contributors:                map[rpc.LongpollHandle]struct{}{},
-			contributors3:               map[rpc.LongpollHandle]contributor{},
-			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
-			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-			originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
-		}
+		b := newAggregatorBucket(nowUnix - uint32(configR.ShortWindow))
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
 	for len(a.recentBuckets) < configR.ShortWindow+data_model.FutureWindow {
-		b := &aggregatorBucket{
-			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
-			contributors:                map[rpc.LongpollHandle]struct{}{},
-			contributors3:               map[rpc.LongpollHandle]contributor{},
-			contributorsSimulatedErrors: map[rpc.LongpollHandle]struct{}{},
-			historicHosts:               [2][2]map[data_model.TagUnion]int64{{map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}, {map[data_model.TagUnion]int64{}, map[data_model.TagUnion]int64{}}},
-			originalMetricSize:          map[int32]map[data_model.TagUnion]uint32{},
-		}
+		b := newAggregatorBucket(a.recentBuckets[0].time + uint32(len(a.recentBuckets)))
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
 	if !initial {
@@ -1215,8 +1194,6 @@ func (a *Aggregator) updateConfigRemotelyExperimental() {
 	a.configR = config
 	after := a.getConfigResult3Locked()
 	a.configMu.Unlock()
-	a.mappingsCache.SetSizeTTL(config.MappingCacheSize, config.MappingCacheTTL)
-	a.tagsMapper2.SetConfig(config.configTagsMapper3)
 	a.tagsMapper3.SetConfig(config.configTagsMapper3)
 	a.metricMetaLoader.SetConfig(config.RQLiteAddrs)
 	a.orgMetricSize.SetHalfLife(config.OriginalSizeDecayHalfLife)

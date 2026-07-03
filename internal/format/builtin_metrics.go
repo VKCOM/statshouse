@@ -685,12 +685,13 @@ var BuiltinMetricMetaVersions = &MetricMetaValue{
 	}, {}},
 }
 
-const BuiltinMetricIDBadges = -35 // copy of some other metrics for efficient show of errors and warnings
+const BuiltinMetricIDBadges = -35       // copy of some other metrics for efficient show of errors and warnings
+const BuiltinMetricBadgesResolution = 5 // we do lots of SELECTs with this metric, so we keep it smaller
 var BuiltinMetricMetaBadges = &MetricMetaValue{
 	Name:                    "__badges",
 	Kind:                    MetricKindValue,
 	Description:             "System metric used to display UI badges above plot. Stores stripped copy of some other builtin metrics.",
-	Resolution:              5,
+	Resolution:              BuiltinMetricBadgesResolution,
 	NoSampleAgent:           false, // marshalled by aggregator to the same shard metric is
 	BuiltinAllowedToReceive: false,
 	WithAgentEnvRouteArch:   false, // this metric must be extremely lightweight
@@ -2570,6 +2571,7 @@ var BuiltinMetricMetaAggBucketInfo = &MetricMetaValue{
 			TagValueIDAggBucketInfoNewKeys:            "new_keys",
 			TagValueIDAggBucketInfoMetrics:            "metrics",
 			TagValueIDAggBucketInfoOutdatedRows:       "outdated_rows",
+			TagValueIDAggBucketInfoMappingSent:        "sent_to_agent",
 		}),
 	}, {}},
 }
@@ -2668,7 +2670,7 @@ var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
 
 var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 	Name:                    "__mapping_queue_events",
-	Kind:                    MetricKindCounter,
+	Kind:                    MetricKindValue,
 	Description:             "Events in aggregator new conveyor mapping queue",
 	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
 	BuiltinAllowedToReceive: false,
@@ -2681,7 +2683,7 @@ var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 			TagValueIDMappingQueueEventUnknownMapRemove:  "uknown_map_remove",
 			TagValueIDMappingQueueEventUnknownMapAdd:     "unknown_map_add",
 			TagValueIDMappingQueueEventUnknownListRemove: "unknown_list_remove",
-			TagValueIDMappingQueueEventUnknownListAdd:    "unknown_list_add",
+			TagValueIDMappingQueueEventUnknownListAdd:    "unknown_list_add", // historic value, never written
 			TagValueIDMappingQueueEventCreateMapAdd:      "create_map_add",
 			TagValueIDMappingQueueEventCreateMapRemove:   "create_map_remove",
 		}),
@@ -2868,8 +2870,6 @@ var BuiltinMetricMetaApiChRequests = &MetricMetaValue{
 		}),
 	}},
 }
-
-const BuiltinMetricIDMigrationLog = -141
 
 var BuiltinMetricMetaMigrationLog = &MetricMetaValue{
 	Name:                    "__migration_log",
@@ -3152,8 +3152,6 @@ var BuiltinMetricMetaAggSendSrcBudget = &MetricMetaValue{
 	}},
 }
 
-const BuiltinMetricIDMappingUsage = -153
-
 var BuiltinMetricMetaMappingUsage = &MetricMetaValue{
 	Name: "__mapping_usage",
 	Kind: MetricKindCounter,
@@ -3170,5 +3168,35 @@ A value present means the mapping is still in use and should not be deleted.`,
 	}, {
 		Description: "mapping_id",
 		RawKind:     "int",
+	}},
+}
+
+var BuiltinMetricMetaMappingQueueRemovedTotalAvg = &MetricMetaValue{
+	Name:                    "__mapping_queue_removed_total_avg",
+	Kind:                    MetricKindValue,
+	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average total counter is reported here.",
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags:                    []MetricMetaTag{{ // reserve for component
+	}},
+}
+
+var BuiltinMetricMetaAggCorruptionStatus = &MetricMetaValue{
+	Name:                    "__agg_corruption_status",
+	Kind:                    MetricKindValue,
+	Description:             "Corrupted data",
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "status",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "tag_id",
 	}},
 }

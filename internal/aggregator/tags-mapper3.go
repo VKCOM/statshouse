@@ -18,16 +18,26 @@ import (
 )
 
 type unknownTag struct { // fits well into cache line
-	time uint32
-	hits uint32
+	time  uint32
+	hits  uint32
+	total int64
+}
+
+type createMappingExtra struct {
+	MetricID  int32
+	TagIDKey  int32
+	ClientEnv int32
+	Aera      data_model.AgentEnvRouteArch
+	HostTag   data_model.TagUnion
+	total     int64 // statistics
 }
 
 type configTagsMapper3 struct {
-	MaxUnknownTagsInBucket    int // keep for low at first, then increase gradually
-	MaxCreateTagsPerIteration int // keep for low at first, then increase gradually
-	MaxLoadTagsPerIteration   int // deprecated: keep for low at first, then increase gradually
-	TagHitsToCreate           int // if used in 10 different seconds, then create
+	MaxCreateTagsPerIteration int // limit to protect against all kind of errors
+	TagHitsToCreate           int // if used in N different seconds, then create
+	TagTotalToCreate          int // if inserted in database K times, then create
 	MaxUnknownTagsToKeep      int
+	KeepTime                  int // if not used for the long time, it is removed from unknownTags
 	MaxSendTagsToAgent        int
 }
 
@@ -39,7 +49,7 @@ type tagsMapper3 struct {
 
 	mu          sync.Mutex
 	unknownTags map[string]unknownTag // collect statistics here
-	createTags  map[string]data_model.CreateMappingExtra
+	createTags  map[string]createMappingExtra
 
 	config configTagsMapper3
 }
@@ -51,7 +61,7 @@ func NewTagsMapper3(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajourna
 		metricStorage: metricStorage,
 		loader:        loader,
 		unknownTags:   map[string]unknownTag{},
-		createTags:    map[string]data_model.CreateMappingExtra{},
+		createTags:    map[string]createMappingExtra{},
 		config:        agg.configR.configTagsMapper3,
 	}
 	return ms
@@ -69,37 +79,58 @@ func (ms *tagsMapper3) UnknownTagsLen() int {
 	return len(ms.unknownTags)
 }
 
-func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]data_model.CreateMappingExtra, time uint32) (
-	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64) {
+func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]createMappingExtra, time uint32) (
+	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64, avgRemovedTotal float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	var sumHits int64
+	var sumTotal int64
+	numIter := 0
+	// work proportional to len(unknownTags).
+	for k, v := range ms.unknownTags {
+		if int64(time) >= int64(v.time)+int64(ms.config.KeepTime) {
+			unknownMapRemove++
+			sumHits += int64(v.hits)
+			sumTotal += v.total
+			delete(ms.unknownTags, k)
+		}
+		numIter++
+		if numIter > 4*len(unknownTags) { // 4x multiplier so if 25% of items is stale, enough space is freed to fit all new tags
+			break
+		}
+	}
+	// work usually proportional to len(unknownTags), but if ms.config.MaxUnknownTagsToKeep is reduced, can do a lot of work, but only once
 	for k, v := range ms.unknownTags { // can delete a bit more items than strictly necessary
 		if len(ms.unknownTags)+len(unknownTags) <= ms.config.MaxUnknownTagsToKeep {
 			break
 		}
 		unknownMapRemove++
 		sumHits += int64(v.hits)
-		delete(ms.unknownTags, k) // but stays in list, so list and map do not correspond 1-1 to each other
+		sumTotal += v.total
+		delete(ms.unknownTags, k)
 	}
 	if unknownMapRemove != 0 {
 		avgRemovedHits = float64(sumHits) / float64(unknownMapRemove)
+		avgRemovedTotal = float64(sumTotal) / float64(unknownMapRemove)
 	}
 	for k, v := range unknownTags {
 		u := ms.unknownTags[k]
+		u.total += v.total
 		if time > u.time {
 			u.time = time
 			u.hits++
-			if int(u.hits) > ms.config.TagHitsToCreate {
+			if int(u.hits) > ms.config.TagHitsToCreate && u.total > int64(ms.config.TagTotalToCreate) &&
+				len(ms.createTags) < ms.config.MaxCreateTagsPerIteration {
 				createMapAdd++
 				ms.createTags[k] = v
 				u.hits = 0
+				u.total = 0
 				// we do not delete from ms.unknownTags, because it will be most likely added back immediately,
-				// but we clear counter, so we will not add to ms.createTags every iteration
+				// but we clear counter and total, so we will not add to ms.createTags every iteration.
 			}
-			ms.unknownTags[k] = u
 			unknownMapAdd++
 		}
+		ms.unknownTags[k] = u
 	}
 	return
 }
@@ -107,19 +138,14 @@ func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]data_model.CreateMa
 func (ms *tagsMapper3) goRun() {
 	for { // no reason for graceful shutdown
 		time.Sleep(500 * time.Millisecond) // arbitrary delay to reduce meta DDOS
-		createTags, maxCreateTagsPerIteration := ms.getTagsToCreate()
-		counter := 0
+		createTags := ms.getTagsToCreate() // limited by MaxCreateTagsPerIteration
 		for str, extra := range createTags {
-			counter++
-			if counter > maxCreateTagsPerIteration {
-				break // simply forget the rest, will load/create more on the next iteration
-			}
 			ms.createTag(str, extra)
 		}
 	}
 }
 
-func (ms *tagsMapper3) createTag(str string, extra data_model.CreateMappingExtra) {
+func (ms *tagsMapper3) createTag(str string, extra createMappingExtra) {
 	var metricID int32
 	metricName := ""
 	var unknownMetricID int32
@@ -137,16 +163,16 @@ func (ms *tagsMapper3) createTag(str string, extra data_model.CreateMappingExtra
 		// Journal can be stale, while mapping works.
 		// Explicit metric for this situation allows resetting limit from UI, like any other metric
 	}
-	keyValue, c, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, extra.Create)
+	keyValue, c, _ := ms.loader.GetTagMapping(context.Background(), str, metricName, true)
 	ms.sh2.AddValueCounterHostAERA(0, format.BuiltinMetricMetaAggMappingCreated,
 		[]int32{extra.ClientEnv, 0, 0, 0, metricID, c, extra.TagIDKey, format.TagValueIDAggMappingCreatedConveyorNew, unknownMetricID, keyValue},
 		float64(keyValue), 1, extra.HostTag, extra.Aera)
 }
 
-func (ms *tagsMapper3) getTagsToCreate() (map[string]data_model.CreateMappingExtra, int) {
+func (ms *tagsMapper3) getTagsToCreate() map[string]createMappingExtra {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	createTags := ms.createTags
-	ms.createTags = map[string]data_model.CreateMappingExtra{}
-	return createTags, ms.config.MaxCreateTagsPerIteration
+	ms.createTags = map[string]createMappingExtra{}
+	return createTags
 }
