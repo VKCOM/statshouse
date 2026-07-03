@@ -8,7 +8,6 @@ package data_model
 
 import (
 	"encoding/binary"
-	"math"
 	"sort"
 	"unsafe"
 
@@ -67,12 +66,7 @@ type (
 		Top              map[TagUnion]*MultiValue
 		Tail             MultiValue // elements not in top are collected here
 		sampleFactorLog2 int
-		SF               float64  // set when Marshalling/Sampling
-		GlobalSF         *float64 // BucketPartition SF
-		Count            float64
-		Size             uint32
-		DupCnt           uint32 // duplicates count
-		Deleted          bool
+		SF               float64 // set when Marshalling/Sampling
 		MetricMeta       *format.MetricMetaValue
 	}
 
@@ -80,39 +74,6 @@ type (
 		Time uint32
 
 		MultiItemMap
-		CurSizes map[int32]map[string]*BucketSizeItem // once per key, no merge logic
-		CurStats map[int32]*BucketStat                // -1 => others
-	}
-
-	BucketStat struct {
-		Traffic    uint32
-		KeepSize   uint32
-		Partition  *BucketPartition                  // for fixed memory metric optimisation
-		Partitions map[PartitionKey]*BucketPartition // mostly len=1. len>1 for fairKey and others
-	}
-
-	BucketSizeItem struct {
-		key  string // reuse old keystring optimisation
-		Size uint32
-	}
-
-	PartitionKey struct {
-		ID   int32
-		fair [maxFairKeyLen]int32
-	}
-
-	BucketPartition struct {
-		Traffic     uint32
-		Budget      uint32
-		KeptTraffic uint32
-		SF          *float64 // ptr to every MultiItem.GlobalSF
-
-		TopSize   uint32
-		TopSfLog2 int
-		Top       map[string]*MultiItem // unsafe string
-
-		TailSize uint32
-		Tail     map[string]*MultiItem // unsafe string
 	}
 
 	MultiItemMap struct {
@@ -197,17 +158,6 @@ func (k *Key) MarshalAppend(buffer []byte) (updatedBuffer []byte, newKey []byte)
 		stagsPos += 1
 	}
 	return
-}
-
-func (k *Key) AccountMetric() int32 {
-	if k.Metric == format.BuiltinMetricIDIngestionStatus && k.Tags[1] != 0 {
-		return k.Tags[1]
-	}
-	return k.Metric
-}
-
-func (k *Key) OutsideBudget() bool {
-	return k.Metric == format.BuiltinMetricIDIngestionStatus && k.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached
 }
 
 func AggKey(t uint32, m int32, k [format.MaxTags]int32, hostTagId int32, shardTag int32, replicaTag int32) *Key {
@@ -301,290 +251,6 @@ func (s *ItemValue) Merge(rng *rand.Rand, s2 *ItemValue) {
 
 func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
-}
-
-func (b *MetricsBucket) SampleOrCreateMultiItem(rng *rand.Rand, key *Key, metricInfo *format.MetricMetaValue, budgetID int32, budget uint32, count float64, keyBytes []byte) (item *MultiItem, created bool) {
-	if budget == 0 || key.OutsideBudget() || metricInfo != nil && metricInfo.NoSampleAgent {
-		return b.MultiItemMap.GetOrCreateMultiItem(key, metricInfo, keyBytes)
-	}
-
-	metricID := key.AccountMetric()
-	wasLen := len(b.keysBuffer)
-	if len(keyBytes) > 0 { // no need to marshall since we already have result
-		b.keysBuffer = append(b.keysBuffer, keyBytes...)
-		keyBytes = b.keysBuffer[wasLen:] // we want unsafe pointer into b.keysBuffer
-	} else {
-		b.keysBuffer, keyBytes = key.MarshalAppend(b.keysBuffer)
-	}
-	keyString := unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes))
-
-	root := b.CurStats[budgetID]
-	if root == nil {
-		root = &BucketStat{Partitions: map[PartitionKey]*BucketPartition{}}
-		b.CurStats[budgetID] = root
-	}
-	decisionKey := samplingDecisionKey(key, metricInfo, metricID, budgetID)
-	var part *BucketPartition
-	if decisionKey.ID == 0 { // no-map optimisation
-		if root.Partition == nil {
-			sf := float64(1)
-			root.Partition = &BucketPartition{SF: &sf, Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
-		}
-		part = root.Partition
-	} else {
-		part = root.Partitions[decisionKey]
-		if part == nil {
-			sf := float64(1)
-			part = &BucketPartition{SF: &sf, Tail: map[string]*MultiItem{}, Top: map[string]*MultiItem{}}
-			root.Partitions[decisionKey] = part
-		}
-	}
-
-	itemSize := uint32(key.TLSizeEstimate(key.Timestamp))
-	part.Traffic += itemSize
-	root.Traffic += itemSize
-
-	if item = part.Top[keyString]; item != nil {
-		item.Count += count
-		item.DupCnt++
-		part.KeptTraffic += item.Size
-		b.keysBuffer = b.keysBuffer[:wasLen]
-		return item, false
-	}
-	if item = part.Tail[keyString]; item != nil {
-		item.Count += count
-		if v := b.sampleTop(rng, part, part.Budget/2, &item.Key, item.MetricMeta, keyString, item, item.Count, item.Size); v != nil { // try move to top
-			b.removeTail(part, keyString, item, false)
-		} else if !item.Deleted {
-			item.DupCnt++
-			part.KeptTraffic += item.Size
-		} else { // we could full lose it after sample
-			b.removeTail(part, keyString, item, false)
-			return nil, false
-		}
-		b.keysBuffer = b.keysBuffer[:wasLen]
-		return item, false
-	}
-
-	sizes := b.CurSizes[metricID]
-	if sizes == nil {
-		sizes = map[string]*BucketSizeItem{}
-		b.CurSizes[metricID] = sizes
-	}
-	created = true
-	if size, ok := sizes[keyString]; ok {
-		keyString = size.key // use old keystring
-		b.keysBuffer = b.keysBuffer[:wasLen]
-		created = false
-	} else {
-		sizes[keyString] = &BucketSizeItem{key: keyString, Size: itemSize}
-	}
-
-	part.Budget = budget
-	halfBudget := budget // get full root budget, until fit budget
-	if root.KeepSize >= budget {
-		if len(root.Partitions) > 1 {
-			part.Budget = uint32(math.Round(float64(budget) / float64(len(root.Partitions))))
-		}
-		halfBudget = uint32(math.Round(float64(part.Budget) / 2))
-	}
-
-	root.KeepSize -= part.TopSize + part.TailSize
-	if item = b.sampleTop(rng, part, halfBudget, key, metricInfo, keyString, nil, count, itemSize); item != nil { // not create item if sample optimisation
-		root.KeepSize += part.TopSize + part.TailSize
-		root.recalc(rng, b, budget, part.Budget)
-		return item, created
-	}
-	root.KeepSize += part.TopSize
-	if item = b.sampleTail(rng, part, halfBudget, key, metricInfo, keyString, nil, count, itemSize); item != nil { // not create item if sample optimisation
-		root.KeepSize += part.TailSize
-		root.recalc(rng, b, budget, part.Budget)
-		return item, created
-	}
-	root.KeepSize += part.TailSize
-	return nil, created
-}
-
-func (p *BucketPartition) SetSampleFactor() {
-	if p.KeptTraffic == 0 || p.Traffic <= p.KeptTraffic {
-		*p.SF = 1
-		return
-	}
-	*p.SF = float64(p.Traffic) / float64(p.KeptTraffic)
-}
-
-func (s *BucketStat) recalc(rng *rand.Rand, b *MetricsBucket, totalBudget, partBudget uint32) {
-	if totalBudget >= s.KeepSize {
-		return // do not delete everything
-	}
-	f := func(p *BucketPartition) {
-		if p.TopSize+p.TailSize < partBudget*2 {
-			return // no need recalc
-		}
-		p.Budget = partBudget
-		halfBudget := uint32(math.Round(float64(partBudget) / 2))
-
-		s.KeepSize -= p.TopSize + p.TailSize
-		for p.TopSize > halfBudget && len(p.Top) != 0 {
-			b.resampleTop(rng, p)
-		}
-		for p.TailSize > halfBudget && len(p.Tail) > 1 {
-			b.removeRandomTail(p)
-		}
-		s.KeepSize += p.TopSize + p.TailSize
-	}
-	if s.Partition != nil {
-		f(s.Partition)
-		return
-	}
-	for _, p := range s.Partitions {
-		f(p)
-		if totalBudget >= s.KeepSize {
-			break // do not delete everything
-		}
-	}
-}
-
-func samplingDecisionKey(key *Key, metricInfo *format.MetricMetaValue, metricID, budgetID int32) PartitionKey {
-	if budgetID == -1 {
-		return PartitionKey{ID: metricID}
-	} // no fair logic for common metrics
-	if metricInfo == nil || len(metricInfo.FairKeyIndex) == 0 {
-		return PartitionKey{}
-	}
-
-	var pk = PartitionKey{ID: metricID}
-	n := min(len(metricInfo.FairKeyIndex), maxFairKeyLen)
-	for i := 0; i < n; i++ {
-		if x := metricInfo.FairKeyIndex[i]; 0 <= x && x < len(key.Tags) {
-			pk.fair[i] = key.Tags[x]
-		}
-	}
-	return pk
-}
-
-func (b *MetricsBucket) sampleTail(rng *rand.Rand, part *BucketPartition, budget uint32, key *Key, meta *format.MetricMetaValue, keyString string, item *MultiItem, count float64, size uint32) *MultiItem {
-	if part.Traffic > budget && rng.Float64()*float64(part.Traffic) >= float64(budget) {
-		return nil
-	}
-	if item == nil {
-		item = &MultiItem{Key: *key, Size: size, SF: 1, GlobalSF: part.SF, Count: count, MetricMeta: meta}
-	}
-	part.TailSize += item.Size
-	item.DupCnt++
-	part.KeptTraffic += item.Size
-	part.Tail[keyString] = item
-	b.MultiItems[keyString] = item
-	for part.TailSize > budget && len(part.Tail) != 0 {
-		b.removeRandomTail(part)
-	}
-	if item.Deleted { // removeRandomTail could remove item
-		return nil
-	}
-	return item
-}
-
-func (b *MetricsBucket) removeRandomTail(part *BucketPartition) {
-	if len(part.Tail) == 0 {
-		return
-	}
-	i := len(part.Tail) / 2
-	for k, v := range part.Tail { // quasirandom half remove, quite ok
-		b.removeTail(part, k, v, true)
-		if i--; i <= 0 {
-			break
-		}
-	}
-}
-
-func (b *MetricsBucket) removeTail(part *BucketPartition, key string, item *MultiItem, fullDelete bool) {
-	if item == nil {
-		if item = part.Tail[key]; item == nil {
-			return
-		}
-	}
-	if item.Size >= part.TailSize {
-		part.TailSize = 0
-	} else {
-		part.TailSize -= item.Size
-	}
-	delete(part.Tail, key)
-	if fullDelete {
-		b.removeFull(part, key, item)
-	}
-}
-
-func (b *MetricsBucket) removeFull(part *BucketPartition, k string, v *MultiItem) {
-	if traffic := v.Size * v.DupCnt; traffic >= part.KeptTraffic {
-		part.KeptTraffic = 0
-	} else {
-		part.KeptTraffic -= traffic
-	}
-	v.Deleted = true // optimisation to avoid map lookup
-	delete(b.MultiItems, k)
-}
-
-func (b *MetricsBucket) sampleTop(rng *rand.Rand, part *BucketPartition, budget uint32, key *Key, meta *format.MetricMetaValue, keyString string, item *MultiItem, count float64, size uint32) *MultiItem {
-	sf := 1 << part.TopSfLog2
-	if part.TopSfLog2 != 0 && count < float64(sf) {
-		if rng.Float64()*float64(sf) >= count {
-			return nil
-		}
-	}
-	if item == nil {
-		item = &MultiItem{Key: *key, Size: size, SF: 1, GlobalSF: part.SF, Count: count, MetricMeta: meta}
-	}
-	part.TopSize += item.Size
-	item.DupCnt++
-	part.KeptTraffic += item.Size
-	part.Top[keyString] = item
-	b.MultiItems[keyString] = item
-	for part.TopSize > budget && len(part.Top) != 0 {
-		b.resampleTop(rng, part)
-	}
-	if item.Deleted { // resampleTop could drop
-		return nil
-	}
-	return item
-}
-
-const maxTopSfLog2 = 61
-
-func (b *MetricsBucket) resampleTop(rng *rand.Rand, p *BucketPartition) {
-	i := 0
-	was := len(p.Top)
-	for k, v := range p.Top {
-		if p.TopSfLog2 < maxTopSfLog2 { // if overflow just drop half quasirandom
-			cc := 2 << p.TopSfLog2
-			if v.Count >= float64(cc) {
-				continue
-			}
-			rv := rng.Intn(cc)
-			if v.Count > float64(rv) {
-				continue
-			}
-		}
-		if v.Size >= p.TopSize {
-			p.TopSize = 0
-		} else {
-			p.TopSize -= v.Size
-		}
-		delete(p.Top, k)
-		b.removeFull(p, k, v) // not move to tail for speed
-		if i++; i >= was/2 {
-			return // for remain low items
-		}
-	}
-	if p.TopSfLog2 < maxTopSfLog2 {
-		p.TopSfLog2++
-	}
-}
-
-func (b *MetricsBucket) Clear() {
-	clear(b.CurStats)
-	clear(b.CurSizes)
-	b.keysBuffer = []byte{}
-	b.MultiItems = map[string]*MultiItem{}
 }
 
 func (b *MultiItemMap) GetOrCreateMultiItem(key *Key, metricInfo *format.MetricMetaValue, keyBytes []byte) (item *MultiItem, created bool) {
@@ -751,10 +417,6 @@ func (s *MultiItem) RowBinarySizeEstimate() int {
 		size += keySize + 4 + len(k.S) + v.RowBinarySizeEstimate()
 	}
 	return size
-}
-
-func (s *MultiItem) TLSize() uint32 {
-	return uint32(s.Key.TLSizeEstimate(s.Key.Timestamp) + s.TLSizeEstimate())
 }
 
 func (s *MultiItem) isSingleValueCounter() bool {
