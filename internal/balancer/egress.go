@@ -262,7 +262,7 @@ func (s *tcpSender) sendLoop() {
 	var writeDeadline time.Time
 	var bufs = make(net.Buffers, 0, bufferLen)
 	m := s.getWriteErrM()
-	var scratch []byte
+	var scratch = make([]byte, 0, pktHeadLen)
 loop:
 	for {
 		select {
@@ -355,8 +355,8 @@ func encodeClientWriteErrPacket(bytesDropped float64, m tlstatshouse.Metric, pkt
 	var batch = tlstatshouse.AddMetricsBatch{
 		Metrics: []tlstatshouse.Metric{m},
 	}
-	pkt = append(pkt[:4], batch.WriteTL1Boxed(pkt[4:4])...)
-	binary.LittleEndian.PutUint32(pkt[:4], uint32(len(pkt[4:])))
+	pkt = append(pkt[:pktHeadLen], batch.WriteTL1Boxed(pkt[pktHeadLen:pktHeadLen])...)
+	binary.LittleEndian.PutUint32(pkt[:pktHeadLen], uint32(len(pkt[pktHeadLen:])))
 	return pkt
 }
 
