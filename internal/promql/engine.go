@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/VKCOM/statshouse-go"
 	"github.com/gogo/protobuf/sortkeys"
@@ -199,6 +200,9 @@ func (ev *evaluator) QueryMetric() *format.MetricMetaValue {
 }
 
 func (ng Engine) NewEvaluator(ctx context.Context, h Handler, qry Query) (evaluator, error) {
+	if !utf8.ValidString(qry.Expr) {
+		return evaluator{}, Error{what: fmt.Errorf("query must be valid utf-8 string")}
+	}
 	timeStart := time.Now()
 	if qry.Options.TimeNow == 0 {
 		// fix the time "now"
