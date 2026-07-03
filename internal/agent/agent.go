@@ -259,7 +259,6 @@ func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGrou
 			timeSpreadDelta:      3*commonSpread + 3*time.Second*time.Duration(i)/time.Duration(len(result.GetConfigResult.Addresses)),
 			BucketsToSend:        make(chan compressedBucketData),
 			BucketsToPreprocess:  make(chan *data_model.MetricsBucket, 1), // length of preprocessor queue
-			BucketsPool:          make(chan *data_model.MetricsBucket, 2), // length of preprocessor queue + preprocess workers
 			rng:                  rnd,
 			CurrentTime:          nowUnix,
 			SendTime:             nowUnix - 2, // accept previous seconds at the start of the agent
@@ -268,11 +267,7 @@ func MakeAgent(network string, cacheDir string, aesPwd string, trustedSubnetGrou
 		shard.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shard.hardwareSlowMetricResolutionResolved.Store(int32(config.HardwareSlowMetricResolution))
 		for j := 0; j < superQueueLen; j++ {
-			shard.SuperQueue[j] = &data_model.MetricsBucket{
-				MultiItemMap: data_model.MultiItemMap{MultiItems: map[string]*data_model.MultiItem{}},
-				CurSizes:     map[int32]map[string]*data_model.BucketSizeItem{},
-				CurStats:     map[int32]*data_model.BucketStat{},
-			} // timestamp will be assigned at queue flush
+			shard.SuperQueue[j] = &data_model.MetricsBucket{} // timestamp will be assigned at queue flush
 		}
 		shard.cond = sync.NewCond(&shard.mu)
 		result.Shards = append(result.Shards, shard)

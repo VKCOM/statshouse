@@ -69,16 +69,7 @@ func (s *Shard) FlushAllDataSingleStep(sendEmpty bool) int {
 	if b.Empty() && !sendEmpty {
 		return 0
 	}
-	select {
-	case newB := <-s.BucketsPool:
-		s.SuperQueue[sendTime%superQueueLen] = newB // must be always
-	default:
-		s.SuperQueue[sendTime%superQueueLen] = &data_model.MetricsBucket{
-			MultiItemMap: data_model.MultiItemMap{MultiItems: map[string]*data_model.MultiItem{}},
-			CurSizes:     map[int32]map[string]*data_model.BucketSizeItem{},
-			CurStats:     map[int32]*data_model.BucketStat{},
-		}
-	}
+	s.SuperQueue[sendTime%superQueueLen] = &data_model.MetricsBucket{}
 	b.Time = sendTime
 	// we wait here only when shutting down. During normal work we check len(chan) before calling this func
 	s.BucketsToPreprocess <- b
@@ -110,22 +101,23 @@ func (s *Shard) goPreProcess(wg *sync.WaitGroup) {
 
 	var scratch []byte
 	var budgetScratch = map[int32]uint32{}
-	var sfScratch = map[int32][2]float32{}
+	var sizeScratch = map[int32]uint32{}
 	for bucket := range s.BucketsToPreprocess {
 		start := time.Now()
-		scratch = s.preProcess(bucket, scratch, budgetScratch, sfScratch, rng)
+		scratch = s.preProcess(bucket, scratch, budgetScratch, sizeScratch, rng)
 		s.agent.TimingsPreprocess.AddValueCounter(time.Since(start).Seconds(), 1)
 	}
 	log.Printf("Preprocessor quit")
 }
 
-func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32][2]float32, rng *rand.Rand) []byte {
+func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, budgetScratch, sizeScratch map[int32]uint32, rng *rand.Rand) []byte {
+	var buffers data_model.SamplerBuffers
 	// If bucket is empty, we must still do processing and sending
 	// for each contributor every second.
 	// We generate only v3 buckets, but can have v2 on disk from previous agent version
 	var sb tlstatshouse.SourceBucket3
 
-	scratch = s.sampleBucket(bucket, &sb, scratch, budgetScratch, sfScratch, rng)
+	_, scratch = s.sampleBucket(bucket, &sb, buffers, scratch, budgetScratch, sizeScratch, rng)
 	// after sampling sb is sorted by metric, with ingestion status of each metric close to metric itself
 	scratch = sb.WriteTL1Boxed(scratch[:0])
 	compressed := compress.CompressAndFrame(scratch) // allocates, will live long in send queue
@@ -134,14 +126,10 @@ func (s *Shard) preProcess(bucket *data_model.MetricsBucket, scratch []byte, bud
 		data: compressed,
 	}
 	s.sendToSenders(cbd)
-	select {
-	case s.BucketsPool <- bucket:
-	default:
-	}
 	return scratch
 }
 
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, scratch []byte, budgetScratch map[int32]uint32, sfScratch map[int32][2]float32, rnd *rand.Rand) []byte {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.SourceBucket3, buffers data_model.SamplerBuffers, scratch []byte, budgetScratch, sizeScratch map[int32]uint32, rnd *rand.Rand) (data_model.SamplerBuffers, []byte) {
 	var sizeUnique, sizePercentiles, sizeValue, sizeSingleValue, sizeCounter, sizeStringTop [2]int
 
 	s.mu.Lock()
@@ -183,53 +171,22 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 
 		sb.Metrics = append(sb.Metrics, item)
 	}
-	clear(sfScratch)
 	clear(budgetScratch)
+	clear(sizeScratch)
 	s.metricBudgetsFromAgg.Get(budgetScratch)
-	var keptSizeSum int64
-	for m, stat := range bucket.CurStats {
-		if m == -1 {
-			for k, p := range stat.Partitions { // only partitions map
-				p.SetSampleFactor()
-				if size := p.TopSize + p.TailSize; size > 0 {
-					sf := sfScratch[k.ID]
-					if p.KeptTraffic > 0 {
-						sf[1] = float32(p.Traffic) / float32(p.KeptTraffic)
-					}
-					sfScratch[k.ID] = sf
-					keptSizeSum += int64(size)
-				}
-			}
-			continue
-		}
-		sizeTraffic := uint32(0)
-		keptTraffic := uint32(0)
-		keptSize := uint32(0)
-		f := func(p *data_model.BucketPartition) {
-			p.SetSampleFactor()
-			if p.TopSize != 0 || p.TailSize != 0 {
-				sizeTraffic += p.Traffic
-				keptTraffic += p.KeptTraffic
-				keptSize += p.TopSize + p.TailSize
-			}
-		}
-		if stat.Partition != nil {
-			f(stat.Partition)
-		} else {
-			for _, p := range stat.Partitions {
-				f(p)
-			}
-		}
-		sf := sfScratch[m]
-		if sizeTraffic > 0 {
-			sf[0] = float32(stat.Traffic) / float32(sizeTraffic) // global sf
-		}
-		if keptTraffic > 0 {
-			sf[1] = float32(stat.Traffic) / float32(keptTraffic) // common sf
-		}
-		sfScratch[m] = sf
-		keptSizeSum += int64(keptSize)
-	}
+	sampler := data_model.NewSampler(data_model.SamplerConfig{
+		ModeAgent:            s.agent.componentTag == format.TagValueIDComponentAgent,
+		SampleKeepSingle:     config.SampleKeepSingle,
+		DisableNoSampleAgent: config.DisableNoSampleAgent,
+		SampleBudgets:        config.SampleBudgets,
+		SampleNamespaces:     config.SampleNamespaces,
+		SampleGroups:         config.SampleGroups,
+		SampleKeys:           config.SampleKeys,
+		Meta:                 s.agent.metricStorage,
+		Rand:                 rnd,
+		KeepF:                func(v *data_model.MultiItem, ts uint32, _ uint32) { keepF(v, ts, 0) },
+		SamplerBuffers:       buffers,
+	})
 	for _, item := range bucket.MultiItems {
 		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus && item.Key.Tags[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization, outside budget, size tracked below in format.TagValueIDSizeSampleFactors
@@ -245,26 +202,70 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 			keepF(item, bucket.Time, 1)
 			continue
 		}
-		_ = item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
-		if item.GlobalSF != nil {
-			item.SF = *item.GlobalSF // within-partition
+
+		whaleWeight := item.FinishStringTop(rnd, config.StringTopCountSend) // all excess items are baked into Tail
+		accountMetric := item.Key.Metric
+		sz := item.Key.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
+		if item.Key.Metric == format.BuiltinMetricIDIngestionStatus {
+			if item.Key.Tags[1] != 0 {
+				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
+				// So metrics are better isolated
+				accountMetric = item.Key.Tags[1]
+				whaleWeight = 0 // ingestion statuses do not compete for whale status
+			}
 		}
-		if globalSF := sfScratch[item.Key.AccountMetric()]; globalSF[0] > 0 {
-			item.SF *= float64(globalSF[0]) // cross-partition
-		}
-		keepF(item, bucket.Time, 0)
+		sizeScratch[accountMetric] += uint32(sz)
+		sampler.Add(data_model.SamplingMultiItemPair{
+			Item:        item,
+			WhaleWeight: whaleWeight,
+			Size:        sz,
+			MetricID:    accountMetric,
+			Budget:      budgetScratch[accountMetric],
+		})
 	}
+	clear(bucket.MultiItems) // help GC by splitting bucket dependency cluster into individual items
+
+	var remainingBudget int64
+	if budget, ok := config.ShardSampleBudget[int(s.ShardKey)]; ok {
+		remainingBudget = int64(budget)
+	} else {
+		numShards := int(s.agent.shardByMetricCount)
+		remainingBudget = int64((config.SampleBudget + numShards - 1) / numShards)
+	}
+	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
+		remainingBudget = data_model.MaxUncompressedBucketSize / 2
+	}
+
 	budgetSum := int64(0)
 	for _, budget := range budgetScratch {
 		budgetSum += int64(budget)
 	}
-	remainingBudget := max(int64(config.MinSampleBudget), s.getShardSampleBudget(config)-budgetSum)
-	s.metricBudgetsFromAgg.MergeMaxOne(-1, uint32(remainingBudget))
+	remainingBudget = max(int64(config.MinSampleBudget), remainingBudget-budgetSum)
 
+	sampler.Run(remainingBudget)
+
+	for _, v := range sampler.MetricGroups {
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeKeep)
+		// discard bytes
+		s.agent.MergeItemValue(bucket.Time, format.BuiltinMetricMetaSrcSamplingSizeBytes,
+			[]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, v.NamespaceID, v.GroupID, v.MetricID},
+			&v.SumSizeDiscard)
+		// budget
+		s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingGroupBudget,
+			[]int32{0, s.agent.componentTag, v.NamespaceID, v.GroupID},
+			v.Budget(), 1)
+	}
+
+	// report budget used
+	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
+		[]int32{0, s.agent.componentTag},
+		float64(budgetSum+remainingBudget), 1)
 	// metric count
 	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingMetricCount,
 		[]int32{0, s.agent.componentTag},
-		float64(len(bucket.CurStats)), 1)
+		float64(sampler.MetricCount), 1)
 
 	// Add size metrics
 	for i := 0; i != 2; i++ {
@@ -280,37 +281,21 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 		s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeStringTop, samplingTag, sizeStringTop[i])
 	}
 
-	var comingSizeSum int64
-	for m, sizes := range bucket.CurSizes {
-		var size uint32
-		for _, sz := range sizes {
-			size += sz.Size
+	for i, sf := range sampler.SampleFactors {
+		if size, ok := sizeScratch[sf.Metric]; ok {
+			sampler.SampleFactors[i].OriginalSize = size
+			delete(sizeScratch, sf.Metric)
 		}
-		sb.SampleFactors = append(sb.SampleFactors, tlstatshouse.SampleFactor{
+	}
+	for m, size := range sizeScratch {
+		sampler.SampleFactors = append(sampler.SampleFactors, tlstatshouse.SampleFactor{
 			Metric:       m,
-			Value:        sfScratch[m][1],
+			Value:        0,
 			OriginalSize: size,
 		})
-		if budget, ok := budgetScratch[m]; ok && size > budget {
-			size = budget // for metric readable
-		} else if int64(size) > remainingBudget {
-			size = uint32(remainingBudget)
-		}
-		comingSizeSum += int64(size)
 	}
 	sb.SetHaveOriginalSize(true)
-	bucket.Clear()
-
-	// report budget used
-	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
-		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudget},
-		float64(budgetSum+remainingBudget), 1)
-	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
-		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudgetUsed},
-		float64(keptSizeSum), 1)
-	s.agent.AddValueCounter(bucket.Time, format.BuiltinMetricMetaSrcSamplingBudget,
-		[]int32{0, s.agent.componentTag, format.TagValueIDSrcSamplingBudgetComing},
-		float64(comingSizeSum), 1)
+	sb.SampleFactors = append(sb.SampleFactors, sampler.SampleFactors...)
 
 	// Calculate size metrics for sample factors and ingestion status
 	sbSizeCalc := tlstatshouse.SourceBucket3{SampleFactors: sb.SampleFactors}
@@ -321,21 +306,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, sb *tlstatshouse.
 	scratch = sbSizeCalc.WriteTL1(scratch[:0])
 	s.addSizeByTypeMetric(bucket.Time, format.TagValueIDSizeIngestionStatusOK, format.TagValueIDSamplingNo, len(scratch))
 
-	return scratch
-}
-
-func (s *Shard) getShardSampleBudget(cfg Config) int64 {
-	var remainingBudget int64
-	if budget, ok := cfg.ShardSampleBudget[int(s.ShardKey)]; ok {
-		remainingBudget = int64(budget)
-	} else {
-		numShards := int(s.agent.shardByMetricCount)
-		remainingBudget = int64((cfg.SampleBudget + numShards - 1) / numShards)
-	}
-	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
-		remainingBudget = data_model.MaxUncompressedBucketSize / 2
-	}
-	return remainingBudget
+	return sampler.SamplerBuffers, scratch
 }
 
 func (s *Shard) sendToSenders(cbd compressedBucketData) {
