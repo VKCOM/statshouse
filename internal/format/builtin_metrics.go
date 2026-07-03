@@ -3182,3 +3182,21 @@ var BuiltinMetricMetaMappingQueueRemovedTotalAvg = &MetricMetaValue{
 	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
+
+var BuiltinMetricMetaAggCorruptionStatus = &MetricMetaValue{
+	Name:                    "__agg_corruption_status",
+	Kind:                    MetricKindValue,
+	Description:             "Corrupted data",
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{
+		Description: "status",
+	}, {
+		Description: "metric",
+		BuiltinKind: BuiltinKindMetric,
+	}, {
+		Description: "tag_id",
+	}},
+}
