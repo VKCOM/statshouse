@@ -168,6 +168,7 @@ var (
 		-152:                                    BuiltinMetricMetaAggSendSrcBudget,
 		-153:                                    BuiltinMetricMetaMappingUsage,
 		-154:                                    BuiltinMetricMetaMappingQueueRemovedTotalAvg,
+		-155:                                    BuiltinMetricMetaAggCorruptionStatus,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly

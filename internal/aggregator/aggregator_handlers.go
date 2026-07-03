@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"go4.org/mem"
@@ -374,6 +375,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	clampedTimestampsMetrics := map[clampedKey]float32{}
 	oldMetricBuckets := map[int32][3]int{}
 
+	validateStringTag := func(i int, str []byte, metricID int32, clientEnv int32) bool {
+		if len(str) == 0 {
+			return true
+		}
+		if format.ValidStringValue(mem.B(str)) {
+			return true
+		}
+		tagId := int32(i + format.TagIDShift)
+		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
+			[]int32{0, 1, metricID, tagId},
+			1, hostTag, aera)
+		return false
+	}
 	// If agents send lots of strings, this loop is non-trivial amount of work.
 	// May be, if mappingHits + mappingMisses > some limit, we should simply copy strings to STags
 	mapStringTag := func(i int, str []byte, metricID int32, clientEnv int32) int32 {
@@ -415,6 +429,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	// we will allocate if key won't fit into this buffer, but it is quite unlikely
 	var stackBuf [1024]byte
 	keyBytes := stackBuf[:0]
+outer:
 	for _, item := range bucket.Metrics {
 		if item.T != 0 && item.T < roundedToOurTime {
 			measurementOutdatedRows++
@@ -451,6 +466,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			// in case agents sends more tags
 			if i >= format.MaxTags {
 				break
+			}
+			if !validateStringTag(i, str, k.Metric, k.Tags[0]) {
+				continue outer
 			}
 			if m := mapStringTag(i, str, k.Metric, k.Tags[0]); m > 0 {
 				k.Tags[i] = m
@@ -512,40 +530,69 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			}
 		}
 		if item.Tail.IsSetMaxHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MaxHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMaxCounterHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMaxCounterHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMaxCounterHostStag(&item.FieldsMask)
 			}
 		}
 		if item.Tail.IsSetMinHostStag(item.FieldsMask) {
+			if !validateStringTag(format.HostTagIndex, item.Tail.MinHostStag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.HostTagIndex, item.Tail.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 				item.Tail.SetMinHostTag(m, &item.FieldsMask)
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
 			}
 		}
+		// quick check of counter only
+		if item.Tail.Counter < 0 || math.IsNaN(item.Tail.Counter) || item.Tail.Counter > math.MaxFloat32 {
+			a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
+				[]int32{0, 2, item.Metric},
+				1, hostTag, aera)
+			continue outer
+		}
+
 		for i, tb := range item.Top {
+			if !validateStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]) {
+				continue outer
+			}
 			if m := mapStringTag(format.StringTopTagIndexV3, tb.Stag, k.Metric, k.Tags[0]); m > 0 {
 				item.Top[i].Tag = m
 			}
 			if tb.Value.IsSetMaxHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMaxHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMaxHostStag(&item.FieldsMask)
 				}
 			}
 			if tb.Value.IsSetMaxCounterHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MaxCounterHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMaxCounterHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMaxCounterHostStag(&item.FieldsMask)
 				}
 			}
 			if tb.Value.IsSetMinHostStag(tb.FieldsMask) {
+				if !validateStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]) {
+					continue outer
+				}
 				if m := mapStringTag(format.HostTagIndex, tb.Value.MinHostStag, k.Metric, k.Tags[0]); m > 0 {
 					tb.Value.SetMinHostTag(m, &item.FieldsMask)
 					tb.Value.ClearMinHostStag(&item.FieldsMask)
