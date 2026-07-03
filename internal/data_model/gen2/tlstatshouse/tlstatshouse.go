@@ -105,7 +105,6 @@ type Client struct {
 	Timeout time.Duration // set to extra.CustomTimeoutMs, if not already set
 }
 
-// host - temporary solution only for sh-balancer
 func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchBytes, extra *rpc.InvokeReqExtra, ret *AddMetricsBatch__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -137,7 +136,6 @@ func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchB
 	return nil
 }
 
-// host - temporary solution only for sh-balancer
 func (c *Client) AddMetricsBatch(ctx context.Context, args AddMetricsBatch, extra *rpc.InvokeReqExtra, ret *AddMetricsBatch__Result) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -868,7 +866,6 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 }
 
 type Handler struct {
-	// host - temporary solution only for sh-balancer
 	AddMetricsBatch func(ctx context.Context, args AddMetricsBatch) (AddMetricsBatch__Result, error) // statshouse.addMetricsBatch
 	AutoCreate      func(ctx context.Context, args AutoCreate) (AutoCreate__Result, error)           // statshouse.autoCreate
 	// Deprecated, not used by new conveyor agents

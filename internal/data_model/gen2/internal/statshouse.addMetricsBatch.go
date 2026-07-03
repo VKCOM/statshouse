@@ -13,81 +13,29 @@ import (
 
 var _ = basictl.NatWrite
 
-// host - temporary solution only for sh-balancer
 type StatshouseAddMetricsBatch struct {
 	FieldsMask uint32
-	LegacyHost string // Conditional: item.FieldsMask.0
 	Metrics    []StatshouseMetric
-	Host       string // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseAddMetricsBatch) TLName() string { return "statshouse.addMetricsBatch" }
 func (StatshouseAddMetricsBatch) TLTag() uint32  { return 0x56580239 }
 
-func (item *StatshouseAddMetricsBatch) SetLegacyHost(v string) {
-	item.LegacyHost = v
-	item.FieldsMask |= 1 << 0
-}
-func (item *StatshouseAddMetricsBatch) ClearLegacyHost() {
-	item.LegacyHost = ""
-	item.FieldsMask &^= 1 << 0
-}
-func (item *StatshouseAddMetricsBatch) IsSetLegacyHost() bool { return item.FieldsMask&(1<<0) != 0 }
-
-func (item *StatshouseAddMetricsBatch) SetHost(v string) {
-	item.Host = v
-	item.FieldsMask |= 1 << 1
-}
-func (item *StatshouseAddMetricsBatch) ClearHost() {
-	item.Host = ""
-	item.FieldsMask &^= 1 << 1
-}
-func (item *StatshouseAddMetricsBatch) IsSetHost() bool { return item.FieldsMask&(1<<1) != 0 }
-
 func (item *StatshouseAddMetricsBatch) Reset() {
 	item.FieldsMask = 0
-	item.LegacyHost = ""
 	item.Metrics = item.Metrics[:0]
-	item.Host = ""
 }
 
 func (item *StatshouseAddMetricsBatch) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
-	if item.FieldsMask&(1<<0) != 0 {
-		item.LegacyHost = basictl.RandomString(rg)
-	} else {
-		item.LegacyHost = ""
-	}
+	item.FieldsMask = basictl.RandomUint(rg)
 	BuiltinVectorStatshouseMetricFillRandom(rg, &item.Metrics)
-	if item.FieldsMask&(1<<1) != 0 {
-		item.Host = basictl.RandomString(rg)
-	} else {
-		item.Host = ""
-	}
 }
 
 func (item *StatshouseAddMetricsBatch) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringRead(w, &item.LegacyHost); err != nil {
-			return w, err
-		}
-	} else {
-		item.LegacyHost = ""
-	}
-	if w, err = BuiltinVectorStatshouseMetricReadTL1(w, &item.Metrics); err != nil {
-		return w, err
-	}
-	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringRead(w, &item.Host); err != nil {
-			return w, err
-		}
-	} else {
-		item.Host = ""
-	}
-	return w, nil
+	return BuiltinVectorStatshouseMetricReadTL1(w, &item.Metrics)
 }
 
 func (item *StatshouseAddMetricsBatch) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -96,13 +44,7 @@ func (item *StatshouseAddMetricsBatch) WriteTL1General(w []byte) (_ []byte, err 
 
 func (item *StatshouseAddMetricsBatch) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.StringWrite(w, item.LegacyHost)
-	}
 	w = BuiltinVectorStatshouseMetricWriteTL1(w, item.Metrics)
-	if item.FieldsMask&(1<<1) != 0 {
-		w = basictl.StringWrite(w, item.Host)
-	}
 	return w
 }
 
@@ -198,9 +140,7 @@ func (item *StatshouseAddMetricsBatch) ReadJSON(legacyTypeNames bool, in *basict
 
 func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var propLegacyHostPresented bool
 	var propMetricsPresented bool
-	var propHostPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -218,28 +158,12 @@ func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(jctx *basictl.JSONReadCon
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
 				}
-			case "legacy_host":
-				if propLegacyHostPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "legacy_host")
-				}
-				propLegacyHostPresented = true
-				if err := Json2ReadString(in, &item.LegacyHost); err != nil {
-					return err
-				}
 			case "metrics":
 				if propMetricsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "metrics")
 				}
 				propMetricsPresented = true
 				if err := BuiltinVectorStatshouseMetricReadJSONGeneral(jctx, in, &item.Metrics); err != nil {
-					return err
-				}
-			case "host":
-				if propHostPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "host")
-				}
-				propHostPresented = true
-				if err := Json2ReadString(in, &item.Host); err != nil {
 					return err
 				}
 			default:
@@ -255,20 +179,8 @@ func (item *StatshouseAddMetricsBatch) ReadJSONGeneral(jctx *basictl.JSONReadCon
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
-	if !propLegacyHostPresented {
-		item.LegacyHost = ""
-	}
 	if !propMetricsPresented {
 		item.Metrics = item.Metrics[:0]
-	}
-	if !propHostPresented {
-		item.Host = ""
-	}
-	if propLegacyHostPresented {
-		item.FieldsMask |= 1 << 0
-	}
-	if propHostPresented {
-		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
@@ -290,22 +202,12 @@ func (item *StatshouseAddMetricsBatch) WriteJSONOpt(jctx *basictl.JSONWriteConte
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
 	}
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"legacy_host":`...)
-		w = basictl.JSONWriteString(w, item.LegacyHost)
-	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
 	w = BuiltinVectorStatshouseMetricWriteJSONOpt(jctx, w, item.Metrics)
 	if !(len(item.Metrics) != 0) {
 		w = w[:backupIndexMetrics]
-	}
-	if item.FieldsMask&(1<<1) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"host":`...)
-		w = basictl.JSONWriteString(w, item.Host)
 	}
 	return append(w, '}')
 }
@@ -330,83 +232,29 @@ func (item *StatshouseAddMetricsBatch) ReadTL2(r []byte, tctx *basictl.TL2ReadCo
 	return r, ErrorTL2SerializersNotGenerated("statshouse.addMetricsBatch")
 }
 
-// host - temporary solution only for sh-balancer
 type StatshouseAddMetricsBatchBytes struct {
 	FieldsMask uint32
-	LegacyHost []byte // Conditional: item.FieldsMask.0
 	Metrics    []StatshouseMetricBytes
-	Host       []byte // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseAddMetricsBatchBytes) TLName() string { return "statshouse.addMetricsBatch" }
 func (StatshouseAddMetricsBatchBytes) TLTag() uint32  { return 0x56580239 }
 
-func (item *StatshouseAddMetricsBatchBytes) SetLegacyHost(v []byte) {
-	item.LegacyHost = v
-	item.FieldsMask |= 1 << 0
-}
-func (item *StatshouseAddMetricsBatchBytes) ClearLegacyHost() {
-	item.LegacyHost = item.LegacyHost[:0]
-	item.FieldsMask &^= 1 << 0
-}
-func (item *StatshouseAddMetricsBatchBytes) IsSetLegacyHost() bool {
-	return item.FieldsMask&(1<<0) != 0
-}
-
-func (item *StatshouseAddMetricsBatchBytes) SetHost(v []byte) {
-	item.Host = v
-	item.FieldsMask |= 1 << 1
-}
-func (item *StatshouseAddMetricsBatchBytes) ClearHost() {
-	item.Host = item.Host[:0]
-	item.FieldsMask &^= 1 << 1
-}
-func (item *StatshouseAddMetricsBatchBytes) IsSetHost() bool { return item.FieldsMask&(1<<1) != 0 }
-
 func (item *StatshouseAddMetricsBatchBytes) Reset() {
 	item.FieldsMask = 0
-	item.LegacyHost = item.LegacyHost[:0]
 	item.Metrics = item.Metrics[:0]
-	item.Host = item.Host[:0]
 }
 
 func (item *StatshouseAddMetricsBatchBytes) FillRandom(rg *basictl.RandGenerator) {
-	item.FieldsMask = basictl.RandomFieldMask(rg, 0b11)
-	if item.FieldsMask&(1<<0) != 0 {
-		item.LegacyHost = basictl.RandomStringBytes(rg)
-	} else {
-		item.LegacyHost = item.LegacyHost[:0]
-	}
+	item.FieldsMask = basictl.RandomUint(rg)
 	BuiltinVectorStatshouseMetricBytesFillRandom(rg, &item.Metrics)
-	if item.FieldsMask&(1<<1) != 0 {
-		item.Host = basictl.RandomStringBytes(rg)
-	} else {
-		item.Host = item.Host[:0]
-	}
 }
 
 func (item *StatshouseAddMetricsBatchBytes) ReadTL1(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringReadBytes(w, &item.LegacyHost); err != nil {
-			return w, err
-		}
-	} else {
-		item.LegacyHost = item.LegacyHost[:0]
-	}
-	if w, err = BuiltinVectorStatshouseMetricBytesReadTL1(w, &item.Metrics); err != nil {
-		return w, err
-	}
-	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringReadBytes(w, &item.Host); err != nil {
-			return w, err
-		}
-	} else {
-		item.Host = item.Host[:0]
-	}
-	return w, nil
+	return BuiltinVectorStatshouseMetricBytesReadTL1(w, &item.Metrics)
 }
 
 func (item *StatshouseAddMetricsBatchBytes) WriteTL1General(w []byte) (_ []byte, err error) {
@@ -415,13 +263,7 @@ func (item *StatshouseAddMetricsBatchBytes) WriteTL1General(w []byte) (_ []byte,
 
 func (item *StatshouseAddMetricsBatchBytes) WriteTL1(w []byte) []byte {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.StringWriteBytes(w, item.LegacyHost)
-	}
 	w = BuiltinVectorStatshouseMetricBytesWriteTL1(w, item.Metrics)
-	if item.FieldsMask&(1<<1) != 0 {
-		w = basictl.StringWriteBytes(w, item.Host)
-	}
 	return w
 }
 
@@ -517,9 +359,7 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSON(legacyTypeNames bool, in *b
 
 func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(jctx *basictl.JSONReadContext, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
-	var propLegacyHostPresented bool
 	var propMetricsPresented bool
-	var propHostPresented bool
 	if in != nil {
 		in.Delim('{')
 		if !in.Ok() {
@@ -537,28 +377,12 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(jctx *basictl.JSONRe
 				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
 					return err
 				}
-			case "legacy_host":
-				if propLegacyHostPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "legacy_host")
-				}
-				propLegacyHostPresented = true
-				if err := Json2ReadStringBytes(in, &item.LegacyHost); err != nil {
-					return err
-				}
 			case "metrics":
 				if propMetricsPresented {
 					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "metrics")
 				}
 				propMetricsPresented = true
 				if err := BuiltinVectorStatshouseMetricBytesReadJSONGeneral(jctx, in, &item.Metrics); err != nil {
-					return err
-				}
-			case "host":
-				if propHostPresented {
-					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.addMetricsBatch", "host")
-				}
-				propHostPresented = true
-				if err := Json2ReadStringBytes(in, &item.Host); err != nil {
 					return err
 				}
 			default:
@@ -574,20 +398,8 @@ func (item *StatshouseAddMetricsBatchBytes) ReadJSONGeneral(jctx *basictl.JSONRe
 	if !propFieldsMaskPresented {
 		item.FieldsMask = 0
 	}
-	if !propLegacyHostPresented {
-		item.LegacyHost = item.LegacyHost[:0]
-	}
 	if !propMetricsPresented {
 		item.Metrics = item.Metrics[:0]
-	}
-	if !propHostPresented {
-		item.Host = item.Host[:0]
-	}
-	if propLegacyHostPresented {
-		item.FieldsMask |= 1 << 0
-	}
-	if propHostPresented {
-		item.FieldsMask |= 1 << 1
 	}
 	return nil
 }
@@ -609,22 +421,12 @@ func (item *StatshouseAddMetricsBatchBytes) WriteJSONOpt(jctx *basictl.JSONWrite
 	if !(item.FieldsMask != 0) {
 		w = w[:backupIndexFieldsMask]
 	}
-	if item.FieldsMask&(1<<0) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"legacy_host":`...)
-		w = basictl.JSONWriteStringBytes(w, item.LegacyHost)
-	}
 	backupIndexMetrics := len(w)
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metrics":`...)
 	w = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(jctx, w, item.Metrics)
 	if !(len(item.Metrics) != 0) {
 		w = w[:backupIndexMetrics]
-	}
-	if item.FieldsMask&(1<<1) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"host":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Host)
 	}
 	return append(w, '}')
 }

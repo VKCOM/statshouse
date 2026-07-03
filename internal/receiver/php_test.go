@@ -322,7 +322,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 	go func() {
 		timer := time.AfterFunc(recvTimeout, func() { _ = recv.Close() })
 		defer timer.Stop()
-		serveErr <- recv.Serve(receiver.CallbackHandler{
+		serveErr <- recv.Serve(nil, receiver.CallbackHandler{
 			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
 				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {

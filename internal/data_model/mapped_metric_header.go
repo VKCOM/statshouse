@@ -22,7 +22,7 @@ type HandlerArgs struct {
 	Description    string
 	ScrapeInterval int
 	Scratch        *[]byte
-	Host           []byte
+	Host           string
 }
 
 type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)

@@ -38,10 +38,6 @@ func (handler) HandleParseError(pkt []byte, err error) {
 	log.Fatalln(pkt, err)
 }
 
-func (handler) HandleMetricsBatchRaw([]byte) error {
-	return receiver.ErrNotImplemented
-}
-
 func listen(args argv, ch chan series) (func(), error) {
 	var addr = ":13337"
 	var serve func(func(*tlstatshouse.MetricBytes)) error
@@ -55,7 +51,7 @@ func listen(args argv, ch chan series) (func(), error) {
 		cancel = listenerUDP.Close
 		log.Printf("listen UDP %s\n", addr)
 		serve = func(f func(*tlstatshouse.MetricBytes)) error {
-			return listenerUDP.Serve(handler{f})
+			return listenerUDP.Serve(nil, handler{f})
 		}
 	case "tcp":
 		listenerTCP, err := net.Listen("tcp", addr)
@@ -71,7 +67,7 @@ func listen(args argv, ch chan series) (func(), error) {
 		server := rpc.NewServer(rpc.ServerWithSocketHijackHandler(hijackH))
 		cancel = server.Close
 		serve = func(f func(*tlstatshouse.MetricBytes)) error {
-			go receiver.NewTCPReceiver(nil, nil).Serve(handler{f}, hijackL)
+			go receiver.NewTCPReceiver(nil, nil).Serve(nil, handler{f}, hijackL)
 			return server.Serve(listenerTCP)
 		}
 	default:
