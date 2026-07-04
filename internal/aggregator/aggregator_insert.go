@@ -523,7 +523,7 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
 		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, appendCtx)
 	}
-	a.addUnknownTags(appendCtx.unknownTags, recentTs, a.aggregatorHostTag, data_model.AgentEnvRouteArch{}) // no agent info here
+	a.addUnknownTags(appendCtx.unknownTags, recentTs, rnd, a.aggregatorHostTag, data_model.AgentEnvRouteArch{}) // no agent info here
 	return res, sampler.SamplerBuffers, stats, time.Since(startTime)
 }
 

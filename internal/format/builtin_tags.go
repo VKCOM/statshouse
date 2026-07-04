@@ -399,12 +399,12 @@ const (
 	TagValueIDMappingCacheEventAdd                 = 5
 	TagValueIDMappingCacheEventEvict               = 6
 
-	TagValueIDMappingQueueEventUnknownMapRemove  = 1
+	TagValueIDMappingQueueEventUnknownMapRemove  = 1 // legacy, remove later
 	TagValueIDMappingQueueEventUnknownMapAdd     = 2
-	TagValueIDMappingQueueEventUnknownListRemove = 3
-	TagValueIDMappingQueueEventUnknownListAdd    = 4
+	TagValueIDMappingQueueEventUnknownListRemove = 3 // legacy, remove later
+	TagValueIDMappingQueueEventUnknownListAdd    = 4 // legacy, remove later
 	TagValueIDMappingQueueEventCreateMapAdd      = 5
-	TagValueIDMappingQueueEventCreateMapRemove   = 6
+	TagValueIDMappingQueueEventCreateMapRemove   = 6 // legacy, remove later
 
 	TagValueIDMappingStorageVersionCurrent   = 1
 	TagValueIDMappingStorageVersionLastKnown = 2
@@ -419,6 +419,12 @@ const (
 
 	TagSourceTokenFromClient = 1
 	TagSourceTokenFromVkuth  = 2
+
+	TagValueIDAggTagMapperInfoElements       = 1
+	TagValueIDAggTagMapperInfoSamplingFactor = 2
+	TagValueIDAggTagMapperInfoHitsAvg        = 3
+	TagValueIDAggTagMapperInfoTotalAvg       = 4
+	TagValueIDAggTagMapperInfoTimeAvg        = 5
 )
 
 var (

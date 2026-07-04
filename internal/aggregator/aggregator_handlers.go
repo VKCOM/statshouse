@@ -780,24 +780,13 @@ outer:
 	return "", errHijack, false
 }
 
-func (a *Aggregator) addUnknownTags(unknownTags map[string]createMappingExtra, time uint32, hostTag data_model.TagUnion, aera data_model.AgentEnvRouteArch) {
-	unknownMapRemove, unknownMapAdd, createMapAdd, avgRemovedHits, avgRemovedTotal := a.tagsMapper3.AddUnknownTags(unknownTags, time)
+func (a *Aggregator) addUnknownTags(unknownTags map[string]createMappingExtra, time uint32, rng *rand.Rand, hostTag data_model.TagUnion, aera data_model.AgentEnvRouteArch) {
+	createMapAdd := a.tagsMapper3.AddUnknownTags(unknownTags, time, rng)
 
-	if unknownMapRemove != 0 {
-		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
-			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapRemove},
-			float64(unknownMapRemove), 1, hostTag, aera)
-		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedHitsAvg,
-			[]int32{},
-			avgRemovedHits, 1, hostTag, aera)
-		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueRemovedTotalAvg,
-			[]int32{},
-			avgRemovedTotal, 1, hostTag, aera)
-	}
-	if unknownMapAdd != 0 {
+	if len(unknownTags) != 0 {
 		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,
 			[]int32{0, 0, format.TagValueIDMappingQueueEventUnknownMapAdd},
-			float64(unknownMapAdd), 1, hostTag, aera)
+			float64(len(unknownTags)), 1, hostTag, aera)
 	}
 	if createMapAdd != 0 {
 		a.sh2.AddValueCounterHostAERA(time, format.BuiltinMetricMetaMappingQueueEvent,

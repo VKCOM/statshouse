@@ -120,7 +120,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 				TagHitsToCreate:           80, // minute+, so tags that change every minute do not get into DB
 				TagTotalToCreate:          1000,
 				MaxUnknownTagsToKeep:      1_000_000,
-				KeepTime:                  86400,
+				KeepTime:                  3600,
 				MaxSendTagsToAgent:        1024,
 			},
 		},
@@ -193,26 +193,14 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 		f.BoolVar(&c.DenyOldAgents, "deny-old-agents", d.DenyOldAgents, "Statshouse will ignore data from outdated agents")
-		var mirrorChWrite bool  // TODO - remove after deploying aggregators
-		var writeToV3First bool // TODO - remove after deploying aggregators
-		f.BoolVar(&mirrorChWrite, "mirror-ch-writes", false, "Write metrics into both v3 and v2 tables. Not used.")
-		f.BoolVar(&writeToV3First, "write-to-v3-first", false, "Write metrics into v3 table first. Not used.")
-		var v2InsertSettings string // TODO - remove after deploying aggregators
-		f.StringVar(&v2InsertSettings, "v2-insert-settings", "", "Settings when inserting into v2 table. Not used.")
 		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v3 table")
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
-		var mapStringTop bool // TODO - remove after deploying aggregators
-		f.BoolVar(&mapStringTop, "map-string-top", false, "Map string top. Not used.")
 		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
 		f.Func("migration-v3-disabled-shards", "List of disabled shards for migration v3", c.setMigrationV3DisabledShards)
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")
 
-		var enableMappingAfterSampling bool
-		f.BoolVar(&enableMappingAfterSampling, "enable-mapping-after-sampling", false, "Enable mapping after sampling")
-		var maxUnknownTagsInBucket int
-		f.IntVar(&maxUnknownTagsInBucket, "mapping-queue-max-unknown-tags-in-bucket", 0, "Max unknown tags per bucket to add to mapping queue.")
 		f.IntVar(&c.MaxCreateTagsPerIteration, "mapping-queue-create-tags-per-iteration", d.MaxCreateTagsPerIteration, "Mapping queue will create no more tags per iteration (roughly second).")
 		f.IntVar(&c.TagHitsToCreate, "mapping-queue-hits-to-create", d.TagHitsToCreate, "Tag mapping will be created if it is used in so many different seconds.")
 		f.IntVar(&c.TagTotalToCreate, "mapping-queue-total-to-create", d.TagTotalToCreate, "Tag mapping will be created if it is used so many times.")

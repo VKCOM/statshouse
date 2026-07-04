@@ -2656,18 +2656,6 @@ var BuiltinMetricMetaMappingCacheEvent = &MetricMetaValue{
 	}},
 }
 
-var BuiltinMetricMetaMappingQueueSize = &MetricMetaValue{
-	Name:                    "__mapping_queue_size",
-	Kind:                    MetricKindValue,
-	Description:             "Elements in aggregator new conveyor mapping queue",
-	NoSampleAgent:           true, // low cardinality
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
-	}},
-}
-
 var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 	Name:                    "__mapping_queue_events",
 	Kind:                    MetricKindValue,
@@ -2687,18 +2675,6 @@ var BuiltinMetricMetaMappingQueueEvent = &MetricMetaValue{
 			TagValueIDMappingQueueEventCreateMapAdd:      "create_map_add",
 			TagValueIDMappingQueueEventCreateMapRemove:   "create_map_remove",
 		}),
-	}},
-}
-
-var BuiltinMetricMetaMappingQueueRemovedHitsAvg = &MetricMetaValue{
-	Name:                    "__mapping_queue_removed_hits_avg",
-	Kind:                    MetricKindValue,
-	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average hit counter is reported here.",
-	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
 	}},
 }
 
@@ -3171,18 +3147,6 @@ A value present means the mapping is still in use and should not be deleted.`,
 	}},
 }
 
-var BuiltinMetricMetaMappingQueueRemovedTotalAvg = &MetricMetaValue{
-	Name:                    "__mapping_queue_removed_total_avg",
-	Kind:                    MetricKindValue,
-	Description:             "When aggregator new conveyor mapping queue is full, elements will be removed. Their average total counter is reported here.",
-	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags:                    []MetricMetaTag{{ // reserve for component
-	}},
-}
-
 var BuiltinMetricMetaAggCorruptionStatus = &MetricMetaValue{
 	Name:                    "__agg_corruption_status",
 	Kind:                    MetricKindValue,
@@ -3198,5 +3162,26 @@ var BuiltinMetricMetaAggCorruptionStatus = &MetricMetaValue{
 		BuiltinKind: BuiltinKindMetric,
 	}, {
 		Description: "tag_id",
+	}},
+}
+
+var BuiltinMetricMetaAggTagMapperInfo = &MetricMetaValue{
+	Name:                    "__agg_tag_mapper_info",
+	Kind:                    MetricKindValue,
+	Description:             "Tag mapper string top status.",
+	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
+	BuiltinAllowedToReceive: false,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        true,
+	Tags: []MetricMetaTag{{ // reserve for component
+	}, {
+		Description: "measurement",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDAggTagMapperInfoElements:       "elements",
+			TagValueIDAggTagMapperInfoSamplingFactor: "sampling_factor",
+			TagValueIDAggTagMapperInfoHitsAvg:        "hits_avg",
+			TagValueIDAggTagMapperInfoTotalAvg:       "total_avg",
+			TagValueIDAggTagMapperInfoTimeAvg:        "time_avg",
+		}),
 	}},
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/metajournal"
+	"pgregory.net/rand"
 )
 
 type unknownTag struct { // fits well into cache line
@@ -37,7 +38,7 @@ type configTagsMapper3 struct {
 	TagHitsToCreate           int // if used in N different seconds, then create
 	TagTotalToCreate          int // if inserted in database K times, then create
 	MaxUnknownTagsToKeep      int
-	KeepTime                  int // if not used for the long time, it is removed from unknownTags
+	KeepTime                  int // if not used for some time, string is removed from unknownTags
 	MaxSendTagsToAgent        int
 }
 
@@ -47,9 +48,15 @@ type tagsMapper3 struct {
 	metricStorage *metajournal.MetricsStorage
 	loader        metajournal.MetadataLoader
 
-	mu          sync.Mutex
-	unknownTags map[string]unknownTag // collect statistics here
-	createTags  map[string]createMappingExtra
+	mu               sync.Mutex
+	sampleFactorLog2 int
+	unknownTags      map[string]unknownTag // collect statistics here
+	sumHits          int64
+	sumTotal         int64
+	sumTime          int64
+	sfReduceTime     uint32
+
+	createTags map[string]createMappingExtra
 
 	config configTagsMapper3
 }
@@ -73,64 +80,108 @@ func (ms *tagsMapper3) SetConfig(c configTagsMapper3) {
 	ms.config = c
 }
 
-func (ms *tagsMapper3) UnknownTagsLen() int {
+func (ms *tagsMapper3) UnknownTagsStats(now uint32) (totalLen int, sampleFactor int, avgHits float64, avgTotal float64, avgTime float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	return len(ms.unknownTags)
+	if len(ms.unknownTags) == 0 {
+		return len(ms.unknownTags), ms.sampleFactorLog2, 0, 0, 0
+	}
+	le := float64(len(ms.unknownTags))
+	return len(ms.unknownTags), ms.sampleFactorLog2, float64(ms.sumHits) / le, float64(ms.sumTotal) / le, float64(now) - float64(ms.sumTime)/le
 }
 
-func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]createMappingExtra, time uint32) (
-	unknownMapRemove int, unknownMapAdd int, createMapAdd int, avgRemovedHits float64, avgRemovedTotal float64) {
+func (ms *tagsMapper3) addUnknownTagLocked(time uint32, rng *rand.Rand, k string, v createMappingExtra) bool {
+	c, ok := ms.unknownTags[k]
+	if ok {
+		ms.removeTotal(c)
+		c.total += v.total
+		if time > c.time {
+			c.time = time
+			c.hits++
+		}
+		if int(c.hits) > ms.config.TagHitsToCreate && c.total > int64(ms.config.TagTotalToCreate) {
+			delete(ms.unknownTags, k)
+			return true
+		}
+	} else {
+		sf := int64(1) << ms.sampleFactorLog2
+		if v.total < sf && v.total <= rng.Int63n(sf) { // first condition is an optimization
+			return false
+		}
+		// this can stop for relatively long time, contributing to insert time, but very rarely.
+		// first condition prevents infinite loop
+		for len(ms.unknownTags) > 1 && len(ms.unknownTags) >= ms.config.MaxUnknownTagsToKeep {
+			ms.resample(time, rng)
+		}
+		c = unknownTag{
+			time:  time,
+			hits:  1,
+			total: v.total,
+		}
+	}
+	ms.addTotal(c)
+	ms.unknownTags[k] = c
+	return false
+}
+
+func (ms *tagsMapper3) resample(time uint32, rng *rand.Rand) {
+	ms.sampleFactorLog2++
+	sf := int64(1) << ms.sampleFactorLog2
+	for k, v := range ms.unknownTags {
+		if int64(time) >= int64(v.time)+int64(ms.config.KeepTime) {
+			ms.removeTotal(v)
+			delete(ms.unknownTags, k)
+			continue
+		}
+		if v.total >= sf || v.total > rng.Int63n(sf) { // first condition is an optimization
+			continue
+		}
+		ms.removeTotal(v)
+		delete(ms.unknownTags, k)
+	}
+}
+
+func (ms *tagsMapper3) addTotal(v unknownTag) {
+	ms.sumHits += int64(v.hits)
+	ms.sumTotal += v.total
+	ms.sumTime += int64(v.time)
+}
+
+func (ms *tagsMapper3) removeTotal(v unknownTag) {
+	ms.sumHits -= int64(v.hits)
+	ms.sumTotal -= v.total
+	ms.sumTime -= int64(v.time)
+}
+
+func (ms *tagsMapper3) AddUnknownTags(unknownTags map[string]createMappingExtra, time uint32, rng *rand.Rand) (createMapAdd int) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	var sumHits int64
-	var sumTotal int64
 	numIter := 0
 	// work proportional to len(unknownTags).
 	for k, v := range ms.unknownTags {
 		if int64(time) >= int64(v.time)+int64(ms.config.KeepTime) {
-			unknownMapRemove++
-			sumHits += int64(v.hits)
-			sumTotal += v.total
+			ms.removeTotal(v)
 			delete(ms.unknownTags, k)
 		}
 		numIter++
-		if numIter > 4*len(unknownTags) { // 4x multiplier so if 25% of items is stale, enough space is freed to fit all new tags
+		if numIter > 128+4*len(unknownTags) { // tiny constant + 4x multiplier so if 25% of items is stale, enough space is freed to fit all new tags
 			break
 		}
 	}
-	// work usually proportional to len(unknownTags), but if ms.config.MaxUnknownTagsToKeep is reduced, can do a lot of work, but only once
-	for k, v := range ms.unknownTags { // can delete a bit more items than strictly necessary
-		if len(ms.unknownTags)+len(unknownTags) <= ms.config.MaxUnknownTagsToKeep {
-			break
-		}
-		unknownMapRemove++
-		sumHits += int64(v.hits)
-		sumTotal += v.total
-		delete(ms.unknownTags, k)
+	if len(ms.unknownTags) >= ms.config.MaxUnknownTagsToKeep/2 {
+		ms.sfReduceTime = time
 	}
-	if unknownMapRemove != 0 {
-		avgRemovedHits = float64(sumHits) / float64(unknownMapRemove)
-		avgRemovedTotal = float64(sumTotal) / float64(unknownMapRemove)
+	if ms.sampleFactorLog2 > 0 && len(ms.unknownTags) < ms.config.MaxUnknownTagsToKeep/2 &&
+		int64(time) >= int64(ms.sfReduceTime)+int64(ms.config.KeepTime) {
+		// reduce sample factor slowly after large load of random strings stops
+		ms.sfReduceTime = time
+		ms.sampleFactorLog2--
 	}
 	for k, v := range unknownTags {
-		u := ms.unknownTags[k]
-		u.total += v.total
-		if time > u.time {
-			u.time = time
-			u.hits++
-			if int(u.hits) > ms.config.TagHitsToCreate && u.total > int64(ms.config.TagTotalToCreate) &&
-				len(ms.createTags) < ms.config.MaxCreateTagsPerIteration {
-				createMapAdd++
-				ms.createTags[k] = v
-				u.hits = 0
-				u.total = 0
-				// we do not delete from ms.unknownTags, because it will be most likely added back immediately,
-				// but we clear counter and total, so we will not add to ms.createTags every iteration.
-			}
-			unknownMapAdd++
+		if ms.addUnknownTagLocked(time, rng, k, v) && len(ms.createTags) < ms.config.MaxCreateTagsPerIteration {
+			createMapAdd++
+			ms.createTags[k] = v
 		}
-		ms.unknownTags[k] = u
 	}
 	return
 }
