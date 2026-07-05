@@ -165,7 +165,6 @@ var (
 		-151:                                    BuiltinMetricMetaAggReceiveSrcOriginalSize,
 		-152:                                    BuiltinMetricMetaAggSendSrcBudget,
 		-153:                                    BuiltinMetricMetaMappingUsage,
-		-155:                                    BuiltinMetricMetaAggCorruptionStatus,
 		-156:                                    BuiltinMetricMetaAggTagMapperInfo,
 	}
 

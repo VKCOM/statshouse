@@ -1074,34 +1074,38 @@ func validStringValueLegacy(s mem.RO, maxLen int) bool {
 	return true
 }
 
-// TODO - this can likely be speed up with ASCII fast-path
 func validStringValue(s mem.RO, maxLen int) bool {
 	if s.Len() > maxLen {
 		return false
 	}
-	if mem.TrimSpace(s).Len() != s.Len() {
-		return false
+	if s.Len() == 0 {
+		return true
 	}
-	previousSpace := false
+	previousSpace := true // fail on first space
 	for r := 0; r < s.Len(); {
+		if c := s.At(r); bytePrint(c) {
+			isSpace := c == ' '
+			if isSpace && previousSpace {
+				return false
+			}
+			previousSpace = isSpace
+			r++
+			continue
+		}
 		c, nr := mem.DecodeRune(s.SliceFrom(r))
 		if c == utf8.RuneError && nr <= 1 {
 			return false
 		}
 		switch {
 		case unicode.IsSpace(c):
-			if previousSpace {
-				return false
-			}
-			previousSpace = true
+			return false // only ascii spaces are allowed
 		case !unicode.IsPrint(c):
 			return false
-		default:
-			previousSpace = false
 		}
+		previousSpace = false
 		r += nr
 	}
-	return true
+	return !previousSpace // fail on last space
 }
 
 // We have a lot of 1251 encoding still, also we have java people saving strings in default UTF-16 encoding,
@@ -1144,7 +1148,11 @@ func ContainsCorruptedBalancerValueFastPath(s []byte) bool {
 
 // We use this function only to validate host names and args for now.
 func ForceValidStringValue(src string) string {
-	dst, _ := appendValidStringValue(nil, []byte(src), MaxStringLen, true)
+	if ValidStringValue(src) { // optimize 2 allocations if string is valid
+		return src
+	}
+	dst := []byte(src)
+	dst, _ = appendValidStringValue(dst[:0], dst, MaxStringLen, true)
 	return string(dst)
 }
 
@@ -1155,60 +1163,61 @@ func ForceValidStringValueBytes(b []byte) []byte {
 }
 
 func appendValidStringValue(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
-	// trim
-	src = bytes.TrimSpace(src) // packet is limited, so this will not be too slow
+	if len(src) == 0 {
+		return dst, nil
+	}
 	// fast path
 	if len(src) <= maxLen { // calculating dst size slows us down when dealing with double spaces
 		fastPath := true
-		previousSpace := false
+		previousSpace := true // fail on first space
 		for _, c := range src {
 			if !bytePrint(c) {
 				fastPath = false
 				break
 			}
-			doubleSpace := c == ' ' && previousSpace
-			previousSpace = c == ' '
-			if doubleSpace {
+			isSpace := c == ' '
+			if isSpace && previousSpace {
 				fastPath = false // they are rare, and we do not want to slow fast path down dealing with them
 				break
 			}
+			previousSpace = isSpace
 		}
-		if fastPath {
+		if fastPath && !previousSpace { // fail on last space
 			return append(dst, src...), nil
 		}
 	}
 	// slow path
 	var buf [MaxStringLen + utf8.UTFMax]byte
 	w := 0
-	previousSpace := false
+	previousSpace := true
 	for r := 0; r < len(src); {
 		c, nr := utf8.DecodeRune(src[r:])
 		if c == utf8.RuneError && nr <= 1 && !force {
 			return dst, errBadEncoding
 		}
+		isSpace := unicode.IsSpace(c)
 		switch {
-		case unicode.IsSpace(c):
+		case isSpace:
 			if previousSpace {
 				r += nr
 				continue
 			}
 			c = ' '
-			previousSpace = true
 		case !unicode.IsPrint(c):
 			c = utf8.RuneError
-			previousSpace = false
-		default:
-			previousSpace = false
 		}
 		nw := utf8.EncodeRune(buf[w:], c)
 		if w+nw > maxLen {
 			break
 		}
+		previousSpace = isSpace
 		r += nr
 		w += nw
 	}
-	dst = append(dst, buf[:w]...)
-	return bytes.TrimRightFunc(dst, unicode.IsSpace), nil
+	if previousSpace && w != 0 {
+		w--
+	}
+	return append(dst, buf[:w]...), nil
 }
 
 func AppendHexStringValue(dst []byte, src []byte) []byte {
@@ -1490,3 +1499,19 @@ func MakeCompactMetric(value *MetricMetaValue) {
 	value.PreKeyOnly = false
 	value.MetricType = ""
 }
+
+//before and after optimization
+//cpu: 13th Gen Intel(R) Core(TM) i7-1360P
+//BenchmarkAppendValidStringValueFastPath-16                  	68605896	        15.15 ns/op
+//BenchmarkAppendValidStringValueCollapseSpacesFastPath-16    	84717020	        14.16 ns/op
+//BenchmarkValidStringValueFastPath-16                        	13199634	        90.80 ns/op
+//BenchmarkAppendValidStringValueSlowPath-16                  	 6493360	       184.1 ns/op
+//BenchmarkAppendValidStringValueCollapseSpacesSlowPath-16    	 6928969	       185.4 ns/op
+//BenchmarkValidStringValueSlowPath-16                        	 8657493	       133.1 ns/op
+//
+//BenchmarkAppendValidStringValueFastPath-16                  	108185221	        11.27 ns/op
+//BenchmarkAppendValidStringValueCollapseSpacesFastPath-16    	127750215	         9.538 ns/op
+//BenchmarkValidStringValueFastPath-16                        	75128864	        16.35 ns/op
+//BenchmarkAppendValidStringValueSlowPath-16                  	 7875194	       159.0 ns/op
+//BenchmarkAppendValidStringValueCollapseSpacesSlowPath-16    	 7608700	       155.9 ns/op
+//BenchmarkValidStringValueSlowPath-16                        	23976314	        51.20 ns/op
