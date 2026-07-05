@@ -147,9 +147,7 @@ var (
 		-131:                                    BuiltinMetricMetaMappingCacheSize,
 		-132:                                    BuiltinMetricMetaMappingCacheAverageTTL,
 		-133:                                    BuiltinMetricMetaMappingCacheEvent,
-		-134:                                    BuiltinMetricMetaMappingQueueSize,
 		-135:                                    BuiltinMetricMetaMappingQueueEvent,
-		-136:                                    BuiltinMetricMetaMappingQueueRemovedHitsAvg,
 		-137:                                    BuiltinMetricMetaAgentTimings,
 		-138:                                    BuiltinMetricMetaAggInsertSize,
 		-139:                                    BuiltinMetricMetaAggOldMetrics,
@@ -167,8 +165,8 @@ var (
 		-151:                                    BuiltinMetricMetaAggReceiveSrcOriginalSize,
 		-152:                                    BuiltinMetricMetaAggSendSrcBudget,
 		-153:                                    BuiltinMetricMetaMappingUsage,
-		-154:                                    BuiltinMetricMetaMappingQueueRemovedTotalAvg,
 		-155:                                    BuiltinMetricMetaAggCorruptionStatus,
+		-156:                                    BuiltinMetricMetaAggTagMapperInfo,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly

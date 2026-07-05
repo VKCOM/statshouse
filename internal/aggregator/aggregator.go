@@ -572,9 +572,23 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, nowUnix uint32) 
 		[]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric},
 		float64(historicSends), 1, a.aggregatorHostTag)
 
-	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaMappingQueueSize,
-		[]int32{},
-		float64(a.tagsMapper3.UnknownTagsLen()), 1, a.aggregatorHostTag)
+	totalLen, sampleFactorLog2, avgHits, avgTotal, avgTime := a.tagsMapper3.UnknownTagsStats(nowUnix)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggTagMapperInfo,
+		[]int32{0, 0, format.TagValueIDAggTagMapperInfoElements},
+		float64(totalLen), 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggTagMapperInfo,
+		[]int32{0, 0, format.TagValueIDAggTagMapperInfoSamplingFactor},
+		float64(sampleFactorLog2), 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggTagMapperInfo,
+		[]int32{0, 0, format.TagValueIDAggTagMapperInfoHitsAvg},
+		avgHits, 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggTagMapperInfo,
+		[]int32{0, 0, format.TagValueIDAggTagMapperInfoTotalAvg},
+		avgTotal, 1, a.aggregatorHostTag)
+	a.sh2.AddValueCounterHost(nowUnix, format.BuiltinMetricMetaAggTagMapperInfo,
+		[]int32{0, 0, format.TagValueIDAggTagMapperInfoTimeAvg},
+		avgTime, 1, a.aggregatorHostTag)
+
 	/* TODO - replace with direct agent call
 
 	a.metricStorage.MetricsMu.Lock()

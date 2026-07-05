@@ -354,19 +354,19 @@ func (s *MultiItem) MapStringTopBytes(rng *rand.Rand, capacity int, tag TagUnion
 }
 
 func (s *MultiItem) resample(rng *rand.Rand) {
+	s.sampleFactorLog2++
+	sf := 1 << s.sampleFactorLog2
 	for k, v := range s.Top {
-		cc := 2 << s.sampleFactorLog2
-		if v.Value.Count() >= float64(cc) { // first condition is optimization
+		if v.Value.Count() >= float64(sf) { // first condition is optimization
 			continue
 		}
-		rv := rng.Intn(cc)
+		rv := rng.Intn(sf)
 		if v.Value.Count() > float64(rv) {
 			continue
 		}
 		s.Tail.Merge(rng, v)
 		delete(s.Top, k)
 	}
-	s.sampleFactorLog2++
 }
 
 type multiItemPair struct {
