@@ -487,7 +487,7 @@ func (m *MetricMetaValue) AppendTagNames(res []string) []string {
 
 // updates error if name collision happens
 func (m *MetricMetaValue) setName2Tag(name string, newTag *MetricMetaTag, canonical bool, err *error) {
-	if !canonical && !ValidTagName(mem.S(name)) {
+	if !canonical && !ValidTagName(name) {
 		if err != nil {
 			*err = fmt.Errorf("invalid tag name %q", name)
 		}
@@ -522,7 +522,7 @@ func (m *MetricMetaValue) BeforeSavingCheck() error {
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
 func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var err error
-	if !ValidMetricName(mem.S(m.Name)) && m.Name != "404_page" && m.Name != "404_page_top_urls" { // TODO - ask monolith team to update names in code before removing exceptions
+	if !ValidMetricName(m.Name) && m.Name != "404_page" && m.Name != "404_page_top_urls" { // TODO - ask monolith team to update names in code before removing exceptions
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
 	}
 	if !IsValidMetricType(m.MetricType) {
@@ -571,7 +571,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		if tag.Name == tagID { // remove redundancy
 			tag.Name = ""
 		}
-		if tag.Name != "" && !ValidTagName(mem.S(tag.Name)) {
+		if tag.Name != "" && !ValidTagName(tag.Name) {
 			err = multierr.Append(err, fmt.Errorf("invalid tag name %q of tag %d", tag.Name, i))
 		}
 		if m.PreKeyFrom != 0 { // restore prekey index
@@ -813,7 +813,14 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 }
 
 // '@' is reserved by api access.Do not use it here
-func ValidMetricName(s mem.RO) bool {
+func ValidMetricName(s string) bool {
+	return validMetricName(mem.S(s))
+}
+func ValidMetricNameBytes(s []byte) bool {
+	return validMetricName(mem.B(s))
+}
+
+func validMetricName(s mem.RO) bool {
 	if s.Len() == 0 || s.Len() > MaxStringLen || !isAsciiLetter(s.At(0)) {
 		return false
 	}
@@ -844,7 +851,7 @@ func ValidMetricPrefix(s string) bool {
 }
 
 func ValidGroupName(s string) bool {
-	return ValidMetricName(mem.S(s))
+	return ValidMetricName(s)
 }
 
 var validDashboardSymbols = map[uint8]bool{
@@ -872,8 +879,12 @@ func ValidDashboardName(s string) bool {
 	return true
 }
 
-func ValidTagName(s mem.RO) bool {
-	return validIdent(s)
+func ValidTagName(s string) bool {
+	return validIdent(mem.S(s))
+}
+
+func ValidTagNameBytes(s []byte) bool {
+	return validIdent(mem.B(s))
 }
 
 func ValidMetricKind(kind string) bool {
@@ -1033,13 +1044,17 @@ func ValidStringValueLegacy(s mem.RO) bool {
 // We help people by replacing slightly invalid tag values with valid tag values.
 // 1. trim unicode whitespaces to the left and right
 // 2. replace all consecutive unicode whitespaces inside with single ASCII space
-// 3. trim to MaxStringLen (if las utf symbol fits only partly, we remove it completely)
+// 3. trim to MaxStringLen (if last utf symbol fits only partly, we remove it completely)
 // 4. non-printable characters are replaced by roadsign (invalid rune)
 // but invalid UTF-8 is still error
 //
 // TODO - replace invalid UTF-8 with roadsigns as well to simplify rules
-func ValidStringValue(s mem.RO) bool {
-	return validStringValue(s, MaxStringLen)
+func ValidStringValue(s string) bool {
+	return validStringValue(mem.S(s), MaxStringLen)
+}
+
+func ValidStringValueBytes(s []byte) bool {
+	return validStringValue(mem.B(s), MaxStringLen)
 }
 
 func validStringValueLegacy(s mem.RO, maxLen int) bool {
@@ -1097,10 +1112,40 @@ func AppendValidStringValue(dst []byte, src []byte) ([]byte, error) {
 	return appendValidStringValue(dst, src, MaxStringLen, false)
 }
 
+// During balance set up, we noticed unexplainable garbage coming into tags,
+// and decided to filter it our before we fix. TODO - remove after fix
+func ContainsCorruptedBalancerValue(s []byte) bool {
+	return bytes.Contains(s, []byte{0x39, 0x02, 0x56, 0x58})
+}
+
+// inlined version, 25% faster, this is too little to use
+func ContainsCorruptedBalancerValueFastPath(s []byte) bool {
+	const c0 = 0x39
+	const c1 = 0x02
+	const c2 = 0x58
+	const c3 = 0x56
+	i := 0
+	t := len(s) - 4 + 1
+	for i < t {
+		if s[i] != c0 {
+			o := bytes.IndexByte(s[i+1:t], c0)
+			if o < 0 {
+				return false
+			}
+			i += o + 1
+		}
+		if s[i+1] == c1 && s[i+2] == c2 && s[i+3] == c3 {
+			return true
+		}
+		i++
+	}
+	return false
+}
+
 // We use this function only to validate host names and args for now.
-func ForceValidStringValue(src string) []byte {
+func ForceValidStringValue(src string) string {
 	dst, _ := appendValidStringValue(nil, []byte(src), MaxStringLen, true)
-	return dst
+	return string(dst)
 }
 
 // ForceValidStringValueBytes is like ForceValidStringValue, reuses the backing array.
@@ -1208,7 +1253,7 @@ func ParseCodeTagValue(s string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int64(i), nil
+	return i, nil
 }
 
 func ValidTagValueForAPI(s string) bool {
@@ -1220,12 +1265,16 @@ func ValidTagValueForAPI(s string) bool {
 }
 
 // We allow both signed and unsigned 32-bit values, however values outside both ranges are prohibited
-func ContainsRawTagValue(s mem.RO) (int32, bool) {
-	i, err := mem.ParseInt(s, 10, 64) // TODO - remove allocation in case of error
+func ContainsRawTagValueBytes(s []byte) (int32, bool) {
+	i, err := mem.ParseInt(mem.B(s), 10, 64) // TODO - remove allocation in case of error
 	return int32(i), err == nil && i >= math.MinInt32 && i <= math.MaxUint32
 }
 
-func ContainsRawTagValue64(s mem.RO) (lo int32, hi int32, ok bool) {
+// We allow both signed and unsigned 64-bit values, however values outside both ranges are prohibited
+func ContainsRawTagValue64Bytes(s []byte) (lo int32, hi int32, ok bool) {
+	return containsRawTagValue64(mem.B(s))
+}
+func containsRawTagValue64(s mem.RO) (lo int32, hi int32, ok bool) {
 	if s.Len() == 0 { // never happens, but seems rather cheap check
 		return 0, 0, false
 	}

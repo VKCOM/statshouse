@@ -229,7 +229,7 @@ func (s *TCP) goHandshake(rh RawHandler, h Handler, conn net.Conn, lnAddr net.Ad
 			return
 		}
 	}
-	connHost = string(format.ForceValidStringValue(connHost))
+	connHost = format.ForceValidStringValue(connHost)
 	err = s.receiveLoop(rh, h, sc, connHost)
 
 	if err != nil {

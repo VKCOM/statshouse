@@ -52,7 +52,7 @@ func (h *handler) Close() {
 	close(h.stop)
 }
 
-func (h *handler) HandleMetrics(data_model.HandlerArgs) (r data_model.MappedMetricHeader) { return }
+func (h *handler) HandleMetrics(data_model.HandlerArgs) {}
 
 func (h *handler) HandleMetricsBatchRaw(pkt []byte) error {
 	h.mu.Lock()
@@ -98,5 +98,5 @@ func detectHostTag(override string) string {
 	if err != nil {
 		return ""
 	}
-	return string(format.ForceValidStringValue(host)) // worse alternative is do not run at all
+	return format.ForceValidStringValue(host) // worse alternative is do not run at all
 }

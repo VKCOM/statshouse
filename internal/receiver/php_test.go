@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
@@ -323,7 +322,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		timer := time.AfterFunc(recvTimeout, func() { _ = recv.Close() })
 		defer timer.Stop()
 		serveErr <- recv.Serve(nil, receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
+			Metrics: func(m *tlstatshouse.MetricBytes) {
 				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:
@@ -339,7 +338,6 @@ func (p *phpMachine) Run(t *rapid.T) {
 				if recvErr != nil || counterMetrics.size()+valueMetrics.size()+uniqueMetrics.size()+stopMetrics.size() >= total {
 					_ = recv.Close()
 				}
-				return h
 			},
 			ParseError: func(pkt []byte, err error) {
 				if recvErr == nil {

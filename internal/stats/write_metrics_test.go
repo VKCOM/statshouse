@@ -11,10 +11,8 @@ import (
 type handlerMock struct {
 }
 
-func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
-	return data_model.MappedMetricHeader{}
-}
-func (*handlerMock) HandleParseError([]byte, error) {}
+func (*handlerMock) HandleMetrics(data_model.HandlerArgs) {}
+func (*handlerMock) HandleParseError([]byte, error)       {}
 
 func BenchmarkSHWriterImpl(b *testing.B) {
 	p := MetricWriterSHImpl{

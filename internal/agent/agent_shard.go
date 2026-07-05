@@ -186,7 +186,7 @@ func (s *Shard) ApplyUnique(key *data_model.Key, resolutionHash uint64, hashes [
 	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture, 0, format.TagValueIDComponentAgent},
 			1, dropIfBeforeTimestamp)
 	}
 }
@@ -224,7 +224,7 @@ func (s *Shard) ApplyValues(key *data_model.Key, resolutionHash uint64, histogra
 	s.mu.Unlock()
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture, 0, format.TagValueIDComponentAgent},
 			1, dropIfBeforeTimestamp)
 	}
 }
@@ -252,7 +252,7 @@ func (s *Shard) ApplyCounter(key *data_model.Key, resolutionHash uint64, count f
 
 	if clampedFuture { // we must use key.Timestamp because this is the bucket clamped event sits in
 		s.AddCounterHostSrcIngestionStatus(key.Timestamp, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture},
+			[]int32{key.Tags[0], key.Metric, format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture, 0, format.TagValueIDComponentAgent},
 			1, dropIfBeforeTimestamp)
 	}
 }

@@ -7,8 +7,6 @@
 package agent
 
 import (
-	"go4.org/mem"
-
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tl"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -22,7 +20,6 @@ func (s *Agent) Map(args data_model.HandlerArgs, h *data_model.MappedMetricHeade
 	}
 	// validate values only if metric is valid
 	h.IngestionStatus = data_model.ValidateMetricData(args.MetricBytes)
-	h.ValuesChecked = true // not used in v3, just to avoid confusion
 }
 
 // mapAllTags processes all tags in a single pass, including environment tag
@@ -41,7 +38,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 		switch {
 		case len(v.Value) == 0: // this case is also valid for raw values
 		case tagMeta.Raw64():
-			lo, hi, ok := format.ContainsRawTagValue64(mem.B(v.Value)) // TODO - remove allocation in case of error
+			lo, hi, ok := format.ContainsRawTagValue64Bytes(v.Value)
 			if !ok {
 				h.InvalidRawValue = v.Value
 				h.InvalidRawTagKey = tagIDKey
@@ -52,7 +49,7 @@ func (s *Agent) mapAllTags(h *data_model.MappedMetricHeader, metric *tlstatshous
 
 			tagValue.I = lo
 		case tagMeta.Raw():
-			id, ok := format.ContainsRawTagValue(mem.B(v.Value))
+			id, ok := format.ContainsRawTagValueBytes(v.Value)
 			if !ok {
 				h.InvalidRawValue = v.Value
 				h.InvalidRawTagKey = tagIDKey

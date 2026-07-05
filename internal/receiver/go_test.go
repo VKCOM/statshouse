@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/VKCOM/statshouse-go"
-	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/receiver"
@@ -316,7 +315,7 @@ func (g *goMachine) Run(t *rapid.T) {
 	timer := time.AfterFunc(recvTimeout, func() { _ = g.recv.Close() })
 	defer timer.Stop()
 	serveErr := g.recv.Serve(nil, receiver.CallbackHandler{
-		Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
+		Metrics: func(m *tlstatshouse.MetricBytes) {
 			switch {
 			case len(m.Value) > 0:
 				valueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Value)
@@ -329,7 +328,6 @@ func (g *goMachine) Run(t *rapid.T) {
 			if recvErr != nil || (counterMetrics.sum() >= totalC && valueMetrics.size()+uniqueMetrics.size()+stopMetrics.size() >= totalV) {
 				_ = g.recv.Close()
 			}
-			return h
 		},
 		ParseError: func(pkt []byte, err error) {
 			if recvErr == nil {

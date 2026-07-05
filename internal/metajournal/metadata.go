@@ -13,12 +13,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
-	"go4.org/mem"
-
 	"github.com/VKCOM/statshouse/internal/data_model"
-
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/tl/pkg/rpc"
 )
@@ -163,7 +160,7 @@ func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metric
 	if tag == "" {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, errEmptyStringMapping
 	}
-	if !format.ValidStringValue(mem.S(tag)) {
+	if !format.ValidStringValue(tag) {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidString, errInvalidKeyValue
 	}
 
