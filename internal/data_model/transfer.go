@@ -230,15 +230,15 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	s.ValueSet = true
 }
 
-func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, capacity int, s2 *tlstatshouse.MultiItemBytes, hostTag TagUnion) {
+func (s *MultiItem) MergeWithTLMultiItem(rng *rand.Rand, capacity int, s2 *tlstatshouse.MultiItemBytes, hostTag TagUnion) (ingestionError int32) {
 	for _, v := range s2.Top {
-		v.Stag, _ = format.AppendValidStringValue(v.Stag[:0], v.Stag) // TODO - report this error via builtin metrics
+		// Stag is validated in caller
 		mi := s.MapStringTopBytes(rng, capacity, TagUnionBytes{S: v.Stag, I: v.Tag}, v.Value.Counter)
-		// We want to validate all incoming strings. In case of encoding error,
-		// v.Stag will be truncated to empty string, merging Value into 'other' strings
-		mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression)
+		if ingestionError = mi.MergeWithTL2(rng, &v.Value, v.FieldsMask, hostTag, AggregatorPercentileCompression); ingestionError != 0 {
+			return
+		}
 	}
-	s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)
+	return s.Tail.MergeWithTL2(rng, &s2.Tail, s2.FieldsMask, hostTag, AggregatorPercentileCompression)
 }
 
 func (s *MultiItem) TLSizeEstimate() int {
@@ -249,7 +249,7 @@ func (s *MultiItem) TLSizeEstimate() int {
 	return size
 }
 
-func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag TagUnion, compression float64) {
+func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag TagUnion, compression float64) (ingestionError int32) {
 	// 1. restore and check cuunter
 	if s2.IsSetCounterEq1(fields_mask) {
 		s2.Counter = 1
@@ -299,4 +299,5 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 		}
 		s.ValueTDigest.Add(float64(s2.ValueMin), float64(s2.Counter))
 	}
+	return
 }

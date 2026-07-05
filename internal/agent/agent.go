@@ -949,7 +949,7 @@ func (s *Agent) ApplyMetric(m *tlstatshouse.MetricBytes, h *data_model.MappedMet
 		}
 		return
 	}
-	if len(m.Histogram) != 0 || len(m.Value) != 0 {
+	if len(m.Histogram)+len(m.Value) != 0 {
 		shard.ApplyValues(&h.Key, resolutionHash, m.Histogram, m.Value, m.Counter, h.HostTag,
 			h.MetricMeta, 0)
 		if shard2 != nil {

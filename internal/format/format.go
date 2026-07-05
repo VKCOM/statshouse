@@ -993,38 +993,31 @@ func validIdent(s mem.RO) bool {
 	return true
 }
 
-func ValidFloatValue(f float64) bool {
-	return !math.IsNaN(f) && !math.IsInf(f, 0)
-}
-
-func ClampFloatValue(f float64) float64 {
-	if f > math.MaxFloat32 {
-		return math.MaxFloat32
+func ValidateCounter(f float64) (errorTag int32) {
+	if math.IsNaN(f) {
+		return TagValueIDSrcIngestionStatusErrNanInfCounter
 	}
-	if f < -math.MaxFloat32 {
-		return -math.MaxFloat32
-	}
-	return f
-}
-
-func ClampCounter(f float64) (_ float64, errorTag int32) {
-	if !ValidFloatValue(f) {
-		return f, TagValueIDSrcIngestionStatusErrNanInfCounter
-	}
+	// counter == 0 is allowed, if Values, Histogram or Unique set
 	if f < 0 {
-		return f, TagValueIDSrcIngestionStatusErrNegativeCounter
+		return TagValueIDSrcIngestionStatusErrNegativeCounter
 	}
-	if f > math.MaxFloat32 {
-		return math.MaxFloat32, 0
+	if f > math.MaxFloat32 { // we noticed, those are always errors in clients, so forbidden
+		return TagValueIDSrcIngestionStatusErrTooBigCounter
 	}
-	return f, 0
+	return 0
 }
 
-func ClampValue(f float64) (_ float64, errorTag int32) {
-	if !ValidFloatValue(f) {
-		return f, TagValueIDSrcIngestionStatusErrNanInfValue
+func ValidateValue(f float64) (errorTag int32) {
+	if math.IsNaN(f) {
+		return TagValueIDSrcIngestionStatusErrNanInfValue
 	}
-	return ClampFloatValue(f), 0
+	if f > math.MaxFloat32 { // we noticed, those are always errors in clients, so forbidden
+		return TagValueIDSrcIngestionStatusErrTooBigValue
+	}
+	if f < -math.MaxFloat32 { // we noticed, those are always errors in clients, so forbidden
+		return TagValueIDSrcIngestionStatusErrTooBigValue
+	}
+	return 0
 }
 
 // Legacy rules replaced non-printables including whitespaces (except ASCII space) into roadsigns
@@ -1119,7 +1112,7 @@ func AppendValidStringValue(dst []byte, src []byte) ([]byte, error) {
 // During balance set up, we noticed unexplainable garbage coming into tags,
 // and decided to filter it our before we fix. TODO - remove after fix
 func ContainsCorruptedBalancerValue(s []byte) bool {
-	return bytes.Contains(s, []byte{0x39, 0x02, 0x56, 0x58})
+	return bytes.Contains(s, []byte{0x39, 0x02, 0x58, 0x56})
 }
 
 // inlined version, 25% faster, this is too little to use

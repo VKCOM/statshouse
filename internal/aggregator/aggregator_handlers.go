@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"time"
 
 	"pgregory.net/rand"
@@ -558,12 +557,8 @@ outer:
 			}
 		}
 		// quick check of counter only
-		if item.Tail.Counter < 0 {
-			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, format.TagValueIDSrcIngestionStatusErrNegativeCounter, 0}]++
-			continue outer
-		}
-		if math.IsNaN(item.Tail.Counter) || item.Tail.Counter > math.MaxFloat32 {
-			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, format.TagValueIDSrcIngestionStatusErrNanInfCounter, 0}]++
+		if ingestionError := format.ValidateCounter(item.Tail.Counter); ingestionError != 0 {
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, ingestionError, 0}]++
 			continue outer
 		}
 
@@ -609,7 +604,9 @@ outer:
 		sID := int(hash % data_model.AggregationShardsPerSecond)
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, nil, keyBytes)
-		mi.MergeWithTLMultiItem(rng, data_model.AggregatorStringTopCapacity, &item, hostTag)
+		if is := mi.MergeWithTLMultiItem(rng, data_model.AggregatorStringTopCapacity, &item, hostTag); is != 0 {
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, is, 0}]++
+		}
 		// we unlock shard to calculate hash and do other heavy operations not under lock
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 		if created {
