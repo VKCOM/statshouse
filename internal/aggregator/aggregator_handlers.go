@@ -101,6 +101,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
+	args.Header.HostName = format.ForceValidStringValue(args.Header.HostName)
 	hostTag := a.getTagUnion(args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
@@ -201,7 +202,9 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
+	args.Header.HostName = format.ForceValidStringValueBytes(args.Header.HostName)
 	hostTag := a.getTagUnionBytes(args.Header.HostName)
+	args.Header.Owner = format.ForceValidStringValueBytes(args.Header.Owner)
 	ownerTag := a.getTagUnionBytes(args.Header.Owner)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
@@ -383,9 +386,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 			return true
 		}
 		tagId := int32(i + format.TagIDShift)
-		a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
-			[]int32{0, 1, metricID, tagId},
-			1, hostTag, aera)
+		aggIngestionStatuses[clampedKey{clientEnv, metricID, format.TagValueIDSrcIngestionStatusErrMapTagValueCorrupted, tagId}]++
 		return false
 	}
 	// If agents send lots of strings, this loop is non-trivial amount of work.
@@ -557,10 +558,12 @@ outer:
 			}
 		}
 		// quick check of counter only
-		if item.Tail.Counter < 0 || math.IsNaN(item.Tail.Counter) || item.Tail.Counter > math.MaxFloat32 {
-			a.sh2.AddCounterHostAERA(nowUnix, format.BuiltinMetricMetaAggCorruptionStatus,
-				[]int32{0, 2, item.Metric},
-				1, hostTag, aera)
+		if item.Tail.Counter < 0 {
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, format.TagValueIDSrcIngestionStatusErrNegativeCounter, 0}]++
+			continue outer
+		}
+		if math.IsNaN(item.Tail.Counter) || item.Tail.Counter > math.MaxFloat32 {
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, format.TagValueIDSrcIngestionStatusErrNanInfCounter, 0}]++
 			continue outer
 		}
 
@@ -571,6 +574,7 @@ outer:
 			}
 			if m := mapStringTag(format.StringTopTagIndexV3, ptb.Stag, k.Metric, k.Tags[0]); m > 0 {
 				ptb.Tag = m
+				ptb.Stag = ptb.Stag[:0]
 			}
 			if ptb.Value.IsSetMaxHostStag(ptb.FieldsMask) {
 				if !validateStringTag(format.HostTagIndex, ptb.Value.MaxHostStag, k.Metric, k.Tags[0]) {
@@ -818,6 +822,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
+	args.Header.HostName = format.ForceValidStringValueBytes(args.Header.HostName)
 	hostTag := a.getTagUnionBytes(args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),

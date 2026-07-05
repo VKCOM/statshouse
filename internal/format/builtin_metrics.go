@@ -3142,24 +3142,6 @@ A value present means the mapping is still in use and should not be deleted.`,
 	}},
 }
 
-var BuiltinMetricMetaAggCorruptionStatus = &MetricMetaValue{
-	Name:                    "__agg_corruption_status",
-	Kind:                    MetricKindValue,
-	Description:             "Corrupted data",
-	NoSampleAgent:           true, // generated on aggregators, must be delivered without losses
-	BuiltinAllowedToReceive: false,
-	WithAgentEnvRouteArch:   false,
-	WithAggregatorID:        true,
-	Tags: []MetricMetaTag{{
-		Description: "status",
-	}, {
-		Description: "metric",
-		BuiltinKind: BuiltinKindMetric,
-	}, {
-		Description: "tag_id",
-	}},
-}
-
 var BuiltinMetricMetaAggTagMapperInfo = &MetricMetaValue{
 	Name:                    "__agg_tag_mapper_info",
 	Kind:                    MetricKindValue,
