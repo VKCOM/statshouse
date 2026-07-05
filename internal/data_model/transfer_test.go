@@ -256,7 +256,8 @@ func testValuePercentiles(t *testing.T, agentLegacy bool) {
 		// if we miss some centroid, we'll skew the distribution enough to trigger test failure
 		allValues := map[float32]float64{} // v->c
 		for i := 0; i < iter; i++ {
-			values := rapid.SliceOfN(rapid.Float64Range(-math.MaxFloat32, math.MaxFloat32), 0, 10).Draw(t, "values")
+			// values will be added to sum, so we do not choose max values
+			values := rapid.SliceOfN(rapid.Float64Range(-math.MaxFloat32/1024, math.MaxFloat32/1024), 0, 10).Draw(t, "values")
 			for _, v := range values {
 				allValues[float32(v)] += 1
 			}
