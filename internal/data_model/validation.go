@@ -14,22 +14,24 @@ import (
 
 func ValidateMetricData(metricBytes *tlstatshouse.MetricBytes) (ingestionError int32) {
 	if len(metricBytes.Value)+len(metricBytes.Histogram) != 0 && len(metricBytes.Unique) != 0 {
-		ingestionError = format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet
+		return format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet
+	}
+	if len(metricBytes.Value)+len(metricBytes.Histogram) == 0 && len(metricBytes.Unique) == 0 && metricBytes.Counter == 0 {
+		return format.TagValueIDSrcIngestionStatusErrZeroCounter
+	}
+	if ingestionError = format.ValidateCounter(metricBytes.Counter); ingestionError != 0 {
 		return
 	}
-	if metricBytes.Counter, ingestionError = format.ClampCounter(metricBytes.Counter); ingestionError != 0 {
-		return
-	}
-	for i, v := range metricBytes.Value {
-		if metricBytes.Value[i], ingestionError = format.ClampValue(v); ingestionError != 0 {
+	for _, v := range metricBytes.Value {
+		if ingestionError = format.ValidateValue(v); ingestionError != 0 {
 			return
 		}
 	}
-	for i, v := range metricBytes.Histogram {
-		if metricBytes.Histogram[i][0], ingestionError = format.ClampValue(v[0]); ingestionError != 0 {
+	for _, v := range metricBytes.Histogram {
+		if ingestionError = format.ValidateValue(v[0]); ingestionError != 0 {
 			return
 		}
-		if metricBytes.Histogram[i][1], ingestionError = format.ClampCounter(v[1]); ingestionError != 0 {
+		if ingestionError = format.ValidateCounter(v[1]); ingestionError != 0 {
 			return
 		}
 	}

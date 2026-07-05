@@ -284,7 +284,7 @@ func testValuePercentiles(t *testing.T, agentLegacy bool) {
 		_, err := tlDst.ReadTL1(scratch, fm)
 		require.NoError(t, err)
 		mv2 := MultiValue{}
-		mv2.MergeWithTL2(nil, &tlDst, fm, TagUnion{}, testPercentileCompression)
+		_ = mv2.MergeWithTL2(nil, &tlDst, fm, TagUnion{}, testPercentileCompression)
 		// Verify key components
 		require.Equal(t, mv.Value, mv2.Value, "wrong value")
 		//if !hasPercentiles { - we decide we want separate test for that

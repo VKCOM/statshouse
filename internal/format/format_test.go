@@ -7,18 +7,19 @@
 package format
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"testing"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/mailru/easyjson"
+	"github.com/stretchr/testify/require"
 	"go4.org/mem"
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
-
-	"github.com/mailru/easyjson"
-	"github.com/stretchr/testify/require"
 )
 
 var sideEffect int
@@ -442,6 +443,19 @@ func TestMetricMetaJson(t *testing.T) {
 	jsonB, err := easyjson.Marshal(mm)
 	require.NoError(t, err)
 	require.Equal(t, "{}", string(jsonB))
+}
+
+func TestContainsCorruptedBalancerValue(t *testing.T) {
+	batch := tlstatshouse.AddMetricsBatch{}
+	in := append(batch.WriteTL1Boxed([]byte("prefix")), "suffix"...)
+
+	require.True(t, ContainsCorruptedBalancerValue(in))
+	require.True(t, ContainsCorruptedBalancerValueFastPath(in))
+
+	in = bytes.ReplaceAll(in, []byte{'9'}, []byte{'0'})
+
+	require.False(t, ContainsCorruptedBalancerValue(in))
+	require.False(t, ContainsCorruptedBalancerValueFastPath(in))
 }
 
 func BenchmarkContainsCorruptedBalancerValueFastPath(b *testing.B) {
