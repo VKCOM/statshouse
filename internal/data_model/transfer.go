@@ -8,7 +8,6 @@ package data_model
 
 import (
 	"bytes"
-	"math"
 
 	"github.com/hrissan/tdigest"
 	"pgregory.net/rand"
@@ -254,11 +253,11 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 	if s2.IsSetCounterEq1(fields_mask) {
 		s2.Counter = 1
 	}
-	if s2.Counter <= 0 || math.IsNaN(s2.Counter) { // sanity check/check for empty String Top tail
+	if s2.Counter == 0 { // Tail can have 0 count, while Top has some
 		return
-	} // TODO - write metric
-	if s2.Counter > math.MaxFloat32 { // agents do similar check, but this is so cheap, we repeat on aggregators.
-		s2.Counter = math.MaxFloat32
+	}
+	if ingestionError = format.ValidateCounter(s2.Counter); ingestionError != 0 {
+		return
 	}
 	// 2. restore hosts
 	if !s2.IsSetMaxHostTag(fields_mask) && !s2.IsSetMaxHostStag(fields_mask) {
@@ -284,12 +283,30 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 		return
 	}
 	// 4. aggregate value
+	if ingestionError = format.ValidateValue(s2.ValueMin); ingestionError != 0 {
+		return
+	}
+	if ingestionError = format.ValidateValue(s2.ValueMax); ingestionError != 0 {
+		return
+	}
+	if ingestionError = format.ValidateValue(s2.ValueSum); ingestionError != 0 {
+		return
+	}
 	s.Value.MergeWithTLItem2(s2, fields_mask)
 	if len(s2.Centroids) != 0 {
 		if s.ValueTDigest == nil {
 			s.ValueTDigest = tdigest.NewWithCompression(compression)
 		}
 		for _, c := range s2.Centroids {
+			if c.Count == 0 {
+				continue
+			}
+			if ingestionError = format.ValidateCounter(float64(c.Count)); ingestionError != 0 {
+				return
+			}
+			if ingestionError = format.ValidateValue(float64(c.Value)); ingestionError != 0 {
+				return
+			}
 			s.ValueTDigest.Add(float64(c.Value), float64(c.Count))
 		}
 	}
@@ -297,6 +314,7 @@ func (s *MultiValue) MergeWithTL2(rng *rand.Rand, s2 *tlstatshouse.MultiValueByt
 		if s.ValueTDigest == nil {
 			s.ValueTDigest = tdigest.NewWithCompression(compression)
 		}
+		// values checked above
 		s.ValueTDigest.Add(float64(s2.ValueMin), float64(s2.Counter))
 	}
 	return
