@@ -54,14 +54,13 @@ type packetPrinter struct {
 	haha   [20]byte
 }
 
-func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
+func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) {
 	// some random work
 	ha := sha1.Sum(args.MetricBytes.Name)
 	for i, b := range ha {
 		w.haha[i] ^= b
 	}
 	w.total.Inc()
-	return h
 }
 
 func (w *packetPrinter) HandleParseError(pkt []byte, err error) {

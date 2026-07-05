@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"go4.org/mem"
-
 	"github.com/VKCOM/statshouse/internal/agent"
 	"github.com/VKCOM/statshouse/internal/data_model"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -40,10 +38,11 @@ func startWorker(sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, ac
 	return w
 }
 
-func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
+func (w *worker) HandleMetrics(args data_model.HandlerArgs) {
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
+	var h data_model.MappedMetricHeader
 	w.fillTime(args, &h)
 	metaOk := w.fillMetricMeta(args, &h)
 	if metaOk {
@@ -52,11 +51,13 @@ func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.Mapped
 		w.sh2.MapEnvironment(args.MetricBytes, &h)
 	}
 	if w.logPackets != nil {
-		w.printMetric("cached", *args.MetricBytes, h)
+		w.printMetric("cached", args.MetricBytes, h)
 	}
 	w.sh2.TimingsMapping.AddValueCounter(time.Since(h.ReceiveTime).Seconds(), 1)
-	w.sh2.ApplyMetric(*args.MetricBytes, h, args.Scratch)
-	return h
+	w.sh2.ApplyMetric(args.MetricBytes, &h, args.Scratch)
+	if args.FirstError != nil && *args.FirstError == nil && h.IngestionStatus != 0 {
+		*args.FirstError = h.MapErrorFromHeader(args.MetricBytes)
+	}
 }
 
 func (w *worker) fillTime(args data_model.HandlerArgs, h *data_model.MappedMetricHeader) {
@@ -94,7 +95,7 @@ func (w *worker) fillMetricMeta(args data_model.HandlerArgs, h *data_model.Mappe
 	}
 
 	// TODO: we use possibly invalid and non-normalized string in AutoCreate, which is strange
-	if w.autoCreate != nil && format.ValidMetricName(mem.B(metric.Name)) {
+	if w.autoCreate != nil && format.ValidMetricNameBytes(metric.Name) {
 		// before normalizing metric.Name so we do not fill auto create data structures with invalid metric names
 		_ = w.autoCreate.AutoCreateMetric(metric, args.Description, args.ScrapeInterval, h.ReceiveTime)
 	}
@@ -126,12 +127,12 @@ func (w *worker) HandleParseError(pkt []byte, err error) {
 	}
 }
 
-func (w *worker) printMetric(cachedString string, m tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
+func (w *worker) printMetric(cachedString string, m *tlstatshouse.MetricBytes, h data_model.MappedMetricHeader) {
 	if w.logPackets != nil {
 		if err := h.MapErrorFromHeader(m); err != nil {
 			w.logPackets("Error mapping metric (%s): %v\n    %#s\n    %#v\n", cachedString, err, m.String(), h)
 		} else {
-			w.logPackets("Mapped metric (%s): %#s\n    %#v\n", cachedString, m, h)
+			w.logPackets("Mapped metric (%s): %#s\n    %#v\n", cachedString, m.String(), h)
 		}
 	}
 }

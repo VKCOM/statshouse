@@ -35,20 +35,19 @@ var ErrNotImplemented = errors.New("not implemented")
 type RawHandler func([]byte) error
 
 type Handler interface {
-	HandleMetrics(data_model.HandlerArgs) data_model.MappedMetricHeader
+	HandleMetrics(args data_model.HandlerArgs) // fills first error into args
 	HandleParseError([]byte, error)
 }
 
 type CallbackHandler struct {
-	Metrics    func(*tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader)
+	Metrics    func(*tlstatshouse.MetricBytes)
 	ParseError func([]byte, error)
 }
 
-func (c CallbackHandler) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
+func (c CallbackHandler) HandleMetrics(args data_model.HandlerArgs) {
 	if c.Metrics != nil {
-		return c.Metrics(args.MetricBytes)
+		c.Metrics(args.MetricBytes)
 	}
-	return h
 }
 
 func (c CallbackHandler) HandleParseError(pkt []byte, err error) {
@@ -188,7 +187,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 			was := pkt
 			pkt, err = batch.ReadTL1Boxed(pkt)
 			size := len(was) - len(pkt)
-			if !u.handleMetricsBatch(h, ingestionError, batch, was, size, err, scratch, connHost) {
+			if !u.handleMetricsBatch(h, ingestionError, batch, was, err, scratch, connHost) {
 				setValueSize(u.batchSizeTLErr, len(was))
 				setValueSize(u.packetSizeTLErr, pktLen)
 				return err
@@ -198,7 +197,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 		setValueSize(u.packetSizeTLOK, pktLen)
 	case len(pkt) >= len(jsonPacketPrefix) && string(pkt[0:len(jsonPacketPrefix)]) == jsonPacketPrefix:
 		err := batch.UnmarshalJSON(pkt)
-		if !u.handleMetricsBatch(h, ingestionError, batch, pkt, pktLen, err, scratch, connHost) {
+		if !u.handleMetricsBatch(h, ingestionError, batch, pkt, err, scratch, connHost) {
 			setValueSize(u.batchSizeJSONErr, pktLen)
 			setValueSize(u.packetSizeJSONErr, pktLen)
 			return err
@@ -213,7 +212,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 			was := pkt
 			pkt, err = msgpackUnmarshalStatshouseAddMetricBatch(batch, pkt)
 			size := len(was) - len(pkt)
-			if !u.handleMetricsBatch(h, ingestionError, batch, was, size, err, scratch, connHost) {
+			if !u.handleMetricsBatch(h, ingestionError, batch, was, err, scratch, connHost) {
 				setValueSize(u.batchSizeMsgPackErr, len(was))
 				setValueSize(u.packetSizeMsgPackErr, pktLen)
 				return err
@@ -227,7 +226,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 			was := pkt
 			pkt, err = protobufUnmarshalStatshouseAddMetricBatch(batch, pkt)
 			size := len(was) - len(pkt)
-			if !u.handleMetricsBatch(h, ingestionError, batch, pkt, size, err, scratch, connHost) {
+			if !u.handleMetricsBatch(h, ingestionError, batch, pkt, err, scratch, connHost) {
 				setValueSize(u.batchSizeProtobufErr, len(was))
 				setValueSize(u.packetSizeProtobufErr, pktLen)
 				return err
@@ -239,7 +238,7 @@ func (u *parser) parse(h Handler, ingestionError *error, pkt []byte, batch *tlst
 	return nil
 }
 
-func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *tlstatshouse.AddMetricsBatchBytes, pkt []byte, size int, parseErr error, scratch *[]byte, connHost string) bool {
+func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *tlstatshouse.AddMetricsBatchBytes, pkt []byte, parseErr error, scratch *[]byte, connHost string) bool {
 	if parseErr != nil {
 		u.statBatchesTotalErr.Inc()
 		if len(pkt) != 0 {
@@ -249,20 +248,12 @@ func (u *parser) handleMetricsBatch(handler Handler, ingestionError *error, b *t
 	}
 	u.statBatchesTotalOK.Inc()
 	for i := range b.Metrics {
-		h := handler.HandleMetrics(data_model.HandlerArgs{
+		handler.HandleMetrics(data_model.HandlerArgs{
 			MetricBytes: &b.Metrics[i],
 			Scratch:     scratch,
 			Host:        connHost,
-		}) // might move out metric, if needs to
-		if ingestionError != nil && *ingestionError == nil && h.IngestionStatus != 0 {
-			*ingestionError = h.MapErrorFromHeader(b.Metrics[i])
-		}
+			FirstError:  ingestionError,
+		})
 	}
 	return true
-}
-
-func (u *parser) handleAndWaitMetrics(handler Handler, args *tlstatshouse.AddMetricsBatchBytes, size int, scratch *[]byte) error {
-	var firstError error
-	_ = u.handleMetricsBatch(handler, &firstError, args, nil, size, nil, scratch, "")
-	return firstError
 }

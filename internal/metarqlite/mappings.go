@@ -16,7 +16,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
-	"go4.org/mem"
 )
 
 func (l *RQLiteLoader) GetNewMappings(ctx context.Context, lastVersion int32,
@@ -97,7 +96,7 @@ func (l *RQLiteLoader) GetTagMapping(ctx context.Context, tag string, metricName
 	if tag == "" {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvariant, errEmptyStringMapping
 	}
-	if !format.ValidStringValue(mem.S(tag)) {
+	if !format.ValidStringValue(tag) {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorInvalidString, errInvalidKeyValue
 	}
 

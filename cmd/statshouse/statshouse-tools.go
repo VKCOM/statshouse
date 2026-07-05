@@ -49,9 +49,8 @@ func mainBenchmarks() int {
 type packetPrinter struct {
 }
 
-func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader) {
+func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) {
 	log.Printf("Parsed metric: %s\n", args.MetricBytes.String())
-	return h
 }
 
 func (w *packetPrinter) HandleParseError(pkt []byte, err error) {
@@ -291,12 +290,11 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	// go writeFunc()
 	serveFunc := func(u *receiver.UDP, rm *atomic.Int64) error {
 		return u.Serve(nil, receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes) (h data_model.MappedMetricHeader) {
+			Metrics: func(m *tlstatshouse.MetricBytes) {
 				r := rm.Inc()
 				if almostReceiveOnly && r%1024 != 0 {
-					return h
+					return
 				}
-				return h
 			},
 			ParseError: func(pkt []byte, err error) {
 				parseErrors.Inc()

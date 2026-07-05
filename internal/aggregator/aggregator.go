@@ -246,7 +246,7 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 
 	cancelInsertCtx, cancelInsertFunc := context.WithCancel(context.Background())
 
-	hostName = string(format.ForceValidStringValue(hostName)) // worse alternative is do not run at all
+	hostName = format.ForceValidStringValue(hostName) // worse alternative is do not run at all
 
 	a := &Aggregator{
 		cancelInsertsCtx:  cancelInsertCtx,
@@ -406,24 +406,24 @@ func MakeAggregator(fj *os.File, fjCompact *os.File, mappingsCache *pcache.Mappi
 	return a, nil
 }
 
-func (a *Aggregator) getTagValueBytes(unix uint32, tagValue []byte) (int32, bool) {
+func (a *Aggregator) getTagValueBytes(tagValue []byte) (int32, bool) {
 	return a.mappingsStorage.GetValueBytes(tagValue)
 }
 
-func (a *Aggregator) getTagValue(unix uint32, tagValue string) (int32, bool) {
+func (a *Aggregator) getTagValue(tagValue string) (int32, bool) {
 	return a.mappingsStorage.GetValue(tagValue)
 }
 
-func (a *Aggregator) getTagUnionBytes(unix uint32, tagValue []byte) data_model.TagUnion {
-	v, ok := a.getTagValueBytes(unix, tagValue)
+func (a *Aggregator) getTagUnionBytes(tagValue []byte) data_model.TagUnion {
+	v, ok := a.getTagValueBytes(tagValue)
 	if ok {
 		return data_model.TagUnion{I: v}
 	}
 	return data_model.TagUnion{S: string(tagValue)}
 }
 
-func (a *Aggregator) getTagUnion(unix uint32, tagValue string) data_model.TagUnion {
-	v, ok := a.getTagValue(unix, tagValue)
+func (a *Aggregator) getTagUnion(tagValue string) data_model.TagUnion {
+	v, ok := a.getTagValue(tagValue)
 	if ok {
 		return data_model.TagUnion{I: v}
 	}

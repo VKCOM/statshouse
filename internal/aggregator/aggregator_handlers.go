@@ -14,7 +14,6 @@ import (
 	"math"
 	"time"
 
-	"go4.org/mem"
 	"pgregory.net/rand"
 
 	"github.com/VKCOM/statshouse/internal/agent"
@@ -102,7 +101,7 @@ func (a *Aggregator) handleGetConfig3(_ context.Context, hctx *rpc.HandlerContex
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
-	hostTag := a.getTagUnion(nowUnix, args.Header.HostName)
+	hostTag := a.getTagUnion(args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -202,8 +201,8 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	nowUnix := uint32(now.Unix())
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	// All hosts must be valid and non-empty
-	hostTag := a.getTagUnionBytes(nowUnix, args.Header.HostName)
-	ownerTag := a.getTagUnionBytes(nowUnix, args.Header.Owner)
+	hostTag := a.getTagUnionBytes(args.Header.HostName)
+	ownerTag := a.getTagUnionBytes(args.Header.Owner)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,
@@ -215,7 +214,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 	var bcStr string
 	bcTag := int32(0)
-	if format.ValidStringValue(mem.B(args.BuildCommit)) {
+	if format.ValidStringValueBytes(args.BuildCommit) {
 		bcStr = string(args.BuildCommit)
 		bcStrRaw, _ := hex.DecodeString(bcStr)
 		if len(bcStrRaw) >= 4 {
@@ -368,18 +367,19 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 	}
 
 	type clampedKey struct {
-		env        int32
-		metricID   int32
-		clampedTag int32
+		env             int32
+		metricID        int32
+		ingestionStatus int32
+		tagID           int32
 	}
-	clampedTimestampsMetrics := map[clampedKey]float32{}
+	aggIngestionStatuses := map[clampedKey]float32{} // cannot be written into agent, aggregated directly into bucket
 	oldMetricBuckets := map[int32][3]int{}
 
 	validateStringTag := func(i int, str []byte, metricID int32, clientEnv int32) bool {
 		if len(str) == 0 {
 			return true
 		}
-		if format.ValidStringValue(mem.B(str)) {
+		if format.ValidStringValueBytes(str) {
 			return true
 		}
 		tagId := int32(i + format.TagIDShift)
@@ -394,7 +394,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if len(str) == 0 {
 			return 0
 		}
-		if mapped, ok := a.getTagValueBytes(aggBucket.time, str); ok {
+		if mapped, ok := a.getTagValueBytes(str); ok {
 			mappingHits++
 			if len(sendMappings) < configR.MaxSendTagsToAgent {
 				sendMappings[string(str)] = mapped
@@ -458,9 +458,9 @@ outer:
 				measurementStringTops++
 			}
 		}
-		k, clampedTag := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
-		if clampedTag != 0 {
-			clampedTimestampsMetrics[clampedKey{k.Tags[0], k.Metric, clampedTag}]++
+		k, ingestionWarningStatus := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
+		if ingestionWarningStatus != 0 {
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, ingestionWarningStatus, 0}]++
 		}
 		for i, str := range item.Skeys {
 			// in case agents sends more tags
@@ -761,20 +761,20 @@ outer:
 			Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
 	}
 
-	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
+	ingestionStatus := func(env int32, metricID int32, status int32, tagID int32, component int32, value float32) {
 		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{env, metricID, status}, aera).
+			[]int32{env, metricID, status, tagID, component}, aera).
 			Tail.AddCounterHost(rng, float64(value), hostTag)
 	}
 	for _, v := range bucket.IngestionStatusOk2 {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
 		if v.Value > 0 {
-			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, v.Value)
+			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, 0, format.TagValueIDComponentAgent, v.Value)
 		}
 	}
-	for k, v := range clampedTimestampsMetrics {
+	for k, v := range aggIngestionStatuses {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
-		ingestionStatus(k.env, k.metricID, k.clampedTag, v)
+		ingestionStatus(k.env, k.metricID, k.ingestionStatus, k.tagID, format.TagValueIDComponentAggregator, v)
 	}
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	return "", errHijack, false
@@ -818,7 +818,7 @@ func (a *Aggregator) handleSendKeepAliveAny(hctx *rpc.HandlerContext, args tlsta
 
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
-	hostTag := a.getTagUnionBytes(nowUnix, args.Header.HostName)
+	hostTag := a.getTagUnionBytes(args.Header.HostName)
 	aera := data_model.AgentEnvRouteArch{
 		AgentEnv:  a.getAgentEnv(args.Header.IsSetAgentEnvStaging0(args.FieldsMask), args.Header.IsSetAgentEnvStaging1(args.FieldsMask)),
 		Route:     format.TagValueIDRouteDirect,

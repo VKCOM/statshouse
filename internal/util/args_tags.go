@@ -100,7 +100,7 @@ func buildHeartbeatArgTags(argMap map[string]string, popularKeys map[string]int)
 		tags[46] = s
 	}
 	for i := 0; i < len(tags); i++ {
-		tags[i] = string(format.ForceValidStringValue(tags[i]))
+		tags[i] = format.ForceValidStringValue(tags[i])
 	}
 	return tags
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/format"
-	"go4.org/mem"
 )
 
 // we need access to global state to correctly assign namespace, check groups, etc.
@@ -94,7 +93,7 @@ func (l *MetricsStorage) SaveNamespace(ctx context.Context, loader MetadataLoade
 		value.Name = builtinNamespace.Name // disallow changing name, but if we change built-in name, set it in DB
 		create = value.Version == 0        // redundant, but meta engine logic requires it
 	} else {
-		if !format.ValidMetricName(mem.S(value.Name)) {
+		if !format.ValidMetricName(value.Name) {
 			return format.NamespaceMeta{}, fmt.Errorf("invalid namespace name %w: %q", errorInvalidUserRequest, value.Name)
 		}
 		if !create {

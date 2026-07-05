@@ -38,7 +38,7 @@ func (k *Key) STagSlice() []string {
 }
 
 // does not copy strings, we need max efficiency so want to look up in local map before converting []byte to string
-func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, clampedTimestampTag int32) {
+func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, ingestionWarning int32) {
 	key.Timestamp = bucketTimestamp
 	if item.IsSetT() {
 		key.Timestamp = item.T
@@ -49,11 +49,11 @@ func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimesta
 			// aggregator must clamp anyway for protecting clickhouse.
 			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
 			key.Timestamp = bucketTimestamp
-			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFutureAgg
+			ingestionWarning = format.TagValueIDSrcIngestionStatusWarnTimestampClampedFutureAgg
 		} else if int64(key.Timestamp) < int64(bucketTimestamp)-BelieveTimestampWindow {
 			// We set timestamp to bucketTimestamp so ingestion warning of such event corresponds to event itself
 			key.Timestamp = bucketTimestamp
-			clampedTimestampTag = format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast
+			ingestionWarning = format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast
 		}
 		// above checks can be moved below }, but they will always be NOP as bucketTimestamp is both <= newestTime and in believe window
 	}

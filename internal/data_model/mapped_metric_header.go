@@ -23,6 +23,7 @@ type HandlerArgs struct {
 	ScrapeInterval int
 	Scratch        *[]byte
 	Host           string
+	FirstError     *error // worker fills the first error here
 }
 
 type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)
@@ -32,9 +33,6 @@ type MappedMetricHeader struct {
 	MetricMeta  *format.MetricMetaValue
 	Key         Key
 	HostTag     TagUnion // allocates, if not mapped
-
-	CheckedTagIndex int  // we check tags one by one, remembering position here, between invocations of mapTags
-	ValuesChecked   bool // infs, nans, etc. This might be expensive, so done only once
 
 	OriginalTagValues [format.MaxTags][]byte
 	// original strings values as sent by user. Hash of those is stable between agents independent of
@@ -112,54 +110,49 @@ func (h *MappedMetricHeader) OriginalHash(scratch []byte) ([]byte, uint64) {
 	return scratch, xxh3.Hash(scratch)
 }
 
-func (h *MappedMetricHeader) MapErrorFromHeader(m tlstatshouse.MetricBytes) error {
+func (h *MappedMetricHeader) MapErrorFromHeader(m *tlstatshouse.MetricBytes) error {
 	if h.IngestionStatus == 0 { // no errors
 		return nil
 	}
 	ingestionTagName := format.TagIDTagToTagID(h.IngestionTagKey)
-	envTag := h.Key.Tags[0] // TODO - we do not want to remember original string value somewhere yet (to print better errors here)
 	switch h.IngestionStatus {
 	case format.TagValueIDSrcIngestionStatusErrMetricNotFound:
-		return fmt.Errorf("metric %q not found (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("metric %q not found", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrNanInfValue:
-		return fmt.Errorf("NaN/Inf value for metric %q (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("NaN/Inf value for metric %q", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrNanInfCounter:
-		return fmt.Errorf("NaN/Inf counter for metric %q (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("NaN/Inf counter for metric %q", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrNegativeCounter:
-		return fmt.Errorf("negative counter for metric %q (envTag %d)", m.Name, envTag)
-	case format.TagValueIDSrcIngestionStatusErrMapOther:
-		return nil // not written
+		return fmt.Errorf("negative counter for metric %q", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue:
-		return fmt.Errorf("invalid raw tag value %q for key %q of metric %q (envTag %d)", h.InvalidString, ingestionTagName, m.Name, envTag)
+		return fmt.Errorf("invalid raw tag value %q for key %q of metric %q", h.InvalidString, ingestionTagName, m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMapTagValueCached:
-		return fmt.Errorf("error mapping tag value (cached) %q for key %q of metric %q (envTag %d)", h.InvalidString, ingestionTagName, m.Name, envTag)
+		return fmt.Errorf("error mapping tag value (cached) %q for key %q of metric %q", h.InvalidString, ingestionTagName, m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMapTagValue:
-		return fmt.Errorf("failed to map tag value %q for key %q of metric %q (envTag %d)", h.InvalidString, ingestionTagName, m.Name, envTag)
-	case format.TagValueIDSrcIngestionStatusErrMapGlobalQueueOverload:
-		return fmt.Errorf("failed to map metric %q: too many metrics in queue (envTag %d)", m.Name, envTag)
-	case format.TagValueIDSrcIngestionStatusErrMapPerMetricQueueOverload:
-		return fmt.Errorf("failed to map metric %q: per-metric mapping queue overloaded (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("failed to map tag value %q for key %q of metric %q", h.InvalidString, ingestionTagName, m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding:
-		return fmt.Errorf("not utf-8 value %q (hex) for for key %q of metric %q (envTag %d)", h.InvalidString, ingestionTagName, m.Name, envTag)
-	case format.TagValueIDSrcIngestionStatusOKLegacy:
-		return nil // not written
-	case format.TagValueIDSrcIngestionStatusErrMetricNonCanonical:
-		return nil // not written
+		return fmt.Errorf("not utf-8 value %q (hex) for for key %q of metric %q", h.InvalidString, ingestionTagName, m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMetricDisabled:
-		return fmt.Errorf("metric %q is disabled (envTag %d)", m.Name, envTag)
-	case format.TagValueIDSrcIngestionStatusErrLegacyProtocol:
-		return nil // not written
+		return fmt.Errorf("metric %q is disabled", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMetricNameEncoding:
-		return fmt.Errorf("not utf-8 metric name %q (hex) (envTag %d)", h.InvalidString, envTag)
+		return fmt.Errorf("not utf-8 metric name %q (hex)", h.InvalidString)
 	case format.TagValueIDSrcIngestionStatusErrMapTagNameEncoding:
-		return fmt.Errorf("not utf-8 name %q (hex) for key of metric %q (envTag %d)", h.InvalidString, m.Name, envTag)
+		return fmt.Errorf("not utf-8 name %q (hex) for key of metric %q", h.InvalidString, m.Name)
 	case format.TagValueIDSrcIngestionStatusErrValueUniqueBothSet:
-		return fmt.Errorf("both value and unique fields set in metric event %q (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("both value and unique fields set in metric event %q", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrShardingFailed:
-		return fmt.Errorf("metric %q shard is beyond configured shards (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("metric %q shard is beyond configured shards", m.Name)
 	case format.TagValueIDSrcIngestionStatusErrMetricBuiltin:
-		return fmt.Errorf("metric %q is builtin (envTag %d)", m.Name, envTag)
+		return fmt.Errorf("metric %q is builtin", m.Name)
+	case format.TagValueIDSrcIngestionStatusErrTooBigCounter:
+		return fmt.Errorf("too big counter for metric %q", m.Name)
+	case format.TagValueIDSrcIngestionStatusErrTooBigValue:
+		return fmt.Errorf("too big value for metric %q", m.Name)
+	case format.TagValueIDSrcIngestionStatusErrZeroCounter:
+		return fmt.Errorf("zero counter for metric %q", m.Name)
+	case format.TagValueIDSrcIngestionStatusErrMapTagValueCorrupted:
+		return fmt.Errorf("corrupted (balancer?) tag value %q for key %q of metric %q", h.InvalidString, ingestionTagName, m.Name)
 	default:
-		return fmt.Errorf("unexpected error status %d with invalid string value %q for key %q of metric %q (envTag %d)", h.IngestionStatus, h.InvalidString, ingestionTagName, m.Name, envTag)
+		return fmt.Errorf("unexpected error status %d with invalid string value %q for key %q of metric %q", h.IngestionStatus, h.InvalidString, ingestionTagName, m.Name)
 	}
 }

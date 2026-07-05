@@ -182,15 +182,12 @@ func appendBadge(rng *rand.Rand, res []byte, k *data_model.Key, v data_model.Ite
 			return res
 		}
 		switch k.Tags[2] {
-		case format.TagValueIDSrcIngestionStatusOKCached,
-			format.TagValueIDSrcIngestionStatusOKUncached,
-			format.TagValueIDSrcIngestionStatusOKDup:
+		case format.TagValueIDSrcIngestionStatusOKCached:
 			return res
 		case format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName,
-			format.TagValueIDSrcIngestionStatusWarnDeprecatedT,
-			format.TagValueIDSrcIngestionStatusWarnDeprecatedStop,
+			format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound,
+			format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft,
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
-			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic,
 			format.TagValueIDSrcIngestionStatusWarnTimestampClampedPast,
 			format.TagValueIDSrcIngestionStatusWarnTimestampClampedFutureAgg,
 			format.TagValueIDSrcIngestionStatusWarnTimestampClampedFuture,
