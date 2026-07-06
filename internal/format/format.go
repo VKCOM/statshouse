@@ -1213,9 +1213,10 @@ func appendValidStringValue(dst []byte, src []byte, maxLen int, force bool) ([]b
 	return append(dst, buf[:w]...), nil
 }
 
+// we use these functions to write some invalid strings into statshouse.
+// we trim only ascii spaces to the left to increase the chance problem character fits
 func AppendHexStringValue(dst []byte, src []byte) []byte {
-	src = bytes.TrimSpace(src) // packet is limited, so this will not be too slow
-	src = bytes.TrimRightFunc(src, unicode.IsSpace)
+	src = bytes.TrimLeft(src, " \t\n\v\f\r") // packet is limited, so this will not be too slow
 	if len(src) > MaxStringLen/2 {
 		src = src[:MaxStringLen/2]
 	}
@@ -1226,6 +1227,19 @@ func AppendHexStringValue(dst []byte, src []byte) []byte {
 		buf[i*2+1] = hextable[c&0x0f]
 	}
 	return append(dst, buf[:len(src)*2]...)
+}
+func HexStringValue(src []byte) string {
+	src = bytes.TrimLeft(src, " \t\n\v\f\r") // packet is limited, so this will not be too slow
+	if len(src) > MaxStringLen/2 {
+		src = src[:MaxStringLen/2]
+	}
+	const hextable = "0123456789abcdef"
+	var buf [MaxStringLen]byte
+	for i, c := range src {
+		buf[i*2] = hextable[c>>4]
+		buf[i*2+1] = hextable[c&0x0f]
+	}
+	return string(buf[:len(src)*2])
 }
 
 // fast-path inlineable version of unicode.IsPrint for single-byte UTF-8 runes

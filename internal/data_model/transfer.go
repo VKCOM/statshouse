@@ -155,20 +155,20 @@ func (s *MultiValue) MultiValueToTL(metricInfo *format.MetricMetaValue, item *tl
 	if s.Value.MaxHostTag.I != 0 {
 		item.SetMaxHostTag(s.Value.MaxHostTag.I, fieldsMask)
 	} else if len(s.Value.MaxHostTag.S) > 0 {
-		item.SetMaxHostStag(string(s.Value.MaxHostTag.S), fieldsMask)
+		item.SetMaxHostStag(s.Value.MaxHostTag.S, fieldsMask)
 	}
 	if s.Value.MinHostTag != s.Value.MaxHostTag {
 		if s.Value.MinHostTag.I != 0 {
 			item.SetMinHostTag(s.Value.MinHostTag.I, fieldsMask)
 		} else if len(s.Value.MinHostTag.S) > 0 {
-			item.SetMinHostStag(string(s.Value.MinHostTag.S), fieldsMask)
+			item.SetMinHostStag(s.Value.MinHostTag.S, fieldsMask)
 		}
 	}
 	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
 		if s.Value.MaxCounterHostTag.I != 0 {
-			item.SetMaxHostTag(s.Value.MaxCounterHostTag.I, fieldsMask)
+			item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag.I, fieldsMask)
 		} else if len(s.Value.MaxCounterHostTag.S) > 0 {
-			item.SetMaxHostStag(string(s.Value.MaxCounterHostTag.S), fieldsMask)
+			item.SetMaxCounterHostStag(s.Value.MaxCounterHostTag.S, fieldsMask)
 		}
 	}
 	if s.HLL.ItemsCount() != 0 {
