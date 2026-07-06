@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { hasOwn, toFlatPairs, toString } from '../common/helpers';
+import { base64ToUtf8, hasOwn, toFlatPairs, toString } from '../common/helpers';
 import { API_FETCH_OPT_METHODS, ApiFetchOptMethods } from './enum';
 import { setAnnouncementMessage } from '@/store2/announcementStore';
 
@@ -95,8 +95,10 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
       body,
     });
     result.status = resp.status;
-    // two spaces as gfm '  \n'
-    setAnnouncementMessage(resp.headers.get('X-Statshouse-Announcment')?.replaceAll('  ', '  \n') ?? '');
+    const announcement = resp.headers.get('X-Statshouse-Announcement');
+    if (announcement) {
+      setAnnouncementMessage(base64ToUtf8(announcement));
+    }
 
     if (resp.headers.get('Content-Type') !== 'application/json') {
       const text = await resp.text();
