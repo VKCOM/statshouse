@@ -41,7 +41,6 @@ type ConfigAggregatorRemote struct {
 	V3InsertSettings           string
 	MappingCacheSize           int64
 	MappingCacheTTL            int
-	BufferedInsertAgeSec       int    // age in seconds of data that should be sent to buffer table
 	MigrationTimeRange         string // format: "{begin timestamp}-{end timestamp}"
 	MigrationV3DisabledShards  map[int32]struct{}
 	MigrationDelaySec          int // delay in seconds between migration steps
@@ -196,7 +195,6 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.StringVar(&c.V3InsertSettings, "v3-insert-settings", d.V3InsertSettings, "Settings when inserting into v3 table")
 		f.Int64Var(&c.MappingCacheSize, "mappings-cache-size-agg", d.MappingCacheSize, "Mappings cache size both in memory and on disk for aggregator.")
 		f.IntVar(&c.MappingCacheTTL, "mappings-cache-ttl-agg", d.MappingCacheTTL, "Mappings cache item TTL since last used for aggregator.")
-		f.IntVar(&c.BufferedInsertAgeSec, "buffered-insert-age-sec", d.BufferedInsertAgeSec, "Age in seconds of data that should be inserted via buffer table")
 		f.StringVar(&c.MigrationTimeRange, "migration", d.MigrationTimeRange, "Migration time range: \"{start timestamp}-{end timestamp}\" (start > end because of backwards migration)")
 		f.Func("migration-v3-disabled-shards", "List of disabled shards for migration v3", c.setMigrationV3DisabledShards)
 		f.IntVar(&c.MigrationDelaySec, "migration-delay-sec", d.MigrationDelaySec, "Delay in seconds between migration steps")

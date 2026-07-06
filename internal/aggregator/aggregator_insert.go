@@ -349,7 +349,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	}
 
 	usedTimestamps := map[uint32]struct{}{}
-	usedBufferTimestamps := map[uint32]struct{}{}
 	appendCtx := appendContext{
 		metricCache:       makeMetricCache(a.metricStorage),
 		unknownTags:       map[string]createMappingExtra{},
@@ -359,15 +358,7 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	insertItem := func(item *data_model.MultiItem, sf float64, bucketTs uint32) { // lambda is convenient here
 		is := insertSize{}
 
-		bufferedInsert := false
-		if configR.BufferedInsertAgeSec > 0 && item.Key.Timestamp+uint32(configR.BufferedInsertAgeSec) < recentTs {
-			bufferedInsert = true
-		}
-		if bufferedInsert {
-			usedBufferTimestamps[item.Key.Timestamp] = struct{}{}
-		} else {
-			usedTimestamps[item.Key.Timestamp] = struct{}{}
-		}
+		usedTimestamps[item.Key.Timestamp] = struct{}{}
 
 		resPos := len(res)
 		if !item.Tail.Empty() { // only tail
@@ -509,12 +500,6 @@ func (a *Aggregator) rowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
-		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Tags: [format.MaxTags]int32{0, int32(t)}}
-		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, appendCtx)
-		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
-		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, appendCtx)
-	}
-	for t := range usedBufferTimestamps {
 		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Tags: [format.MaxTags]int32{0, int32(t)}}
 		res = appendSimpleValueStat(rnd, res, &key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHostTag.I, appendCtx)
 		key = data_model.Key{Timestamp: t, Metric: format.BuiltinMetricIDContributorsLogRev, Tags: [format.MaxTags]int32{0, int32(insertTimeUnix)}}
