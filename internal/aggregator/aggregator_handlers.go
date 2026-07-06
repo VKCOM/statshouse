@@ -373,6 +373,7 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		metricID        int32
 		ingestionStatus int32
 		tagID           int32
+		stringValue     string
 	}
 	aggIngestionStatuses := map[clampedKey]float32{} // cannot be written into agent, aggregated directly into bucket
 	oldMetricBuckets := map[int32][3]int{}
@@ -384,8 +385,10 @@ func (a *Aggregator) handleSendSourceBucket(hctx *rpc.HandlerContext, args tlsta
 		if format.ValidStringValueBytes(str) {
 			return true
 		}
+		// hopefully we do not have too many
 		tagId := int32(i + format.TagIDShift)
-		aggIngestionStatuses[clampedKey{clientEnv, metricID, format.TagValueIDSrcIngestionStatusErrMapTagValueCorrupted, tagId}]++
+		stringValue := format.HexStringValue(str)
+		aggIngestionStatuses[clampedKey{clientEnv, metricID, format.TagValueIDSrcIngestionStatusErrMapTagValueCorrupted, tagId, stringValue}]++
 		return false
 	}
 	// If agents send lots of strings, this loop is non-trivial amount of work.
@@ -460,7 +463,7 @@ outer:
 		}
 		k, ingestionWarningStatus := data_model.KeyFromStatshouseMultiItem(&item, args.Time)
 		if ingestionWarningStatus != 0 {
-			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, ingestionWarningStatus, 0}]++
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, ingestionWarningStatus, 0, ""}]++
 		}
 		for i, str := range item.Skeys {
 			// in case agents sends more tags
@@ -556,11 +559,6 @@ outer:
 				item.Tail.ClearMinHostStag(&item.FieldsMask)
 			}
 		}
-		// quick check of counter only
-		if ingestionError := format.ValidateCounter(item.Tail.Counter); ingestionError != 0 {
-			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, ingestionError, 0}]++
-			continue outer
-		}
 
 		for i := range item.Top {
 			ptb := &item.Top[i]
@@ -605,7 +603,7 @@ outer:
 		s := aggBucket.lockShard(&lockedShard, sID, &measurementLocks)
 		mi, created := s.GetOrCreateMultiItem(&k, nil, keyBytes)
 		if is := mi.MergeWithTLMultiItem(rng, data_model.AggregatorStringTopCapacity, &item, hostTag); is != 0 {
-			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, is, 0}]++
+			aggIngestionStatuses[clampedKey{k.Tags[0], k.Metric, is, 0, ""}]++
 		}
 		// we unlock shard to calculate hash and do other heavy operations not under lock
 		aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
@@ -762,20 +760,22 @@ outer:
 			Tail.AddValueCounterHost(rng, float64(v.Value), 1, hostTag)
 	}
 
-	ingestionStatus := func(env int32, metricID int32, status int32, tagID int32, component int32, value float32) {
-		a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus,
-			[]int32{env, metricID, status, tagID, component}, aera).
-			Tail.AddCounterHost(rng, float64(value), hostTag)
+	ingestionStatus := func(env int32, metricID int32, status int32, tagID int32, component int32, strValue string, value float32) {
+		mi := a.sh2.GetMultiItemAERA(&s.MultiItemMap, args.Time, format.BuiltinMetricMetaIngestionStatus,
+			[]int32{env, metricID, status, tagID, component}, aera)
+		// we will not attempt mapping strValue, we do not expect them
+		mv := mi.MapStringTop(rng, data_model.AggregatorStringTopCapacity, data_model.TagUnion{S: strValue}, 1)
+		mv.AddCounterHost(rng, float64(value), hostTag)
 	}
 	for _, v := range bucket.IngestionStatusOk2 {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
 		if v.Value > 0 {
-			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, 0, format.TagValueIDComponentAgent, v.Value)
+			ingestionStatus(v.Env, v.Metric, format.TagValueIDSrcIngestionStatusOKCached, 0, format.TagValueIDComponentAgent, "", v.Value)
 		}
 	}
 	for k, v := range aggIngestionStatuses {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
-		ingestionStatus(k.env, k.metricID, k.ingestionStatus, k.tagID, format.TagValueIDComponentAggregator, v)
+		ingestionStatus(k.env, k.metricID, k.ingestionStatus, k.tagID, format.TagValueIDComponentAggregator, k.stringValue, v)
 	}
 	aggBucket.lockShard(&lockedShard, -1, &measurementLocks)
 	return "", errHijack, false

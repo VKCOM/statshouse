@@ -78,6 +78,7 @@ func MapValidateTag(v *tl.DictFieldStringStringBytes, metricBytes *tlstatshouse.
 	}
 	v.Value = validValue
 	if corrupted {
+		validEvent = false
 		h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueCorrupted, tagIDKey, v.Value)
 		return
 	}
