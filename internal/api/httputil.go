@@ -167,7 +167,6 @@ func respondJSON(h *httpRequestHandler, resp interface{}, cache time.Duration, c
 		r.Data = resp
 	}
 	if h.announcement != "" {
-		w.Header().Set("X-Statshouse-Announcment", h.announcement)
 		w.Header().Set("X-Statshouse-Announcement", base64.StdEncoding.EncodeToString([]byte(h.announcement)))
 	}
 	start := time.Now()
