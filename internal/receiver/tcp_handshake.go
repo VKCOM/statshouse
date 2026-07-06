@@ -41,8 +41,9 @@ func readTCPHandshake(conn net.Conn) (host string, err error) {
 		if hostLen != 0 {
 			hostBytes := make([]byte, hostLen)
 			if _, err = io.ReadFull(conn, hostBytes); err != nil {
-				return string(hostBytes), err
+				return "", err
 			}
+			return string(hostBytes), nil
 		}
 		return "", nil
 	default:
