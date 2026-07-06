@@ -332,7 +332,8 @@ func run() int {
 	a.Path("/" + api.EndpointPoint).Methods("POST").HandlerFunc(api.HandlePointQuery)
 	a.Path("/" + api.EndpointTable).Methods("GET").HandlerFunc(api.HandleGetTable)
 	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(api.HandleSeriesQuery)
-	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(api.HandleGetRender)
+	// commented due to security violation in gnuplot https://github.com/advisories/GHSA-cfwc-xjfp-44jg
+	//a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(api.HandleGetRender)
 	a.Path("/" + api.EndpointDashboard).Methods("GET").HandlerFunc(api.HandleGetDashboard)
 	a.Path("/" + api.EndpointDashboardList).Methods("GET").HandlerFunc(api.HandleGetDashboardList)
 	a.Path("/"+api.EndpointDashboard).Methods("POST", "PUT").HandlerFunc(api.HandlePutPostDashboard)
