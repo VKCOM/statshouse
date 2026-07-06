@@ -431,3 +431,12 @@ export const bwd = (v: number) => {
 export function labelAsString(label?: string | HTMLElement): string | undefined {
   return label instanceof HTMLElement ? label.innerText : label;
 }
+
+export function base64ToUtf8(base64: string): string {
+  const binString = atob(base64);
+  return new TextDecoder().decode(Uint8Array.from(binString, (m) => m.codePointAt(0) ?? 0));
+}
+
+export function utf8ToBase64(str: string): string {
+  return btoa(Array.from(new TextEncoder().encode(str), (byte) => String.fromCodePoint(byte)).join(''));
+}
