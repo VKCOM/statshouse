@@ -69,9 +69,9 @@ func DefaultConfig() Config {
 		HistoricWindow:                   24 * 3600,
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
 		SampleBudgets:                    true,
-		SampleNamespaces:                 false,
-		SampleGroups:                     false,
-		SampleKeys:                       false,
+		SampleNamespaces:                 true,
+		SampleGroups:                     true,
+		SampleKeys:                       true,
 		StringTopCapacity:                100,
 		StringTopCountSend:               20,
 		LivenessResponsesWindowLength:    5,
