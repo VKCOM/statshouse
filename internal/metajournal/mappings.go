@@ -496,7 +496,7 @@ func (ms *MappingsStorage) GetValueBytes(str []byte) (int32, bool) {
 }
 
 func (ms *MappingsStorage) GetString(value int32) (string, bool) {
-	if !ms.reverseEnable {
+	if !ms.reverseEnable || value < 0 {
 		return "", false
 	}
 	shard := int(value) % len(ms.reverseShards)
