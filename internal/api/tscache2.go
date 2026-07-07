@@ -780,7 +780,7 @@ func (l *cache2Loader) loadChunks() {
 		// copy data to awaiters
 		for _, a := range awaiters {
 			if err == nil {
-				i := a.chunkOffset + a.loadStart
+				i := a.loadStart
 				j := a.chunkOffset
 				for i < a.loadEnd {
 					a.loaderData[i] = append(a.loaderData[i][:0], chunkData[j]...)
