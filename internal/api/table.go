@@ -132,16 +132,21 @@ func (h *requestHandler) getTableFromLODs(ctx context.Context, lods []data_model
 				used[ix] = struct{}{}
 				queryRows[ix].Data = q.appendRowValues(queryRows[ix].Data, &rows[i], tableReqParams.desiredStepMul, &lod)
 			}
-			for _, ix := range rowsIdx {
-				if _, ok := used[ix]; ok {
-					delete(used, ix)
-				} else {
-					queryRows[ix].Data = append(queryRows[ix].Data, NaN())
-				}
-			}
 			if hasMoreValues {
 				hasMore = true
 				break
+			}
+		}
+		// Pad rows that got no value for this handler-what with a NaN so every
+		// row's Data stays column-aligned. This must run once per handler-what,
+		// after all LODs: rows are keyed by (time, tags) and each key belongs to
+		// exactly one LOD (LODs cover disjoint time ranges), so padding per-LOD
+		// would append an extra NaN to a row for every other LOD in this pass.
+		for _, ix := range rowsIdx {
+			if _, ok := used[ix]; ok {
+				delete(used, ix)
+			} else {
+				queryRows[ix].Data = append(queryRows[ix].Data, NaN())
 			}
 		}
 	}

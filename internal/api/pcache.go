@@ -40,10 +40,17 @@ type timeRange struct {
 
 type cacheEntry struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
-	lru          atomic.Int64
+	lru      atomic.Int64
+	rows     map[timeRange]cachedRows
+	rowsSize int
+}
+
+// cachedRows keeps loadedAtNano per time range. A single entry holds many
+// ranges of the same query; storing one shared load time let a later load of
+// one range revalidate stale rows of another (invalidated) range.
+type cachedRows struct {
+	rows         []pSelectRow
 	loadedAtNano int64
-	rows         map[timeRange][]pSelectRow
-	rowsSize     int
 }
 
 func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, now func() time.Time) *pointsCache {
@@ -88,15 +95,13 @@ func (c *pointsCache) get(ctx context.Context, h *requestHandler, pq *queryBuild
 	e, ok := c.cache[key]
 	if !ok {
 		e = &cacheEntry{
-			lru:          atomic.Int64{},
-			loadedAtNano: 0,
-			rows:         map[timeRange][]pSelectRow{},
+			lru:  atomic.Int64{},
+			rows: map[timeRange]cachedRows{},
 		}
 		c.cache[key] = e
 	}
 
 	e.lru.Store(c.now().UnixNano())
-	e.loadedAtNano = loadedAtNano
 	tr := timeRange{from: lod.FromSec, to: lod.ToSec}
 	if _, ok := e.rows[tr]; !ok {
 		c.size += 1 + len(rows)
@@ -104,7 +109,7 @@ func (c *pointsCache) get(ctx context.Context, h *requestHandler, pq *queryBuild
 		c.size += len(rows)
 	}
 	e.rowsSize += len(rows)
-	e.rows[tr] = rows
+	e.rows[tr] = cachedRows{rows: rows, loadedAtNano: loadedAtNano}
 	return rows, nil
 }
 
@@ -119,13 +124,13 @@ func (c *pointsCache) loadCached(key string, from, to int64) ([]pSelectRow, bool
 		from: from,
 		to:   to,
 	}
-	row, ok := entry.rows[tr]
+	cr, ok := entry.rows[tr]
 	if !ok {
 		return nil, false
 	}
 	entry.lru.Store(c.now().UnixNano())
-	cachedIsValid := c.invalidatedAtNano.checkInvalidationLocked(entry.loadedAtNano, from, to)
-	return row, cachedIsValid
+	cachedIsValid := c.invalidatedAtNano.checkInvalidationLocked(cr.loadedAtNano, from, to)
+	return cr.rows, cachedIsValid
 }
 
 func (c *pointsCache) invalidate(times []int64) {
