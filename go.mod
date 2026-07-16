@@ -37,8 +37,10 @@ require (
 	go.uber.org/multierr v1.11.0
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9
+	golang.org/x/image v0.30.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
+	gonum.org/v1/plot v0.17.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.34.3
@@ -47,9 +49,14 @@ require (
 )
 
 require (
+	codeberg.org/go-fonts/liberation v0.5.0 // indirect
+	codeberg.org/go-latex/latex v0.2.0 // indirect
+	codeberg.org/go-pdf/fpdf v0.11.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
+	git.sr.ht/~sbinet/gg v0.7.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/aws/aws-sdk-go v1.44.20 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -71,6 +78,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/gotd/ige v0.2.2 // indirect
 	github.com/grafana/otel-profiling-go v0.5.1 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.9 // indirect

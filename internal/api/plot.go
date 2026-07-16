@@ -343,6 +343,7 @@ func plotSize(format string, title bool, width int) (int, int) {
 	return width, height
 }
 
+// deprecated, due to a security vulnerability
 func plot(ctx context.Context, format string, title bool, data []*SeriesResponse, utcOffset int64, metric []seriesRequest, width int, tmpl *template.Template) ([]byte, error) {
 	width, height := plotSize(format, title, width)
 	var (
