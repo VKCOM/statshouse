@@ -2418,6 +2418,12 @@ func (h *httpRequestHandler) handleGetRender(ctx context.Context, ai accessInfo,
 	if err != nil {
 		return nil, false, err
 	}
+	// gonum as a pure-Go renderer produces PNG only (gnuplot's svg/text terminals are gone).
+	// reject other formats explicitly.
+	if format_ != dataFormatPNG {
+		return nil, false, httpErr(http.StatusBadRequest,
+			fmt.Errorf("render format %q is no longer supported, only %q is available", format_, dataFormatPNG))
+	}
 
 	var (
 		s         = make([]*SeriesResponse, len(req.seriesRequest))
@@ -2464,7 +2470,8 @@ func (h *httpRequestHandler) handleGetRender(ctx context.Context, ai accessInfo,
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
-	png, err := plot(ctx, format_, true, s, h.utcOffset, req.seriesRequest, width, h.plotTemplate)
+	// NOTE: used to be plot() that used gnuplot, but was removed due to a security vulnerability
+	png, err := renderPreviewGonumPNG(s, h.utcOffset, req.seriesRequest, width)
 	es.timings.Report("plot", time.Since(start))
 	if err != nil {
 		return nil, false, err
