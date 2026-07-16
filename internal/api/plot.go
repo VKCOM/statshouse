@@ -7,20 +7,13 @@
 package api
 
 import (
-	"bytes"
-	"context"
-	"errors"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"math"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
-	"unicode"
 
 	"github.com/VKCOM/statshouse/internal/format"
 )
@@ -197,75 +190,75 @@ var (
 	}
 )
 
-type gnuplotTemplateData struct {
-	Format   string
-	Title    bool
-	Metric   string
-	Width    int
-	Height   int
-	Ratio    float64
-	Data     *SeriesResponse
-	Legend   []QuerySeriesMetaV2
-	TimeFrom int64
-	TimeTo   int64
-	YL, YH   string // Y scale range
-
-	usedColorIndices map[string]int
-	uniqueWhat       map[string]struct{}
-	utcOffset        int64
-
-	// The buffer which template is printed into,
-	// methods generating large texts might write directly into it
-	// (see "WriteData" function below).
-	wr io.Writer
-}
-
-func (d *gnuplotTemplateData) WriteData(i int) string {
-	var blank bool
-	for j, v := range *d.Data.Series.SeriesData[i] {
-		if !v.IsDefined() {
-			if !blank {
-				// blank line tells GNUPlot to not connect adjacent points
-				fmt.Fprint(d.wr, "\n")
-				// adjacent blank lines are merged
-				blank = true
-			}
-			continue
-		}
-		fmt.Fprint(d.wr, d.Data.Series.Time[j]+d.utcOffset)
-		fmt.Fprint(d.wr, " ")
-		fmt.Fprint(d.wr, v)
-		fmt.Fprint(d.wr, "\n")
-		blank = false
-	}
-	return "\n"
-}
-
-func (d *gnuplotTemplateData) LineStyle(i int) int {
-	return 10 + i
-}
-
-func (d *gnuplotTemplateData) GetUniqueWhat() map[string]struct{} {
-	if len(d.uniqueWhat) > 0 {
-		return d.uniqueWhat
-	}
-
-	for _, meta := range d.Data.Series.SeriesMeta {
-		d.uniqueWhat[meta.What] = struct{}{}
-	}
-
-	return d.uniqueWhat
-}
-
-func (d *gnuplotTemplateData) Header() string {
-	uniqueWhat := d.GetUniqueWhat()
-	lineFns := make([]string, 0, len(uniqueWhat))
-	for what := range uniqueWhat {
-		lineFns = append(lineFns, WhatToWhatDesc(what))
-	}
-
-	return fmt.Sprintf("%s: %s", d.Metric, strings.Join(lineFns, ", "))
-}
+//type gnuplotTemplateData struct {
+//	Format   string
+//	Title    bool
+//	Metric   string
+//	Width    int
+//	Height   int
+//	Ratio    float64
+//	Data     *SeriesResponse
+//	Legend   []QuerySeriesMetaV2
+//	TimeFrom int64
+//	TimeTo   int64
+//	YL, YH   string // Y scale range
+//
+//	usedColorIndices map[string]int
+//	uniqueWhat       map[string]struct{}
+//	utcOffset        int64
+//
+//	// The buffer which template is printed into,
+//	// methods generating large texts might write directly into it
+//	// (see "WriteData" function below).
+//	wr io.Writer
+//}
+//
+//func (d *gnuplotTemplateData) WriteData(i int) string {
+//	var blank bool
+//	for j, v := range *d.Data.Series.SeriesData[i] {
+//		if !v.IsDefined() {
+//			if !blank {
+//				// blank line tells GNUPlot to not connect adjacent points
+//				fmt.Fprint(d.wr, "\n")
+//				// adjacent blank lines are merged
+//				blank = true
+//			}
+//			continue
+//		}
+//		fmt.Fprint(d.wr, d.Data.Series.Time[j]+d.utcOffset)
+//		fmt.Fprint(d.wr, " ")
+//		fmt.Fprint(d.wr, v)
+//		fmt.Fprint(d.wr, "\n")
+//		blank = false
+//	}
+//	return "\n"
+//}
+//
+//func (d *gnuplotTemplateData) LineStyle(i int) int {
+//	return 10 + i
+//}
+//
+//func (d *gnuplotTemplateData) GetUniqueWhat() map[string]struct{} {
+//	if len(d.uniqueWhat) > 0 {
+//		return d.uniqueWhat
+//	}
+//
+//	for _, meta := range d.Data.Series.SeriesMeta {
+//		d.uniqueWhat[meta.What] = struct{}{}
+//	}
+//
+//	return d.uniqueWhat
+//}
+//
+//func (d *gnuplotTemplateData) Header() string {
+//	uniqueWhat := d.GetUniqueWhat()
+//	lineFns := make([]string, 0, len(uniqueWhat))
+//	for what := range uniqueWhat {
+//		lineFns = append(lineFns, WhatToWhatDesc(what))
+//	}
+//
+//	return fmt.Sprintf("%s: %s", d.Metric, strings.Join(lineFns, ", "))
+//}
 
 func (h *Handler) colorize(resp *SeriesResponse) {
 	if resp == nil {
@@ -322,9 +315,10 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 	}
 }
 
-func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
-	return MetaToLabel(meta, len(d.GetUniqueWhat()), d.utcOffset)
-}
+//
+//func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
+//	return MetaToLabel(meta, len(d.GetUniqueWhat()), d.utcOffset)
+//}
 
 func plotSize(format string, title bool, width int) (int, int) {
 	if width == 0 {
@@ -343,93 +337,93 @@ func plotSize(format string, title bool, width int) (int, int) {
 	return width, height
 }
 
-// deprecated, due to a security vulnerability
-func plot(ctx context.Context, format string, title bool, data []*SeriesResponse, utcOffset int64, metric []seriesRequest, width int, tmpl *template.Template) ([]byte, error) {
-	width, height := plotSize(format, title, width)
-	var (
-		rows = 1
-		cols = 1
-	)
-	if 1 < len(data) {
-		cols = 2
-		rows = (len(data) + 1) / cols
-		width /= cols
-		height /= cols
-	}
-	var (
-		buf bytes.Buffer
-		td  = make([]*gnuplotTemplateData, len(data))
-	)
-	utcOffset %= (24 * 3600) // ignore the part we use to align start of week
-	for i := 0; i < len(data); i++ {
-		var (
-			legend       = data[i].Series.SeriesMeta
-			legendMaxLen = 15
-		)
-		if len(legend) > legendMaxLen {
-			legend = data[i].Series.SeriesMeta[:legendMaxLen]
-		}
-		effectiveName := metric[i].metricName
-		if len(metric[i].customMetricName) > 0 {
-			effectiveName = metric[i].customMetricName
-		}
-		td[i] = &gnuplotTemplateData{
-			Format:           format,
-			Title:            title,
-			Metric:           effectiveName,
-			Width:            width,
-			Height:           height,
-			Ratio:            1 / goldenRatio,
-			Data:             data[i],
-			TimeFrom:         metric[i].from.Unix() + utcOffset,
-			TimeTo:           metric[i].to.Unix() + utcOffset,
-			Legend:           legend,
-			usedColorIndices: map[string]int{},
-			uniqueWhat:       map[string]struct{}{},
-			utcOffset:        utcOffset,
-			wr:               &buf,
-			YL:               metric[i].yl,
-			YH:               metric[i].yh,
-		}
-	}
-
-	templateData := struct {
-		Plots  []*gnuplotTemplateData
-		Format string
-		Width  int
-		Height int
-		Rows   int
-		Cols   int
-	}{td, format, width * cols, height * rows, rows, cols}
-	err := tmpl.Execute(&buf, templateData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to form gnuplot input: %w", err)
-	}
-
-	gp := exec.CommandContext(ctx, "gnuplot", "-d")
-	gp.Stdin = &buf
-
-	out, err := gp.Output()
-	if err != nil {
-		// timeout or cancelled request
-		if cerr := ctx.Err(); cerr != nil {
-			return nil, cerr
-		}
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			return nil, fmt.Errorf("failed to execute gnuplot: %w (stderr: %q)", err, ee.Stderr)
-		}
-		return nil, fmt.Errorf("failed to execute gnuplot: %w", err)
-	}
-
-	if format == dataFormatText {
-		first := bytes.IndexFunc(out, func(r rune) bool { return !unicode.IsSpace(r) })
-		start := bytes.LastIndexByte(out[:first], '\n')
-		out = bytes.TrimRightFunc(out[start+1:], unicode.IsSpace)
-	}
-
-	return out, nil
-}
+//// deprecated, due to a security vulnerability
+//func plot(ctx context.Context, format string, title bool, data []*SeriesResponse, utcOffset int64, metric []seriesRequest, width int, tmpl *template.Template) ([]byte, error) {
+//	width, height := plotSize(format, title, width)
+//	var (
+//		rows = 1
+//		cols = 1
+//	)
+//	if 1 < len(data) {
+//		cols = 2
+//		rows = (len(data) + 1) / cols
+//		width /= cols
+//		height /= cols
+//	}
+//	var (
+//		buf bytes.Buffer
+//		td  = make([]*gnuplotTemplateData, len(data))
+//	)
+//	utcOffset %= (24 * 3600) // ignore the part we use to align start of week
+//	for i := 0; i < len(data); i++ {
+//		var (
+//			legend       = data[i].Series.SeriesMeta
+//			legendMaxLen = 15
+//		)
+//		if len(legend) > legendMaxLen {
+//			legend = data[i].Series.SeriesMeta[:legendMaxLen]
+//		}
+//		effectiveName := metric[i].metricName
+//		if len(metric[i].customMetricName) > 0 {
+//			effectiveName = metric[i].customMetricName
+//		}
+//		td[i] = &gnuplotTemplateData{
+//			Format:           format,
+//			Title:            title,
+//			Metric:           effectiveName,
+//			Width:            width,
+//			Height:           height,
+//			Ratio:            1 / goldenRatio,
+//			Data:             data[i],
+//			TimeFrom:         metric[i].from.Unix() + utcOffset,
+//			TimeTo:           metric[i].to.Unix() + utcOffset,
+//			Legend:           legend,
+//			usedColorIndices: map[string]int{},
+//			uniqueWhat:       map[string]struct{}{},
+//			utcOffset:        utcOffset,
+//			wr:               &buf,
+//			YL:               metric[i].yl,
+//			YH:               metric[i].yh,
+//		}
+//	}
+//
+//	templateData := struct {
+//		Plots  []*gnuplotTemplateData
+//		Format string
+//		Width  int
+//		Height int
+//		Rows   int
+//		Cols   int
+//	}{td, format, width * cols, height * rows, rows, cols}
+//	err := tmpl.Execute(&buf, templateData)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to form gnuplot input: %w", err)
+//	}
+//
+//	gp := exec.CommandContext(ctx, "gnuplot", "-d")
+//	gp.Stdin = &buf
+//
+//	out, err := gp.Output()
+//	if err != nil {
+//		// timeout or cancelled request
+//		if cerr := ctx.Err(); cerr != nil {
+//			return nil, cerr
+//		}
+//		var ee *exec.ExitError
+//		if errors.As(err, &ee) {
+//			return nil, fmt.Errorf("failed to execute gnuplot: %w (stderr: %q)", err, ee.Stderr)
+//		}
+//		return nil, fmt.Errorf("failed to execute gnuplot: %w", err)
+//	}
+//
+//	if format == dataFormatText {
+//		first := bytes.IndexFunc(out, func(r rune) bool { return !unicode.IsSpace(r) })
+//		start := bytes.LastIndexByte(out[:first], '\n')
+//		out = bytes.TrimRightFunc(out[start+1:], unicode.IsSpace)
+//	}
+//
+//	return out, nil
+//}
 
 func fnv1aSum(s string) uint32 {
 	h := fnv.New32a()
