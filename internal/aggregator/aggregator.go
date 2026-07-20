@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -952,7 +953,8 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 	if len(b.originalMetricSize) == 0 {
 		return
 	}
-	totalBudget := int64(configR.ReceiveSampleBudget)
+	totalBudget := rampedReceiveBudget(int64(configR.ReceiveSampleBudget), configR.ReceiveBudgetWarming, a.startTimestamp, uint32(time.Now().Unix()))
+	fmt.Println(totalBudget)
 	keepF := func(key data_model.Key, quota uint32) {
 		host := data_model.TagUnion{I: key.Tags[1], S: key.STags[1]}
 		if originalSize, ok := b.originalMetricSize[key.Metric][host]; ok && originalSize <= quota {
@@ -1000,6 +1002,19 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 			[]int32{0, format.TagValueIDComponentAgent, v.NamespaceID, v.GroupID, 1},
 			v.Budget(), 1)
 	}
+}
+
+func rampedReceiveBudget(totalBudget int64, warming time.Duration, startUnix uint32, nowUnix uint32) int64 {
+	if totalBudget <= 0 || warming <= 0 {
+		return totalBudget
+	}
+	warmSec := warming.Seconds()
+	uptime := float64(nowUnix - startUnix)
+	if uptime >= warmSec {
+		return totalBudget
+	}
+	// slow start, reaches full budget at T
+	return int64(float64(totalBudget) * math.Pow(uptime/warmSec, 6)) // https://www.desmos.com/calculator/32vvcpkydo
 }
 
 func (a *Aggregator) reportHostMetricBudgets(ts uint32, hostMetricBudgets map[data_model.TagUnion][]tlstatshouse.MetricBudget) {
