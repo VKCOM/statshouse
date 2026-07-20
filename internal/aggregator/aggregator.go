@@ -954,7 +954,6 @@ func (a *Aggregator) calcHostMetricBudgets(configR ConfigAggregatorRemote, b *ag
 		return
 	}
 	totalBudget := rampedReceiveBudget(int64(configR.ReceiveSampleBudget), configR.ReceiveBudgetWarming, a.startTimestamp, uint32(time.Now().Unix()))
-	fmt.Println(totalBudget)
 	keepF := func(key data_model.Key, quota uint32) {
 		host := data_model.TagUnion{I: key.Tags[1], S: key.STags[1]}
 		if originalSize, ok := b.originalMetricSize[key.Metric][host]; ok && originalSize <= quota {
