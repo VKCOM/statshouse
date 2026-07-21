@@ -47,6 +47,7 @@ type ConfigAggregatorRemote struct {
 	ClusterShardsAddrs         []string
 	DisableReceiveSampleBudget bool
 	OriginalSizeDecayHalfLife  time.Duration
+	ReceiveBudgetWarming       time.Duration
 
 	RQLiteAddrs string // comma-separated list
 
@@ -113,6 +114,7 @@ func DefaultConfigAggregator() ConfigAggregator {
 			MigrationV3DisabledShards: make(map[int32]struct{}, 1), // empty means no disabled shards
 			MigrationDelaySec:         30,                          // 30 seconds delay between migration steps
 			OriginalSizeDecayHalfLife: data_model.ExpDecayMetricsHalfLife,
+			ReceiveBudgetWarming:      15 * time.Minute,
 
 			configTagsMapper3: configTagsMapper3{
 				MaxCreateTagsPerIteration: 128,
@@ -208,6 +210,7 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 		f.Func("cluster-shards-addrs", "List of cluster shards with 3 comma-separated addresses on each line", c.setClusterShardsHosts)
 		f.BoolVar(&c.DisableReceiveSampleBudget, "disable-receive-sample-budget", d.DisableReceiveSampleBudget, "Disable dynamic distribution receive-sample-budget, agent-farm friendly ff.")
 		f.DurationVar(&c.OriginalSizeDecayHalfLife, "original-size-decay-half-life", d.OriginalSizeDecayHalfLife, "Half-life for per-metric original size from agent (exponential decay).")
+		f.DurationVar(&c.ReceiveBudgetWarming, "receive-budget-warming", d.ReceiveBudgetWarming, "After aggregator start, ramp receive-sample-budget as (t/T)^6 over this duration; 0 disables. Protection from slow contributor's accumulation")
 	}
 	f.StringVar(&c.RQLiteAddrs, "rqlite-addrs", d.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
 }
@@ -278,6 +281,9 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	}
 	if c.OriginalSizeDecayHalfLife <= 0 {
 		return fmt.Errorf("--original-size-decay-half-life (%s) must be > 0", c.OriginalSizeDecayHalfLife)
+	}
+	if c.ReceiveBudgetWarming < 0 {
+		return fmt.Errorf("--receive-budget-warming (%s) must be >= 0", c.ReceiveBudgetWarming)
 	}
 
 	return nil
