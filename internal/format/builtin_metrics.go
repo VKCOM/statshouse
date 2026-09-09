@@ -3162,3 +3162,36 @@ var BuiltinMetricMetaAggTagMapperInfo = &MetricMetaValue{
 		}),
 	}},
 }
+
+const BuiltinMetricIDAPIDashboardUsage = -157
+
+var BuiltinMetricMetaAPIDashboardUsage = &MetricMetaValue{
+	Name:                    "__api_dashboard_usage",
+	Kind:                    MetricKindCounter,
+	Description:             "Dashboard usage",
+	NoSampleAgent:           false,
+	BuiltinAllowedToReceive: true,
+	WithAgentEnvRouteArch:   false,
+	WithAggregatorID:        false,
+	Tags: []MetricMetaTag{{
+		Description: "protocol",
+		ValueComments: convertToValueComments(map[int32]string{
+			TagValueIDRPC:  "RPC",
+			TagValueIDHTTP: "http",
+		}),
+	}, {
+		Description: "method",
+	}, {
+		Description: "host",
+	}, {
+		Description: "token-short",
+	}, {
+		Description: "token-long",
+	}, {
+		Description: "dashboard",
+	}, {
+		Description:   "token_source",
+		RawKind:       "int",
+		ValueComments: convertToValueComments(tokenSourceToValue),
+	}},
+}

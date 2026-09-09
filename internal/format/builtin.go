@@ -166,6 +166,7 @@ var (
 		-152:                                    BuiltinMetricMetaAggSendSrcBudget,
 		-153:                                    BuiltinMetricMetaMappingUsage,
 		-156:                                    BuiltinMetricMetaAggTagMapperInfo,
+		BuiltinMetricIDAPIDashboardUsage:        BuiltinMetricMetaAPIDashboardUsage,
 	}
 
 	// BuiltInGroupDefault can be overridden by journal, don't use directly
