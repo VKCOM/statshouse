@@ -2364,7 +2364,13 @@ func HandleGetEntity[T any](r *httpRequestHandler, handle func(ctx context.Conte
 }
 
 func HandleGetDashboard(h *httpRequestHandler) {
-	HandleGetEntity(h, h.handleGetDashboard)
+	HandleGetEntity(h, func(ctx context.Context, ai accessInfo, id int32, version int64) (*DashboardInfo, time.Duration, error) {
+		resp, cache, err := h.handleGetDashboard(ctx, ai, id, version)
+		if resp != nil {
+			h.endpointStat.setDashboard(resp.Dashboard.Name, resp.Dashboard.DashboardID)
+		}
+		return resp, cache, err
+	})
 }
 
 func HandleGetGroup(h *httpRequestHandler) {
@@ -2404,6 +2410,7 @@ func HandlePutPostDashboard(h *httpRequestHandler) {
 		if err != nil {
 			return nil, 0, err
 		}
+		h.endpointStat.setDashboard(response.Dashboard.Name, response.Dashboard.DashboardID)
 		return response, response.Dashboard.Version, nil
 	})
 }

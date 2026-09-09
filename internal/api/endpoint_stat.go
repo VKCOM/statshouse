@@ -18,9 +18,10 @@ import (
 
 	"github.com/VKCOM/statshouse-go"
 
+	"github.com/VKCOM/tl/pkg/rpc"
+
 	"github.com/VKCOM/statshouse/internal/format"
 	"github.com/VKCOM/statshouse/internal/vkgo/srvfunc"
-	"github.com/VKCOM/tl/pkg/rpc"
 )
 
 const (
@@ -62,6 +63,7 @@ type endpointStat struct {
 	lane        string
 	laneMutex   sync.Mutex // we access lane from main and badges query
 	metric      string
+	dashboard   string
 	tokenName   string
 	tokenSource string
 	user        string
@@ -77,6 +79,19 @@ func (es *endpointStat) reportServiceTime(code int, err error) {
 				1: strconv.FormatInt(int64(es.protocol), 10),
 				2: es.user,
 				3: es.metric,
+			}, 1)
+	}
+	if len(es.dashboard) != 0 {
+		statshouse.Count(
+			format.BuiltinMetricMetaAPIDashboardUsage.Name,
+			statshouse.Tags{
+				1: strconv.FormatInt(int64(es.protocol), 10),
+				2: es.method,
+				3: srvfunc.Hostname(),
+				4: es.tokenName,
+				5: es.user,
+				6: es.dashboard,
+				7: es.tokenSource,
 			}, 1)
 	}
 	if es.protocol == format.TagValueIDRPC && code == 0 {
@@ -100,6 +115,14 @@ func (es *endpointStat) setAccessInfo(ai accessInfo) {
 func (es *endpointStat) setMetricMeta(metricMeta *format.MetricMetaValue) {
 	if metricMeta != nil {
 		es.metric = strconv.Itoa(int(metricMeta.MetricID))
+	}
+}
+
+func (es *endpointStat) setDashboard(name string, id int32) {
+	if name != "" {
+		es.dashboard = name
+	} else if id != 0 {
+		es.dashboard = strconv.Itoa(int(id))
 	}
 }
 
