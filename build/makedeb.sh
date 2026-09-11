@@ -30,7 +30,7 @@ fi
 
 # build StatsHouse
 if [[ -z $NODE_IMAGE ]]; then
-  NODE_IMAGE="node:18-bullseye"
+  NODE_IMAGE="node:18-bookworm"
 fi
 docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" \
   "$NODE_IMAGE" make build-sh-ui build-grafana-ui

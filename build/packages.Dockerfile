@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:18-bullseye AS build-node
+FROM node:18-bookworm AS build-node
 ARG BUILD_TIME
 ARG BUILD_VERSION
 ARG REACT_APP_BUILD_VERSION
@@ -150,6 +150,10 @@ RUN --mount=type=bind,src=$GOCACHE,target=/root/.cache/go-build,readwrite \
 
 FROM debian:bullseye AS debuild-bullseye
 ENV DEBIAN_FRONTEND=noninteractive
+RUN printf "deb http://snapshot.debian.org/archive/debian/20260824T000000Z bullseye main\n\
+deb http://snapshot.debian.org/archive/debian-security/20260824T000000Z bullseye-security main\n\
+deb http://snapshot.debian.org/archive/debian/20260824T000000Z bullseye-updates main\n" > /etc/apt/sources.list \
+  && printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99no-check-valid-until
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked apt-get update \
   && apt-get install -y --no-install-recommends devscripts build-essential dh-exec \
   && rm -rf /var/lib/apt/lists/*
