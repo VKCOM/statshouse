@@ -74,7 +74,7 @@ fi
 # frontend
 if [ ! -d statshouse-ui/build ]; then
   if [[ -z $NODE_IMAGE ]]; then
-    NODE_IMAGE="node:18-bullseye"
+    NODE_IMAGE="node:18-bookworm"
     echo "Node image is not specified, using $NODE_IMAGE"
   fi
   docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" $NODE_IMAGE make build-sh-ui

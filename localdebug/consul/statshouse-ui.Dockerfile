@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:18-bookworm
 WORKDIR /src
 COPY Makefile ./
 COPY statshouse-ui/ ./statshouse-ui/
