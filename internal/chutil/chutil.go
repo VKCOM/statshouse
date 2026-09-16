@@ -31,13 +31,13 @@ import (
 )
 
 type connPool struct {
-	poolName            string
-	rnd                 *rand.Rand
-	maxActiveQuery      int
-	maxShardActiveQuery int
-	servers             []serverCH
-	sem                 *queue.Queue
-	shardSems           []*queue.Queue // shard_id -> semaphore
+	poolName             string
+	rnd                  *rand.Rand
+	maxActiveQuery       int
+	maxShardActiveQuery  int
+	servers              []serverCH
+	sem                  *queue.Queue
+	shardSems            []*queue.Queue // shard_id -> semaphore
 	avgQueryDurationNS   atomic.Int64   // exponentially smoothed average in nanoseconds
 	shardAvgQueryNS      []atomic.Int64 // avgQueryDurationNS per-shard
 	lastPoolQueryTimeNS  atomic.Int64
@@ -51,12 +51,15 @@ type serverCH struct {
 }
 
 type ClickHouse struct {
-	opt        ChConnOptions
-	mx         sync.RWMutex
-	namedPools map[string][6]*connPool
-	rateLimits []*RateLimit
-	trotCfg    *ReplicaThrottleConfig
+	opt            ChConnOptions
+	mx             sync.RWMutex
+	namedPools     map[string][6]*connPool
+	rateLimits     []*RateLimit
+	trotCfg        *ReplicaThrottleConfig
+	latencySlackCH int
 }
+
+const DefaultLatencySlackCH = 90
 
 type QueryMetaInto struct {
 	IsFast     bool
@@ -164,13 +167,17 @@ func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
 		result.rateLimits = append(result.rateLimits, NewRateLimit(opt.RateLimitConfig, i/3+1, i%3+1))
 		result.rateLimits[i].Start()
 	}
-	err := result.SetLimits(nil, opt.MaxShardConnsRatio, opt.RateLimitConfig, nil)
+	err := result.SetLimits(nil, opt.MaxShardConnsRatio, opt.RateLimitConfig, nil, DefaultLatencySlackCH)
 	return result, err
 }
 
-func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rtCfg RateLimitConfig, trotCfg *ReplicaThrottleConfig) error {
+func (ch1 *ClickHouse) SetLimits(limits []ConnLimits, maxShardConnsRatio int, rtCfg RateLimitConfig, trotCfg *ReplicaThrottleConfig, latencySlackCH int) error {
 	ch1.mx.Lock()
 	defer ch1.mx.Unlock()
+	if latencySlackCH < 1 {
+		latencySlackCH = DefaultLatencySlackCH
+	}
+	ch1.latencySlackCH = latencySlackCH
 	ch1.trotCfg = trotCfg
 	ch1.namedPools = map[string][6]*connPool{}
 	limits = append(limits, ch1.opt.ConnLimits) // to avoid overriding default limits
@@ -375,25 +382,23 @@ func QueryKind(isFast, isLight, isHardware bool) int {
 	return slowHeavy
 }
 func (ch1 *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query chgo.Query) (info QueryHandleInfo, err error) {
-	pool, trotCfg := ch1.resolvePoolBy(meta)
-	return pool.selectCH(ctx, ch1, meta, query, trotCfg)
+	pool, trotCfg, latencySlackCH := ch1.resolvePoolBy(meta)
+	return pool.selectCH(ctx, ch1, meta, query, trotCfg, latencySlackCH)
 }
 
-func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) (*connPool, *ReplicaThrottleConfig) {
+func (ch1 *ClickHouse) resolvePoolBy(meta QueryMetaInto) (*connPool, *ReplicaThrottleConfig, int) {
 	ch1.mx.RLock()
 	defer ch1.mx.RUnlock()
 	kind := QueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	if pool, ok := ch1.namedPools[meta.User]; ok {
 		pool := pool[kind]
 		if pool.maxActiveQuery > 0 {
-			return pool, ch1.trotCfg
+			return pool, ch1.trotCfg, ch1.latencySlackCH
 		}
-		return ch1.namedPools[defaultUserName][kind], ch1.trotCfg
+		return ch1.namedPools[defaultUserName][kind], ch1.trotCfg, ch1.latencySlackCH
 	}
-	return ch1.namedPools[defaultUserName][kind], ch1.trotCfg
+	return ch1.namedPools[defaultUserName][kind], ch1.trotCfg, ch1.latencySlackCH
 }
-
-const latencySlackCH = 130 // 30% upside
 
 const avgDecayGracePeriodNS int64 = int64(60 * time.Second)
 const avgDecayHalfLifeNS int64 = int64(60 * time.Second)
@@ -415,7 +420,7 @@ func decayAvgNS(avgNS int64, elapsed time.Duration) int64 {
 	return int64(result)
 }
 
-func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query, trotCfg *ReplicaThrottleConfig) (info QueryHandleInfo, err error) {
+func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMetaInto, query chgo.Query, trotCfg *ReplicaThrottleConfig, latencySlackCH int) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
 		info.Profile = p
 		return nil
@@ -487,7 +492,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
 				if avg := pool.getAvgQueryDuration(shard); avg > 0 {
-					if remaining < avg*latencySlackCH/100 {
+					if remaining < avg*time.Duration(latencySlackCH)/100 {
 						sem.Release()
 						info.ErrorCode = format.TagValueIDAPIResponseExceptionSemTooLate
 						return info, context.DeadlineExceeded
@@ -507,7 +512,9 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 				sem.Release()
 
 				info.QueryDuration = duration
-				pool.recordQueryDuration(duration, shard)
+				if err == nil {
+					pool.recordQueryDuration(duration, shard)
+				}
 				if queryCtx.Err() != nil {
 					statshouse.Value(format.BuiltinMetricMetaAPISelectDuration.Name, statshouse.Tags{
 						1:  modeStr(meta.IsFast, meta.IsLight, meta.IsHardware),
@@ -561,7 +568,7 @@ func (pool *connPool) selectCH(ctx context.Context, ch *ClickHouse, meta QueryMe
 	if err != nil {
 		return info, err
 	}
-	pickCheckServer(servers, query, pool.rnd, info.QueryDuration*latencySlackCH/100, trotCfg)
+	pickCheckServer(servers, query, pool.rnd, info.QueryDuration*130/100, trotCfg)
 	return info, nil
 }
 
@@ -672,10 +679,10 @@ func applyDecay(avgNS int64, lastQueryTimeNS int64) time.Duration {
 func (pool *connPool) getAvgQueryDuration(shard int) time.Duration {
 	if shard >= 0 && shard < len(pool.shardAvgQueryNS) {
 		// TOCTOU: avg and timestamp are read separately; acceptable for this heuristic.
-		// Timestamps are updated only on query completion, so long-running in-flight
-		// queries may appear as idle time causing decay; this is an acceptable trade-off
-		// because the 60s grace period covers most queries and rejected/failed queries
-		// should not keep the average fresh.
+		// Timestamps are updated only on successful completion, so long-running
+		// in-flight queries may appear as idle time causing decay; this is an
+		// acceptable trade-off because the 60s grace period covers most queries
+		// and rejected/failed queries should not keep the average fresh.
 		return applyDecay(pool.shardAvgQueryNS[shard].Load(), pool.lastShardQueryTimeNS[shard].Load())
 	}
 	return applyDecay(pool.avgQueryDurationNS.Load(), pool.lastPoolQueryTimeNS.Load())
