@@ -102,7 +102,7 @@ func parseArgs() {
 	pflag.Int64Var(&argv.maxBudget, "max-budget", metadata.MaxBudget, "maximum number of mappings that a metric can create")
 	pflag.Uint32Var(&argv.stepSec, "step-sec", metadata.StepSec, "every step-sec metric will receive budget-bonus mappings to budget")
 	pflag.Int64Var(&argv.budgetBonus, "budget-bonus", metadata.BudgetBonus, "every step-sec seconds metric will receive budget-bonus mappings to budget")
-	pflag.Int64Var(&argv.budgetBonus, "global-budget", metadata.GlobalBudget, "create mapping budget. After spent this budget meta will use step system")
+	pflag.Int64Var(&argv.globalBudget, "global-budget", metadata.GlobalBudget, "create mapping budget. After spent this budget meta will use step system")
 	pflag.Var(&argv.trustedSubnetGroupsFlag, "trusted-subnet-groups", "trusted subnet groups; format: group1,group1b;group2 (CIDR list, groups split by ';')")
 
 	pflag.StringVar(&argv.deletionCandidateMappingsPath, "deletion-candidate-mappings-path", "", "path to file with deletion candidate mappings")
@@ -325,7 +325,7 @@ func run() error {
 		RawGetEntity:           proxy.HandleProxy("getEntity", handler.RawGetEntity),
 		RawGetHistoryShortInfo: proxy.HandleProxy("getHistory", handler.RawGetHistory),
 		GetTagMappingBootstrap: metadata.HandleProxyGen(&proxy, "get_bootstrap", handler.GetTagMappingBootstrap),
-		ResetFlood2:            metadata.HandleProxyGen(&proxy, "resetFloo2", handler.ResetFlood2),
+		ResetFlood2:            metadata.HandleProxyGen(&proxy, "resetFlood2", handler.ResetFlood2),
 	}
 	sh := &tlmetadata.Handler{
 		RawGetJournalnew:  proxy.HandleProxy("getJournal", handler.RawGetJournal),
