@@ -31,6 +31,8 @@ type ConfigAggregatorRemote struct {
 	ShortWindow                int
 	InsertBudget               int // for single replica, in bytes per contributor, when many contributors
 	MinInsertBudget            int64
+	HistoricInserters          int
+	InsertHistoricWhen         int
 	ShardInsertBudget          map[int]int // pre shard overrides, if not set buget is equal to InsertBudget
 	ReceiveSampleBudget        int         // total pre-aggregator receive budget per shard, in bytes per second
 	StringTopCountInsert       int
@@ -55,9 +57,7 @@ type ConfigAggregatorRemote struct {
 }
 
 type ConfigAggregator struct {
-	RecentInserters    int
-	HistoricInserters  int
-	InsertHistoricWhen int
+	RecentInserters int
 
 	KHAddr         string
 	KHUser         string
@@ -89,8 +89,6 @@ type ConfigAggregator struct {
 func DefaultConfigAggregator() ConfigAggregator {
 	return ConfigAggregator{
 		RecentInserters:      4,
-		HistoricInserters:    1,
-		InsertHistoricWhen:   2,
 		SimulateRandomErrors: 0,
 		Cluster:              "statlogs2",
 		MetadataNet:          "tcp4",
@@ -102,6 +100,8 @@ func DefaultConfigAggregator() ConfigAggregator {
 			ShortWindow:               data_model.MaxShortWindow,
 			InsertBudget:              400,
 			MinInsertBudget:           data_model.InsertBudgetFixed,
+			HistoricInserters:         1,
+			InsertHistoricWhen:        2,
 			ReceiveSampleBudget:       500000,
 			StringTopCountInsert:      20,
 			SampleNamespaces:          true,
@@ -186,6 +186,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 	f.IntVar(&c.ShortWindow, "short-window", d.ShortWindow, "Short admission window. Shorter window reduces latency, but also reduces recent stats quality as more agents come too late")
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
 	f.Int64Var(&c.MinInsertBudget, "min-insert-budget", d.MinInsertBudget, "Should put average insert budget here. If CH freezes, we lose contributors, budget falls, so sample factor extremely rises.")
+	f.IntVar(&c.HistoricInserters, "historic-inserters", d.HistoricInserters, "How many parallel inserts to make for historic data")
+	f.IntVar(&c.InsertHistoricWhen, "insert-historic-when", d.InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")
 	f.IntVar(&c.ReceiveSampleBudget, "receive-sample-budget", d.ReceiveSampleBudget, "Total per-shard pre-aggregator receive budget, in bytes per second, to be divided between active contributors.")
 	f.Func("shard-insert-budget", "1:200 override budget for 1 shard with 200, shards start with 1", c.setShardBudget)
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
@@ -216,17 +218,8 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 }
 
 func ValidateConfigAggregator(c *ConfigAggregator) error {
-	if c.InsertHistoricWhen < 1 {
-		return fmt.Errorf("--insert-historic-when (%d) must be >= 1", c.InsertHistoricWhen)
-	}
 	if c.RecentInserters < 1 {
 		return fmt.Errorf("--recent-inserters (%d) must be >= 1", c.RecentInserters)
-	}
-	if c.HistoricInserters < 1 {
-		return fmt.Errorf("--historic-inserters (%d) must be >= 1", c.HistoricInserters)
-	}
-	if c.HistoricInserters > 4 { // Otherwise batching during historic inserts will become too small
-		return fmt.Errorf("--historic-inserters (%d) must be <= 4", c.HistoricInserters)
 	}
 
 	return c.RemoteInitial.Validate()
@@ -266,6 +259,15 @@ func (c *ConfigAggregatorRemote) Validate() error {
 	}
 	if c.InsertBudget < 1 {
 		return fmt.Errorf("insert-budget (%d) must be >= 1", c.InsertBudget)
+	}
+	if c.InsertHistoricWhen < 1 {
+		return fmt.Errorf("--insert-historic-when (%d) must be >= 1", c.InsertHistoricWhen)
+	}
+	if c.HistoricInserters < 1 {
+		return fmt.Errorf("--historic-inserters (%d) must be >= 1", c.HistoricInserters)
+	}
+	if c.HistoricInserters > 4 { // Otherwise batching during historic inserts will become too small
+		return fmt.Errorf("--historic-inserters (%d) must be <= 4", c.HistoricInserters)
 	}
 	if c.ReceiveSampleBudget < 1 {
 		return fmt.Errorf("receive-sample-budget (%d) must be >= 1", c.ReceiveSampleBudget)

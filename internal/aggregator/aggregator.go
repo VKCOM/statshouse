@@ -738,8 +738,8 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 		a.mu.Lock()
 		oldestTime := a.recentBuckets[0].time
 		newestTime := a.recentBuckets[len(a.recentBuckets)-1].time
-		willInsertHistoric := (a.recentSenders+a.historicSenders) < a.config.InsertHistoricWhen &&
-			a.historicSenders < a.config.HistoricInserters &&
+		willInsertHistoric := (a.recentSenders+a.historicSenders) < configR.InsertHistoricWhen &&
+			a.historicSenders < configR.HistoricInserters &&
 			len(a.historicBuckets) != 0
 		if willInsertHistoric {
 			a.historicSenders++
@@ -758,7 +758,7 @@ func (a *Aggregator) goInsert(insertsSema *semaphore.Weighted, cancelCtx context
 
 		recentContributors := aggBucket.contributorsCount()
 		historicContributors := 0.0
-		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + a.config.HistoricInserters)
+		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + configR.HistoricInserters)
 		// each historic inserter takes not more than maxHistoricInsertBatch the oldest buckets, so for example with 2 inserters
 		// [a, b, c, d, e, f]               <- this is 6 seconds sent by agent and waiting in historicBuckets to be inserted
 		//       [c, d, e, f]               <- first inserter takes [a, b] and starts inserting

@@ -37,6 +37,7 @@ type Config struct {
 	CHMaxShardConnsRatio         int
 	ReplicaThrottleCfgStr        string
 	ReplicaThrottleCfg           *chutil.ReplicaThrottleConfig
+	LatencySlackCH               int
 	HardwareMetricResolution     int
 	HardwareSlowMetricResolution int
 	Announcement                 string // if !empty, show to user in UI
@@ -133,6 +134,7 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.StringVar(&argv.AvailableShardsStr, "available-shards", default_.AvailableShardsStr, "comma-separated list of default shards for metrics when namespace doesn't specify shards")
 	f.IntVar(&argv.CHMaxShardConnsRatio, "clickhouse-max-shard-conns-ratio", default_.CHMaxShardConnsRatio, "maximum number of ClickHouse connections per shard (%)")
 	f.StringVar(&argv.ReplicaThrottleCfgStr, "replica-throttle-config", "", "JSON config for replica throttling testing (feature flag)")
+	f.IntVar(&argv.LatencySlackCH, "latency-slack-ch", default_.LatencySlackCH, "percent of avg ClickHouse query duration used as slack (110 = 10% upside)")
 	f.IntVar(&argv.HardwareMetricResolution, "hardware-metric-resolution", default_.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	f.IntVar(&argv.HardwareSlowMetricResolution, "hardware-slow-metric-resolution", default_.HardwareSlowMetricResolution, "Statshouse slow hardware metric resolution")
 
@@ -160,6 +162,7 @@ func DefaultConfig() *Config {
 		CacheChunkSize:       5,
 		AvailableShardsStr:   "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
 		CHMaxShardConnsRatio: 20,
+		LatencySlackCH:       chutil.DefaultLatencySlackCH,
 		RateLimitConfig: chutil.RateLimitConfig{
 			WindowDuration:     2 * time.Minute,
 			MaxErrorRate:       20,
