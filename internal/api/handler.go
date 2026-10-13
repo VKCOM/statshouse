@@ -781,13 +781,13 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		from = uncertain
 	}
 	var sb strings.Builder
-	sb.WriteString("SELECT toInt64(time) AS time, toInt64(tag1) AS key1 FROM ")
+	sb.WriteString("SELECT toInt64(time) AS ts, toInt64(tag1) AS key1 FROM ")
 	sb.WriteString(_1sTableSH3)
 	sb.WriteString(" WHERE metric=")
 	sb.WriteString(fmt.Sprint(format.BuiltinMetricIDContributorsLog))
 	sb.WriteString(" AND time>=")
 	sb.WriteString(fmt.Sprint(from))
-	sb.WriteString(" GROUP BY time,key1 LIMIT ")
+	sb.WriteString(" GROUP BY time, tag1 LIMIT ")
 	sb.WriteString(fmt.Sprint(cacheInvalidateMaxRows))
 	// TODO - write metric with len(rows)
 	// TODO - code that works if we hit limit above
@@ -817,7 +817,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	}, ch.Query{
 		Body: sb.String(),
 		Result: proto.Results{
-			{Name: "time", Data: &time},
+			{Name: "ts", Data: &time},
 			{Name: "key1", Data: &key1},
 		},
 		OnResult: func(_ context.Context, b proto.Block) error {
@@ -842,7 +842,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 			return nil
 		}})
 	if err != nil {
-		log.Printf("[error] cache invalidation log query failed: %v", err)
+		log.Printf("[error] cache invalidation log query failed: %v query=%s", err, sb.String())
 		req.endpointStat.report(httpCode(err), format.BuiltinMetricMetaAPIServiceTime.Name)
 		return from, seen
 	}
