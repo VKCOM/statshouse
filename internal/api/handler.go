@@ -816,6 +816,11 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		Table:          _1sTableSH3,
 	}, ch.Query{
 		Body: sb.String(),
+		Settings: []ch.Setting{{
+			Key:       "allow_experimental_analyzer",
+			Value:     "0",
+			Important: true,
+		}},
 		Result: proto.Results{
 			{Name: "ts", Data: &time},
 			{Name: "key1", Data: &key1},
