@@ -816,11 +816,6 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		Table:          _1sTableSH3,
 	}, ch.Query{
 		Body: sb.String(),
-		Settings: []ch.Setting{{
-			Key:       "allow_experimental_analyzer",
-			Value:     "0",
-			Important: true,
-		}},
 		Result: proto.Results{
 			{Name: "ts", Data: &time},
 			{Name: "key1", Data: &key1},
@@ -882,6 +877,15 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	}
 
 	h.Tracef("%s", query.Body)
+
+	// Clickhouse 25.9 with ch-go problem
+	if strings.HasSuffix(meta.Table, format.TableDistSuffix) {
+		query.Settings = append(query.Settings, ch.Setting{
+			Key:       "allow_experimental_analyzer",
+			Value:     "0",
+			Important: true,
+		})
+	}
 
 	h.endpointStat.reportQueryKind(meta.IsFast, meta.IsLight, meta.IsHardware)
 	info, err := h.ch.Select(ctx, meta, query)
