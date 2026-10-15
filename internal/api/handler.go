@@ -882,7 +882,7 @@ func (h *requestHandler) doSelect(ctx context.Context, meta chutil.QueryMetaInto
 	if strings.HasSuffix(meta.Table, format.TableDistSuffix) {
 		query.Settings = append(query.Settings, ch.Setting{
 			Key:       "allow_experimental_analyzer",
-			Value:     "1",
+			Value:     "0",
 			Important: true,
 		})
 	}
