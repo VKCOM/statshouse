@@ -15,6 +15,7 @@ import { Button, ToggleButton } from '@/components/UI';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ButtonToggleTvMode } from '../TvMode';
+import { DashboardExportButton } from './DashboardExportButton';
 
 export const DashboardHeader = memo(function DashboardHeader() {
   const { isSaveDashboard, dashboardId, dashboardLayoutEdit, setDashboardLayoutEdit } = useStatsHouseShallow(
@@ -58,6 +59,11 @@ export const DashboardHeader = memo(function DashboardHeader() {
                 <SVGArrowCounterclockwise />
               </Button>
             </NavLink>
+          </div>
+        )}
+        {!!isSaveDashboard && (
+          <div className="ms-2 mb-2 mobile-hidden">
+            <DashboardExportButton />
           </div>
         )}
         <div className="ms-2 mb-2">

@@ -36,6 +36,7 @@ const (
 	EndpointResetFlood          = "reset-flood"
 	EndpointLegacyRedirect      = "legacy-redirect"
 	EndpointDashboard           = "dashboard"
+	EndpointDashboardGoc        = "dashboard-goc"
 	EndpointDashboardList       = "dashboards-list"
 	EndpointGroup               = "group"
 	EndpointNamespace           = "namespace"

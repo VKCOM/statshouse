@@ -2382,6 +2382,18 @@ func HandleGetDashboard(h *httpRequestHandler) {
 	})
 }
 
+// export in grafana format for goc (victoriametrics)
+func HandleGetDashboardGoc(h *httpRequestHandler) {
+	HandleGetEntity(h, func(ctx context.Context, ai accessInfo, id int32, version int64) (string, time.Duration, error) {
+		dash, cache, err := h.handleGetDashboard(ctx, ai, id, version)
+		if err != nil {
+			return "", 0, err
+		}
+		h.endpointStat.setDashboard(dash.Dashboard.Name, dash.Dashboard.DashboardID)
+		return "<goc json via api>", cache, nil
+	})
+}
+
 func HandleGetGroup(h *httpRequestHandler) {
 	HandleGetEntity(h, func(ctx context.Context, ai accessInfo, id int32, _ int64) (*MetricsGroupInfo, time.Duration, error) {
 		return h.handleGetGroup(ai, id)
