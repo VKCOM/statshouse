@@ -13,6 +13,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/chutil"
 	"github.com/VKCOM/statshouse/internal/config"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/grafanaexport"
 )
 
 type Config struct {
@@ -42,6 +43,8 @@ type Config struct {
 	HardwareSlowMetricResolution int
 	Announcement                 string // if !empty, show to user in UI
 	RQLiteAddrs                  string // comma-separated list
+	GrafanaDatasourceType        string // datasource type used by the dashboard export to Grafana
+	GrafanaDatasourceUID         string // datasource UID used by the dashboard export to Grafana
 	chutil.RateLimitConfig
 }
 
@@ -150,6 +153,8 @@ func (argv *Config) Bind(f *flag.FlagSet, defaultI config.Config) {
 	f.Uint64Var(&argv.CheckCount, "rate-limit-check-count", default_.CheckCount, "successful checks needed to exit check stage")
 	f.StringVar(&argv.Announcement, "announcement", default_.Announcement, "announcement text to show user in UI")
 	f.StringVar(&argv.RQLiteAddrs, "rqlite-addrs", default_.RQLiteAddrs, "Comma-separated addresses of rqlite cluster")
+	f.StringVar(&argv.GrafanaDatasourceType, "grafana-datasource-type", default_.GrafanaDatasourceType, "Grafana datasource type used by dashboard export; optional")
+	f.StringVar(&argv.GrafanaDatasourceUID, "grafana-datasource-uid", default_.GrafanaDatasourceUID, "Grafana datasource UID used by dashboard export")
 	f.DurationVar(&argv.RecalcInterval, "recalc-interval-sleep-duration", default_.RecalcInterval, "rate limit state recalculation interval")
 }
 
@@ -175,6 +180,8 @@ func DefaultConfig() *Config {
 			CheckCount:         9,
 			RecalcInterval:     1 * time.Second,
 		},
+		GrafanaDatasourceType:        grafanaexport.DefaultDatasourceType,
+		GrafanaDatasourceUID:         grafanaexport.DefaultDatasourceUID,
 		HardwareMetricResolution:     format.HardwareMetricResolution,
 		HardwareSlowMetricResolution: format.HardwareSlowMetricResolution,
 	}

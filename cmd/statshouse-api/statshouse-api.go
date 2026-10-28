@@ -336,6 +336,7 @@ func run() int {
 	// the gnuplot-based version was removed due to https://github.com/advisories/GHSA-cfwc-xjfp-44jg
 	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(api.HandleGetRender)
 	a.Path("/" + api.EndpointDashboard).Methods("GET").HandlerFunc(api.HandleGetDashboard)
+	a.Path("/" + api.EndpointDashboardGoc).Methods("GET").HandlerFunc(api.HandleGetDashboardGoc)
 	a.Path("/" + api.EndpointDashboardList).Methods("GET").HandlerFunc(api.HandleGetDashboardList)
 	a.Path("/"+api.EndpointDashboard).Methods("POST", "PUT").HandlerFunc(api.HandlePutPostDashboard)
 	a.Path("/" + api.EndpointGroup).Methods("GET").HandlerFunc(api.HandleGetGroup)

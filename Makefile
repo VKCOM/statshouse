@@ -42,6 +42,10 @@ build-sh-api-noembed:
 	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
 	CGO_ENABLED=0 go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
+build-sh-api-cross:
+	rm -rf cmd/statshouse-api/build || true # remove old dir from previous builds
+	CGO_ENABLED=0 CC="zig cc -target x86_64-linux-musl" GOOS=linux GOARCH=amd64 go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
+
 build-sh-metadata:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
 
