@@ -49,6 +49,7 @@ import (
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/VKCOM/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/grafanaexport"
 	"github.com/VKCOM/statshouse/internal/mappings_tracker"
 	"github.com/VKCOM/statshouse/internal/metajournal"
 	"github.com/VKCOM/statshouse/internal/metarqlite"
@@ -188,6 +189,7 @@ type (
 		blockedUsers          []string
 		availableShards       []uint32
 		announcement          string
+		grafanaDatasource     grafanaexport.Datasource
 
 		HandlerOptions
 		showInvisible         bool
@@ -653,6 +655,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV2
 		h.blockedUsers = cfg.BlockedUsers
 		h.availableShards = cfg.AvailableShards
 		h.announcement = cfg.Announcement
+		h.grafanaDatasource = grafanaexport.Datasource{Type: cfg.GrafanaDatasourceType, UID: cfg.GrafanaDatasourceUID}
 		h.metadataLoader.SetConfig(cfg.RQLiteAddrs)
 	}
 	applyCfg(cfg)
@@ -2384,13 +2387,47 @@ func HandleGetDashboard(h *httpRequestHandler) {
 
 // export in grafana format for goc (victoriametrics)
 func HandleGetDashboardGoc(h *httpRequestHandler) {
-	HandleGetEntity(h, func(ctx context.Context, ai accessInfo, id int32, version int64) (string, time.Duration, error) {
+	HandleGetEntity(h, func(ctx context.Context, ai accessInfo, id int32, version int64) (*grafanaexport.Result, time.Duration, error) {
 		dash, cache, err := h.handleGetDashboard(ctx, ai, id, version)
 		if err != nil {
-			return "", 0, err
+			return nil, 0, err
 		}
 		h.endpointStat.setDashboard(dash.Dashboard.Name, dash.Dashboard.DashboardID)
-		return "<goc json via api>", cache, nil
+		var searchParams [][2]string
+		if raw, ok := dash.Dashboard.JSONData["searchParams"]; ok {
+			b, err := json.Marshal(raw)
+			if err == nil {
+				err = json.Unmarshal(b, &searchParams)
+			}
+			if err != nil {
+				return nil, 0, httpErr(http.StatusUnprocessableEntity, fmt.Errorf("dashboard %d has malformed search params: %w", id, err))
+			}
+		}
+		h.ConfigMu.RLock()
+		datasource := h.grafanaDatasource
+		h.ConfigMu.RUnlock()
+		res := grafanaexport.Export(grafanaexport.Input{
+			Datasource:   datasource,
+			Name:         dash.Dashboard.Name,
+			Description:  dash.Dashboard.Description,
+			SearchParams: searchParams,
+		}, func(metric string) *grafanaexport.Meta {
+			m, err := h.getMetricMeta(metric)
+			if err != nil {
+				return nil
+			}
+			meta := &grafanaexport.Meta{
+				Kind:          m.Kind,
+				StringTopName: m.StringTopName,
+				MetricType:    m.MetricType,
+				TagNames:      make([]string, len(m.Tags)),
+			}
+			for i, t := range m.Tags {
+				meta.TagNames[i] = t.Name
+			}
+			return meta
+		})
+		return &res, cache, nil
 	})
 }
 

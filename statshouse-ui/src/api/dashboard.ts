@@ -24,6 +24,7 @@ import { setFullDashSave } from '@/common/migrate/migrate3to4';
 import { produce } from 'immer';
 
 const ApiDashboardEndpoint = '/api/dashboard';
+const ApiDashboardGocEndpoint = '/api/dashboard-goc';
 
 /**
  * Response endpoint api/dashboard
@@ -69,6 +70,26 @@ export type DashboardMetaInfo = {
 
 export async function apiDashboardFetch(params: ApiDashboardGet, keyRequest?: unknown) {
   return await apiFetch<ApiDashboard>({ url: ApiDashboardEndpoint, get: params, keyRequest });
+}
+
+/**
+ * Response endpoint api/dashboard-goc: dashboard converted to Grafana JSON
+ */
+export type ApiDashboardGoc = {
+  data: {
+    dashboard: Record<string, unknown>;
+    warnings: DashboardGocWarning[];
+  };
+};
+
+export type DashboardGocWarning = {
+  plot?: string;
+  title?: string;
+  message: string;
+};
+
+export async function apiDashboardGocFetch(params: ApiDashboardGet, keyRequest?: unknown) {
+  return await apiFetch<ApiDashboardGoc>({ url: ApiDashboardGocEndpoint, get: params, keyRequest });
 }
 
 export async function apiDashboardSaveFetch(params: ApiDashboardPost, keyRequest?: unknown) {
