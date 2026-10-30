@@ -638,6 +638,9 @@ func pickCheckServer(s []serverCH, query chgo.Query, r *rand.Rand, timeout time.
 	checks[ind].rate.RecordCheck(func() Event {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
+		query.OnResult = func(context.Context, proto.Block) error { return nil }
+		query.OnProfile = nil
+		query.OnProfileEvents = nil
 		err := checks[ind].pool.Do(ctx, query)
 		err = throttling(checks[ind].rate.GetReplicaKey(), r, err, trotCfg)
 		if err != nil || ctx.Err() != nil {
