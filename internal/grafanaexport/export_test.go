@@ -8,11 +8,13 @@ package grafanaexport
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/VKCOM/statshouse/internal/format"
+	"github.com/VKCOM/statshouse/internal/promql/parser"
 )
 
 func testMeta(metric string) *Meta {
@@ -88,6 +90,36 @@ func TestTranslateRows(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, exprOf(t, tc.params...))
 		})
+	}
+}
+
+// matcherValue parses sel as a PromQL selector and returns the value of its single label matcher.
+func matcherValue(t *testing.T, sel string) string {
+	e, err := parser.ParseExpr(sel)
+	require.NoError(t, err, sel)
+	ms := e.(*parser.VectorSelector).LabelMatchers
+	return ms[len(ms)-1].Value
+}
+
+func TestStringLiteralsRoundTrip(t *testing.T) {
+	for _, v := range []string{`a`, `a\b`, `\\`, `a"b`, `a\"b`} {
+		require.Equal(t, v, matcherValue(t, "{"+matcher("key0", []string{v}, false)+"}"), v)
+		require.Equal(t, regexp.QuoteMeta(v)+"|x", matcherValue(t, "{"+matcher("key0", []string{v, "x"}, false)+"}"), v)
+		require.Equal(t, v, matcherValue(t, `{__name__="`+quote(v)+`"}`), v)
+	}
+}
+
+func TestNegatedVariableAllValueMatchesNothing(t *testing.T) {
+	r := exportParams(
+		"s", "val", "qw", "count_norm",
+		"v0.n", "env", "v0.l", "0.1", "v.env", "prod", "v.env.nv", "1",
+	)
+	require.Len(t, r.Dashboard.Templating.List, 1)
+	all := r.Dashboard.Templating.List[0].AllValue
+	// Grafana substitutes allValue verbatim into the string literal of the query.
+	re := regexp.MustCompile("^(?:" + matcherValue(t, `{key0!~"`+all+`"}`) + ")$")
+	for _, s := range []string{"", "a", "prod", `\b\B`} {
+		require.False(t, re.MatchString(s), s)
 	}
 }
 
