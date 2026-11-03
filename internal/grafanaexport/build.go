@@ -223,9 +223,11 @@ func (e *exporter) buildVariables(m *model, plots map[string]*plot) ([]Variable,
 			current = VariableValue{Text: vals, Value: vals}
 		}
 		// "All" of a negated variable must exclude nothing: use a regexp that matches no value.
+		// Grafana substitutes allValue verbatim into a "${var}" string literal, so the regexp backslashes
+		// are escaped for the literal here.
 		allValue := ".*"
 		if v.negate {
-			allValue = `\b\B`
+			allValue = `\\b\\B`
 		}
 		list = append(list, Variable{
 			Name:       name,
