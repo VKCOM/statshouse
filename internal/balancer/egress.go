@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -225,6 +226,7 @@ func (p *tcpPool) runDNSRefresh(cfg EgressConfig, stats *egressStatsAtomic) {
 	refresh := func() {
 		targets, err := resolveDialTargets(cfg.Network, cfg.Address)
 		if err != nil {
+			log.Printf("balancer upstream refresh failed, keeping previous addresses: %v", err)
 			stats.dnsRefreshErrors.Add(1)
 			return
 		}
@@ -476,7 +478,9 @@ func (b *pktBuffer) close() {
 	b.cond.Broadcast()
 }
 
-func resolveDialTargets(network, rawAddr string) ([]string, error) {
+// resolveDialTargets returns resolved addresses and all per-entry errors (already logged).
+// err is non-nil only when no address could be obtained at all.
+func resolveDialTargets(network, rawAddr string) (addrs []string, err error) {
 	if rawAddr == "" {
 		return []string{""}, nil
 	}
@@ -484,23 +488,38 @@ func resolveDialTargets(network, rawAddr string) ([]string, error) {
 		return []string{rawAddr}, nil
 	}
 
-	var addrs []string
+	// IP literals are always used. DNS names form a fallback chain:
+	// only the first name that resolves successfully is used, the rest are skipped.
+	dnsResolved := false
 	for _, ep := range strings.Split(rawAddr, ",") {
-		host, port, err := net.SplitHostPort(strings.TrimSpace(ep))
-		if err != nil {
-			return nil, err
+		host, port, splitErr := net.SplitHostPort(strings.TrimSpace(ep))
+		if splitErr != nil {
+			log.Printf("balancer upstream address %q parse error: %v", ep, splitErr)
+			continue
 		}
 		if ip := net.ParseIP(host); ip != nil {
 			addrs = append(addrs, net.JoinHostPort(host, port))
 			continue
 		}
-		recs, err := net.DefaultResolver.LookupIPAddr(context.Background(), host)
-		if err != nil {
-			return nil, err
+		if dnsResolved {
+			continue
+		}
+		recs, lookupErr := net.DefaultResolver.LookupIPAddr(context.Background(), host)
+		if lookupErr == nil && len(recs) == 0 {
+			lookupErr = fmt.Errorf("no IP addresses for %q", host)
+		}
+		if lookupErr != nil {
+			log.Printf("balancer upstream dns resolve %q error: %v", host, lookupErr)
+			continue
 		}
 		for _, rec := range recs {
 			addrs = append(addrs, net.JoinHostPort(rec.String(), port))
 		}
+		dnsResolved = true
+		log.Printf("balancer successfully resolve upstream dns addr %q", host)
+	}
+	if len(addrs) == 0 {
+		return nil, errNoAddress
 	}
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
