@@ -492,8 +492,7 @@ func resolveDialTargets(network, rawAddr string) (addrs []string, err error) {
 	// only the first name that resolves successfully is used, the rest are skipped.
 	dnsResolved := false
 	for _, ep := range strings.Split(rawAddr, ",") {
-		ep = strings.TrimSpace(ep)
-		host, port, splitErr := net.SplitHostPort(ep)
+		host, port, splitErr := net.SplitHostPort(strings.TrimSpace(ep))
 		if splitErr != nil {
 			log.Printf("balancer upstream address %q parse error: %v", ep, splitErr)
 			continue
