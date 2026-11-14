@@ -89,7 +89,15 @@ StatsHouse.
 * `--db-path` — место хранения данных,
 * `--binlog-prefix` — место хранения бинлога.
 
-Пример скрипта для установки сервиса метаданных:
+Перед первым запуском нового сервиса метаданных создайте директорию и инициализируйте пустой бинлог.
+Этот шаг нужен только при новой установке, а не при перезапуске сервиса или восстановлении существующего бинлога.
+
+```shell
+mkdir -p /var/lib/statshouse/metadata/binlog
+statshouse-metadata --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl --create-binlog=0,1
+```
+
+Затем запустите сервис метаданных с тем же префиксом бинлога:
 
 ```shell
 statshouse-metadata --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
@@ -119,6 +127,7 @@ statshouse-metadata --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/v
 Агрегатору необходимо знать, где найти кластер. Укажите следующие параметры:
 * `--cluster` — имя кластера;
 * `--kh` — адрес базы данных (в базе может содержаться много кластеров);
+* `--metadata-addr` — адрес сервиса метаданных (по умолчанию `127.0.0.1:2442`);
 * `--agg-addr` — порт для приёма данных;
 * `--aes-pwd-файл` — директория, в которой хранится ключ шифрования (этот параметр обязателен для запуска: 
   `/etc/engine/pass` — значение по умолчанию);
@@ -128,9 +137,12 @@ statshouse-metadata --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/v
 На каждой реплике ClickHouse установите агрегатор StatsHouse. Пример скрипта для установки агрегатора:
 
 ```
-statshouse aggregator --cluster=test_shard_localhost --agg-addr=':13336' --aes-pwd-file=/etc/engine/pass \
---kh=XXX.X.X.X:XXXX --cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root
+statshouse-agg --cluster=statlogs2 --agg-addr=':13336' --aes-pwd-file=/etc/engine/pass \
+--kh=XXX.X.X.X:XXXX --metadata-addr=metadata.example.com:2442 \
+--cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root
 ```
+
+Замените `metadata.example.com` на имя хоста или IP-адрес вашего сервиса метаданных.
 
 Когда агрегатор получает адрес кластера ClickHouse, он узнаёт, на каком шарде и какой реплике он установлен.
 

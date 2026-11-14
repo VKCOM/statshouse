@@ -85,7 +85,15 @@ The metadata service needs the following parameters:
 * `--db-path` that is the place to store data;
 * `--binlog-prefix` that is the place to store the binlog.
 
-Find the example of the metadata service installation script:
+Before starting a new metadata service for the first time, create the binlog directory and initialize an empty binlog.
+Run this step only for a fresh installation, not when restarting the service or restoring an existing binlog.
+
+```shell
+mkdir -p /var/lib/statshouse/metadata/binlog
+statshouse-metadata --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl --create-binlog=0,1
+```
+
+Then start the metadata service using the same binlog prefix:
 
 ```shell
 statshouse-metadata --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
@@ -116,6 +124,7 @@ conceptual overview.
 The aggregator needs to know where to find the cluster, so please specify the following parameters:
 * `--cluster` that is the cluster name,
 * `--kh` that is the database address (the database may contain many clusters),
+* `--metadata-addr` that is the metadata service address (defaults to `127.0.0.1:2442`),
 * `--agg-addr` that is the port to listen to,
 * `--aes-pwd-file` that is the directory with the encryption key (the obligatory start parameter: `/etc/engine/pass`
   by default),
@@ -124,9 +133,12 @@ The aggregator needs to know where to find the cluster, so please specify the fo
 
 On each ClickHouse replica, install the StatsHouse aggregator. Find the example of the aggregator installation script:
 ```
-statshouse aggregator --cluster=test_shard_localhost --agg-addr=':13336' --aes-pwd-file=/etc/engine/pass \
---kh=XXX.X.X.X:XXXX --cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root
+statshouse-agg --cluster=statlogs2 --agg-addr=':13336' --aes-pwd-file=/etc/engine/pass \
+--kh=XXX.X.X.X:XXXX --metadata-addr=metadata.example.com:2442 \
+--cache-dir=/var/lib/statshouse/cache/aggregator -u=root -g=root
 ```
+
+Replace `metadata.example.com` with the hostname or IP address of your metadata service.
 
 As the aggregators get the ClickHouse cluster address, they get info about the shard and the replica they are
 installed on.
